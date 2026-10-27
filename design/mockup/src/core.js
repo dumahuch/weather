@@ -147,6 +147,7 @@ function needAlpha(bg, tint, ink, a0, a1) {
   return a1;
 }
 function backdrops(s) {
+  if (s.bk) return s.bk;                                  // нарисованное небо: цвета сняты с готовой картинки
   const cc = cloudColors(s), w = s.w, g = groundColors(s);
   const hero = mix(mix(s.top, s.mid, .8), cc.lit, clamp(w.cloud * 1.1) * (1 - w.dark) * .3);
   return {
@@ -155,17 +156,20 @@ function backdrops(s) {
     dock: mix(g.near, g.base, .9),
   };
 }
+/* Под тёмный текст опаснее всего тёмные пятна фона, под светлый — светлые. У аналитического неба такого разброса нет. */
+const bkFor = (B, R, ink) => (ink === INK_D ? B[R + 'D'] : B[R + 'L']) || B[R];
 function inkScores(s) {
   const B = backdrops(s), mid = mix(mix(s.top, s.hor, .5), s.mid, .5);
   const T = tints(s);
   const one = (ink, tint, ga, bt, gb) => {
-    const sc = needAlpha(B.hero, tint, ink, 0, SC_MAX), hb = mix(B.hero, tint, sc);
-    const hero = contrast(hb, effInk(hb, ink));
-    const a = Math.max(needAlpha(B.alert, tint, ink, ga, .6), needAlpha(B.card, tint, ink, ga, .6));
-    const aB = Math.max(needAlpha(B.dock, bt, ink, gb, .8), needAlpha(B.hero, bt, ink, gb, .8));
+    const hero = bkFor(B, 'hero', ink), alertB = bkFor(B, 'alert', ink), cardB = bkFor(B, 'card', ink), dockB = bkFor(B, 'dock', ink);
+    const sc = needAlpha(hero, tint, ink, 0, SC_MAX), hb = mix(hero, tint, sc);
+    const hc = contrast(hb, effInk(hb, ink));
+    const a = Math.max(needAlpha(alertB, tint, ink, ga, .76), needAlpha(cardB, tint, ink, ga, .76));
+    const aB = Math.max(needAlpha(dockB, bt, ink, gb, .8), needAlpha(hero, bt, ink, gb, .8));
     // сколько нужно для читаемости без нижней границы: на случай ручной прозрачности
-    const aNc = needAlpha(B.card, tint, ink, 0, .95), aNa = needAlpha(B.alert, tint, ink, 0, .95), aNb = Math.max(needAlpha(B.dock, bt, ink, 0, .95), needAlpha(B.hero, bt, ink, 0, .95));
-    return { sc, hero, a, aB, aNc, aNa, aNb, score: Math.min(hero, 6) - 6 * (a - ga) - 5 * sc };
+    const aNc = needAlpha(cardB, tint, ink, 0, .95), aNa = needAlpha(alertB, tint, ink, 0, .95), aNb = Math.max(needAlpha(dockB, bt, ink, 0, .95), needAlpha(hero, bt, ink, 0, .95));
+    return { sc, hero: hc, a, aB, aNc, aNa, aNb, score: Math.min(hc, 6) - 6 * (a - ga) - 5 * sc };
   };
   const D = one(INK_D, T.L, GA_L, mix(T.L, [255, 255, 255], BT_L), GB_L), Lw = one(INK_L, T.D, GA_D, T.D, GB_D);
   return { mid, D, L: Lw, cD: D.score, cL: Lw.score };
@@ -183,7 +187,7 @@ function themeVars(s, k, G) {
   const need = { cards: lerp(q.D.aNc, q.L.aNc, k), alert: lerp(q.D.aNa, q.L.aNa, k), btn: lerp(q.D.aNb, q.L.aNb, k) };
   const g = G || {}, pick = (man, auto, nd) => (man == null ? auto : (g.guard !== false ? Math.max(man, nd) : man));
   const a = pick(g.cards, aAuto, need.cards), aB = pick(g.btn, aBAuto, need.btn), aAl = g.alert == null ? aAuto : pick(g.alert, aAuto, need.alert);
-  const Bd = backdrops(s), cx = (bg, t, al) => { const gg = mix(bg, t, al); return contrast(gg, effInk(gg, ink)); };
+  const Bd = backdrops(s), inkSide = k < .5 ? INK_D : INK_L, BR = R => bkFor(Bd, R, inkSide), cx = (bg, t, al) => { const gg = mix(bg, t, al); return contrast(gg, effInk(gg, ink)); };
   const sc = lerp(q.D.sc, q.L.sc, k);
   const eff = mix(mid, tint, a);
   const dk = 1 - k;
@@ -213,7 +217,7 @@ function themeVars(s, k, G) {
   return {
     css, k, a, aB, bt, scrim: { tint, a: sc },
     aAuto: { cards: aAuto, btn: aBAuto, alert: aAuto }, aEff: { cards: a, btn: aB, alert: aAl }, need,
-    cc: { cards: cx(Bd.card, tint, a), alert: cx(Bd.alert, tint, aAl), btn: Math.min(cx(Bd.dock, bt, aB), cx(Bd.hero, bt, aB)) },
+    cc: { cards: cx(BR('card'), tint, a), alert: cx(BR('alert'), tint, aAl), btn: Math.min(cx(BR('dock'), bt, aB), cx(Bd.hero, bt, aB)) },
     ink, tint, mid, glass: eff,
     inkOnSky: contrast(mid, ink),
     inkOnGlass: contrast(eff, ink),
@@ -278,6 +282,24 @@ function celestial(h) {
   };
 }
 
+/* ---------- Нарисованное небо: шесть картин и как они сменяют друг друга ----------
+   По высоте солнца, а не по часам: зимой и летом рассвет приходит в разное время.
+   Утро: ночь → рассвет → утро. Вечер: день → закат → сумерки → ночь. Около полудня одна ветка плавно сменяет другую. */
+const SKY_TIMES = ['dawn', 'morning', 'afternoon', 'sunset', 'dusk', 'night'];
+const SKY_PAN = { dawn: .06, morning: .42, afternoon: 1, sunset: .86, dusk: .9, night: .04 };   // куда смотрит кадр: свет рассвета слева, солнце и закат справа
+function skyWeights(h) {
+  h = ((h % 24) + 24) % 24;
+  const e = sunElev(h), f = smooth(11.2, 12.8, h);
+  const s1 = smooth(-17, -6, e), s2 = smooth(0, 10, e);
+  const s3 = smooth(3, 14, e), s4 = smooth(-8, -1.5, e), s5 = smooth(-16, -8, e);
+  const m = { night: 1 - s1, dawn: s1 * (1 - s2), morning: s2 };
+  const v = { afternoon: s3, sunset: (1 - s3) * s4, dusk: (1 - s3) * (1 - s4) * s5, night: (1 - s3) * (1 - s4) * (1 - s5) };
+  const out = {};
+  for (const t of SKY_TIMES) out[t] = (1 - f) * (m[t] || 0) + f * (v[t] || 0);
+  return out;
+}
+function skyPan(wt) { let u = 0, k = 0; for (const t of SKY_TIMES) { u += wt[t] * SKY_PAN[t]; k += wt[t]; } return k > 0 ? u / k : .5; }
+
 /* ---------- Данные для интерфейса ---------- */
 const uvAt = (e, wk) => Math.max(0, Math.round(e / 26 * 3 * (1 - WX[wk].cloud * .55)));
 function hourly(h0, wk, n = 12) {
@@ -299,6 +321,6 @@ if (typeof module !== 'undefined') {
   module.exports = {
     TAU, clamp, lerp, smooth, mix, hx, rgb, toHex, lum, contrast, mulberry32,
     SR, SS, DAYLEN, sunElev, WX_KEYS, WX, BASE, AMP, WIND, PRESS, POP, temp, hiLo, feels, precipMM,
-    skyState, groundColors, backdrops, inkScores, inkTarget, themeVars, cloudColors, celestial, uvAt, hourly, HZ, SUNH,
+    skyState, groundColors, backdrops, inkScores, inkTarget, themeVars, cloudColors, celestial, uvAt, hourly, HZ, SUNH, SKY_TIMES, skyWeights, skyPan,
   };
 }

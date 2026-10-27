@@ -380,6 +380,7 @@ function toggleSheet(m) {
 /* ---------- Сцена и тема ---------- */
 const sky = $('#sky'), phone = $('#phone'), screen = $('#screen');
 const scene = new Scene(sky, { seed: 11 });
+scene.onTick = () => kick();                 // раз в секунду: облака сдвинулись, цвет под интерфейсом мог измениться
 let lastPal = 0, visible = true;
 
 /* ---------- Панель «Прозрачность стекла» ----------
@@ -629,3 +630,5 @@ if (reduceMotion) { $('#swAnim').setAttribute('aria-checked', 'false'); $('#anim
 if (matchMedia('(min-width:900px)').matches) $('#more').open = true;
 buildDock(); galleryBuild(); widgetsBuild(); glassBind();
 resize(); update(.016); syncRun();
+SkyArt.load(typeof SKY_DATA !== 'undefined' ? SKY_DATA : null);
+SkyArt.onReady(() => { scene.sampKey = ''; galleryDraw(); kick(); });

@@ -3,6 +3,31 @@
    у каждого своя тень, освещённая часть и блик со стороны солнца, поэтому свет везде идёт в одну сторону. */
 const SCENE_W = 412, SCENE_H = 892;
 
+/* ---------- Картины неба ----------
+   Для каждого из шести времён суток две картинки: небо без облаков и облака с прозрачностью.
+   Чтобы быстро оценивать цвет под интерфейсом, с каждой снимается маленькая копия. */
+const SkyArt = {
+  ready: false, img: {}, th: {}, cbs: [],
+  load(data) {
+    if (!data) return;
+    const names = SKY_TIMES, total = names.length * 2; let n = 0;
+    for (const t of names) {
+      this.img[t] = []; this.th[t] = [];
+      data[t].forEach((uri, i) => {
+        const im = new Image();
+        im.onload = () => {
+          const cv = document.createElement('canvas'); cv.width = 192; cv.height = 128;
+          cv.getContext('2d').drawImage(im, 0, 0, 192, 128);
+          this.img[t][i] = im; this.th[t][i] = cv;
+          if (++n === total) { this.ready = true; this.cbs.forEach(f => f()); }
+        };
+        im.src = uri;
+      });
+    }
+  },
+  onReady(f) { if (this.ready) f(); else this.cbs.push(f); },
+};
+
 function softBlob(g, x, y, r, c, a) {
   const gr = g.createRadialGradient(x, y, 0, x, y, r);
   gr.addColorStop(0, rgb(c, a));
@@ -79,6 +104,8 @@ class Scene {
     this.pkey = ''; this.rain = []; this.snow = []; this.splash = []; this.drops = []; this.spAcc = 0;
     this.fogTile = null; this.fogSig = '';
     this.running = false; this.raf = 0; this.last = 0; this.fps = 30;
+    this.dph = 0; this.tickAcc = 0; this.onTick = null;                 // фаза дрейфа облаков, таймер пересчёта темы
+    this.an = null; this.samp = null; this.sampKey = ''; this.sw = null; this.pan = .5;
     const r = mulberry32(this.seed + 99);
     this.stars = [];
     for (let i = 0; i < 160; i++) this.stars.push({ x: r(), y: r() * .62, s: r() * 1.1 + .35, p: r() * TAU, b: .4 + r() * .6 });
@@ -116,6 +143,13 @@ class Scene {
   set(h, wk) {
     this.h = h; this.wk = wk;
     this.st = skyState(h, wk);
+    this.an = { top: this.st.top, mid: this.st.mid, hor: this.st.hor };    // небо по формулам: нужно для погодной вуали
+    this.sw = skyWeights(h); this.pan = skyPan(this.sw);
+    if (SkyArt.ready) {
+      const key = h.toFixed(3) + wk + Math.round(this.t / .8);
+      if (key !== this.sampKey) { this.sampKey = key; this.sample(); }
+      if (this.samp) { this.st.top = this.samp.top; this.st.mid = this.samp.mid; this.st.hor = this.samp.hor; this.st.bk = this.samp.bk; }
+    }
     this.cel = celestial(h);
     this.cc = cloudColors(this.st);
     this.ensureParticles();
@@ -148,6 +182,7 @@ class Scene {
   step(dt) {
     const W = this.W, H = this.H, wind = WIND[this.wk], hy = H * HZ, w = this.st.w;
     const gust = .5 + .5 * Math.sin(this.t * .33);
+    this.dph += dt * TAU / (150 - wind * 1.5);                                // ветер ускоряет дрейф облаков
     if (this.rain.length) {
       const sl = clamp((wind * (.8 + .4 * gust)) / 90, 0, .55);
       for (const p of this.rain) {
@@ -155,7 +190,7 @@ class Scene {
         if (p.y > H + 30) { p.y -= H + 60; p.x = Math.random() * W * 1.5 - W * .25; }
         if (p.x > W * 1.3) p.x -= W * 1.6;
       }
-      this.spAcc += dt * w.rain * 46;
+      this.spAcc += SkyArt.ready ? 0 : dt * w.rain * 46;                       // брызги на земле только у нарисованной земли
       while (this.spAcc > 1) {
         this.spAcc -= 1;
         if (this.splash.length < 70) this.splash.push({ x: Math.random() * W, y: hy + H * .03 + Math.random() * (H * .94 - hy - H * .03), t: 0, m: 4 + Math.random() * 6 });
@@ -217,6 +252,7 @@ class Scene {
       this.last = now;
       const d = Math.min(dt, 100) / 1000;
       this.t += d; this.step(d); this.draw();
+      if (SkyArt.ready && this.onTick && (this.tickAcc += d) > .8) { this.tickAcc = 0; this.onTick(); }
     };
     this.raf = requestAnimationFrame(tick);
   }
@@ -226,13 +262,17 @@ class Scene {
   draw() {
     const c = this.ctx, s = this.st;
     if (!s) return;
-    this.skyFill(c, s);
-    this.stars_(c, s, this.t);
-    this.moon_(c, s);
-    this.sun_(c, s);
-    this.clouds_(c, s, this.t);
+    const art = SkyArt.ready && this.sw;
+    if (art) this.paint_(c, this.octx, s, false);
+    else {
+      this.skyFill(c, s);
+      this.stars_(c, s, this.t);
+      this.moon_(c, s);
+      this.sun_(c, s);
+      this.clouds_(c, s, this.t);
+    }
     this.scrim_(c);
-    this.ground_(c, s);
+    if (!art) this.ground_(c, s);
     this.fog_(c, s, this.t);
     this.precip_(c, s);
     this.lightning_(c, s);
@@ -303,6 +343,93 @@ class Scene {
     c.fillStyle = `rgba(120,128,142,${(.17 * a).toFixed(3)})`;
     for (const [dx, dy, rr] of [[-6, -4, 7], [5, 3, 9], [-2, 9, 5], [8, -8, 4]]) { c.beginPath(); c.arc(x + dx, y + dy, rr, 0, TAU); c.fill(); }
     c.restore();
+  }
+
+  /* --- нарисованное небо ---
+     Порядок: небо (плавная смена по времени) → погодная вуаль → облака → обесцвечивание → затемнение.
+     Кадр телефона берёт около трети ширины картины, остальное нужно для сдвига. */
+  paint_(c, o, s, th) {
+    const A = SkyArt, W = this.W, H = this.H, w = s.w, an = this.an, wt = this.sw, src = th ? A.th : A.img;
+    const layers = [];
+    for (const n of SKY_TIMES) if (wt[n] > .004) layers.push(n);
+    // 1) небо без облаков
+    let acc = 0;
+    for (const n of layers) {
+      acc += wt[n];
+      const im = src[n][0], dw = im.width * H / im.height, dx = -this.pan * (dw - W);
+      c.globalAlpha = wt[n] / acc; c.drawImage(im, dx, 0, dw, H);
+    }
+    c.globalAlpha = 1;
+    // 2) пасмурно: небо уходит в ровный серый, окрашенный по времени суток
+    const gv = clamp(w.gray * .8 + w.fog * .3, 0, .85);
+    if (gv > .01) {
+      const g = c.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, rgb(an.top, gv)); g.addColorStop(.55, rgb(an.mid, gv)); g.addColorStop(1, rgb(an.hor, gv));
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    }
+    // 3) облака: слой чуть крупнее и плывёт относительно неба
+    const ac = .12 + .88 * smooth(.1, .95, w.cloud), ap = .1;
+    const uc = ap + (1 - 2 * ap) * this.pan + ap * Math.sin(this.dph + this.seed * .7);
+    const draw = (g, k) => {
+      const im = src[k][1], sc = 1.12 * H / im.height, dw = im.width * sc, dh = im.height * sc;
+      return [im, -uc * (dw - W), H - dh, dw, dh];
+    };
+    if (layers.length === 1) {
+      const [im, x, y, dw, dh] = draw(c, layers[0]);
+      c.globalAlpha = ac; c.drawImage(im, x, y, dw, dh); c.globalAlpha = 1;
+    } else {
+      o.clearRect(0, 0, W, H); acc = 0;
+      for (const n of layers) {
+        acc += wt[n];
+        const [im, x, y, dw, dh] = draw(o, n);
+        o.globalAlpha = wt[n] / acc; o.drawImage(im, x, y, dw, dh);
+      }
+      o.globalAlpha = 1;
+      c.globalAlpha = ac; c.drawImage(th ? this.s2 : this.off, 0, 0, W, H); c.globalAlpha = 1;
+    }
+    // 4) серость и тьма непогоды
+    const gs = clamp(w.gray * 1.05);
+    if (gs > .01) { c.globalCompositeOperation = 'saturation'; c.fillStyle = rgb([128, 128, 128], gs); c.fillRect(0, 0, W, H); c.globalCompositeOperation = 'source-over'; }
+    if (w.dark > .01) { c.fillStyle = rgb([10, 16, 32], Math.min(.9, w.dark * 1.1)); c.fillRect(0, 0, W, H); }
+    // у нарисованных облаков ночью, на рассвете и закате свет яркий; при сплошной облачности это слишком ярко для текста
+    const tw = wt.night + .7 * wt.dusk + .55 * wt.dawn + .45 * wt.sunset + .1 * wt.morning, nd = tw * w.cloud * (.2 + .4 * w.gray);
+    if (nd > .01) { c.fillStyle = rgb([8, 12, 26], nd); c.fillRect(0, 0, W, H); }
+  }
+
+  /* Снимает цвета с готовой картины: небо сверху, посередине и у горизонта, и фон под цифрами, оповещениями, карточкой и панелью.
+     Для каждого места кроме среднего цвета берутся самые тёмные и самые светлые пятна: по ним выбирается цвет текста и плотность стекла. */
+  sample() {
+    if (!this.sc) {
+      this.sc = document.createElement('canvas'); this.s2 = document.createElement('canvas');
+      for (const cv of [this.sc, this.s2]) { cv.width = 41; cv.height = 89; }
+      this.sx = this.sc.getContext('2d', { willReadFrequently: true }); this.sx2 = this.s2.getContext('2d');
+    }
+    const sx = this.sx;
+    sx.setTransform(.1, 0, 0, .1, 0, 0); this.sx2.setTransform(.1, 0, 0, .1, 0, 0);
+    this.paint_(sx, this.sx2, this.st, true);
+    const d = sx.getImageData(0, 0, 41, 89).data;
+    // Среднее по месту и самые тёмные и самые светлые пятна размером 20×20 (как кусочки под буквами): по ним выбирается цвет текста
+    const reg = (x0, y0, x1, y1) => {
+      const px = [], bl = [], mean = a => { const r = [0, 0, 0]; for (const p of a) { r[0] += p[0]; r[1] += p[1]; r[2] += p[2]; } return r.map(v => v / a.length); };
+      const at = (x, y) => { const i = (y * 41 + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) px.push(at(x, y));
+      for (let y = y0; y + 2 <= y1; y += 2) for (let x = x0; x + 2 <= x1; x += 2) bl.push(mean([at(x, y), at(x + 1, y), at(x, y + 1), at(x + 1, y + 1)]));
+      const srt = bl.map(p => [lum(p), p]).sort((a, b) => a[0] - b[0]).map(e => e[1]), n = Math.max(1, Math.round(srt.length * .05));
+      return { m: mean(px), D: mean(srt.slice(0, n)), L: mean(srt.slice(-n)) };
+    };
+    const worse = (a, b) => ({ m: a.m, D: lum(a.D) < lum(b.D) ? a.D : b.D, L: lum(a.L) > lum(b.L) ? a.L : b.L });
+    const R = { top: reg(0, 0, 41, 22), mid: reg(0, 22, 41, 54), hor: reg(0, 54, 41, 89), hero: worse(reg(2, 13, 39, 30), reg(2, 30, 39, 34)), alert: reg(2, 35, 39, 46), card: reg(2, 60, 39, 80), dock: reg(6, 81, 35, 86) };
+    const bk = {};
+    for (const k of ['hero', 'alert', 'card', 'dock']) { const f = k === 'hero' ? .85 : .7; bk[k] = R[k].m; bk[k + 'D'] = mix(R[k].m, R[k].D, f); bk[k + 'L'] = mix(R[k].m, R[k].L, f); }
+    let nw = { top: R.top.m, mid: R.mid.m, hor: R.hor.m, bk };
+    const o = this.samp;
+    if (o && o.wk === this.wk && Math.abs(o.h - this.h) < .15) {            // небольшое сглаживание, чтобы дрейф облаков не дёргал тему
+      const f = .4, L = (a, b) => mix(a, b, f), bb = {};
+      for (const k in bk) bb[k] = L(o.bk[k], bk[k]);
+      nw = { top: L(o.top, nw.top), mid: L(o.mid, nw.mid), hor: L(o.hor, nw.hor), bk: bb };
+    }
+    nw.wk = this.wk; nw.h = this.h;
+    this.samp = nw;
   }
 
   /* --- облака --- */
@@ -435,10 +562,14 @@ class Scene {
       const x = r() * 1024, y = 40 + r() * 180, rr = 40 + r() * 90, sx = 2 + r() * 1.6, al = .26 + r() * .26;
       for (const dx of [-1024, 0, 1024]) { g.save(); g.translate(x + dx, y); g.scale(sx, 1); softBlob(g, 0, 0, rr, col, al); g.restore(); }
     }
+    g.globalCompositeOperation = 'destination-in';                 // края полосы растворяются, без резкой линии
+    const fm = g.createLinearGradient(0, 0, 0, 260);
+    fm.addColorStop(0, 'rgba(0,0,0,0)'); fm.addColorStop(.3, 'rgba(0,0,0,1)'); fm.addColorStop(.7, 'rgba(0,0,0,1)'); fm.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = fm; g.fillRect(0, 0, 1024, 260);
     this.fogTile = cv;
   }
   fog_(c, s, t) {
-    const w = s.w, W = this.W, H = this.H, hy = H * HZ;
+    const w = s.w, W = this.W, H = this.H, hy = H * (SkyArt.ready ? .8 : HZ);
     if (w.fog <= 0 || !this.fogTile) return;
     const g = c.createLinearGradient(0, hy - H * .4, 0, H);
     g.addColorStop(0, rgb(s.fogC, 0)); g.addColorStop(.5, rgb(s.fogC, .5 * w.fog)); g.addColorStop(1, rgb(s.fogC, .8 * w.fog));
