@@ -118,7 +118,10 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 button.glass{border:0;color:var(--ink);cursor:pointer;padding:0}
 button.glass:active{background:color-mix(in srgb,var(--glass) 70%,var(--btn2))}
 /* кнопки: один материал сверху и снизу, молочнее карточек, без белого свечения снаружи */
-.pill.glass,.rbtn.glass,.dock.glass,.mtop .nseg.glass,.tagm.glass,.mnote.glass,.mbot.glass{background:var(--btn-bg);box-shadow:var(--sh3d),inset 0 1px 0 var(--btn-hi),inset 0 0 0 1px var(--glass-line),var(--rim)}
+.pill.glass,.rbtn.glass,.dock.glass,.mtop .nseg.glass,.tagm.glass,.mnote.glass,.mbot.glass{background:var(--btn-bg);-webkit-backdrop-filter:blur(calc(var(--blur,22px) + var(--fogb,0px))) saturate(1.6);backdrop-filter:blur(calc(var(--blur,22px) + var(--fogb,0px))) saturate(1.6);box-shadow:0 8px 20px -10px var(--shadow),inset 0 1px 0 var(--btn-hi),inset 0 0 0 1px var(--glass-line)}
+.pill.glass::before,.rbtn.glass::before,.dock.glass::before,.mtop .nseg.glass::before,.tagm.glass::before,.mnote.glass::before,.mbot.glass::before{opacity:.08}
+/* дымчатое стекло действует на карточки и оповещения; кнопки и нижняя панель остаются как есть и держат свой цвет текста */
+#screen.bsep #pgMap,#screen.bsep .pill.glass,#screen.bsep .rbtn.glass,#screen.bsep .dock.glass,#screen.bsep .mtop .nseg.glass,#screen.bsep .tagm.glass,#screen.bsep .mnote.glass,#screen.bsep .mbot.glass{--ink:var(--b-ink);--ink2:var(--b-ink2);--ink3:var(--b-ink3);--btn-bg:var(--b-btn-bg);--btn-on:var(--b-btn-on);--btn-hi:var(--b-btn-hi);--glass-line:var(--b-glass-line);--shadow:var(--b-shadow);--btn:var(--b-btn);--btn2:var(--b-btn2);color:var(--ink)}
 button.pill.glass:active,button.rbtn.glass:active{background:color-mix(in srgb,var(--btn-bg) 65%,var(--btn-on))}
 .screen svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
 

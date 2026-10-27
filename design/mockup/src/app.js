@@ -4,7 +4,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const S = {
   h: 16.9, wk: 'partly', lang: 'ru', anim: !reduceMotion, page: 'home', run: false,
-  inkK: null, inkT: 0, layer: 0, sheet: null, fc: 7,
+  inkK: null, inkT: 0, inkKB: null, inkTB: 0, layer: 0, sheet: null, fc: 7,
   place: 'gps', pinned: [], q: '', hv: 'line', sTab: 'look', font: 'manrope',
   g: { cards: 80, btn: null, alert: null, blur: 10, guard: true }, gs: 'auto',
   notif: { rain: 1, storm: 1, wind: 1, pollen: 1, snow: 1, hail: 1, ice: 1, fog: 0 }, lead: 60, quiet: true,
@@ -286,7 +286,7 @@ function detailsHTML() {
 
 /* ---------- Карта ---------- */
 function mapHTML() {
-  const l = L[S.lang], w = WX[S.wk], k = S.inkK || 0;
+  const l = L[S.lang], w = WX[S.wk], k = S.inkKB || 0;       // карта и её кнопки всегда как в «лёгком» стекле
   let ov = '', note = '';
   if (S.layer === 0) {
     if (w.rain || w.snow) {
@@ -427,20 +427,34 @@ function glassBind() {
   new ResizeObserver(setQ).observe(q); setQ();
   if (matchMedia('(min-width:900px)').matches) $('#glassCtl').open = true;
 }
-function theme(dt) {
-  const s = scene.st; s.glassStyle = S.gs === 'smoke' ? 'smoke' : 'light';
-  const q = inkScores(s);
-  if (S.inkK === null) { S.inkT = q.cL > q.cD ? 1 : 0; S.inkK = S.inkT; }
-  else if (S.inkT === 0 && q.cL - q.cD > .6) S.inkT = 1;
-  else if (S.inkT === 1 && q.cD - q.cL > .6) S.inkT = 0;
-  if (S.gs === 'smoke') S.inkT = 1;                                  // дымчатое: тёмное стекло и светлый текст всегда
-  if (S.inkK !== S.inkT) {
-    const d = S.inkT - S.inkK, st = dt * 3.2;
-    S.inkK = Math.abs(d) <= st ? S.inkT : S.inkK + Math.sign(d) * st;
+const BTN_VARS = ['--ink', '--ink2', '--ink3', '--btn-bg', '--btn-on', '--btn-hi', '--glass-line', '--shadow', '--btn', '--btn2'];
+function stepInk(q, key, dt, force) {                           // плавный выбор цвета текста: гистерезис и плавный переход, ключ 'inkK'/'inkT' или 'inkKB'/'inkTB'
+  const K = key === 'B' ? 'inkKB' : 'inkK', T = key === 'B' ? 'inkTB' : 'inkT';
+  if (S[K] === null) { S[T] = q.cL > q.cD ? 1 : 0; S[K] = S[T]; }
+  else if (S[T] === 0 && q.cL - q.cD > .6) S[T] = 1;
+  else if (S[T] === 1 && q.cD - q.cL > .6) S[T] = 0;
+  if (force != null) S[T] = force;
+  if (S[K] !== S[T]) {
+    const d = S[T] - S[K], st = dt * 3.2;
+    S[K] = Math.abs(d) <= st ? S[T] : S[K] + Math.sign(d) * st;
   }
+}
+function theme(dt) {
+  const s = scene.st, smoke = S.gs === 'smoke';
+  // кнопки и нижняя панель всегда как в «лёгком» стекле: их вид от выбора стекла не зависит
+  s.glassStyle = 'light';
+  const qB = inkScores(s);
+  if (smoke) { stepInk(qB, 'B', dt); S.tvB = themeVars(s, S.inkKB, gAlpha()); }
+  s.glassStyle = smoke ? 'smoke' : 'light';
+  const q = smoke ? inkScores(s) : qB;
+  stepInk(q, 'A', dt, smoke ? 1 : null);
+  if (!smoke) { S.inkKB = S.inkK; S.inkTB = S.inkT; }
   const tv = themeVars(s, S.inkK, gAlpha());
-  applyVars(screen, tv); mapVars(screen, S.inkK);
-  screen.style.setProperty('--smoke', (S.gs === 'smoke' ? 1 : S.gs === 'auto' ? S.inkK : 0).toFixed(3));   // 0 лёгкое, 1 дымчатое; в «авто» следует за цветом текста
+  applyVars(screen, tv); mapVars(screen, smoke ? S.inkKB : S.inkK);
+  const tb = smoke ? S.tvB : tv;
+  for (const v of BTN_VARS) screen.style.setProperty('--b-' + v.slice(2), tb.css[v]);
+  screen.classList.toggle('bsep', smoke);
+  screen.style.setProperty('--smoke', (smoke ? 1 : S.gs === 'auto' ? S.inkK : 0).toFixed(3));   // 0 лёгкое, 1 дымчатое; в «авто» следует за цветом текста
   scene.scrim = tv.scrim;
   S.tv = tv;
   return tv;
@@ -466,7 +480,7 @@ function update(dt) {
   renderHome();
   if (S.page === 'precip') { const key = S.wk + S.lang + Math.floor(S.h) + S.fc; if (K.pr !== key) { K.pr = key; $('#pgPrecip').innerHTML = precipHTML(); } }
   if (S.page === 'details') { const key = S.wk + S.lang + Math.floor(S.h); if (K.det !== key) { K.det = key; $('#pgDetails').innerHTML = detailsHTML(); } }
-  if (S.page === 'map') { const key = S.wk + S.lang + S.layer + (S.inkK > .5) + S.place; if (K.map !== key) { K.map = key; $('#pgMap').innerHTML = mapHTML(); } }
+  if (S.page === 'map') { const key = S.wk + S.lang + S.layer + (S.inkKB > .5) + S.place; if (K.map !== key) { K.map = key; $('#pgMap').innerHTML = mapHTML(); } }
   $('#hrOut').textContent = hhmm(S.h);
   if (document.activeElement !== $('#hr_in')) $('#hr_in').value = S.h;
   if (!scene.running) scene.draw();
@@ -481,9 +495,9 @@ function tick(now) {
   raf = 0;
   const dt = Math.min(.1, (now - lastT) / 1000); lastT = now;
   if (S.run) { S.h = (S.h + dt * (24 / 30)) % 24; dirty = true; }
-  if (S.inkK !== S.inkT) dirty = true;
+  if (S.inkK !== S.inkT || S.inkKB !== S.inkTB) dirty = true;
   if (dirty) { dirty = false; update(dt); }
-  if (S.run || S.inkK !== S.inkT || dirty) raf = requestAnimationFrame(tick);
+  if (S.run || S.inkK !== S.inkT || S.inkKB !== S.inkTB || dirty) raf = requestAnimationFrame(tick);
 }
 function kick() { dirty = true; if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(tick); } }
 
