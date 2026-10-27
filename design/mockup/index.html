@@ -1,0 +1,2063 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}</style></head><body><title>Погодная среда</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&amp;family=Inter:wght@100..900&amp;family=Onest:wght@100..900&amp;family=Golos+Text:wght@400..900&amp;family=Jost:wght@100..900&amp;family=Nunito:wght@200..1000&amp;family=Raleway:wght@100..900&amp;family=Source+Serif+4:wght@200..900&amp;display=swap">
+<style>
+:root{
+  --bg:#0a0f16; --bg2:#101822; --line:rgba(176,198,220,.16); --fg:#e7ecf2; --mute:#94a2b3; --acc:#a9c5dd; --acc-ink:#0a0f16;
+  --f-chrome:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-head:'Manrope',system-ui,sans-serif;
+  --font-num:'Manrope',system-ui,sans-serif;
+  --font-ui:'Manrope',system-ui,sans-serif;
+  --num-w:200;
+  --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);font:400 15px/1.55 var(--f-chrome);-webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-head);font-weight:300;letter-spacing:-.02em;text-wrap:balance;margin:0}
+h1{font-size:36px;line-height:1.08}
+h2{font-size:30px;line-height:1.12}
+h3{font-size:19px;font-weight:400}
+p{margin:0;max-width:62ch}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.mute{color:var(--mute)}
+
+/* ---------- сцена: телефон + пульт ---------- */
+.stage{display:flex;flex-direction:column;gap:22px;padding-block:10px 24px}
+.live{display:flex;flex-direction:column}
+.phone-fit{position:relative;height:calc(100svh - 176px);min-height:430px;max-height:960px}
+.quick{position:sticky;bottom:0;z-index:20;background:var(--bg);padding:8px 0 12px;display:grid;gap:8px;box-shadow:0 -14px 18px -6px var(--bg)}
+.q-time{display:grid;grid-template-columns:1fr auto;grid-template-areas:"s o";align-items:center;gap:0 14px}
+.q-time label{grid-area:l;position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.q-time output{grid-area:o;font-size:22px}
+.q-time input{grid-area:s}
+.q-chips,.q-wx .chips{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.q-chips::-webkit-scrollbar,.q-wx .chips::-webkit-scrollbar{display:none}
+.q-chips>*,.q-wx .chips>*{flex:none}
+.q-wx{display:grid;gap:8px}
+.q-wx .lab{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.extras{display:grid;gap:28px;padding-top:18px}
+.p-head{display:grid;gap:10px}
+.p-head p{color:var(--mute)}
+@media(min-width:900px){
+  .stage{display:grid;grid-template-columns:minmax(0,1fr) 400px;grid-template-rows:1fr auto auto auto 1fr;column-gap:56px;row-gap:26px;min-height:100svh;padding-block:20px}
+  .live,.extras{display:contents}
+  .phone-fit{grid-column:1;grid-row:1/span 5;align-self:start;position:sticky;top:20px;height:calc(100svh - 40px);min-height:640px;max-height:none}
+  .p-head{grid-column:2;grid-row:2}
+  .quick{grid-column:2;grid-row:3;position:static;background:none;box-shadow:none;padding:0;gap:22px}
+  .more{grid-column:2;grid-row:4}
+  .q-time{grid-template-areas:"l o" "s s";gap:10px 12px}
+  .q-time label{position:static;width:auto;height:auto;overflow:visible;clip:auto}
+  .q-time output{font-size:28px}
+  .q-chips,.q-wx .chips{flex-wrap:wrap;overflow:visible}
+  .q-wx .lab{position:static;width:auto;height:auto;overflow:visible;clip:auto}
+}
+
+.ctl{display:grid;gap:10px}
+.ctl-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.lab{font-size:13px;color:var(--mute)}
+output{font:300 28px/1 var(--f-head);font-variant-numeric:tabular-nums lining-nums;letter-spacing:.01em}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;margin:0;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--acc);margin-top:-9px;border:3px solid var(--bg);box-shadow:0 0 0 1px var(--acc)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--acc);border:3px solid var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:14px;line-height:1.2;transition:background .2s,border-color .2s}
+.chip:hover{border-color:var(--acc)}
+.chip[aria-checked=true],.chip[aria-pressed=true]{background:var(--acc);color:var(--acc-ink);border-color:transparent}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:6px 14px;border-radius:999px;cursor:pointer;font-size:14px;color:var(--mute)}
+.seg button[aria-checked=true]{background:var(--fg);color:var(--bg)}
+.sw{display:flex;align-items:center;gap:12px;cursor:pointer;background:none;border:0;padding:0;text-align:left}
+.sw i{width:44px;height:26px;border-radius:13px;background:var(--line);position:relative;transition:background .2s;flex:none}
+.sw i::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--fg);transition:transform .2s}
+.sw[aria-checked=true] i{background:var(--acc)}
+.sw[aria-checked=true] i::after{transform:translateX(18px);background:var(--acc-ink)}
+.run{align-self:flex-start;padding:9px 16px;border-radius:12px;border:1px solid var(--acc);background:transparent;color:var(--acc);cursor:pointer;font-size:14px}
+.run[aria-pressed=true]{background:var(--acc);color:var(--acc-ink)}
+.more{border-top:1px solid var(--line);padding-top:14px}
+.more>summary{cursor:pointer;font-size:14px;color:var(--mute);list-style:none;display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.more>summary::-webkit-details-marker{display:none}
+.more>summary::before{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .2s}
+.more[open]>summary::before{transform:rotate(45deg)}
+.more-body{display:grid;gap:22px}
+.pal{display:grid;gap:10px}
+.pal-bar{height:70px;border-radius:14px;position:relative;overflow:hidden;background:linear-gradient(to bottom,var(--p-top),var(--p-hor))}
+.pal-bar .t{position:absolute;left:14px;top:50%;transform:translateY(-50%);font:200 40px/1 var(--f-head);color:var(--p-ink)}
+.pal-glass{position:absolute;right:10px;top:10px;bottom:10px;width:52%;border-radius:10px;background:var(--p-glass);display:flex;align-items:center;padding:0 12px;font-size:13px;color:var(--p-ink);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.pal-sw{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px;color:var(--mute)}
+.pal-sw i{display:block;height:26px;border-radius:8px;border:1px solid var(--line);margin-bottom:4px}
+.pal-note{font-size:13px;color:var(--mute);max-width:46ch}
+.pal-note b{color:var(--fg);font-weight:500}
+
+/* ---------- телефон ---------- */
+.phone{position:absolute;left:50%;top:50%;width:412px;height:892px;transform:translate(-50%,-50%) scale(var(--s,1));transform-origin:center center}
+.screen{position:absolute;inset:0;border-radius:42px;overflow:hidden;background:#000;isolation:isolate;
+  box-shadow:0 0 0 7px #070a0f,0 0 0 8px rgba(255,255,255,.13),0 60px 110px -30px rgba(0,0,0,.8);
+  font-family:var(--font-ui);color:var(--ink);--ink:#101722;--ink2:rgba(16,23,34,.74);--ink3:rgba(16,23,34,.5);
+  --glass:rgba(238,243,249,.33);--btn-bg:rgba(255,255,255,.55);--btn-on:rgba(255,255,255,.8);--btn-hi:rgba(255,255,255,.8);--sheen:rgba(255,255,255,.2);--glass-hi:rgba(255,255,255,.55);--glass-line:rgba(16,23,34,.1);--shadow:rgba(20,34,56,.2);
+  --btn:rgba(16,23,34,.1);--btn2:rgba(16,23,34,.2);--acc:#1c56a0;--acc-soft:rgba(28,86,160,.2);
+  --info:#3e6e96;--warn:#ac7826;--sev:#a04038;--bar:#2e628e;--land:#e2e8e5;--water:#b8cedc}
+#sky{position:absolute;inset:0;width:100%;height:100%;display:block}
+.status{position:absolute;top:0;left:0;right:0;height:44px;display:flex;align-items:center;justify-content:space-between;padding:2px 28px 0 32px;font:500 14px var(--font-ui);z-index:8;font-variant-numeric:tabular-nums}
+.punch{position:absolute;left:50%;top:13px;width:13px;height:13px;margin-left:-6px;border-radius:50%;background:#04060a}
+.sys{display:flex;gap:6px;align-items:center}
+.sys svg{width:16px;height:16px;fill:currentColor}
+.gesture{position:absolute;bottom:8px;left:50%;width:126px;height:4px;margin-left:-63px;border-radius:2px;background:var(--ink);opacity:.55;z-index:9}
+
+.glass{position:relative;background:linear-gradient(155deg,var(--sheen),transparent 55%),var(--glass);-webkit-backdrop-filter:blur(var(--blur,22px)) saturate(1.6);backdrop-filter:blur(var(--blur,22px)) saturate(1.6);border-radius:26px;
+  box-shadow:0 12px 30px -14px var(--shadow),inset 0 0 0 1px var(--glass-line),inset 0 1px 0 var(--glass-hi)}
+.glass::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.08;mix-blend-mode:overlay;background-image:var(--grain)}
+button.glass{border:0;color:var(--ink);cursor:pointer;padding:0}
+button.glass:active{background:color-mix(in srgb,var(--glass) 70%,var(--btn2))}
+/* кнопки: один материал сверху и снизу, молочнее карточек, без белого свечения снаружи */
+.pill.glass,.rbtn.glass,.dock.glass,.mtop .nseg.glass,.tagm.glass,.mnote.glass,.mbot.glass{background:var(--btn-bg);box-shadow:0 8px 20px -10px var(--shadow),inset 0 1px 0 var(--btn-hi),inset 0 0 0 1px var(--glass-line)}
+button.pill.glass:active,button.rbtn.glass:active{background:color-mix(in srgb,var(--btn-bg) 65%,var(--btn-on))}
+.screen svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.pg{position:absolute;inset:0;display:none;flex-direction:column;z-index:3}
+.pg.on{display:flex}
+.pg-home{padding:54px 20px 0}
+.pg-precip,.pg-details{padding:0}
+.toprow{display:flex;justify-content:space-between;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;height:44px;border-radius:22px;font:600 15px var(--font-ui);min-width:0;max-width:calc(100% - 56px)}
+button.pill.glass{padding-inline:15px 13px}
+.pill #city{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill #pinI,.pill #chevI{display:flex;flex:none}
+.pill svg.i{width:18px;height:18px}
+.rbtn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;padding:0}
+.hero{margin-top:26px;padding:0 4px}
+.hero-row{display:flex;align-items:flex-end;justify-content:space-between}
+.num{display:flex;font:var(--num-w) 124px/.9 var(--font-num);letter-spacing:-.035em;font-variant-numeric:lining-nums tabular-nums}
+.num .deg{font-size:.44em;margin:.08em 0 0 .04em;letter-spacing:0}
+.hico{color:var(--ink2);padding-bottom:10px}
+.hico svg.i{width:76px;height:76px;stroke-width:1.1}
+.cond{font:600 21px/1.25 var(--font-ui);margin-top:14px}
+.meta{font:500 14px/1.4 var(--font-ui);color:var(--ink2);margin-top:5px}
+.alerts{display:flex;flex-direction:column;gap:8px;margin-top:20px}
+.alert{display:flex;align-items:center;gap:10px;min-height:46px;padding:7px 14px 7px 12px;border-radius:16px;
+  background:color-mix(in srgb,var(--c) 15%,var(--glass-alert,var(--glass)));-webkit-backdrop-filter:blur(var(--blur,18px)) saturate(1.5);backdrop-filter:blur(var(--blur,18px)) saturate(1.5);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 26%,transparent),0 8px 20px -10px var(--shadow)}
+.alert svg.i{width:20px;height:20px;color:var(--c)}
+.alert .tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.alert .tx b{font:500 13.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert .tx span{font:400 12px var(--font-ui);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.alert time{font:500 12px var(--font-ui);color:var(--ink2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.alert.info{--c:var(--info)}.alert.warn{--c:var(--warn)}.alert.sev{--c:var(--sev)}
+.hourly{margin:auto 0 98px;padding:14px 0 10px}
+.hr-head{display:flex;justify-content:space-between;align-items:baseline;padding:0 18px 4px;font:700 13px var(--font-ui)}
+.hr-head span{font-weight:400;color:var(--ink3);font-size:12px}
+.hr-scroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:0 8px;-webkit-overflow-scrolling:touch}
+.hr-scroll::-webkit-scrollbar{display:none}
+.hr{position:relative;height:172px}
+.hr .hc{position:absolute;top:0;height:100%;text-align:center}
+.hl{position:absolute;top:2px;left:0;right:0;font:500 12px/20px var(--font-ui);color:var(--ink2);font-variant-numeric:tabular-nums}
+.hl.now{color:var(--ink)}
+.hl.now span{display:inline-block;padding:0 9px;border-radius:10px;background:var(--acc-soft)}
+.hi{position:absolute;top:24px;left:0;right:0;display:flex;justify-content:center;color:var(--ink)}
+.tv{position:absolute;transform:translateX(-50%);font:500 14px/1 var(--font-ui);font-variant-numeric:tabular-nums lining-nums;white-space:nowrap}
+.bar{position:absolute;bottom:28px;left:50%;width:12px;margin-left:-6px;border-radius:4px 4px 2px 2px;background:var(--bar)}
+.bar.z{height:2px;opacity:.35}
+.mmv{position:absolute;bottom:8px;left:0;right:0;font:400 11.5px var(--font-ui);color:var(--ink2);font-variant-numeric:tabular-nums}
+.hr.cards{display:flex;gap:7px;width:max-content}
+.hcd{flex:none;width:54px;height:100%;border-radius:27px;background:var(--btn);display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:12px 0;font-variant-numeric:tabular-nums lining-nums}
+.hcd .t{font:600 12px var(--font-ui);color:var(--ink2)}
+.hcd svg.i{width:24px;height:24px;color:var(--ink)}
+.hcd b{font:600 16px var(--font-ui)}
+.hcd .p{font:500 11.5px var(--font-ui);color:var(--ink2);display:flex;flex-direction:column;align-items:center;gap:1px;min-height:28px;justify-content:flex-end}
+.hcd .p svg.i{width:12px;height:12px;color:var(--bar)}
+.hcd.now{background:var(--acc-soft);box-shadow:inset 0 0 0 1.5px var(--acc)}
+.hcd.now .t{color:var(--ink)}
+.hr svg.curve{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.hr svg.curve path.ln{fill:none;stroke:var(--acc);stroke-width:1.8;stroke-linecap:round}
+.hr svg.curve circle{fill:var(--ink);stroke:var(--acc);stroke-width:1.6}
+
+.dock{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;gap:2px;padding:6px;border-radius:34px;z-index:7}
+.dock button{display:flex;align-items:center;gap:0;height:48px;min-width:48px;padding:0 13px;border-radius:24px;border:0;background:transparent;color:var(--ink2);font:600 14px var(--font-ui);cursor:pointer;justify-content:center;transition:background .3s,color .3s}
+.dock button .lb{max-width:0;overflow:hidden;white-space:nowrap;opacity:0;transition:max-width .35s ease,opacity .25s,margin .35s}
+.dock button.on{background:var(--btn-on);color:var(--ink);box-shadow:0 3px 10px -4px var(--shadow),inset 0 1px 0 var(--btn-hi)}
+.dock button.on .lb{max-width:92px;opacity:1;margin-left:8px}
+
+.scrim{position:absolute;inset:0;z-index:9;background:rgba(6,10,18,.28);opacity:0;pointer-events:none;transition:opacity .3s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:12px;right:12px;bottom:12px;z-index:10;padding:18px 18px 20px;transform:translateY(calc(100% + 24px));transition:transform .4s cubic-bezier(.2,.8,.2,1);display:grid;gap:12px;-webkit-backdrop-filter:blur(26px) saturate(1.3);backdrop-filter:blur(26px) saturate(1.3);background:color-mix(in srgb,var(--glass) 70%,var(--sheetbase,#fff))}
+.sheet.on{transform:none}
+.sheet h4{margin:0;font:700 17px var(--font-ui)}
+.sl{font:600 12.5px var(--font-ui);color:var(--ink2);margin-bottom:-4px}
+.srow{display:flex;justify-content:space-between;align-items:center;gap:12px;font:500 15px var(--font-ui)}
+.srow small{display:block;color:var(--ink3);font-size:12px;font-weight:500;max-width:230px;line-height:1.3}
+.tg{width:50px;height:30px;border-radius:15px;border:0;padding:0;cursor:pointer;position:relative;flex:none;background:var(--btn2);transition:background .25s}
+.tg::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .25s}
+.tg[aria-checked=true]{background:var(--acc)}
+.tg[aria-checked=true]::after{transform:translateX(20px)}
+.nseg{display:flex;padding:3px;border-radius:14px;gap:2px;background:var(--btn)}
+.nseg button{border:0;background:transparent;color:var(--ink2);height:30px;min-width:40px;padding:0 11px;border-radius:11px;font:600 13px var(--font-ui);cursor:pointer;white-space:nowrap}
+.nseg button[aria-checked=true],.nseg button[aria-selected=true]{background:var(--btn2);color:var(--ink)}
+.nseg.wide button{flex:1}
+.nc .fs{font-size:22px;line-height:1.1;color:var(--ink);font-weight:500}
+.nc.fo{padding:8px 2px 7px;gap:3px}
+.nchips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.nc{display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 2px 8px;border:0;border-radius:14px;background:var(--btn);color:var(--ink2);font:600 11.5px var(--font-ui);cursor:pointer;box-shadow:inset 0 0 0 1px transparent;transition:background .2s,box-shadow .2s,color .2s}
+.nc svg.i{width:22px;height:22px}
+.nc[aria-pressed=true]{background:var(--acc-soft);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--acc)}
+.nc[aria-pressed=true] svg.i{color:var(--acc)}
+.prow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:4px 12px;border-radius:14px;font:600 15px var(--font-ui);background:var(--btn);border:0;color:var(--ink);width:100%;text-align:left}
+.prow.on{box-shadow:inset 0 0 0 1.5px var(--acc)}
+button.prow{cursor:pointer}
+.pn{display:flex;align-items:center;gap:10px;min-width:0;flex:1;background:none;border:0;color:inherit;font:inherit;text-align:left;padding:0;cursor:default}
+button.pn{cursor:pointer;min-height:40px}
+.pn small{display:block;font:500 12px var(--font-ui);color:var(--ink3)}
+.pn svg.i{width:20px;height:20px;color:var(--acc)}
+svg.ck{width:20px;height:20px;color:var(--acc);flex:none}
+.pbtn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 9px;border:0;border-radius:12px;background:var(--btn2);color:var(--ink);font:600 13px var(--font-ui);cursor:pointer;flex:none}
+.pbtn svg.i{width:16px;height:16px}
+.pbtn.ghost{width:34px;padding:0;justify-content:center;background:transparent;color:var(--ink2)}
+.srch{display:flex;align-items:center;gap:10px;height:46px;padding:0 14px;border-radius:14px;background:var(--btn);color:var(--ink2)}
+.srch svg.i{width:19px;height:19px}
+.srch input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:500 15px var(--font-ui);outline:0}
+.srch input::placeholder{color:var(--ink3)}
+.srch:focus-within{box-shadow:inset 0 0 0 1.5px var(--acc)}
+.pres{display:grid;gap:6px}
+.hint{margin:0;font:500 12.5px/1.4 var(--font-ui);color:var(--ink3);max-width:none}
+.hint.foot{margin-top:-2px}
+
+.flow{flex:1;display:flex;flex-direction:column;gap:12px;padding:54px 20px 104px;min-height:0}
+.pg-title{display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 2px;min-height:40px}
+.pg-title h3{font:300 34px/1 var(--font-num);letter-spacing:-.02em}
+.pg-title span{font:500 13px var(--font-ui);color:var(--ink2)}
+.pcard{padding:14px 16px 12px;display:grid;gap:4px;border-radius:24px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;font:700 13px var(--font-ui)}
+.ph span{font-weight:500;color:var(--ink2);font-variant-numeric:tabular-nums lining-nums}
+.pv{font:600 19px/1.25 var(--font-ui);margin:2px 0 6px}
+.pr24{display:flex;align-items:flex-end;gap:3px;height:58px}
+.pr24 i{flex:1;border-radius:3px 3px 1px 1px;background:var(--bar);min-height:2px}
+.pr24 i.z{opacity:.28}
+.pr24 i.nw{box-shadow:0 0 0 1.5px var(--ink);}
+.pr-ax{display:flex;justify-content:space-between;font:500 11px var(--font-ui);color:var(--ink3);font-variant-numeric:tabular-nums;padding:0 1px}
+.fcard{padding:8px 16px 8px;border-radius:24px}
+.fh{display:flex;align-items:center;justify-content:space-between;gap:10px;height:44px}
+.fh .nseg{background:var(--btn)}
+.fn{font:500 11.5px/1.25 var(--font-ui);color:var(--ink3);text-align:right;max-width:150px}
+.frow{display:grid;grid-template-columns:62px 26px 66px 28px 1fr 30px;align-items:center;gap:7px;height:50px;font:500 15px var(--font-ui);font-variant-numeric:tabular-nums lining-nums}
+.frow+.frow{box-shadow:0 -1px 0 var(--glass-line)}
+.frow svg.i{width:24px;height:24px}
+.frow .d{font-weight:700;display:flex;flex-direction:column;line-height:1.15}
+.frow .d small{font:500 11px var(--font-ui);color:var(--ink3)}
+.frow .pc{display:flex;flex-direction:column;line-height:1.15;font-size:13px}
+.frow .pc small{font:500 11px var(--font-ui);color:var(--ink2)}
+.frow .lo{color:var(--ink2);text-align:right}
+.frow .hi2{text-align:right;font-weight:700}
+.rg{height:5px;border-radius:3px;background:var(--glass-line);position:relative}
+.rg i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--info),var(--warn))}
+.c14 .frow{height:28px;font-size:13px;gap:7px}
+.c14 .frow svg.i{width:19px;height:19px}
+.c14 .frow .d.one{font-weight:700;flex-direction:row}
+.c14 .frow .d small{display:inline;margin-left:2px}
+.c14 .frow .pc.one{flex-direction:row;gap:0;font-size:12px;white-space:nowrap}
+.c14 .frow .pc.one b{font-weight:700}
+.c14 .frow .pc small{margin-left:3px;font-size:11px}
+.c14 .frow.far{opacity:.72}
+.c14 .frow.far .rg i{opacity:.55}
+.c14 .fh{height:40px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{padding:12px 14px 13px;display:flex;flex-direction:column;gap:4px;min-height:118px;border-radius:22px;position:relative}
+.tile.wide{grid-column:1/-1}
+.tile .tt{font:700 12.5px var(--font-ui);color:var(--ink2);display:flex;align-items:center;gap:6px}
+.tile .big{font:var(--num-w) 38px/1.05 var(--font-num);font-variant-numeric:lining-nums tabular-nums;letter-spacing:-.025em}
+.tile .big small{font:600 13px var(--font-ui);letter-spacing:0;color:var(--ink2);margin-left:4px}
+.tile .sub{font:500 12.5px/1.35 var(--font-ui);color:var(--ink2)}
+.scale{height:6px;border-radius:3px;position:relative;margin-top:auto;background:linear-gradient(90deg,#4f9a8c,#b9a44e,#c27a4a,#a8483f)}
+.scale i{position:absolute;top:-4px;width:4px;height:14px;border-radius:2px;background:var(--ink);box-shadow:0 0 0 2px var(--glass-line)}
+.pol{display:grid;gap:4px;margin-top:2px}
+.pol div{display:flex;justify-content:space-between;align-items:center;font:500 13px var(--font-ui)}
+.pol span.dots{display:flex;gap:4px}
+.pol span.dots i{width:9px;height:9px;border-radius:50%;background:var(--glass-line)}
+.pol span.dots i.f{background:var(--warn)}
+.compass{width:56px;height:56px;position:absolute;right:12px;top:30px}
+.compass svg{width:100%;height:100%}
+.spark{width:100%;height:30px;margin-top:auto}
+.spark path{fill:none;stroke:var(--acc);stroke-width:1.8;stroke-linecap:round}
+.arc{width:100%;height:auto}
+.arc path.b{fill:none;stroke:var(--glass-line);stroke-width:2;stroke-dasharray:3 5}
+.arc path.f{fill:none;stroke:var(--warn);stroke-width:2.4;stroke-linecap:round}
+.arc line{stroke:var(--ink3);stroke-width:1}
+.sm3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font:500 12px var(--font-ui);color:var(--ink2)}
+.sm3 b{display:block;font:700 15px var(--font-ui);color:var(--ink);font-variant-numeric:tabular-nums}
+
+.pg-map{padding:54px 14px 0}
+.mapcard{position:relative;flex:1;margin-bottom:104px;border-radius:28px;overflow:hidden;box-shadow:0 14px 34px -10px var(--shadow),inset 0 0 0 1px var(--glass-line);background:var(--land)}
+.mapcard svg.map{position:absolute;inset:0;width:100%;height:100%}
+.mtop{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+/* верх и низ карты — тот же материал, что у кнопки города, шестерёнки и нижней панели */
+.mtop .nseg.glass{padding:4px;gap:2px;border-radius:26px}
+.mtop .nseg button{height:36px;min-width:44px;padding:0 14px;border-radius:22px;transition:background .3s,color .3s}
+.mtop .nseg button[aria-checked=true]{background:var(--btn-on);color:var(--ink);box-shadow:0 3px 10px -4px var(--shadow),inset 0 1px 0 var(--btn-hi)}
+.tagm{font:600 11px var(--font-ui);padding:7px 12px;border-radius:999px;color:var(--ink2)}
+.mbot{position:absolute;left:10px;right:10px;bottom:10px;display:flex;align-items:center;gap:12px;padding:10px 16px 10px 10px;border-radius:30px;z-index:2}
+.mbot .rbtn.glass{background:var(--btn-on);box-shadow:0 3px 10px -4px var(--shadow),inset 0 1px 0 var(--btn-hi)}
+.mbot .rbtn{width:36px;height:36px;flex:none}
+.mbot .rbtn svg.i{width:16px;height:16px}
+.tl{flex:1;display:grid;gap:3px}
+.tl .trk{height:4px;border-radius:2px;background:var(--glass-line);position:relative}
+.tl .trk i{position:absolute;left:0;top:0;bottom:0;width:50%;border-radius:2px;background:var(--acc)}
+.tl .trk b{position:absolute;left:50%;top:-5px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--acc)}
+.tl .tk{display:flex;justify-content:space-between;font:400 11px var(--font-ui);color:var(--ink2);font-variant-numeric:tabular-nums}
+.anim-on .drift{animation:drift 26s linear infinite alternate}
+@keyframes drift{from{transform:translate(-34px,12px)}to{transform:translate(38px,-14px)}}
+.mnote{position:absolute;left:50%;top:58px;transform:translateX(-50%);z-index:2;padding:8px 14px;border-radius:999px;font:500 12px var(--font-ui);white-space:nowrap}
+
+/* ---------- секции ниже ---------- */
+.sec{padding-block:72px 8px;display:grid;gap:26px}
+.sec>header{display:grid;gap:10px}
+.sec>header p{color:var(--mute)}
+.gal{display:grid;grid-template-columns:repeat(2,1fr);gap:22px 16px}
+@media(min-width:720px){.gal{grid-template-columns:repeat(4,1fr)}}
+.mini{margin:0;display:grid;gap:8px}
+.mini-screen{position:relative;aspect-ratio:412/892;border-radius:22px;overflow:hidden;background:#000;font-family:var(--font-ui);color:var(--ink);isolation:isolate;
+  box-shadow:0 0 0 4px #070a0f,0 0 0 5px rgba(255,255,255,.1),0 24px 40px -22px rgba(0,0,0,.8)}
+.mini-screen canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.mini-ui{position:absolute;inset:0;padding:16px 12px 12px;display:flex;flex-direction:column;z-index:2}
+.mini-ui .ml{font:500 11px var(--font-ui);display:flex;align-items:center;gap:5px;opacity:.9}
+.mini-ui .ml svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.mini-ui .mn{font:var(--num-w) 58px/.95 var(--font-num);margin-top:12px;letter-spacing:-.03em;font-variant-numeric:lining-nums}
+.mini-ui .mc{font:500 12px var(--font-ui);margin-top:6px}
+.mini-ui .ma{margin-top:10px;padding:6px 9px;border-radius:11px;font:500 10.5px var(--font-ui);display:flex;gap:6px;align-items:center;background:color-mix(in srgb,var(--c) 6%,color-mix(in srgb,var(--glass) 58%,transparent));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 16%,transparent)}
+.mini-ui .ma svg{width:13px;height:13px;fill:none;stroke:var(--c);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.mini-ui .mg{margin-top:auto;border-radius:16px;padding:8px 4px;display:grid;grid-template-columns:repeat(5,1fr);text-align:center;font:600 10px var(--font-ui);background:var(--glass);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 0 0 1px var(--glass-line)}
+.mini-ui .mg div{display:grid;gap:3px;justify-items:center}
+.mini-ui .mg span{opacity:.75;font-weight:400}
+.mini-ui .mg svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.mini figcaption{display:grid;font-size:14px}
+.mini figcaption span{color:var(--mute);font-size:13px;font-variant-numeric:tabular-nums}
+
+.wctl{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:center}
+.wctl .ctl{gap:8px}
+.wctl input[type=range]{width:200px}
+.wall{max-width:900px;border-radius:26px;padding:26px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;position:relative;overflow:hidden;transition:background .4s}
+.wall.light{background:radial-gradient(120% 90% at 20% 10%,#f3efe6,#d8dfe0 45%,#b9c8cf 100%)}
+.wall.dark{background:radial-gradient(120% 90% at 20% 10%,#34425a,#1b2433 50%,#0e131c 100%)}
+.wcol{display:flex;flex-direction:column;gap:6px}
+.wcol>small{font-size:12px;color:rgba(0,0,0,.45)}
+.wall.dark .wcol>small{color:rgba(255,255,255,.45)}
+.wdg{border-radius:24px;padding:12px 14px;display:flex;font-family:var(--font-ui);color:var(--wink);position:relative;overflow:hidden;
+  background:var(--wbg);-webkit-backdrop-filter:blur(var(--wblur)) saturate(1.2);backdrop-filter:blur(var(--wblur)) saturate(1.2);box-shadow:var(--wsh)}
+.wdg svg.i{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.w11{width:78px;height:78px;flex-direction:column;justify-content:space-between;padding:10px 12px}
+.w11 .wn{font:var(--num-w) 30px/1 var(--font-num);letter-spacing:-.02em}
+.w21{width:162px;height:78px;align-items:center;justify-content:space-between}
+.w22{width:162px;height:162px;flex-direction:column}
+.w41{width:330px;height:78px;align-items:center;gap:14px}
+.w42{width:330px;height:162px;flex-direction:column;gap:6px}
+.wn{font:var(--num-w) 36px/1 var(--font-num);letter-spacing:-.03em;font-variant-numeric:lining-nums}
+.wsm{font:400 11.5px/1.3 var(--font-ui);opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wcity{font:500 12px var(--font-ui);opacity:.85}
+.whrs{display:flex;justify-content:space-between;gap:2px;flex:1}
+.whrs div{display:grid;gap:3px;justify-items:center;font:500 11.5px var(--font-ui);font-variant-numeric:tabular-nums}
+.whrs div span{opacity:.7;font-weight:400;font-size:10.5px}
+.whrs svg.i{width:20px;height:20px}
+.wrow2{display:flex;justify-content:space-between;align-items:flex-start;width:100%;gap:10px}
+.wal{display:flex;align-items:center;gap:7px;font:500 11.5px var(--font-ui);padding:5px 9px;border-radius:10px;background:rgba(128,128,128,.16);white-space:nowrap;flex:none}
+.wal i{width:6px;height:6px;border-radius:50%;background:#c28a30;flex:none}
+
+.agreed{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:36px}
+.agreed ul{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:11px}
+.agreed li{padding-left:20px;position:relative;max-width:52ch}
+.agreed li::before{content:"";position:absolute;left:2px;top:.62em;width:8px;height:8px;border-radius:50%;background:var(--acc)}
+.agreed .open li::before{background:transparent;box-shadow:inset 0 0 0 1.5px var(--mute)}
+footer.foot{padding-block:56px 40px;color:var(--mute);font-size:13px;max-width:70ch}
+@media(max-width:520px){h1{font-size:30px}h2{font-size:26px}.wall{padding:16px}}
+@media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+
+/* ---------- панель: прозрачность стекла ---------- */
+.glassctl{border-top:1px solid var(--line);padding-top:12px}
+.glassctl>summary{cursor:pointer;font-size:14px;color:var(--fg);list-style:none;display:flex;align-items:center;gap:8px}
+.glassctl>summary::-webkit-details-marker{display:none}
+.glassctl>summary::before{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .2s}
+.glassctl[open]>summary::before{transform:rotate(45deg)}
+.gc-body{display:grid;gap:14px;padding-top:14px}
+.gs{display:grid;gap:2px}
+.gs-h{display:flex;align-items:center;gap:10px;min-height:28px}
+.gs-h label{font-size:14px}
+.gs-h output{white-space:nowrap;margin-left:auto;font:500 14px var(--f-chrome);font-variant-numeric:tabular-nums}
+.gauto{border:1px solid var(--line);background:transparent;border-radius:999px;padding:2px 10px;font-size:12px;color:var(--mute);cursor:pointer}
+.gauto[aria-pressed=true]{background:var(--acc);color:var(--acc-ink);border-color:transparent}
+.gs-n{font-size:12px;color:var(--mute);min-height:16px}
+.gs-n.warn{color:#e6b072}
+.gc-out{font-size:12.5px;line-height:1.5;color:var(--mute);margin:0;max-width:none;user-select:text}
+.gc-act{display:flex;gap:8px;flex-wrap:wrap}
+.gc-act button{padding:7px 14px;border-radius:12px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:13px}
+.gc-act button:hover{border-color:var(--acc)}
+@media(max-width:899px){.gc-body{max-height:min(40svh,260px);overflow:auto;padding-right:4px}.phone-fit{height:calc(100svh - var(--qh,176px) - 14px);min-height:360px}}
+
+</style>
+<div class="wrap">
+
+<section class="stage" id="stage" aria-label="Живой макет приложения">
+  <div class="live">
+  <div class="phone-fit" id="fit">
+    <div class="phone" id="phone">
+      <div class="screen" id="screen">
+        <canvas id="sky" aria-hidden="true"></canvas>
+        <div class="status" aria-hidden="true">
+          <span id="clock">16:54</span><i class="punch"></i>
+          <span class="sys">
+            <svg viewBox="0 0 16 16"><path d="M1 14h2V10H1zM5 14h2V7H5zM9 14h2V4H9zM13 14h2V1h-2z"/></svg>
+            <svg viewBox="0 0 16 16"><path d="M8 14 4.6 10.6a4.8 4.8 0 0 1 6.8 0zM1.2 6.7l1.4 1.4a7.8 7.8 0 0 1 10.8 0l1.4-1.4a9.8 9.8 0 0 0-13.6 0z"/></svg>
+            <svg viewBox="0 0 24 16" style="width:22px"><rect x="1" y="3" width="19" height="10" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="5" width="12" height="6" rx="1.3"/><path d="M22 6v4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+
+        <section class="pg pg-home on" id="pgHome" aria-label="Главная">
+          <div class="toprow">
+            <button class="pill glass" id="cityBtn" type="button" aria-label="Места"><span id="pinI"></span><span id="city"></span><span id="chevI"></span></button>
+            <button class="rbtn glass" id="gear" type="button" aria-label="Настройки"></button>
+          </div>
+          <div class="hero">
+            <div class="hero-row"><div class="num" id="num"></div><div class="hico" id="hico"></div></div>
+            <div class="cond" id="cond"></div>
+            <div class="meta" id="meta"></div>
+          </div>
+          <div class="alerts" id="alerts"></div>
+          <div class="hourly glass">
+            <div class="hr-head"><b id="hrT"></b><span id="hrU"></span></div>
+            <div class="hr-scroll" id="hrScroll"><div class="hr" id="hr"></div></div>
+          </div>
+        </section>
+        <section class="pg pg-precip" id="pgPrecip" aria-label="Осадки"></section>
+        <section class="pg pg-details" id="pgDetails" aria-label="Подробно"></section>
+        <section class="pg pg-map" id="pgMap" aria-label="Карта"></section>
+
+        <nav class="dock glass" id="dock" aria-label="Разделы"></nav>
+        <div class="scrim" id="scrim"></div>
+        <div class="sheet glass" id="sheet" role="dialog" aria-label="Шторка"></div>
+        <i class="gesture"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick" id="quick" aria-label="Пульт">
+    <div class="q-time">
+      <label class="lab" for="hr_in">Время суток</label><output id="hrOut" for="hr_in">16:54</output>
+      <input type="range" id="hr_in" min="0" max="23.99" step="0.01" value="16.9">
+    </div>
+    <div class="q-chips" id="quickT">
+      <button class="chip" type="button" data-h="8.2">Утро</button>
+      <button class="chip" type="button" data-h="13">День</button>
+      <button class="chip" type="button" data-h="16.9">Закат</button>
+      <button class="chip" type="button" data-h="22.5">Ночь</button>
+      <button class="run" id="run" type="button" aria-pressed="false">Сутки за 30 секунд</button>
+    </div>
+    <div class="q-wx"><span class="lab" id="wxLab">Погода</span>
+      <div class="chips" id="wxChips" role="radiogroup" aria-labelledby="wxLab"></div>
+    </div>
+    <details class="glassctl" id="glassCtl">
+      <summary>Прозрачность стекла</summary>
+      <div class="gc-body">
+        <div class="gs"><div class="gs-h"><label for="g_cards">Карточки</label><button class="gauto" type="button" data-g="cards" aria-pressed="true">Авто</button><output id="gv_cards" for="g_cards"></output></div>
+          <input type="range" id="g_cards" min="0" max="100" step="1" value="80" data-g="cards"><div class="gs-n" id="gn_cards"></div></div>
+        <div class="gs"><div class="gs-h"><label for="g_btn">Кнопки и панель</label><button class="gauto" type="button" data-g="btn" aria-pressed="true">Авто</button><output id="gv_btn" for="g_btn"></output></div>
+          <input type="range" id="g_btn" min="0" max="100" step="1" value="45" data-g="btn"><div class="gs-n" id="gn_btn"></div></div>
+        <div class="gs"><div class="gs-h"><label for="g_alert">Оповещения</label><button class="gauto" type="button" data-g="alert" aria-pressed="true">Авто</button><output id="gv_alert" for="g_alert"></output></div>
+          <input type="range" id="g_alert" min="0" max="100" step="1" value="70" data-g="alert"><div class="gs-n" id="gn_alert"></div></div>
+        <div class="gs"><div class="gs-h"><label for="g_blur">Размытие фона под стеклом</label><output id="gv_blur" for="g_blur"></output></div>
+          <input type="range" id="g_blur" min="0" max="40" step="1" value="10"><div class="gs-n">0 = стекло без размытия</div></div>
+        <button class="sw" id="gGuard" type="button" role="switch" aria-checked="true"><i></i><span>Не давать тексту стать нечитаемым<br><span class="mute" style="font-size:13px" id="gGuardNote">Если выбрано слишком прозрачно, стекло само станет плотнее</span></span></button>
+        <p class="gc-out" id="gOut"></p>
+        <div class="gc-act"><button type="button" id="gCopy">Скопировать значения</button><button type="button" id="gReset">Сбросить</button></div>
+      </div>
+    </details>
+  </div>
+  </div>
+
+  <div class="extras">
+    <header class="p-head">
+      <h1>Погодная среда</h1>
+      <p>Живой макет, а не приложение. Двигайте время и меняйте погоду: стекло и цвет текста перестраиваются сами. Небо здесь временное, его заменят картины.</p>
+    </header>
+    <details class="more" id="more">
+      <summary>Язык, анимация, цвета</summary>
+      <div class="more-body">
+        <div class="ctl"><span class="lab" id="lgLab">Язык в телефоне</span>
+          <div class="seg" id="segLang" role="radiogroup" aria-labelledby="lgLab">
+            <button type="button" role="radio" aria-checked="true" data-v="ru">Русский</button>
+            <button type="button" role="radio" aria-checked="false" data-v="de">Deutsch</button>
+          </div>
+        </div>
+        <button class="sw" id="swAnim" type="button" role="switch" aria-checked="true"><i></i><span>Анимация погоды<br><span class="mute" style="font-size:13px" id="animNote">Облака плывут, идёт дождь</span></span></button>
+        <div class="pal" id="pal" aria-live="off">
+          <span class="lab">Палитра сейчас</span>
+          <div class="pal-bar"><span class="t">Аа</span><div class="pal-glass" id="palGlass">стекло и текст</div></div>
+          <div class="pal-sw" id="palSw"></div>
+          <p class="pal-note" id="palNote"></p>
+        </div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="sec" id="states" aria-labelledby="hStates">
+  <header>
+    <h2 id="hStates">Восемь мгновений</h2>
+    <p>Тот же код неба, замороженный в разных состояниях. Цвета стекла и текста у каждого свои: считаются из неба, не задаются руками.</p>
+  </header>
+  <div class="gal" id="gal"></div>
+</section>
+
+<section class="sec" id="widgets" aria-labelledby="hWidgets">
+  <header>
+    <h2 id="hWidgets">Виджеты</h2>
+    <p>От 1×1 до 4×2, любой можно растянуть. Фон убирается полностью, а текст сам подстраивается под обои. В реальном виджете стекло будет готовой картинкой: виджеты Android не умеют размытие вживую.</p>
+  </header>
+  <div class="wctl">
+    <div class="ctl"><span class="lab" id="wwLab">Обои</span>
+      <div class="seg" id="wWall" role="radiogroup" aria-labelledby="wwLab">
+        <button type="button" role="radio" aria-checked="true" data-v="light">Светлые</button>
+        <button type="button" role="radio" aria-checked="false" data-v="dark">Тёмные</button>
+      </div></div>
+    <div class="ctl"><span class="lab" id="wbLab">Фон виджета</span>
+      <div class="seg" id="wBg" role="radiogroup" aria-labelledby="wbLab">
+        <button type="button" role="radio" aria-checked="true" data-v="glass">Стекло</button>
+        <button type="button" role="radio" aria-checked="false" data-v="none">Без фона</button>
+      </div></div>
+    <div class="ctl" id="wTrWrap"><div class="ctl-row"><label class="lab" for="wTr">Прозрачность</label><span class="lab" id="wTrV">40 %</span></div>
+      <input type="range" id="wTr" min="0" max="100" value="40"></div>
+    <div class="ctl"><span class="lab" id="wiLab">Цвет текста</span>
+      <div class="seg" id="wInk" role="radiogroup" aria-labelledby="wiLab">
+        <button type="button" role="radio" aria-checked="true" data-v="auto">Авто</button>
+        <button type="button" role="radio" aria-checked="false" data-v="light">Светлый</button>
+        <button type="button" role="radio" aria-checked="false" data-v="dark">Тёмный</button>
+      </div></div>
+  </div>
+  <div class="wall light" id="wall"></div>
+  <p class="pal-note" id="wNote"></p>
+</section>
+
+<section class="sec" id="agreed" aria-labelledby="hAgreed">
+  <header><h2 id="hAgreed">Что решено, что нет</h2></header>
+  <div class="agreed">
+    <div>
+      <h3>Решено</h3>
+      <ul>
+        <li>Приложение для вас и друзей: APK без магазина. Собираем на GitHub, подписанный APK лежит в релизах, друзья обновляются через Obtainium.</li>
+        <li>Android 12 и новее, ориентир: от Pixel 6 Pro до Pixel 11.</li>
+        <li>Нижняя панель из четырёх вкладок: Главная, Осадки, Подробно, Карта. Прокрутки нет.</li>
+        <li>«Осадки»: сначала прогноз на 7 дней с переключателем на 14, ниже осадки на сутки.</li>
+        <li>Место по умолчанию: ваше текущее. Любые населённые пункты можно закрепить.</li>
+        <li>Фон: небо, нарисованное по реальной погоде и времени. Свет идёт со стороны солнца. Без фотографий и достопримечательностей.</li>
+        <li>Стекло цветное, берёт оттенок неба. Кнопки сверху и снизу, включая карту, из одного материала. Оповещения без цветной полосы. Цвет текста считается от сцены.</li>
+        <li>Прозрачность по умолчанию: карточки 80 %, кнопки и оповещения подбираются сами, размытие 10 px, защита читаемости включена.</li>
+        <li>Плитки во вкладке «Подробно» остаются в нынешнем порядке.</li>
+        <li>Шрифт по умолчанию Manrope, в настройках ещё семь. Русский и немецкий, метрические единицы.</li>
+        <li>Почасовой прогноз: линия времени или карточки, переключается в настройках.</li>
+        <li>Уведомления: дождь, гроза, сильный ветер, пыльца, снег, град, гололёд, туман. Пороги: гроза и гололёд по любому предупреждению DWD, ветер от 65 км/ч, ливень от 15 мм/ч, снег от 5 см за 6 часов, пыльца «высокая», туман выключен. Всё настраивается.</li>
+        <li>Виджеты от маленьких до крупных, фон убирается.</li>
+      </ul>
+    </div>
+    <div class="open">
+      <h3>Нужно решить</h3>
+      <ul>
+        <li>Небо: шесть картин из ChatGPT готовы, ждут загрузки в чат. Дальше собираю из них движение и смену времени суток.</li>
+        <li>Репозиторий на GitHub: создать и дать доступ Claude, открытый (проще) или закрытый.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  Это макет в браузере. Данные придуманы (26 октября 2026), карта нарисована от руки, закреплённые места и уведомления нажимаются, но ничего не сохраняют. В приложении будут настоящие данные: прогноз Open-Meteo и предупреждения DWD.
+</footer>
+
+</div>
+<script>
+'use strict';
+/* ---------- Ядро: чистые функции, без DOM. Проверяются в Node. ---------- */
+const TAU = Math.PI * 2;
+const clamp = (x, a = 0, b = 1) => (x < a ? a : x > b ? b : x);
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const mix = (p, q, t) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t), lerp(p[2], q[2], t)];
+const hx = s => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)];
+const rgb = (c, a) => (a === undefined || a >= 1)
+  ? `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`
+  : `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${+a.toFixed(3)})`;
+const toHex = c => '#' + c.map(v => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
+const lum = c => {
+  const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+const contrast = (a, b) => { const la = lum(a), lb = lum(b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+const mulberry32 = a => () => {
+  a |= 0; a = a + 0x6D2B79F5 | 0;
+  let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  return ((t ^ t >>> 14) >>> 0) / 4294967296;
+};
+
+/* ---------- Солнце: демо-день, 26 октября 2026, север Германии (в приложении считается по вашей точке) ---------- */
+const SR = 7.17, SS = 17.03;               // восход 07:10, закат 17:02
+const DAYLEN = SS - SR;
+function sunElev(h) {
+  h = ((h % 24) + 24) % 24;
+  if (h >= SR && h <= SS) return 26 * Math.sin(Math.PI * (h - SR) / DAYLEN);
+  const night = 24 - DAYLEN;
+  const hh = h > SS ? h - SS : h + 24 - SS;
+  return -38 * Math.sin(Math.PI * hh / night);
+}
+
+/* ---------- Погодные состояния ---------- */
+const WX_KEYS = ['clear', 'partly', 'cloudy', 'rain', 'storm', 'snow', 'fog'];
+const WX = {
+  clear:  { cloud: .14, rain: 0,   snow: 0,   fog: 0,   storm: 0, gray: 0,   dark: 0 },
+  partly: { cloud: .45, rain: 0,   snow: 0,   fog: 0,   storm: 0, gray: .18, dark: .04 },
+  cloudy: { cloud: .95, rain: 0,   snow: 0,   fog: 0,   storm: 0, gray: .62, dark: .12 },
+  rain:   { cloud: 1,   rain: .62, snow: 0,   fog: .08, storm: 0, gray: .72, dark: .22 },
+  storm:  { cloud: 1,   rain: 1,   snow: 0,   fog: 0,   storm: 1, gray: .80, dark: .46 },
+  snow:   { cloud: .95, rain: 0,   snow: .7,  fog: .15, storm: 0, gray: .70, dark: .06 },
+  fog:    { cloud: .3,  rain: 0,   snow: 0,   fog: .9,  storm: 0, gray: .55, dark: .0 },
+};
+const BASE = { clear: 7, partly: 9, cloudy: 8, rain: 8, storm: 11, snow: -1, fog: 4 };
+const AMP  = { clear: 5, partly: 4, cloudy: 2.5, rain: 2, storm: 3, snow: 2.5, fog: 2.5 };
+const WIND = { clear: 8, partly: 14, cloudy: 16, rain: 22, storm: 55, snow: 14, fog: 4 };
+const PRESS = { clear: 1024, partly: 1019, cloudy: 1014, rain: 1007, storm: 998, snow: 1010, fog: 1022 };
+const temp = (h, wk) => BASE[wk] + AMP[wk] * Math.sin(TAU * (h - 9) / 24);
+const hiLo = wk => ({ hi: Math.round(BASE[wk] + AMP[wk]), lo: Math.round(BASE[wk] - AMP[wk]) });
+const feels = (t, wk) => t - Math.max(0, (WIND[wk] - 6) * 0.075) - (WX[wk].rain ? 0.8 : 0);
+
+/* Осадки: детерминированная псевдо-случайность, чтобы кривая не прыгала */
+function precipMM(hour, wk) {
+  const r = mulberry32(31 + Math.floor(hour) * 13 + wk.length)();
+  switch (wk) {
+    case 'rain':  return +(0.1 + r * 1.7).toFixed(1);
+    case 'storm': return +(0.4 + r * 3.6).toFixed(1);
+    case 'snow':  return +(0.1 + r * 0.9).toFixed(1);
+    case 'cloudy': return r < .22 ? +(0.1 + r).toFixed(1) : 0;
+    case 'partly': return r < .1 ? 0.2 : 0;
+    default: return 0;
+  }
+}
+const POP = { clear: 2, partly: 10, cloudy: 22, rain: 86, storm: 92, snow: 78, fog: 6 };
+
+/* ---------- Ключевые цвета неба по высоте солнца ----------
+   Откалиброваны по референсу «небо по часам суток»: насыщенная лазурь днём,
+   золото у горизонта на рассвете, персик и сиреневый на закате, тёмно-синее ночью.
+   Строка: [высота солнца, верх, середина, горизонт]. */
+const mk = a => a.map(k => [k[0], hx(k[1]), hx(k[2]), hx(k[3])]);
+const K_MORN = mk([
+  [-38, '#0e1226', '#161c38', '#262a4c'], [-14, '#161b34', '#232b52', '#3a3158'], [-8, '#2c3568', '#44558f', '#8c6c86'],
+  [-3, '#34488a', '#5878bd', '#d69f78'], [1, '#4a74c4', '#7fa8e0', '#f2cf8c'], [5, '#5c93e0', '#92bdf2', '#cfe2f0'],
+  [12, '#4a8fe4', '#7db5f2', '#a9d4f7'], [26, '#3d84d7', '#5a9fe9', '#8ec2f8'],
+]);
+const K_EVE = mk([
+  [-38, '#0e1226', '#161c38', '#262a4c'], [-14, '#161b34', '#2a2548', '#523047'], [-8, '#1d2142', '#4a3560', '#a2503f'],
+  [-3, '#2d3470', '#7a4f86', '#e07a56'], [1, '#5f78cf', '#b394b8', '#f0b078'], [5, '#5f86dc', '#9aa4d8', '#f0c8a0'],
+  [12, '#4f8ae0', '#80afe8', '#b3d2ee'], [26, '#3d84d7', '#5a9fe9', '#8ec2f8'],
+]);
+function skyBase(e, ev) {
+  const K = ev ? K_EVE : K_MORN;
+  if (e <= K[0][0]) return { top: K[0][1], mid: K[0][2], hor: K[0][3] };
+  for (let i = 1; i < K.length; i++) {
+    if (e <= K[i][0]) {
+      const t = smooth(K[i - 1][0], K[i][0], e);
+      return { top: mix(K[i - 1][1], K[i][1], t), mid: mix(K[i - 1][2], K[i][2], t), hor: mix(K[i - 1][3], K[i][3], t) };
+    }
+  }
+  const L = K[K.length - 1];
+  return { top: L[1], mid: L[2], hor: L[3] };
+}
+function wxTint(c, g, d) {
+  const l = c[0] * .3 + c[1] * .59 + c[2] * .11;
+  return mix(c, [l, l, l], g).map(v => v * (1 - d));
+}
+function skyState(h, wk) {
+  const w = WX[wk];
+  const e = sunElev(h), ev = ((h % 24) + 24) % 24 >= 12;
+  const b = skyBase(e, ev);
+  const day = smooth(-7, 6, e);
+  let top = wxTint(b.top, w.gray, w.dark);
+  let mid = wxTint(b.mid, w.gray * .9, w.dark * .9);
+  let hor = wxTint(b.hor, w.gray * .85, w.dark * .75);
+  top = mix(top, mid, w.gray * .3);                         // пасмурное небо ровнее
+  mid = mix(mid, hor, w.gray * .25);
+  const fogC = mix(mix([46, 54, 68], [208, 214, 220], day), hor, .22);
+  if (w.fog > 0) { top = mix(top, fogC, w.fog * .55); mid = mix(mid, fogC, w.fog * .7); hor = mix(hor, fogC, w.fog * .8); }
+  return { h, e, ev, wk, w, top, mid, hor, fogC, day, sunVis: clamp(1 - w.cloud * .9 - w.fog * .6) };
+}
+
+/* ---------- Земля: цвета дальних гряд (нужны и сцене, и теме) ---------- */
+function groundColors(s) {
+  const w = s.w, day = s.day, snow = clamp(w.snow * 1.2);
+  const wd = smooth(4, 16, s.e), wn = 1 - smooth(-14, -6, s.e);
+  const dF = mix(s.hor, [150, 184, 214], .5), dN = [96, 136, 142], dB = [74, 110, 116];
+  const tF = mix(s.hor, [40, 44, 78], .4), tN = mix(s.hor, [34, 32, 62], .42), tB = mix(s.hor, [34, 30, 58], .55);
+  let far = mix(mix(tF, dF, wd), [30, 36, 66], wn);
+  let near = mix(mix(tN, dN, wd), [12, 16, 30], wn);
+  let base = mix(mix(tB, dB, wd), [9, 12, 24], wn);
+  far = wxTint(far, w.gray * .6, w.dark * .5); near = wxTint(near, w.gray * .5, w.dark * .5); base = wxTint(base, w.gray * .5, w.dark * .5);
+  far = mix(far, s.fogC, w.fog * .75); near = mix(near, s.fogC, w.fog * .55); base = mix(base, s.fogC, w.fog * .45);
+  if (snow > 0) {
+    const sn = mix([112, 126, 154], [240, 245, 251], day);
+    far = mix(far, mix(sn, s.hor, .45), snow * .85); near = mix(near, sn, snow * .92); base = mix(base, mix(sn, [150, 164, 190], .35), snow * .92);
+  }
+  return { far, near, base };
+}
+
+/* ---------- Динамическая тема ----------
+   Цвет текста выбирается по тому, что реально под ним: небо за цифрами, небо за предупреждениями,
+   дальние гряды за карточкой «по часам», земля за нижней панелью.
+   Стекло прозрачное, пока читаемо, и становится плотнее ровно настолько, чтобы мелкий текст держал контраст 4,5.
+   Под цифрами стекла нет, поэтому там добавляется едва заметная вуаль. */
+const INK_D = [16, 23, 34], INK_L = [244, 247, 251];
+const GL_L = [238, 243, 249], GL_D = [12, 19, 31];
+const tints = s => { const c = mix(s.mid, s.hor, .45); return { L: mix([255, 255, 255], c, .36), D: mix(GL_D, c, .26) }; };   // стекло с цветом неба, а не серое
+const BT_L = .45;                              // насколько кнопки светлее карточек
+const GA_L = .26, GA_D = .26, GB_L = .52, GB_D = .46;                  // минимальная непрозрачность стекла: светлого и тёмного
+const INK2A = .84, TARGET = 4.5, SC_MAX = .36;
+const effInk = (bg, ink) => mix(bg, ink, INK2A);
+function needAlpha(bg, tint, ink, a0, a1) {
+  for (let a = a0; a < a1; a += .02) { const g = mix(bg, tint, a); if (contrast(g, effInk(g, ink)) >= TARGET) return a; }
+  return a1;
+}
+function backdrops(s) {
+  const cc = cloudColors(s), w = s.w, g = groundColors(s);
+  const hero = mix(mix(s.top, s.mid, .8), cc.lit, clamp(w.cloud * 1.1) * (1 - w.dark) * .3);
+  return {
+    hero, alert: mix(s.mid, s.hor, .6),
+    card: mix(g.near, g.base, .55),
+    dock: mix(g.near, g.base, .9),
+  };
+}
+function inkScores(s) {
+  const B = backdrops(s), mid = mix(mix(s.top, s.hor, .5), s.mid, .5);
+  const T = tints(s);
+  const one = (ink, tint, ga, bt, gb) => {
+    const sc = needAlpha(B.hero, tint, ink, 0, SC_MAX), hb = mix(B.hero, tint, sc);
+    const hero = contrast(hb, effInk(hb, ink));
+    const a = Math.max(needAlpha(B.alert, tint, ink, ga, .6), needAlpha(B.card, tint, ink, ga, .6));
+    const aB = Math.max(needAlpha(B.dock, bt, ink, gb, .8), needAlpha(B.hero, bt, ink, gb, .8));
+    // сколько нужно для читаемости без нижней границы: на случай ручной прозрачности
+    const aNc = needAlpha(B.card, tint, ink, 0, .95), aNa = needAlpha(B.alert, tint, ink, 0, .95), aNb = Math.max(needAlpha(B.dock, bt, ink, 0, .95), needAlpha(B.hero, bt, ink, 0, .95));
+    return { sc, hero, a, aB, aNc, aNa, aNb, score: Math.min(hero, 6) - 6 * (a - ga) - 5 * sc };
+  };
+  const D = one(INK_D, T.L, GA_L, mix(T.L, [255, 255, 255], BT_L), GB_L), Lw = one(INK_L, T.D, GA_D, T.D, GB_D);
+  return { mid, D, L: Lw, cD: D.score, cL: Lw.score };
+}
+const inkTarget = s => { const q = inkScores(s); return q.cL > q.cD ? 1 : 0; };
+/* k: 0 = тёмный текст на светлом стекле, 1 = светлый текст на тёмном стекле */
+/* G: ручные уровни стекла в долях непрозрачности или null (авто): { cards, btn, alert, blur, guard } */
+function themeVars(s, k, G) {
+  const q = inkScores(s), mid = q.mid;
+  const ink = mix(INK_D, INK_L, k);
+  const T = tints(s), tint = mix(T.L, T.D, k);
+  const bt = mix(mix(T.L, [255, 255, 255], BT_L), T.D, k);      // заливка кнопок: светлее карточек
+  const aAuto = lerp(q.D.a, q.L.a, k) + .06 * Math.sin(Math.PI * k);
+  const aBAuto = lerp(q.D.aB, q.L.aB, k) + .05 * Math.sin(Math.PI * k);
+  const need = { cards: lerp(q.D.aNc, q.L.aNc, k), alert: lerp(q.D.aNa, q.L.aNa, k), btn: lerp(q.D.aNb, q.L.aNb, k) };
+  const g = G || {}, pick = (man, auto, nd) => (man == null ? auto : (g.guard !== false ? Math.max(man, nd) : man));
+  const a = pick(g.cards, aAuto, need.cards), aB = pick(g.btn, aBAuto, need.btn), aAl = g.alert == null ? aAuto : pick(g.alert, aAuto, need.alert);
+  const Bd = backdrops(s), cx = (bg, t, al) => { const gg = mix(bg, t, al); return contrast(gg, effInk(gg, ink)); };
+  const sc = lerp(q.D.sc, q.L.sc, k);
+  const eff = mix(mid, tint, a);
+  const dk = 1 - k;
+  const css = {
+    '--ink': rgb(ink),
+    '--ink2': rgb(ink, INK2A),
+    '--ink3': rgb(ink, .56),
+    '--glass': rgb(tint, a),
+    '--glass-alert': rgb(tint, aAl),
+    '--blur': (g.blur == null ? 22 : g.blur) + 'px',
+    '--btn-bg': rgb(bt, aB),
+    '--btn-on': rgb([255, 255, 255], lerp(.8, .22, k)),
+    '--btn-hi': rgb([255, 255, 255], lerp(.8, .2, k)),
+    '--sheen': rgb([255, 255, 255], lerp(.2, .07, k)),
+    '--glass-hi': rgb(mix([255, 255, 255], tint, .1), lerp(.30, .10, k)),
+    '--glass-line': rgb(ink, .12),
+    '--shadow': rgb(mix([20, 34, 56], [0, 0, 0], k), lerp(.16, .34, k)),
+    '--btn': rgb(ink, .11),
+    '--btn2': rgb(ink, .2),
+    '--acc': rgb(mix([28, 86, 160], [170, 208, 250], k)),
+    '--acc-soft': rgb(mix([28, 86, 160], [170, 208, 250], k), .2),
+    '--info': rgb(mix([40, 100, 166], [146, 190, 238], k)),
+    '--warn': rgb(mix([170, 104, 14], [242, 186, 98], k)),
+    '--sev': rgb(mix([174, 48, 40], [246, 128, 114], k)),
+    '--bar': rgb(mix([34, 98, 172], [152, 202, 250], k), .92),
+  };
+  return {
+    css, k, a, aB, bt, scrim: { tint, a: sc },
+    aAuto: { cards: aAuto, btn: aBAuto, alert: aAuto }, aEff: { cards: a, btn: aB, alert: aAl }, need,
+    cc: { cards: cx(Bd.card, tint, a), alert: cx(Bd.alert, tint, aAl), btn: Math.min(cx(Bd.dock, bt, aB), cx(Bd.hero, bt, aB)) },
+    ink, tint, mid, glass: eff,
+    inkOnSky: contrast(mid, ink),
+    inkOnGlass: contrast(eff, ink),
+    dark: dk < .5 ? 'dark-ink' : 'light-ink',
+  };
+}
+
+/* ---------- Цвета облаков: три тона и свет с одной стороны ----------
+   hi — блик на стороне солнца, lit — освещённая часть, sh — тень, rim — тёплая кромка. */
+const mc = a => a.map(k => [k[0], hx(k[1]), hx(k[2]), hx(k[3])]);
+const CK_MORN = mc([
+  [-38, '#7080b8', '#2a3260', '#121732'], [-14, '#8c8ec0', '#3a3d70', '#1a1f3e'], [-8, '#e8b890', '#8a6c9a', '#35396a'],
+  [-3, '#ffe29a', '#d89aa0', '#4c4c80'], [1, '#fff0c0', '#f4d2b6', '#7a86bc'], [5, '#fff8e8', '#f2ecee', '#86a6d8'],
+  [12, '#ffffff', '#f0f5fb', '#86aee0'], [26, '#ffffff', '#eef4fb', '#7ea8dc'],
+]);
+const CK_EVE = mc([
+  [-38, '#7080b8', '#2a3260', '#121732'], [-14, '#a05a60', '#46345e', '#1c2040'], [-8, '#ff8a62', '#b04a4a', '#2c2848'],
+  [-3, '#ffb27a', '#d9786a', '#4a3a64'], [1, '#ffdcb0', '#f0b494', '#5a4e72'], [5, '#fff0dc', '#f4d6c4', '#8a8cc4'],
+  [12, '#ffffff', '#f0f4fa', '#84acde'], [26, '#ffffff', '#eef4fb', '#7ea8dc'],
+]);
+function cloudPal(e, ev) {
+  const K = ev ? CK_EVE : CK_MORN;
+  if (e <= K[0][0]) return { hi: K[0][1], lit: K[0][2], sh: K[0][3] };
+  for (let i = 1; i < K.length; i++) {
+    if (e <= K[i][0]) {
+      const t = smooth(K[i - 1][0], K[i][0], e);
+      return { hi: mix(K[i - 1][1], K[i][1], t), lit: mix(K[i - 1][2], K[i][2], t), sh: mix(K[i - 1][3], K[i][3], t) };
+    }
+  }
+  const L = K[K.length - 1];
+  return { hi: L[1], lit: L[2], sh: L[3] };
+}
+function cloudColors(s) {
+  const w = s.w, day = smooth(-7, 6, s.e);
+  const p = cloudPal(s.e, s.ev);
+  // пасмурно: свет плоский, цвета серые; гроза: почти чёрные с синевой
+  const gl = mix([70, 76, 90], [206, 212, 220], day), gh = mix([92, 98, 114], [226, 231, 238], day), gs = mix([26, 30, 42], [112, 122, 140], day);
+  let hi = mix(p.hi, gh, w.gray * .78), lit = mix(p.lit, gl, w.gray * .86), sh = mix(p.sh, gs, w.gray * .8);
+  const k1 = 1 - w.dark * .95, k2 = 1 - w.dark * 1.3;
+  hi = hi.map(v => v * k1); lit = lit.map(v => v * k1); sh = sh.map(v => v * k2);
+  return { hi, lit, sh, flat: w.gray };
+}
+
+/* ---------- Небесные тела ---------- */
+const HZ = .60;                         // линия горизонта, доля высоты
+const SUNH = .33;                       // подъём солнца в полдень, доля высоты
+function celestial(h) {
+  h = ((h % 24) + 24) % 24;
+  const e = sunElev(h);
+  const f = clamp((h - SR) / DAYLEN);
+  const night = 24 - DAYLEN;
+  const hh = h > SS ? h - SS : h + 24 - SS;
+  const nf = clamp(hh / night);
+  return {
+    e,
+    sunX: lerp(.1, .9, f),
+    sunY: HZ - (Math.max(e, -4) / 26) * SUNH,
+    sunA: smooth(-4, -.5, e),
+    moonX: lerp(.1, .9, nf),
+    moonY: HZ - Math.sin(Math.PI * nf) * .36,
+    moonA: (1 - smooth(-3, 1, e)) * Math.pow(Math.sin(Math.PI * nf), .35),
+  };
+}
+
+/* ---------- Данные для интерфейса ---------- */
+const uvAt = (e, wk) => Math.max(0, Math.round(e / 26 * 3 * (1 - WX[wk].cloud * .55)));
+function hourly(h0, wk, n = 12) {
+  const out = [];
+  const base = Math.floor(h0);
+  for (let i = 0; i < n; i++) {
+    const hh = base + i, hm = ((hh % 24) + 24) % 24;
+    const e = sunElev(hm + .5);
+    out.push({
+      label: i === 0 ? null : String(hm).padStart(2, '0'),
+      h: hm, t: temp(hm, wk), night: e < -1,
+      mm: precipMM(hh, wk), pop: POP[wk],
+    });
+  }
+  return out;
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = {
+    TAU, clamp, lerp, smooth, mix, hx, rgb, toHex, lum, contrast, mulberry32,
+    SR, SS, DAYLEN, sunElev, WX_KEYS, WX, BASE, AMP, WIND, PRESS, POP, temp, hiLo, feels, precipMM,
+    skyState, groundColors, backdrops, inkScores, inkTarget, themeVars, cloudColors, celestial, uvAt, hourly, HZ, SUNH,
+  };
+}
+
+/* ---------- Сцена неба: Canvas 2D. Всё рисуется кодом из данных. ----------
+   Небо: градиент из трёх цветов по высоте солнца. Облака: шары в порядке «крупные → мелкие»,
+   у каждого своя тень, освещённая часть и блик со стороны солнца, поэтому свет везде идёт в одну сторону. */
+const SCENE_W = 412, SCENE_H = 892;
+
+function softBlob(g, x, y, r, c, a) {
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  gr.addColorStop(0, rgb(c, a));
+  gr.addColorStop(.55, rgb(c, a * .78));
+  gr.addColorStop(1, rgb(c, 0));
+  g.fillStyle = gr;
+  g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+}
+
+/* Формы облаков в долях ширины; y = 0 — основание, вверх отрицательные. [x, y, радиус, сплюснутость] */
+function genCumulus(r, tall) {
+  const out = [];
+  const bump = (x, y, rad, depth) => {                            // шар и «завитки» на его верхней половине
+    out.push([x, y, rad, 1]);
+    if (depth >= 2 || rad < .045) return;
+    const n = 3 + ((r() * 2) | 0);
+    for (let i = 0; i < n; i++) {
+      const ang = -Math.PI * (.04 + .92 * (i + r() * .6) / n), cr = rad * (.46 + r() * .24);
+      bump(x + Math.cos(ang) * rad * .82, y + Math.sin(ang) * rad * .82, cr, depth + 1);
+    }
+  };
+  const nb = 6 + ((r() * 3) | 0);
+  for (let i = 0; i < nb; i++) {                                  // плоское основание
+    const u = (i + .5) / nb, bell = Math.sin(Math.PI * (.05 + .9 * u));
+    const rad = (.06 + .07 * bell) * (.8 + r() * .5);
+    bump(.05 + .9 * u + (r() - .5) * .025, -rad * .7, rad, 1);
+  }
+  const nt = (tall ? 3 : 2) + ((r() * 2) | 0);
+  for (let t = 0; t < nt; t++) {                                  // башни: шары уменьшаются вверх
+    const u = .2 + .6 * (t + r() * .8) / nt, bell = Math.sin(Math.PI * u);
+    const hmax = (tall ? .5 : .3) * (.45 + .55 * bell) * (.75 + r() * .4);
+    let rad = (tall ? .14 : .11) * (.7 + .5 * bell), x = .05 + .9 * u, y = -rad * .9;
+    while (rad > .05) {
+      bump(x + (r() - .5) * .02, y, rad, 0);
+      y -= rad * (.7 + r() * .2);
+      if (-y > hmax) break;
+      rad *= .82 + r() * .1; x += (r() - .5) * .06;
+    }
+  }
+  return out.sort((a, b) => b[2] - a[2]);
+}
+function genStrip(r) {
+  const out = [], n = 9 + ((r() * 4) | 0);
+  for (let i = 0; i < n; i++) {
+    const u = (i + .5) / n, bell = Math.sin(Math.PI * (.04 + .92 * u));
+    const rad = (.05 + .075 * bell) * (.7 + r() * .6);
+    out.push([.04 + .92 * u + (r() - .5) * .03, -rad * .38 + (r() - .5) * .02, rad, .42 + r() * .12]);
+  }
+  return out.sort((a, b) => b[2] - a[2]);
+}
+function genDeck(r) {
+  const out = [], n = 16;
+  for (let i = 0; i < n; i++) {
+    const u = (i + .5) / n, rad = .1 + r() * .12;
+    out.push([u * 1.0, -rad * .35 + (r() - .5) * .05, rad, .5 + r() * .12]);
+  }
+  for (let i = 0; i < 12; i++) {
+    const u = (i + .5) / 12, rad = .08 + r() * .08;
+    out.push([u, -.1 - r() * .12, rad, .55]);
+  }
+  return out.sort((a, b) => b[2] - a[2]);
+}
+
+class Scene {
+  constructor(cv, opt = {}) {
+    this.cv = cv; this.ctx = cv.getContext('2d');
+    this.off = document.createElement('canvas'); this.octx = this.off.getContext('2d');
+    this.W = SCENE_W; this.H = SCENE_H; this.q = 1;
+    this.seed = opt.seed || 11;
+    this.staticBolt = !!opt.staticBolt;
+    this.h = 12; this.wk = 'clear';
+    this.t = opt.t0 || 0; this.motion = true;
+    this.flash = 0; this.again = 0; this.nextFlash = 2.5; this.bolt = null;
+    this.pkey = ''; this.rain = []; this.snow = []; this.splash = []; this.drops = []; this.spAcc = 0;
+    this.fogTile = null; this.fogSig = '';
+    this.running = false; this.raf = 0; this.last = 0; this.fps = 30;
+    const r = mulberry32(this.seed + 99);
+    this.stars = [];
+    for (let i = 0; i < 160; i++) this.stars.push({ x: r(), y: r() * .62, s: r() * 1.1 + .35, p: r() * TAU, b: .4 + r() * .6 });
+    this.mkClouds();
+  }
+
+  mkClouds() {
+    const r = mulberry32(this.seed + 5);
+    const L = [
+      { n: 6, d: 0, gen: () => genStrip(r), y: [.53, .61], w: [150, 270], sp: .35, a: .92, th0: 0 },
+      { n: 6, d: 1, gen: () => genCumulus(r, 0), y: [.43, .55], w: [150, 240], sp: .7, a: .96, th0: .06 },
+      { n: 5, d: 2, gen: () => genCumulus(r, 1), y: [.30, .47], w: [300, 460], sp: 1.1, a: 1, th0: .12 },
+      { n: 4, d: 3, gen: () => genCumulus(r, 1), y: [.16, .34], w: [380, 560], sp: 1.7, a: 1, th0: .3 },
+      { n: 3, d: 4, gen: () => genDeck(r), y: [.07, .2], w: [760, 940], sp: .5, a: 1, th0: .55, deck: true },
+    ];
+    this.clouds = [];
+    for (const l of L) for (let i = 0; i < l.n; i++) {
+      const f = (i + r() * .7) / l.n;
+      this.clouds.push({
+        d: l.d, deck: !!l.deck, x: r(), y: lerp(l.y[0], l.y[1], r()), w: lerp(l.w[0], l.w[1], r()),
+        sp: l.sp, a: l.a, th: l.deck ? l.th0 + f * .25 : l.th0 + f * (.88 - l.th0), c: l.gen(), ph: r() * TAU,
+      });
+    }
+    this.clouds.sort((a, b) => a.d - b.d);
+  }
+
+  setSize(q) {
+    q = Math.max(.5, q);
+    this.q = q;
+    for (const cv of [this.cv, this.off]) { cv.width = Math.round(this.W * q); cv.height = Math.round(this.H * q); }
+    this.ctx.setTransform(q, 0, 0, q, 0, 0);
+    this.octx.setTransform(q, 0, 0, q, 0, 0);
+  }
+
+  set(h, wk) {
+    this.h = h; this.wk = wk;
+    this.st = skyState(h, wk);
+    this.cel = celestial(h);
+    this.cc = cloudColors(this.st);
+    this.ensureParticles();
+    if (this.st.w.fog > 0) this.ensureFog();
+  }
+
+  /* --- осадки --- */
+  ensureParticles() {
+    const w = this.st.w;
+    const rainN = w.rain > 0 ? Math.round(120 + w.rain * 560) : 0;
+    const snowN = w.snow > 0 ? Math.round(120 + w.snow * 420) : 0;
+    const dropN = w.rain > .3 ? 12 : 0;
+    const key = rainN + '/' + snowN + '/' + dropN;
+    if (key === this.pkey) return;
+    this.pkey = key;
+    const r = mulberry32(this.seed + 400), W = this.W, H = this.H;
+    this.rain = []; this.snow = []; this.splash = []; this.drops = [];
+    for (let i = 0; i < rainN; i++) {
+      const z = r();
+      this.rain.push({ x: r() * W * 1.5 - W * .25, y: r() * H, z, l: 7 + z * 22 + r() * 6, v: 520 + z * 780 + r() * 160 });
+    }
+    for (let i = 0; i < snowN; i++) {
+      const z = r();
+      this.snow.push({ x: r() * W * 1.3 - W * .15, y: r() * H, z, ph: r() * TAU, s: (.7 + z * 3.6) * (.7 + r() * .5), v: 18 + z * 62 + r() * 12 });
+    }
+    for (let i = 0; i < dropN; i++) {
+      this.drops.push({ x: 14 + r() * (W - 28), y: r() * H * .92, r: 2 + r() * 4.2, slide: 0, vy: 0, trail: [], ph: r() });
+    }
+  }
+  step(dt) {
+    const W = this.W, H = this.H, wind = WIND[this.wk], hy = H * HZ, w = this.st.w;
+    const gust = .5 + .5 * Math.sin(this.t * .33);
+    if (this.rain.length) {
+      const sl = clamp((wind * (.8 + .4 * gust)) / 90, 0, .55);
+      for (const p of this.rain) {
+        p.y += p.v * dt; p.x += p.v * sl * dt;
+        if (p.y > H + 30) { p.y -= H + 60; p.x = Math.random() * W * 1.5 - W * .25; }
+        if (p.x > W * 1.3) p.x -= W * 1.6;
+      }
+      this.spAcc += dt * w.rain * 46;
+      while (this.spAcc > 1) {
+        this.spAcc -= 1;
+        if (this.splash.length < 70) this.splash.push({ x: Math.random() * W, y: hy + H * .03 + Math.random() * (H * .94 - hy - H * .03), t: 0, m: 4 + Math.random() * 6 });
+      }
+      for (const s of this.splash) s.t += dt;
+      this.splash = this.splash.filter(s => s.t < .42);
+      for (const d of this.drops) {
+        if (d.slide > 0) {
+          d.y += d.vy * dt; d.slide -= dt; d.x += (Math.random() - .5) * .25;
+          if (!d.trail.length || d.y - d.trail[d.trail.length - 1][1] > 5) { d.trail.push([d.x, d.y]); if (d.trail.length > 16) d.trail.shift(); }
+        } else {
+          if (d.trail.length && Math.random() < dt * 1.4) d.trail.shift();
+          if (Math.random() < dt * .16) { d.slide = .5 + Math.random() * 1.1; d.vy = 36 + Math.random() * 54; }
+        }
+        if (d.y > H + 10) { d.y = -8; d.x = 14 + Math.random() * (W - 28); d.trail = []; }
+      }
+    }
+    if (this.snow.length) {
+      for (const p of this.snow) {
+        p.y += p.v * dt;
+        p.x += (Math.sin(this.t * .9 + p.ph) * (9 + p.z * 12) + wind * .5 * (.4 + gust)) * dt;
+        if (p.y > H + 8) { p.y -= H + 16; p.x = Math.random() * W * 1.3 - W * .15; }
+        if (p.x > W + 12) p.x -= W + 24;
+      }
+    }
+    if (w.storm && this.motion) {
+      this.nextFlash -= dt;
+      if (this.nextFlash <= 0) { this.flash = 1; this.again = .17; this.nextFlash = 6 + Math.random() * 8; this.bolt = this.mkBolt(); }
+      if (this.again > 0) { this.again -= dt; if (this.again <= 0) this.flash = Math.max(this.flash, .7); }
+    }
+    this.flash = Math.max(0, this.flash - dt * 3.2);
+  }
+  mkBolt() {
+    const W = this.W, H = this.H, endY = H * (HZ - .03 + Math.random() * .08), segs = [];
+    const walk = (x, y, ang, len, width, depth) => {
+      let px = x, py = y;
+      for (let i = 0, n = Math.ceil(len / 14); i < n; i++) {
+        const a = ang + (Math.random() - .5) * .95, sl = 10 + Math.random() * 12;
+        const nx = px + Math.sin(a) * sl, ny = py + Math.cos(a) * sl;
+        segs.push([px, py, nx, ny, width]); px = nx; py = ny;
+        if (depth < 2 && Math.random() < .15) walk(px, py, ang + (Math.random() < .5 ? -1 : 1) * (.5 + Math.random() * .5), len * .35, width * .55, depth + 1);
+        if (py > endY) break;
+      }
+    };
+    walk(W * (.15 + Math.random() * .7), -4, (Math.random() - .5) * .25, endY, 2.2, 0);
+    return segs;
+  }
+
+  /* --- цикл --- */
+  start() {
+    if (this.running) return;
+    this.running = true; this.last = performance.now();
+    const minDt = 1000 / this.fps;
+    const tick = now => {
+      if (!this.running) return;
+      this.raf = requestAnimationFrame(tick);
+      const dt = now - this.last;
+      if (dt < minDt - 2) return;
+      this.last = now;
+      const d = Math.min(dt, 100) / 1000;
+      this.t += d; this.step(d); this.draw();
+    };
+    this.raf = requestAnimationFrame(tick);
+  }
+  stop() { this.running = false; cancelAnimationFrame(this.raf); }
+
+  /* --- отрисовка --- */
+  draw() {
+    const c = this.ctx, s = this.st;
+    if (!s) return;
+    this.skyFill(c, s);
+    this.stars_(c, s, this.t);
+    this.moon_(c, s);
+    this.sun_(c, s);
+    this.clouds_(c, s, this.t);
+    this.scrim_(c);
+    this.ground_(c, s);
+    this.fog_(c, s, this.t);
+    this.precip_(c, s);
+    this.lightning_(c, s);
+    this.glassDrops_(c, s);
+  }
+
+  skyFill(c, s) {
+    const W = this.W, H = this.H, hy = H * HZ;
+    const g = c.createLinearGradient(0, 0, 0, hy + H * .02);
+    g.addColorStop(0, rgb(s.top));
+    g.addColorStop(.5, rgb(s.mid));
+    g.addColorStop(1, rgb(s.hor));
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    // свечение у горизонта в сторону солнца: золото на рассвете, персик на закате
+    const glow = (1 - smooth(-1, 14, s.e)) * smooth(-10, -1, s.e) * (1 - s.w.gray * .8) * (1 - s.w.fog * .7);
+    if (glow > .01) {
+      const gx = this.cel.sunX * W, gy = hy;
+      const rg = c.createRadialGradient(gx, gy, 0, gx, gy, W * 1.05);
+      const col = s.ev ? [255, 156, 98] : [255, 190, 120];
+      rg.addColorStop(0, rgb(col, .5 * glow)); rg.addColorStop(.45, rgb(col, .16 * glow)); rg.addColorStop(1, rgb(col, 0));
+      c.fillStyle = rg; c.fillRect(0, 0, W, H);
+    }
+    // дымка у горизонта: небо светлеет к земле
+    const hz = c.createLinearGradient(0, hy - H * .2, 0, hy + H * .02);
+    hz.addColorStop(0, rgb(s.hor, 0)); hz.addColorStop(1, rgb(s.hor, .38));
+    c.fillStyle = hz; c.fillRect(0, hy - H * .2, W, H * .22);
+  }
+
+  stars_(c, s, t) {
+    const vis = (1 - smooth(-11, -2, s.e)) * (1 - s.w.cloud * .95) * (1 - s.w.fog);
+    if (vis < .02) return;
+    for (const st of this.stars) {
+      const tw = this.motion ? .78 + .22 * Math.sin(t * 1.3 + st.p) : 1;
+      c.fillStyle = `rgba(236,240,255,${(vis * st.b * tw).toFixed(3)})`;
+      if (st.s > 1.05) { c.beginPath(); c.arc(st.x * this.W, st.y * this.H, st.s * .62, 0, TAU); c.fill(); }
+      else c.fillRect(st.x * this.W, st.y * this.H, st.s, st.s);
+    }
+  }
+
+  sun_(c, s) {
+    const cel = this.cel, W = this.W, H = this.H;
+    const a = cel.sunA * Math.pow(Math.max(s.sunVis, .0001), .8);
+    const aGlow = cel.sunA * (1 - s.w.rain * .9) * (1 - s.w.storm) * (.25 + .75 * s.sunVis);   // сквозь облака остаётся пятно света
+    if (aGlow < .02) return;
+    const x = cel.sunX * W, y = cel.sunY * H;
+    const warm = 1 - smooth(0, 16, s.e);
+    const col = mix([255, 248, 232], [255, 168, 104], warm);
+    c.globalCompositeOperation = 'screen';
+    softBlob(c, x, y, 300, col, (.1 + .2 * warm) * aGlow);
+    softBlob(c, x, y, 110, col, (.28 + .3 * warm) * aGlow);
+    c.globalCompositeOperation = 'source-over';
+    if (a > .02) {
+      c.fillStyle = rgb(mix([255, 253, 246], [255, 226, 186], warm), a);
+      c.beginPath(); c.arc(x, y, 17, 0, TAU); c.fill();
+    }
+  }
+
+  moon_(c, s) {
+    const cel = this.cel, W = this.W, H = this.H;
+    const a = cel.moonA * (1 - s.w.cloud * .85) * (1 - s.w.fog * .6);
+    if (a < .02) return;
+    const x = cel.moonX * W, y = cel.moonY * H, r = 22;
+    c.globalCompositeOperation = 'screen'; softBlob(c, x, y, 150, [170, 196, 244], .26 * a); c.globalCompositeOperation = 'source-over';
+    c.save(); c.beginPath(); c.arc(x, y, r, 0, TAU); c.clip();
+    const g = c.createRadialGradient(x - 7, y - 7, 2, x, y, r);
+    g.addColorStop(0, rgb([252, 252, 244], a)); g.addColorStop(1, rgb([206, 212, 214], a));
+    c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
+    c.fillStyle = `rgba(120,128,142,${(.17 * a).toFixed(3)})`;
+    for (const [dx, dy, rr] of [[-6, -4, 7], [5, 3, 9], [-2, 9, 5], [8, -8, 4]]) { c.beginPath(); c.arc(x + dx, y + dy, rr, 0, TAU); c.fill(); }
+    c.restore();
+  }
+
+  /* --- облака --- */
+  lightFor(cx, cy) {
+    const cel = this.cel, W = this.W, H = this.H;
+    const moon = cel.e < -6 && cel.moonA > .08;
+    const sx = (moon ? cel.moonX : cel.sunX) * W, sy = (moon ? cel.moonY : cel.sunY) * H;
+    let dx = sx - cx, dy = sy - cy - H * .06;
+    const k = 1 - smooth(-2, 18, cel.e);                  // чем ниже солнце, тем свет идёт сбоку
+    dy = dy * (1 - .55 * k) - H * .05 * (1 - k);          // при высоком солнце сверху, у горизонта — сбоку
+    const d = Math.hypot(dx, dy) || 1;
+    return [dx / d, dy / d];
+  }
+  clouds_(c, s, t) {
+    const W = this.W, H = this.H, v = 10 + WIND[this.wk] * 1.0, o = this.octx, q = this.q;
+    const cc = this.cc, fl = cc.flat;
+    const mid = mix(cc.lit, cc.sh, .32), litStr = 1 - fl * .5;
+    for (const cl of this.clouds) {
+      let a = cl.a * smooth(cl.th, cl.th + .14, s.w.cloud);
+      if (cl.deck) a *= .7 + .3 * s.w.dark;
+      a = Math.min(1, a);
+      if (a < .01) continue;
+      const w = cl.w, span = W + w * 1.6;
+      const X = ((cl.x * span + t * v * cl.sp) % span) - w * .8;
+      const Y = cl.y * H;
+      const bx = Math.max(0, X - w * .08), by = Math.max(0, Y - w * .8), bw = Math.min(W, X + w * 1.08) - bx, bh = Math.min(H, Y + w * .12) - by;
+      if (bw <= 4 || bh <= 4) continue;
+      const L = this.lightFor(X + w * .5, Y - w * .25);
+      o.clearRect(bx, by, bw, bh);
+      o.globalCompositeOperation = 'source-over';
+      const soft = fl > .35 || cl.deck;                    // пасмурно: мягкая «вата» без выпуклых шаров
+      if (soft) {
+        for (let i = 0; i < cl.c.length; i++) {
+          const k = cl.c[i]; if (k[2] < .075) continue;
+          const rr = k[2] * w * (1 + .012 * Math.sin(t * .45 + i * 1.7 + cl.ph)), fy = k[3];
+          const cx = X + k[0] * w, cy = Y + k[1] * w, ry = rr * fy * (cl.deck ? 1 : .9);
+          const R = rr * 1.25;
+          o.save(); o.translate(cx, cy); o.scale(1, ry / rr);
+          const g = o.createRadialGradient(-L[0] * rr * .15, -rr * .28, 0, 0, 0, R);
+          g.addColorStop(0, rgb(mix(cc.lit, cc.hi, .25), .94)); g.addColorStop(.5, rgb(mix(cc.lit, cc.sh, .28), .88)); g.addColorStop(.82, rgb(mix(cc.lit, cc.sh, .5), .45)); g.addColorStop(1, rgb(cc.sh, 0));
+          o.fillStyle = g; o.beginPath(); o.arc(0, 0, R, 0, TAU); o.fill(); o.restore();
+        }
+      } else {
+        // 1) силуэт одним цветом
+        o.fillStyle = rgb(mid); o.beginPath();
+        for (let i = 0; i < cl.c.length; i++) {
+          const k = cl.c[i], rr = k[2] * w * (1 + .012 * Math.sin(t * .45 + i * 1.7 + cl.ph)), cx = X + k[0] * w, cy = Y + k[1] * w;
+          o.moveTo(cx + rr, cy); o.ellipse(cx, cy, rr, rr * k[3], 0, 0, TAU);
+        }
+        o.fill();
+        // 2) каждый шар: светлая сторона к солнцу, тень с обратной стороны (от крупных к мелким)
+        for (let i = 0; i < cl.c.length; i++) {
+          const k = cl.c[i], rr = k[2] * w * (1 + .012 * Math.sin(t * .45 + i * 1.7 + cl.ph)), fy = k[3];
+          const cx = X + k[0] * w, cy = Y + k[1] * w, ry = rr * fy;
+          const g = o.createLinearGradient(cx + L[0] * rr, cy + L[1] * ry, cx - L[0] * rr, cy - L[1] * ry);
+          g.addColorStop(0, rgb(cc.lit, .96)); g.addColorStop(.46, rgb(cc.lit, .78 * litStr + .1)); g.addColorStop(.78, rgb(mix(cc.lit, cc.sh, .6), .55)); g.addColorStop(1, rgb(cc.sh, .78));
+          o.fillStyle = g;
+          o.beginPath(); o.ellipse(cx, cy, rr, ry, 0, 0, TAU); o.fill();
+          if (rr > w * .035) {                               // блик у кромки, обращённой к солнцу
+            const hx_ = cx + L[0] * rr * .5, hy_ = cy + L[1] * ry * .5;
+            const rg = o.createRadialGradient(hx_, hy_, 0, hx_, hy_, rr * .6);
+            rg.addColorStop(0, rgb(cc.hi, .8 * litStr)); rg.addColorStop(1, rgb(cc.hi, 0));
+            o.fillStyle = rg;
+            o.beginPath(); o.ellipse(cx, cy, rr, ry, 0, 0, TAU); o.fill();
+          }
+        }
+      }
+      // 3) общий свет и тень по всему облаку, чтобы форма читалась целиком
+      o.globalCompositeOperation = 'source-atop';
+      const gx = X + w * .5, gy = Y - w * .22, gl = w * .55;
+      const og = o.createLinearGradient(gx + L[0] * gl, gy + L[1] * gl, gx - L[0] * gl, gy - L[1] * gl);
+      og.addColorStop(0, rgb(cc.hi, .3 * litStr)); og.addColorStop(.5, rgb(cc.hi, 0)); og.addColorStop(1, rgb(cc.sh, soft ? .18 : .42));
+      o.fillStyle = og; o.fillRect(bx, by, bw, bh);
+      if (!cl.deck) {
+        const bg = o.createLinearGradient(0, Y - w * .2, 0, Y + w * .02);
+        bg.addColorStop(0, rgb(cc.sh, 0)); bg.addColorStop(1, rgb(cc.sh, .6));
+        o.fillStyle = bg; o.fillRect(bx, Y - w * .2, bw, w * .22);
+      }
+      if (!cl.deck) {                                      // плоское основание у кучевых
+        o.globalCompositeOperation = 'destination-out';
+        const cut = o.createLinearGradient(0, Y - w * .015, 0, Y + w * .05);
+        cut.addColorStop(0, 'rgba(0,0,0,0)'); cut.addColorStop(1, 'rgba(0,0,0,1)');
+        o.fillStyle = cut; o.fillRect(bx, Y - w * .015, bw, by + bh - (Y - w * .015) + 2);
+      }
+      o.globalCompositeOperation = 'source-over';
+      c.globalAlpha = a;
+      c.drawImage(this.off, bx * q, by * q, bw * q, bh * q, bx, by, bw, bh);
+      c.globalAlpha = 1;
+    }
+  }
+
+  /* --- вуаль под цифрами: едва заметно светлит или темнит небо там, где нет стекла --- */
+  scrim_(c) {
+    const sc = this.scrim; if (!sc || sc.a < .01) return;
+    const g = c.createLinearGradient(0, 96, 0, 440);
+    g.addColorStop(0, rgb(sc.tint, 0)); g.addColorStop(.2, rgb(sc.tint, sc.a)); g.addColorStop(.72, rgb(sc.tint, sc.a)); g.addColorStop(1, rgb(sc.tint, 0));
+    c.fillStyle = g; c.fillRect(0, 96, this.W, 344);
+  }
+
+  /* --- земля: дальние гряды в дымке --- */
+  ground_(c, s) {
+    const W = this.W, H = this.H, hy = H * HZ, w = s.w;
+    const { far, near, base } = groundColors(s);
+    const ridge = (dy, a1, f1, p1, a2, f2, p2, col, bot) => {
+      const g = c.createLinearGradient(0, hy + dy - a1 - a2, 0, H);
+      g.addColorStop(0, rgb(col)); g.addColorStop(.35, rgb(mix(col, bot, .55))); g.addColorStop(1, rgb(bot));
+      c.fillStyle = g; c.beginPath(); c.moveTo(0, H);
+      for (let x = 0; x <= W + 6; x += 6) c.lineTo(x, hy + dy - a1 * (.5 + .5 * Math.sin(x * f1 + p1)) - a2 * (.5 + .5 * Math.sin(x * f2 + p2)));
+      c.lineTo(W, H); c.closePath(); c.fill();
+    };
+    ridge(-4, 20, .0052, 1.1, 8, .017, 2.4, far, mix(far, near, .5));
+    ridge(26, 13, .0075, 4.0, 6, .026, .6, mix(near, far, .25), base);
+    // тёплая кромка на дальней гряде в сторону солнца (рассвет, закат)
+    const rim = (1 - smooth(-1, 12, s.e)) * smooth(-9, -1, s.e) * (1 - w.gray) * (1 - w.fog);
+    if (rim > .02) {
+      const gx = this.cel.sunX * W, rg = c.createRadialGradient(gx, hy, 0, gx, hy, W * .8);
+      rg.addColorStop(0, `rgba(255,170,110,${(.34 * rim).toFixed(3)})`); rg.addColorStop(1, 'rgba(255,170,110,0)');
+      c.fillStyle = rg; c.fillRect(0, hy - 40, W, 90);
+    }
+  }
+
+  /* --- туман --- */
+  ensureFog() {
+    const col = this.st.fogC, sig = col.map(v => Math.round(v / 6)).join();
+    if (sig === this.fogSig && this.fogTile) return;
+    this.fogSig = sig;
+    const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 260;
+    const g = cv.getContext('2d'), r = mulberry32(777);
+    for (let i = 0; i < 44; i++) {
+      const x = r() * 1024, y = 40 + r() * 180, rr = 40 + r() * 90, sx = 2 + r() * 1.6, al = .26 + r() * .26;
+      for (const dx of [-1024, 0, 1024]) { g.save(); g.translate(x + dx, y); g.scale(sx, 1); softBlob(g, 0, 0, rr, col, al); g.restore(); }
+    }
+    this.fogTile = cv;
+  }
+  fog_(c, s, t) {
+    const w = s.w, W = this.W, H = this.H, hy = H * HZ;
+    if (w.fog <= 0 || !this.fogTile) return;
+    const g = c.createLinearGradient(0, hy - H * .4, 0, H);
+    g.addColorStop(0, rgb(s.fogC, 0)); g.addColorStop(.5, rgb(s.fogC, .5 * w.fog)); g.addColorStop(1, rgb(s.fogC, .8 * w.fog));
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    const L = [[hy - H * .22, 1, 5, .62], [hy - H * .06, 1.5, 11, .78], [hy + H * .1, 2.3, 20, .86]];
+    for (const [y, sc, sp, al] of L) {
+      const tw = 1024 * sc, off = (t * sp) % tw;
+      c.globalAlpha = Math.min(1, al * w.fog);
+      for (let x = -off; x < W; x += tw) c.drawImage(this.fogTile, x, y - 130 * sc, tw, 260 * sc);
+    }
+    c.globalAlpha = 1;
+  }
+
+  /* --- дождь и снег --- */
+  precip_(c, s) {
+    const W = this.W, H = this.H, hy = H * HZ, w = s.w;
+    if (this.rain.length) {
+      const sl = clamp(WIND[this.wk] / 90, 0, .55);
+      const col = mix([170, 186, 214], [232, 238, 246], s.day);
+      // капли трёх классов: далёкие короткие бледные, ближние длинные яркие
+      const cls = [[0, .36, .8, .2], [.36, .75, 1.15, .34], [.75, 1.01, 1.7, .55]];
+      c.lineCap = 'round';
+      for (const [z0, z1, lw, al] of cls) {
+        c.lineWidth = lw; c.strokeStyle = rgb(col, al * (.6 + .4 * w.rain)); c.beginPath();
+        for (const p of this.rain) {
+          if (p.z < z0 || p.z >= z1) continue;
+          c.moveTo(p.x, p.y); c.lineTo(p.x - sl * p.l, p.y - p.l);
+        }
+        c.stroke();
+      }
+      // брызги на земле
+      c.lineWidth = 1;
+      for (const sp of this.splash) {
+        const u = sp.t / .42, rx = 1.5 + u * sp.m;
+        c.strokeStyle = rgb(col, (1 - u) * .5);
+        c.beginPath(); c.ellipse(sp.x, sp.y, rx, rx * .34, 0, 0, TAU); c.stroke();
+      }
+      // водяная пыль над землёй
+      const mg = c.createLinearGradient(0, H * .66, 0, H);
+      mg.addColorStop(0, rgb(col, 0)); mg.addColorStop(1, rgb(col, .16 * w.rain));
+      c.fillStyle = mg; c.fillRect(0, H * .66, W, H * .34);
+    }
+    if (this.snow.length) {
+      const col = mix([204, 214, 232], [255, 255, 255], s.day);
+      for (const p of this.snow) {
+        const a = .4 + p.z * .5;
+        if (p.s > 2.6) { softBlob(c, p.x, p.y, p.s * 1.7, col, a * .8); continue; }  // близкие хлопья вне фокуса
+        c.fillStyle = rgb(col, a);
+        c.beginPath(); c.arc(p.x, p.y, p.s, 0, TAU); c.fill();
+      }
+      // снежная дымка у земли
+      const mg = c.createLinearGradient(0, H * .58, 0, H);
+      mg.addColorStop(0, rgb(col, 0)); mg.addColorStop(1, rgb(col, .2 * w.snow));
+      c.fillStyle = mg; c.fillRect(0, H * .58, W, H * .42);
+    }
+  }
+
+  /* --- молния: вспышки не чаще одной серии в 6 секунд, без стробоскопа --- */
+  lightning_(c, s) {
+    const W = this.W, H = this.H, w = s.w;
+    if (!w.storm) return;
+    const live = this.motion && this.flash > .02 && this.bolt;
+    const stat = this.staticBolt && !this.motion;
+    if (!live && !stat) return;
+    if (!this.bolt) this.bolt = this.mkBolt();
+    const f = live ? this.flash : .6, bx = this.bolt[0][0];
+    c.globalCompositeOperation = 'screen';
+    const rg = c.createRadialGradient(bx, H * .08, 0, bx, H * .08, W * .95);
+    rg.addColorStop(0, `rgba(176,196,255,${(.42 * f * f).toFixed(3)})`); rg.addColorStop(1, 'rgba(176,196,255,0)');
+    c.fillStyle = rg; c.fillRect(0, 0, W, H * .7);
+    c.fillStyle = `rgba(200,214,255,${(.1 * f * f).toFixed(3)})`; c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = 'source-over';
+    c.lineJoin = 'round'; c.lineCap = 'round';
+    for (const [lw, al] of [[7, .14], [3.4, .3]]) {
+      c.strokeStyle = `rgba(190,208,255,${(al * f).toFixed(3)})`;
+      c.beginPath(); for (const g of this.bolt) { c.lineWidth = lw * g[4] / 2.2; c.moveTo(g[0], g[1]); c.lineTo(g[2], g[3]); } c.stroke();
+    }
+    c.strokeStyle = `rgba(246,248,255,${Math.min(1, .95 * f + .05).toFixed(3)})`;
+    for (const g of this.bolt) { c.lineWidth = Math.max(.8, g[4] * .85); c.beginPath(); c.moveTo(g[0], g[1]); c.lineTo(g[2], g[3]); c.stroke(); }
+  }
+
+  /* --- капли на «стекле» экрана --- */
+  glassDrops_(c, s) {
+    if (!this.drops.length) return;
+    const w = s.w.rain, day = s.day;
+    for (const d of this.drops) {
+      if (d.trail.length > 1) {
+        c.strokeStyle = `rgba(255,255,255,${(.14 * w).toFixed(3)})`; c.lineWidth = d.r * .55; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(d.trail[0][0], d.trail[0][1]); for (const p of d.trail) c.lineTo(p[0], p[1]); c.stroke();
+      }
+      const rx = d.r, ry = d.r * 1.22;
+      c.fillStyle = `rgba(255,255,255,${(.09 * w).toFixed(3)})`;
+      c.beginPath(); c.ellipse(d.x, d.y, rx, ry, 0, 0, TAU); c.fill();
+      c.strokeStyle = `rgba(255,255,255,${((.2 + .12 * day) * w).toFixed(3)})`; c.lineWidth = .8;
+      c.beginPath(); c.ellipse(d.x, d.y, rx, ry, 0, 0, TAU); c.stroke();
+      c.fillStyle = `rgba(255,255,255,${(.55 * w).toFixed(3)})`;
+      c.beginPath(); c.arc(d.x - rx * .32, d.y - ry * .4, Math.max(.7, rx * .24), 0, TAU); c.fill();
+      c.fillStyle = `rgba(10,16,30,${(.14 * w).toFixed(3)})`;
+      c.beginPath(); c.ellipse(d.x + rx * .2, d.y + ry * .45, rx * .5, ry * .28, 0, 0, TAU); c.fill();
+    }
+  }
+}
+
+</script>
+<script>
+/* ---------- Интерфейс макета ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const S = {
+  h: 16.9, wk: 'partly', lang: 'ru', anim: !reduceMotion, page: 'home', run: false,
+  inkK: null, inkT: 0, layer: 0, sheet: null, fc: 7,
+  place: 'gps', pinned: [], q: '', hv: 'line', sTab: 'look', font: 'manrope',
+  g: { cards: 80, btn: null, alert: null, blur: 10, guard: true },
+  notif: { rain: 1, storm: 1, wind: 1, pollen: 1, snow: 1, hail: 1, ice: 1, fog: 0 }, lead: 60, quiet: true,
+};
+
+/* ----- числа ----- */
+const fm = (n, d = 0) => { const r = +(+n).toFixed(d); return (r < 0 ? '−' : '') + Math.abs(r).toFixed(d).replace('.', ','); };
+const deg = n => fm(n) + '°';
+const hhmm = h => { h = ((h % 24) + 24) % 24; let m = Math.round((h % 1) * 60), hh = Math.floor(h); if (m === 60) { m = 0; hh = (hh + 1) % 24; } return String(hh).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+
+/* ----- иконки (линейные, 24×24) ----- */
+const I = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  partly: '<path d="M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41M15.947 12.65a4 4 0 0 0-5.925-4.128M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+  partlyN: '<path d="M10.188 8.5A6 6 0 0 1 16 4a1 1 0 0 0 6 6 6 6 0 0 1-3 5.197M13 16a3 3 0 1 1 0 6H7a5 5 0 1 1 4.9-6Z"/>',
+  rain: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M16 14v6M8 14v6M12 16v6"/>',
+  storm: '<path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973M13 12l-3 5h4l-3 5"/>',
+  snow: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M8 15h.01M8 19h.01M12 17h.01M12 21h.01M16 15h.01M16 19h.01"/>',
+  fog: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M16 17H7M17 21H9"/>',
+  hail: '<path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M16 14v2M8 14v2M16 20h.01M8 20h.01M12 16v2M12 22h.01"/>',
+  wind: '<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+  flower: '<circle cx="12" cy="12" r="3"/><path d="M12 16.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 1 1 4.5 4.5 4.5 4.5 0 1 1-4.5 4.5M12 7.5V9M7.5 12H9M16.5 12H15M12 16.5V15M8 8l1.88 1.88M14.12 9.88 16 8M8 16l1.88-1.88M14.12 14.12 16 16"/>',
+  ice: '<path d="M12 2v20M4.2 7l15.6 10M4.2 17 19.8 7M9 4l3 2 3-2M9 20l3-2 3 2"/>',
+  drop: '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+  grid: '<rect width="7" height="7" x="3" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="14" rx="1.5"/><rect width="7" height="7" x="3" y="14" rx="1.5"/>',
+  nav: '<path d="M3 11 22 2l-9 19-2-8z"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
+  sliders: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
+  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+  map: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0zM15 5.764v15M9 3.236v15"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  warn: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/>',
+  sev: '<path d="M12 16h.01M12 8v4M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z"/>',
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  plus: '<path d="M5 12h14M12 5v14"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+};
+const svg = (inner, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
+const wxI = (wk, night) => {
+  switch (wk) {
+    case 'clear': return night ? I.moon : I.sun;
+    case 'partly': return night ? I.partlyN : I.partly;
+    case 'cloudy': return I.cloud;
+    default: return I[wk];
+  }
+};
+const wxSvg = (wk, night, cls) => svg(wxI(wk, night), cls);
+
+/* ----- тексты ----- */
+const L = {
+  ru: {
+    here: 'Текущее место', now: 'Сейчас', today: 'Сегодня', feels: 'Ощущается как', max: 'Макс', min: 'Мин',
+    hourly: 'По часам', mm: 'осадки, мм', tabs: ['Главная', 'Осадки', 'Подробно', 'Карта'], settings: 'Настройки',
+    wx: { clear: 'Ясно', partly: 'Переменная облачность', cloudy: 'Пасмурно', rain: 'Дождь', storm: 'Гроза', snow: 'Снег', fog: 'Туман' },
+    kind: { clear: 'Осадки', partly: 'Осадки', cloudy: 'Осадки', rain: 'Дождь', storm: 'Гроза с дождём', snow: 'Снег', fog: 'Морось' },
+    days: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'], date: 'Пн, 26 октября',
+    mo: 'окт', next24: 'Ближайшие 24 часа', mmU: 'мм', none24: 'Осадков не ожидается', going: 'идёт, до', starts: 'начнётся в', total: 'за сутки',
+    fc: ['7 дней', '14 дней'], fcNote: 'После 10-го дня прогноз менее надёжен', precipT: 'Осадки',
+    aqi: 'Качество воздуха', aqiL: ['Отлично', 'Хорошо', 'Умеренно', 'Плохо', 'Очень плохо'],
+    pollen: 'Пыльца', pol: ['Берёза', 'Злаки', 'Полынь', 'Амброзия'],
+    wind: 'Ветер', gust: 'порывы до', kmh: 'км/ч', dir: 'юго-запад', press: 'Давление', hpa: 'гПа',
+    trend: { clear: 'растёт', partly: 'стабильно', cloudy: 'стабильно', rain: 'падает', storm: 'быстро падает', snow: 'падает', fog: 'растёт' },
+    uv: 'УФ-индекс', uvL: ['Низкий', 'Умеренный', 'Высокий'], hum: 'Влажность', vis: 'Видимость', km: 'км',
+    sun: 'Солнце и Луна', rise: 'Восход', set: 'Закат', dlen: 'День', hm: ['ч', 'мин'], moonS: 'Полнолуние, 100 %',
+    map: 'Карта', mock: 'макет', layers: ['Радар', 'Облака', 'Ветер'], none: 'Осадков рядом нет', tl: ['−2 ч', 'сейчас', '+2 ч'], youHere: 'Вы здесь',
+    sNotif: 'Уведомления', ntf: { rain: 'Дождь', storm: 'Гроза', wind: 'Ветер', pollen: 'Пыльца', snow: 'Снег', hail: 'Град', ice: 'Гололёд', fog: 'Туман' },
+    sLead: 'Предупреждать заранее', lead: ['30 мин', '1 ч', '3 ч'], sQuiet: 'Тихие часы', sQuietS: '23:00–07:00. Опасные явления проходят всегда',
+    sAnim: 'Анимация погоды', sAnimS: 'Облака и осадки в фоне',
+    sTabs: ['Вид', 'Уведомления'], sHv: 'Почасовой прогноз', hvO: ['Линия времени', 'Карточки'], sFont: 'Шрифт',
+    plT: 'Места', gps: 'Текущее место', gpsS: 'Определяется по GPS', pinned: 'Закреплённые', pinEmpty: 'Закреплённых мест пока нет',
+    search: 'Найти населённый пункт', hint: 'Введите название города, посёлка или района', noRes: 'Ничего не нашлось', limit: 'Закрепить можно до 10 мест', pinDo: 'Закрепить', unpin: 'Убрать',
+    al: {
+      moon: ['info', 'Сегодня полнолуние', 'Луна взойдёт в 17:20', ''],
+      frost: ['warn', 'Заморозки', 'до −1° к 06:00', 'ночью'],
+      gust: ['info', 'Порывы до 38 км/ч', 'во второй половине дня', 'с 15:00'],
+      rainNight: ['info', 'Ночью дождь', 'до 3 мм', 'с 02:00'],
+      dwdRain: ['warn', 'DWD: затяжной дождь', 'до 22 мм за 12 часов', 'до 06:00'],
+      rainUp: ['info', 'Дождь усилится', 'до 2,4 мм/ч', 'с 18:00'],
+      dwdStorm: ['sev', 'DWD: гроза', 'порывы до 85 км/ч, возможен град', 'до 21:00'],
+      stormEnd: ['info', 'Гроза уйдёт', 'дождь утихнет к 21:30', ''],
+      dwdSnow: ['warn', 'DWD: снегопад', '3–5 см до утра', 'до 07:00'],
+      ice: ['info', 'Возможен гололёд', 'на дорогах', 'с 22:00'],
+      dwdFog: ['warn', 'DWD: туман', 'видимость меньше 150 м', 'до 10:00'],
+    },
+  },
+  de: {
+    here: 'Aktueller Standort', now: 'Jetzt', today: 'Heute', feels: 'Gefühlt', max: 'Max', min: 'Min',
+    hourly: 'Stündlich', mm: 'Niederschlag, mm', tabs: ['Start', 'Regen', 'Details', 'Karte'], settings: 'Einstellungen',
+    wx: { clear: 'Klar', partly: 'Wechselhaft', cloudy: 'Bedeckt', rain: 'Regen', storm: 'Gewitter', snow: 'Schnee', fog: 'Nebel' },
+    kind: { clear: 'Niederschlag', partly: 'Niederschlag', cloudy: 'Niederschlag', rain: 'Regen', storm: 'Gewitterregen', snow: 'Schnee', fog: 'Nieselregen' },
+    days: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'], date: 'Mo, 26. Oktober',
+    mo: 'Okt', next24: 'Nächste 24 Stunden', mmU: 'mm', none24: 'Kein Niederschlag erwartet', going: 'läuft, bis', starts: 'beginnt um', total: 'in 24 h',
+    fc: ['7 Tage', '14 Tage'], fcNote: 'Ab Tag 10 weniger zuverlässig', precipT: 'Niederschlag',
+    aqi: 'Luftqualität', aqiL: ['Sehr gut', 'Gut', 'Mäßig', 'Schlecht', 'Sehr schlecht'],
+    pollen: 'Pollen', pol: ['Birke', 'Gräser', 'Beifuß', 'Ambrosia'],
+    wind: 'Wind', gust: 'Böen bis', kmh: 'km/h', dir: 'Südwest', press: 'Luftdruck', hpa: 'hPa',
+    trend: { clear: 'steigend', partly: 'stabil', cloudy: 'stabil', rain: 'fallend', storm: 'stark fallend', snow: 'fallend', fog: 'steigend' },
+    uv: 'UV-Index', uvL: ['Niedrig', 'Mäßig', 'Hoch'], hum: 'Luftfeuchte', vis: 'Sicht', km: 'km',
+    sun: 'Sonne & Mond', rise: 'Aufgang', set: 'Untergang', dlen: 'Tag', hm: ['Std', 'Min'], moonS: 'Vollmond, 100 %',
+    map: 'Karte', mock: 'Entwurf', layers: ['Radar', 'Wolken', 'Wind'], none: 'Kein Niederschlag in der Nähe', tl: ['−2 Std', 'jetzt', '+2 Std'], youHere: 'Hier',
+    sNotif: 'Benachrichtigungen', ntf: { rain: 'Regen', storm: 'Gewitter', wind: 'Wind', pollen: 'Pollen', snow: 'Schnee', hail: 'Hagel', ice: 'Glätte', fog: 'Nebel' },
+    sLead: 'Vorwarnzeit', lead: ['30 Min', '1 Std', '3 Std'], sQuiet: 'Ruhezeiten', sQuietS: '23:00–07:00. Gefährliche Ereignisse kommen immer durch',
+    sAnim: 'Wetteranimation', sAnimS: 'Wolken und Niederschlag im Hintergrund',
+    sTabs: ['Ansicht', 'Mitteilungen'], sHv: 'Stündliche Vorhersage', hvO: ['Zeitleiste', 'Karten'], sFont: 'Schrift',
+    plT: 'Orte', gps: 'Aktueller Standort', gpsS: 'Per GPS bestimmt', pinned: 'Angeheftet', pinEmpty: 'Noch keine angehefteten Orte',
+    search: 'Ort suchen', hint: 'Name einer Stadt, eines Dorfes oder Bezirks eingeben', noRes: 'Nichts gefunden', limit: 'Bis zu 10 Orte können angeheftet werden', pinDo: 'Anheften', unpin: 'Entfernen',
+    al: {
+      moon: ['info', 'Heute Vollmond', 'Mondaufgang um 17:20', ''],
+      frost: ['warn', 'Frost', 'bis −1° gegen 06:00', 'nachts'],
+      gust: ['info', 'Böen bis 38 km/h', 'am Nachmittag', 'ab 15:00'],
+      rainNight: ['info', 'Regen in der Nacht', 'bis 3 mm', 'ab 02:00'],
+      dwdRain: ['warn', 'DWD: Dauerregen', 'bis 22 mm in 12 Stunden', 'bis 06:00'],
+      rainUp: ['info', 'Regen verstärkt sich', 'bis 2,4 mm/h', 'ab 18:00'],
+      dwdStorm: ['sev', 'DWD: Gewitter', 'Böen bis 85 km/h, Hagel möglich', 'bis 21:00'],
+      stormEnd: ['info', 'Gewitter zieht ab', 'Regen lässt gegen 21:30 nach', ''],
+      dwdSnow: ['warn', 'DWD: Schneefall', '3–5 cm bis zum Morgen', 'bis 07:00'],
+      ice: ['info', 'Glättegefahr', 'auf den Straßen', 'ab 22:00'],
+      dwdFog: ['warn', 'DWD: Nebel', 'Sicht unter 150 m', 'bis 10:00'],
+    },
+  },
+};
+const alertsFor = (wk, h, l) => {
+  const A = l.al, out = [];
+  switch (wk) {
+    case 'clear': out.push(A.moon); if (h < 9 || h >= 21) out.push(A.frost); break;
+    case 'partly': out.push(A.gust); break;
+    case 'cloudy': out.push(A.rainNight); break;
+    case 'rain': out.push(A.dwdRain, A.rainUp); break;
+    case 'storm': out.push(A.dwdStorm, A.stormEnd); break;
+    case 'snow': out.push(A.dwdSnow, A.ice); break;
+    case 'fog': out.push(A.dwdFog); break;
+  }
+  return out.slice(0, 2);
+};
+const WX_RU = { clear: 'Ясно', partly: 'Переменно', cloudy: 'Пасмурно', rain: 'Дождь', storm: 'Гроза', snow: 'Снег', fog: 'Туман' };
+const TOWNS = [['Berlin', 'Берлин'], ['Hamburg', 'Гамбург'], ['München', 'Мюнхен'], ['Köln', 'Кёльн'], ['Bremen', 'Бремен'], ['Leipzig', 'Лейпциг'],
+  ['Dresden', 'Дрезден'], ['Nürnberg', 'Нюрнберг'], ['Bonn', 'Бонн'], ['Bielefeld', 'Билефельд'], ['Hannover', 'Ганновер'], ['Braunschweig', 'Брауншвейг']];
+const townName = t => (S.lang === 'ru' ? t[1] : t[0]);
+const placeName = () => { if (S.place === 'gps') return L[S.lang].here; const t = S.pinned.find(p => p[0] === S.place); return t ? townName(t) : L[S.lang].here; };
+
+/* ----- тема: применить переменные к элементу ----- */
+function applyVars(el, tv) { for (const k in tv.css) el.style.setProperty(k, tv.css[k]); }
+function mapVars(el, k) {
+  el.style.setProperty('--land', rgb(mix([226, 232, 229], [34, 46, 56], k)));
+  el.style.setProperty('--water', rgb(mix([184, 206, 220], [22, 34, 46], k)));
+}
+
+/* ---------- Главная ---------- */
+let K = {};
+const setHTML = (el, key, build) => { if (K[key.id] !== key.v) { K[key.id] = key.v; el.innerHTML = build(); } };
+
+function renderHome() {
+  const l = L[S.lang], t = temp(S.h, S.wk), night = sunElev(S.h) < -1, hl = hiLo(S.wk);
+  const tr = Math.round(t);
+  setHTML($('#num'), { id: 'num', v: tr }, () => `${tr < 0 ? '−' : ''}${Math.abs(tr)}<span class="deg">°</span>`);
+  setHTML($('#hico'), { id: 'hico', v: S.wk + night }, () => wxSvg(S.wk, night));
+  $('#cond').textContent = l.wx[S.wk];
+  $('#meta').textContent = `${l.feels} ${deg(feels(t, S.wk))}  ·  ${l.max} ${deg(hl.hi)}, ${l.min} ${deg(hl.lo)}`;
+  $('#city').textContent = placeName();
+  setHTML($('#pinI'), { id: 'pinI', v: S.place === 'gps' }, () => svg(S.place === 'gps' ? I.nav : I.pin));
+  $('#clock').textContent = hhmm(S.h);
+  const al = alertsFor(S.wk, S.h, l);
+  setHTML($('#alerts'), { id: 'al', v: S.wk + S.lang + al.length + (S.wk === 'clear' && al.length) }, () => al.map(a =>
+    `<div class="alert ${a[0]}" role="status">${svg(I[a[0]])}<div class="tx"><b>${a[1]}</b><span>${a[2]}</span></div>${a[3] ? `<time>${a[3]}</time>` : ''}</div>`).join(''));
+  $('#hrT').textContent = l.hourly; $('#hrU').textContent = l.mm;
+  $('#hr').classList.toggle('cards', S.hv === 'cards');
+  setHTML($('#hr'), { id: 'hr', v: S.wk + S.lang + Math.floor(S.h) + S.hv }, S.hv === 'cards' ? hourlyCardsHTML : hourlyHTML);
+}
+
+function hourlyCardsHTML() {
+  const l = L[S.lang], data = hourly(S.h, S.wk, 12);
+  return data.map((d, i) => `<div class="hcd${i ? '' : ' now'}"><span class="t">${i ? d.label : l.now}</span>${wxSvg(S.wk, d.night)}<b>${deg(Math.round(d.t))}</b><span class="p">${d.mm > 0 ? `${svg(I.drop)}${fm(d.mm, 1)}` : '–'}</span></div>`).join('');
+}
+function hourlyHTML() {
+  const l = L[S.lang], data = hourly(S.h, S.wk, 12), COLW = 58, n = data.length;
+  const ts = data.map(d => Math.round(d.t)), mn = Math.min(...ts), mx = Math.max(...ts);
+  const yOf = t => (mx === mn ? 96 : 82 + (1 - (t - mn) / (mx - mn)) * 28);
+  const maxMM = Math.max(1.5, ...data.map(d => d.mm));
+  const xs = data.map((d, i) => i * COLW + COLW / 2), ys = ts.map(yOf);
+  let path = `M${xs[0]} ${ys[0]}`;
+  for (let i = 1; i < n; i++) { const mx2 = (xs[i - 1] + xs[i]) / 2; path += ` C${mx2} ${ys[i - 1]} ${mx2} ${ys[i]} ${xs[i]} ${ys[i]}`; }
+  const dots = xs.map((x, i) => `<circle cx="${x}" cy="${ys[i]}" r="3.2"/>`).join('');
+  let cols = '';
+  data.forEach((d, i) => {
+    const bh = d.mm > 0 ? Math.max(3, d.mm / maxMM * 26) : 0;
+    cols += `<div class="hc" style="left:${i * COLW}px;width:${COLW}px">
+      <div class="hl${i ? '' : ' now'}">${i ? d.label : `<span>${l.now}</span>`}</div>
+      <div class="hi">${wxSvg(S.wk, d.night)}</div>
+      <span class="tv" style="left:${COLW / 2}px;top:${ys[i] - 22}px">${deg(ts[i])}</span>
+      <i class="bar${bh ? '' : ' z'}" style="${bh ? `height:${bh}px` : ''}"></i>
+      <div class="mmv">${d.mm > 0 ? fm(d.mm, 1) : '–'}</div></div>`;
+  });
+  return `<svg class="curve" width="${n * COLW}" height="172" viewBox="0 0 ${n * COLW} 172" aria-hidden="true">
+    <path class="ln" d="${path}"/>${dots}</svg>${cols}`;
+}
+
+/* ---------- Осадки: график на сутки и прогноз на 7 или 14 дней ---------- */
+const FUT = [['cloudy', 10, 7, 25, .4], ['rain', 9, 6, 85, 6.2], ['rain', 8, 4, 80, 4.1], ['partly', 10, 3, 15, 0], ['clear', 11, 2, 5, 0], ['partly', 12, 5, 20, .2],
+  ['cloudy', 11, 6, 30, .6], ['rain', 10, 7, 70, 3.4], ['rain', 9, 6, 65, 2.2], ['cloudy', 9, 5, 35, .5], ['partly', 10, 4, 20, 0], ['clear', 11, 3, 10, 0], ['cloudy', 10, 5, 30, .8]];
+function precipHTML() {
+  const l = L[S.lang], wk = S.wk, hl = hiLo(wk), nowH = Math.floor(S.h);
+  const pr = Array.from({ length: 24 }, (_, i) => precipMM(nowH + i, wk)), prMax = Math.max(1, ...pr), prSum = pr.reduce((a, b) => a + b, 0);
+  let verdict;
+  const first = pr.findIndex(v => v > 0);
+  if (first < 0) verdict = l.none24;
+  else if (first === 0) { let e = 0; while (e < 24 && pr[e] > 0) e++; verdict = e >= 24 ? `${l.kind[wk]} ${S.lang === 'ru' ? 'весь день' : 'den ganzen Tag'}` : `${l.kind[wk]} ${l.going} ${hhmm(nowH + e)}`; }
+  else verdict = `${l.kind[wk]} ${l.starts} ${hhmm(nowH + first)}`;
+  const bars = pr.map((v, i) => `<i class="${v ? '' : 'z'}${i === 0 ? ' nw' : ''}" style="height:${v ? Math.max(6, v / prMax * 100) : 3}%"></i>`).join('');
+  const ax = [0, 6, 12, 18, 24].map(i => `<span>${i === 24 ? '' : hhmm(nowH + i).slice(0, 2)}</span>`).join('');
+  const n = S.fc, compact = n === 14;
+  const rows = [[wk, hl.hi, hl.lo, POP[wk], prSum], ...FUT].slice(0, n);
+  const mnT = Math.min(-2, ...rows.map(r => r[2])), mxT = Math.max(13, ...rows.map(r => r[1])), span = mxT - mnT;
+  const list = rows.map((r, i) => {
+    const wd = (i) % 7, dow = l.days[wd], date = 26 + i, dd = date > 31 ? date - 31 : date, mo = date > 31 ? (S.lang === 'ru' ? 'ноя' : 'Nov') : l.mo;
+    const dn = i === 0 ? l.today : dow;
+    const sub = `${dd} ${mo}`;
+    const mmTx = r[4] > 0 ? fm(r[4], 1) : '';
+    const far = i >= 10 ? ' far' : '';
+    const pc = compact ? `<span class="pc one"><b>${r[3]}</b> %${mmTx ? ` <small>${mmTx}</small>` : ''}</span>` : `<span class="pc"><b>${r[3]} %</b><small>${mmTx ? mmTx + ' ' + l.mmU : '–'}</small></span>`;
+    const dl = compact ? `<span class="d one">${dn === l.today ? dn : `${dn} <small>${dd}</small>`}</span>` : `<span class="d">${dn}<small>${sub}</small></span>`;
+    return `<div class="frow${far}">${dl}${wxSvg(r[0], false)}${pc}<span class="lo">${deg(r[2])}</span>
+      <div class="rg"><i style="left:${(r[2] - mnT) / span * 100}%;width:${Math.max(6, (r[1] - r[2]) / span * 100)}%"></i></div><span class="hi2">${deg(r[1])}</span></div>`;
+  }).join('');
+  return `<div class="flow ${compact ? 'c14' : 'c7'}">
+    <div class="pg-title"><h3>${l.precipT}</h3><span>${l.date}</span></div>
+    <div class="fcard glass">
+      <div class="fh"><div class="nseg" role="radiogroup" aria-label="${l.precipT}">${[7, 14].map((d, i) => `<button type="button" role="radio" aria-checked="${S.fc === d}" data-fc="${d}">${l.fc[i]}</button>`).join('')}</div>${compact ? `<span class="fn">${l.fcNote}</span>` : ''}</div>
+      ${list}
+    </div>
+    <div class="pcard glass">
+      <div class="ph"><b>${l.next24}</b><span>${fm(prSum, 1)} ${l.mmU} ${l.total}</span></div>
+      <div class="pv">${verdict}</div>
+      <div class="pr24">${bars}</div><div class="pr-ax">${ax}</div>
+    </div>
+  </div>`;
+}
+
+/* ---------- Подробно: всё остальное, без прокрутки ---------- */
+function tile(title, body, cls = '') { return `<div class="tile glass ${cls}"><div class="tt">${title}</div>${body}</div>`; }
+const EAQI = { clear: 2, partly: 2, cloudy: 2, rain: 1, storm: 1, snow: 2, fog: 3 };
+const HUM = { clear: 62, partly: 66, cloudy: 78, rain: 90, storm: 88, snow: 92, fog: 99 };
+const VIS = { clear: 25, partly: 22, cloudy: 15, rain: 8, storm: 6, snow: 3, fog: .2 };
+
+function detailsHTML() {
+  const l = L[S.lang], wk = S.wk, e = sunElev(S.h);
+  const aq = EAQI[wk];
+  const pol = [0, 0, wk === 'clear' || wk === 'partly' ? 1 : 0, 0];
+  const wind = WIND[wk], gust = Math.round(wind * 1.6), uv = uvAt(e, wk);
+  const press = PRESS[wk];
+  const sp = Array.from({ length: 12 }, (_, i) => { const d = wk === 'storm' ? -1.1 : wk === 'rain' ? -.5 : wk === 'clear' || wk === 'fog' ? .35 : 0; return press - d * (11 - i) + Math.sin(i * .9) * .6; });
+  const sMin = Math.min(...sp), sMax = Math.max(...sp);
+  const spath = sp.map((v, i) => `${i ? 'L' : 'M'}${(i / 11 * 150).toFixed(1)} ${(30 - (v - sMin) / (sMax - sMin || 1) * 26).toFixed(1)}`).join(' ');
+  const day = clamp((S.h - SR) / DAYLEN, 0, 1), nightF = clamp((celestial(S.h).moonX - .1) / .8);
+  const mf = e >= 0 ? day : nightF;
+  const ax = 24 + mf * 272, ay = 66 - Math.sin(Math.PI * mf) * 48;
+  const dl = DAYLEN, dh = Math.floor(dl), dm = Math.round((dl - dh) * 60);
+  return `<div class="flow">
+    <div class="pg-title"><h3>${l.tabs[2]}</h3><span>${l.date}</span></div>
+    <div class="tiles">
+      ${tile(l.aqi, `<div class="big">${aq}<small>/ 5</small></div><div class="sub">${l.aqiL[aq - 1]}</div><div class="scale"><i style="left:calc(${(aq - 1) / 4 * 100}% - 2px)"></i></div>`)}
+      ${tile(l.pollen, `<div class="pol">${l.pol.map((n, i) => `<div><span>${n}</span><span class="dots">${[1, 2, 3].map(k => `<i class="${pol[i] >= k ? 'f' : ''}"></i>`).join('')}</span></div>`).join('')}</div>`)}
+      ${tile(l.wind, `<div class="big">${wind}<small>${l.kmh}</small></div><div class="sub">${l.gust} ${gust}<br>${l.dir}</div>
+        <div class="compass"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="var(--glass-line)" stroke-width="2"/>${[0, 90, 180, 270].map(a => `<line x1="32" y1="3" x2="32" y2="8" transform="rotate(${a} 32 32)" stroke="var(--ink3)" stroke-width="2"/>`).join('')}
+        <g transform="rotate(45 32 32)"><path d="M32 12v34M32 12l-6 8M32 12l6 8" fill="none" stroke="var(--acc)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></g></svg></div>`)}
+      ${tile(l.press, `<div class="big">${press}<small>${l.hpa}</small></div><div class="sub">${l.trend[wk]}</div><svg class="spark" viewBox="0 0 150 34" preserveAspectRatio="none"><path d="${spath}"/></svg>`)}
+      ${tile(l.uv, `<div class="big">${uv}</div><div class="sub">${l.uvL[uv >= 6 ? 2 : uv >= 3 ? 1 : 0]}</div><div class="scale"><i style="left:calc(${Math.min(uv, 11) / 11 * 100}% - 2px)"></i></div>`)}
+      ${tile(l.hum, `<div class="big">${HUM[wk]}<small>%</small></div><div class="sub">${l.vis}: ${fm(VIS[wk], VIS[wk] < 1 ? 1 : 0)} ${l.km}</div>`)}
+      ${tile(l.sun, `<svg class="arc" viewBox="0 0 320 84" aria-hidden="true"><line x1="8" y1="70" x2="312" y2="70"/><path class="b" d="M24 70 Q160 -26 296 70"/>
+        <path class="f" d="M24 70 Q160 -26 296 70" pathLength="1" stroke-dasharray="${e >= 0 ? mf : 0} 1"/>
+        <g transform="translate(${ax.toFixed(1)} ${ay.toFixed(1)})" style="color:var(--warn)"><circle r="9" fill="var(--glass)" stroke="currentColor" stroke-width="1.5"/>${e >= 0 ? '<circle r="3.2" fill="currentColor"/>' : '<path d="M-2 -4.5a4.6 4.6 0 0 0 5.2 5.2A4.6 4.6 0 1 1 -2 -4.5z" fill="var(--ink)" transform="scale(.9)"/>'}</g></svg>
+        <div class="sm3"><div>${l.rise}<b>07:10</b></div><div>${l.dlen}<b>${dh} ${l.hm[0]} ${dm} ${l.hm[1]}</b></div><div>${l.set}<b>17:02</b></div></div>`, 'wide')}
+    </div></div>`;
+}
+
+/* ---------- Карта ---------- */
+function mapHTML() {
+  const l = L[S.lang], w = WX[S.wk], k = S.inkK || 0;
+  let ov = '', note = '';
+  if (S.layer === 0) {
+    if (w.rain || w.snow) {
+      const snow = w.snow > 0, c1 = snow ? 'rgba(196,216,238,.8)' : 'rgba(93,160,204,.62)', c2 = snow ? 'rgba(236,244,252,.9)' : 'rgba(70,176,143,.66)';
+      const B = [[96, 232, 84, 46, 0], [150, 330, 112, 58, 1], [244, 290, 80, 40, 0], [62, 400, 72, 42, 1], [276, 470, 92, 46, 0], [196, 170, 62, 32, 0], [120, 560, 80, 36, 0]];
+      ov = `<g class="drift" filter="url(#bl)">${B.map(b => `<ellipse cx="${b[0]}" cy="${b[1]}" rx="${b[2] * (.6 + w.rain * .5 + w.snow * .4)}" ry="${b[3] * (.6 + w.rain * .5 + w.snow * .4)}" fill="${b[4] ? c2 : c1}"/>`).join('')}
+        ${w.storm ? '<ellipse cx="150" cy="330" rx="44" ry="26" fill="rgba(218,166,70,.8)"/><ellipse cx="156" cy="334" rx="20" ry="12" fill="rgba(196,84,74,.85)"/><ellipse cx="244" cy="290" rx="26" ry="16" fill="rgba(218,166,70,.75)"/>' : ''}</g>`;
+    } else note = l.none;
+  } else if (S.layer === 1) {
+    const a = .15 + w.cloud * .5, c = k ? '216,226,242' : '255,255,255';
+    ov = `<g class="drift" filter="url(#bl2)" style="opacity:${a}">${[[80, 210, 90, 50], [240, 240, 100, 56], [150, 400, 120, 64], [300, 480, 80, 50], [90, 560, 100, 50], [220, 620, 90, 44]].map(b => `<ellipse cx="${b[0]}" cy="${b[1]}" rx="${b[2]}" ry="${b[3]}" fill="rgb(${c})"/>`).join('')}</g>`;
+  } else {
+    const len = clamp(WIND[S.wk] / 3.2, 7, 24); let g = '';
+    for (let y = 130; y < 700; y += 74) for (let x = 40; x < 384; x += 76) g += `<g transform="translate(${x + (y / 74 % 2 ? 18 : 0)} ${y}) rotate(45)"><path d="M${-len} 0H${len}M${len} 0l-5 -4M${len} 0l-5 4" fill="none" stroke="var(--acc)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g>`;
+    ov = g;
+  }
+  const rivers = [['M148 428C128 410 112 392 108 360S96 300 70 265C62 240 52 215 46 180'], ['M174 535C182 480 196 440 190 380S200 340 206 318'], ['M304 372C270 350 245 335 216 321S150 300 114 285']];
+  const grid = [96, 192, 288].map(x => `<line x1="${x}" y1="0" x2="${x}" y2="734"/>`).join('') + [150, 300, 450, 600].map(y => `<line x1="0" y1="${y}" x2="384" y2="${y}"/>`).join('');
+  const label = S.place === 'gps' ? l.youHere : placeName();
+  const mark = `<circle cx="190" cy="380" r="15" fill="var(--acc)" opacity=".2"/><circle cx="190" cy="380" r="6" fill="var(--acc)" stroke="var(--land)" stroke-width="2"/><text x="202" y="372" class="mt hn">${label}</text>`;
+  return `<div class="mapcard"><svg class="map" viewBox="0 0 384 734" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs><filter id="bl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter><filter id="bl2" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="16"/></filter></defs>
+    <rect width="384" height="734" fill="var(--land)"/><g stroke="var(--glass-line)" stroke-width="1">${grid}</g>
+    ${rivers.map(r => `<path d="${r[0]}" fill="none" stroke="var(--water)" stroke-width="3.5" stroke-linecap="round"/>`).join('')}
+    ${ov}<style>.mt{font:600 13px var(--font-ui);fill:var(--ink);paint-order:stroke;stroke:var(--land);stroke-width:3px;stroke-linejoin:round}</style>${mark}</svg>
+    <div class="mtop"><div class="nseg glass" role="radiogroup">${l.layers.map((n, i) => `<button type="button" role="radio" aria-checked="${S.layer === i}" data-layer="${i}">${n}</button>`).join('')}</div><span class="tagm glass">${l.mock}</span></div>
+    ${note ? `<div class="mnote glass">${note}</div>` : ''}
+    <div class="mbot glass"><button class="rbtn glass" type="button" aria-label="Play">${svg(I.play)}</button><div class="tl"><div class="trk"><i></i><b></b></div><div class="tk"><span>${l.tl[0]}</span><span>${l.tl[1]}</span><span>${l.tl[2]}</span></div></div></div></div>`;
+}
+
+/* ---------- Шторки: настройки и места ---------- */
+const NTF = ['rain', 'storm', 'wind', 'pollen', 'snow', 'hail', 'ice', 'fog'];
+const FONTS = [
+  ['manrope', 'Manrope', "'Manrope'", 200, 'sans-serif'], ['inter', 'Inter', "'Inter'", 200, 'sans-serif'], ['onest', 'Onest', "'Onest'", 200, 'sans-serif'],
+  ['golos', 'Golos', "'Golos Text'", 400, 'sans-serif'], ['jost', 'Jost', "'Jost'", 200, 'sans-serif'], ['nunito', 'Nunito', "'Nunito'", 200, 'sans-serif'],
+  ['raleway', 'Raleway', "'Raleway'", 200, 'sans-serif'], ['source', 'Source Serif', "'Source Serif 4'", 200, 'serif'],
+];
+function setFont(id) {
+  const f = FONTS.find(x => x[0] === id) || FONTS[0]; S.font = f[0];
+  const st = document.documentElement.style, stack = `${f[2]},system-ui,-apple-system,'Segoe UI',Roboto,${f[4]}`;
+  st.setProperty('--font-ui', stack); st.setProperty('--font-num', stack); st.setProperty('--num-w', f[3]);
+  kick();
+}
+function settingsHTML() {
+  const l = L[S.lang], row = (t, s, k, on) => `<div class="srow"><div>${t}<small>${s}</small></div><button class="tg" type="button" role="switch" data-t="${k}" aria-checked="${on}" aria-label="${t}"></button></div>`;
+  const tabs = ['look', 'notif'], sample = S.lang === 'ru' ? 'Аа' : 'Aa';
+  const head = `<h4>${l.settings}</h4><div class="nseg wide" role="tablist">${tabs.map((k, i) => `<button type="button" role="tab" aria-selected="${S.sTab === k}" data-st="${k}">${l.sTabs[i]}</button>`).join('')}</div>`;
+  if (S.sTab === 'notif') return `${head}
+    <div class="nchips" role="group" aria-label="${l.sNotif}">${NTF.map(k => `<button type="button" class="nc" data-n="${k}" aria-pressed="${!!S.notif[k]}">${svg(I[k])}<span>${l.ntf[k]}</span></button>`).join('')}</div>
+    <div class="srow"><div>${l.sLead}</div><div class="nseg" role="radiogroup">${[30, 60, 180].map((n, i) => `<button type="button" role="radio" aria-checked="${S.lead === n}" data-lead="${n}">${l.lead[i]}</button>`).join('')}</div></div>
+    ${row(l.sQuiet, l.sQuietS, 'quiet', S.quiet)}`;
+  return `${head}
+    <div class="sl">${l.sHv}</div>
+    <div class="nseg wide" role="radiogroup" aria-label="${l.sHv}">${['line', 'cards'].map((k, i) => `<button type="button" role="radio" aria-checked="${S.hv === k}" data-hv="${k}">${l.hvO[i]}</button>`).join('')}</div>
+    <div class="sl">${l.sFont}</div>
+    <div class="nchips" role="radiogroup" aria-label="${l.sFont}">${FONTS.map(f => `<button type="button" class="nc fo" role="radio" data-font="${f[0]}" aria-checked="${S.font === f[0]}" aria-pressed="${S.font === f[0]}" style="font-family:${f[2]},${f[4]}"><span class="fs">${sample}</span><span>${f[1]}</span></button>`).join('')}</div>
+    ${row(l.sAnim, l.sAnimS, 'anim', S.anim)}`;
+}
+function placeResHTML() {
+  const l = L[S.lang], q = S.q.trim().toLowerCase();
+  if (!q) return `<p class="hint">${l.hint}</p>`;
+  const res = TOWNS.filter(t => !S.pinned.some(p => p[0] === t[0]) && (t[0].toLowerCase().startsWith(q) || t[1].toLowerCase().startsWith(q))).slice(0, 4);
+  if (!res.length) return `<p class="hint">${l.noRes}</p>`;
+  return res.map(t => `<div class="prow"><div class="pn">${svg(I.pin)}<span>${townName(t)}</span></div><button type="button" class="pbtn" data-pin="${t[0]}" aria-label="${l.pinDo}: ${townName(t)}">${svg(I.plus)}<span>${l.pinDo}</span></button></div>`).join('');
+}
+function placesHTML() {
+  const l = L[S.lang];
+  const sel = S.place === 'gps';
+  return `<h4>${l.plT}</h4>
+    <button type="button" class="prow sel-row${sel ? ' on' : ''}" data-sel="gps"><div class="pn">${svg(I.nav)}<span>${l.gps}<small>${l.gpsS}</small></span></div>${sel ? svg(I.check, 'i ck') : ''}</button>
+    <div class="sl">${l.pinned}</div>
+    ${S.pinned.length ? S.pinned.map(t => `<div class="prow${S.place === t[0] ? ' on' : ''}"><button type="button" class="pn sel" data-sel="${t[0]}">${svg(I.pin)}<span>${townName(t)}</span>${S.place === t[0] ? svg(I.check, 'i ck') : ''}</button>
+      <button type="button" class="pbtn ghost" data-unpin="${t[0]}" aria-label="${l.unpin}: ${townName(t)}">${svg(I.x)}</button></div>`).join('') : `<p class="hint">${l.pinEmpty}</p>`}
+    <label class="srch">${svg(I.search)}<input id="plq" type="search" value="${S.q.replace(/"/g, '')}" placeholder="${l.search}" autocomplete="off" spellcheck="false" aria-label="${l.search}"></label>
+    <div id="plres" class="pres">${placeResHTML()}</div>
+    <p class="hint foot">${l.limit}</p>`;
+}
+function renderSheet() {
+  const sh = $('#sheet');
+  sh.dataset.m = S.sheet || '';
+  if (S.sheet === 'settings') sh.innerHTML = settingsHTML();
+  else if (S.sheet === 'places') sh.innerHTML = placesHTML();
+  sh.classList.toggle('on', !!S.sheet); $('#scrim').classList.toggle('on', !!S.sheet);
+}
+function toggleSheet(m) {
+  S.sheet = (m === undefined || m === S.sheet) ? null : m;
+  if (m === null) S.sheet = null;
+  if (S.sheet) renderSheet(); else { $('#sheet').classList.remove('on'); $('#scrim').classList.remove('on'); }
+}
+
+/* ---------- Сцена и тема ---------- */
+const sky = $('#sky'), phone = $('#phone'), screen = $('#screen');
+const scene = new Scene(sky, { seed: 11 });
+let lastPal = 0, visible = true;
+
+/* ---------- Панель «Прозрачность стекла» ----------
+   Ползунок показывает прозрачность в процентах: 0 почти матовое, 100 почти невидимое. */
+const pToA = p => .94 - .009 * p, aToP = a => clamp(Math.round((.94 - a) / .009), 0, 100);
+const gAlpha = () => ({ cards: S.g.cards == null ? null : pToA(S.g.cards), btn: S.g.btn == null ? null : pToA(S.g.btn), alert: S.g.alert == null ? null : pToA(S.g.alert), blur: S.g.blur, guard: S.g.guard });
+const G_NAMES = { cards: 'Карточки', btn: 'Кнопки и панель', alert: 'Оповещения' };
+let lastGl = 0;
+function glassSync(tv, force) {
+  const now = performance.now(); if (!force && now - lastGl < 140) return; lastGl = now;
+  const parts = [];
+  for (const k of ['cards', 'btn', 'alert']) {
+    const man = S.g[k] != null, inp = $('#g_' + k), eff = aToP(tv.aEff[k]), c = tv.cc[k];
+    if (!man && document.activeElement !== inp) inp.value = aToP(tv.aAuto[k]);
+    $('#gv_' + k).textContent = man ? S.g[k] + ' %' : 'авто, сейчас ' + eff + ' %';
+    $(`.gauto[data-g=${k}]`).setAttribute('aria-pressed', !man);
+    const raised = man && eff < S.g[k], verdict = c >= 4.5 ? 'мелкий текст читается' : c >= 3 ? 'мелкий текст на грани' : 'мелкий текст плохо читается';
+    const n = $('#gn_' + k); n.textContent = `${raised ? `поднято до ${eff} % ради читаемости · ` : ''}контраст ${fm(c, 1)} : 1, ${verdict}`; n.classList.toggle('warn', c < 4.5);
+    parts.push(`${G_NAMES[k].toLowerCase()} ${man ? S.g[k] + ' %' : 'авто (' + eff + ' %)'}`);
+  }
+  $('#gv_blur').textContent = S.g.blur + ' px';
+  const sc = `${hhmm(S.h)}, ${L.ru.wx[S.wk].toLowerCase()}`;
+  $('#gOut').textContent = `Прозрачность: ${parts.join(', ')}, размытие ${S.g.blur} px, защита читаемости ${S.g.guard ? 'включена' : 'выключена'}. Сцена: ${sc}.`;
+}
+function glassBind() {
+  const hit = () => { lastGl = 0; kick(); };
+  $$('#glassCtl input[data-g]').forEach(i => i.addEventListener('input', () => { S.g[i.dataset.g] = +i.value; hit(); }));
+  $$('#glassCtl .gauto').forEach(b => b.addEventListener('click', () => { S.g[b.dataset.g] = null; hit(); }));
+  $('#g_blur').addEventListener('input', e => { S.g.blur = +e.target.value; hit(); });
+  $('#gGuard').addEventListener('click', e => { S.g.guard = !S.g.guard; e.currentTarget.setAttribute('aria-checked', S.g.guard); hit(); });
+  $('#gReset').addEventListener('click', () => { S.g = { cards: 80, btn: null, alert: null, blur: 10, guard: true }; $('#g_cards').value = 80; $('#g_blur').value = 10; $('#gGuard').setAttribute('aria-checked', 'true'); hit(); });
+  $('#gCopy').addEventListener('click', async e => {
+    const t = $('#gOut').textContent, b = e.currentTarget;
+    try { await navigator.clipboard.writeText(t); b.textContent = 'Скопировано'; }
+    catch (_) { const r = document.createRange(); r.selectNodeContents($('#gOut')); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); b.textContent = 'Выделено, скопируй вручную'; }
+    setTimeout(() => { b.textContent = 'Скопировать значения'; }, 1800);
+  });
+  const q = $('#quick'), setQ = () => { document.documentElement.style.setProperty('--qh', Math.round(q.offsetHeight) + 'px'); };
+  new ResizeObserver(setQ).observe(q); setQ();
+  if (matchMedia('(min-width:900px)').matches) $('#glassCtl').open = true;
+}
+function theme(dt) {
+  const s = scene.st, q = inkScores(s);
+  if (S.inkK === null) { S.inkT = q.cL > q.cD ? 1 : 0; S.inkK = S.inkT; }
+  else if (S.inkT === 0 && q.cL - q.cD > .6) S.inkT = 1;
+  else if (S.inkT === 1 && q.cD - q.cL > .6) S.inkT = 0;
+  if (S.inkK !== S.inkT) {
+    const d = S.inkT - S.inkK, st = dt * 3.2;
+    S.inkK = Math.abs(d) <= st ? S.inkT : S.inkK + Math.sign(d) * st;
+  }
+  const tv = themeVars(s, S.inkK, gAlpha());
+  applyVars(screen, tv); mapVars(screen, S.inkK);
+  scene.scrim = tv.scrim;
+  S.tv = tv;
+  return tv;
+}
+
+function palette(tv) {
+  const now = performance.now();
+  if (now - lastPal < 140) return; lastPal = now;
+  const s = scene.st, pal = $('#pal');
+  pal.style.setProperty('--p-top', rgb(s.top)); pal.style.setProperty('--p-hor', rgb(s.hor));
+  pal.style.setProperty('--p-glass', rgb(tv.glass)); pal.style.setProperty('--p-ink', rgb(tv.ink));
+  const lab = ['небо сверху', 'у горизонта', 'стекло', 'текст'], hexes = [s.top, s.hor, tv.glass, tv.ink];
+  $('#palSw').innerHTML = hexes.map((c, i) => `<div><i style="background:${rgb(c)}"></i>${lab[i]}<br>${toHex(c)}</div>`).join('');
+  const dark = tv.k < .5;
+  $('#palNote').innerHTML = `Текст ${dark ? 'тёмный' : 'светлый'}: на стекле контраст <b>${fm(tv.inkOnGlass, 1)} : 1</b>, на самом небе ${fm(tv.inkOnSky, 1)} : 1. Для мелкого текста нужно от 4,5. Цвет выбирается по контрасту, а не по времени суток.`;
+}
+
+/* ---------- Обновление ---------- */
+let raf = 0, lastT = 0, dirty = true;
+function update(dt) {
+  scene.set(S.h, S.wk);
+  const tv = theme(dt);
+  renderHome();
+  if (S.page === 'precip') { const key = S.wk + S.lang + Math.floor(S.h) + S.fc; if (K.pr !== key) { K.pr = key; $('#pgPrecip').innerHTML = precipHTML(); } }
+  if (S.page === 'details') { const key = S.wk + S.lang + Math.floor(S.h); if (K.det !== key) { K.det = key; $('#pgDetails').innerHTML = detailsHTML(); } }
+  if (S.page === 'map') { const key = S.wk + S.lang + S.layer + (S.inkK > .5) + S.place; if (K.map !== key) { K.map = key; $('#pgMap').innerHTML = mapHTML(); } }
+  $('#hrOut').textContent = hhmm(S.h);
+  if (document.activeElement !== $('#hr_in')) $('#hr_in').value = S.h;
+  if (!scene.running) scene.draw();
+  palette(tv); glassSync(tv);
+  gallerySync();
+  widgetsSync();
+}
+function tick(now) {
+  raf = 0;
+  const dt = Math.min(.1, (now - lastT) / 1000); lastT = now;
+  if (S.run) { S.h = (S.h + dt * (24 / 30)) % 24; dirty = true; }
+  if (S.inkK !== S.inkT) dirty = true;
+  if (dirty) { dirty = false; update(dt); }
+  if (S.run || S.inkK !== S.inkT || dirty) raf = requestAnimationFrame(tick);
+}
+function kick() { dirty = true; if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(tick); } }
+
+/* ---------- Масштаб и видимость ---------- */
+const fit = $('#fit');
+function resize() {
+  const w = fit.clientWidth, h = fit.clientHeight;
+  const s = clamp(Math.min((w - 26) / 412, (h - 26) / 892), .3, 1.15);
+  phone.style.setProperty('--s', s.toFixed(4));
+  scene.setSize(clamp(s * (devicePixelRatio || 1), 1, 2.5));
+  scene.draw();
+}
+new ResizeObserver(resize).observe(fit);
+function syncRun() { const on = S.anim && visible && !document.hidden; if (on) scene.start(); else scene.stop(); if (!on) scene.draw(); }
+new IntersectionObserver(es => { visible = es[0].isIntersecting; syncRun(); }, { threshold: 0 }).observe(fit);
+document.addEventListener('visibilitychange', syncRun);
+function setAnim(v) {
+  S.anim = v; scene.motion = v; screen.classList.toggle('anim-on', v);
+  $('#swAnim').setAttribute('aria-checked', v);
+  $('#animNote').textContent = v ? 'Облака плывут, идёт дождь' : 'Кадр замер';
+  $$('.tg[data-t=anim]').forEach(b => b.setAttribute('aria-checked', v));
+  syncRun(); kick();
+}
+
+/* ---------- Нижняя панель и страницы ---------- */
+const PAGES = ['home', 'precip', 'details', 'map'], PG_ID = { home: '#pgHome', precip: '#pgPrecip', details: '#pgDetails', map: '#pgMap' };
+function buildDock() {
+  const l = L[S.lang], ic = [I.home, I.drop, I.grid, I.map];
+  $('#dock').innerHTML = PAGES.map((p, i) => `<button type="button" class="${S.page === p ? 'on' : ''}" data-p="${p}" aria-label="${l.tabs[i]}" ${S.page === p ? 'aria-current="page"' : ''}>${svg(ic[i])}<span class="lb">${l.tabs[i]}</span></button>`).join('');
+}
+function go(p) {
+  S.page = p; K.pr = K.det = K.map = null;
+  $$('#dock button').forEach(b => { const on = b.dataset.p === p; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  for (const k of PAGES) $(PG_ID[k]).classList.toggle('on', k === p);
+  toggleSheet(null); kick();
+}
+$('#dock').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b) go(b.dataset.p); });
+$('#gear').addEventListener('click', () => toggleSheet('settings'));
+$('#cityBtn').addEventListener('click', () => toggleSheet('places'));
+$('#scrim').addEventListener('click', () => toggleSheet(null));
+$('#sheet').addEventListener('click', e => {
+  const t = e.target.closest('[data-t]'), n = e.target.closest('[data-n]'), ld = e.target.closest('[data-lead]');
+  const st = e.target.closest('[data-st]'), hv = e.target.closest('[data-hv]'), fo = e.target.closest('[data-font]');
+  const sel = e.target.closest('[data-sel]'), pin = e.target.closest('[data-pin]'), un = e.target.closest('[data-unpin]');
+  if (t) { const on = t.getAttribute('aria-checked') !== 'true'; if (t.dataset.t === 'anim') setAnim(on); else { S[t.dataset.t] = on; t.setAttribute('aria-checked', on); } }
+  if (n) { const k = n.dataset.n; S.notif[k] = S.notif[k] ? 0 : 1; n.setAttribute('aria-pressed', !!S.notif[k]); }
+  if (ld) { S.lead = +ld.dataset.lead; $$('[data-lead]').forEach(b => b.setAttribute('aria-checked', b === ld)); }
+  if (st) { S.sTab = st.dataset.st; renderSheet(); }
+  if (hv) { S.hv = hv.dataset.hv; renderSheet(); kick(); }
+  if (fo) { setFont(fo.dataset.font); renderSheet(); }
+  if (sel) { S.place = sel.dataset.sel; K.map = null; renderSheet(); kick(); }
+  if (pin) { const t2 = TOWNS.find(x => x[0] === pin.dataset.pin); if (t2 && S.pinned.length < 10) { S.pinned.push(t2); S.place = t2[0]; S.q = ''; K.map = null; renderSheet(); kick(); } }
+  if (un) { S.pinned = S.pinned.filter(x => x[0] !== un.dataset.unpin); if (S.place === un.dataset.unpin) S.place = 'gps'; K.map = null; renderSheet(); kick(); }
+});
+$('#sheet').addEventListener('input', e => { if (e.target.id === 'plq') { S.q = e.target.value; $('#plres').innerHTML = placeResHTML(); } });
+$('#pgMap').addEventListener('click', e => { const b = e.target.closest('[data-layer]'); if (b) { S.layer = +b.dataset.layer; K.map = null; kick(); } });
+$('#pgPrecip').addEventListener('click', e => { const b = e.target.closest('[data-fc]'); if (b) { S.fc = +b.dataset.fc; K.pr = null; kick(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.sheet) toggleSheet(null); });
+$('#gear').innerHTML = svg(I.sliders); $('#chevI').innerHTML = svg(I.chev);
+
+/* ---------- Пульт ---------- */
+function bindSeg(el, cb) {
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]'); if (!b) return;
+    $$('button', el).forEach(x => x.setAttribute('aria-checked', x === b));
+    cb(b.dataset.v);
+  });
+}
+$('#hr_in').addEventListener('input', e => { S.h = +e.target.value; kick(); });
+$('#quickT').addEventListener('click', e => { const b = e.target.closest('[data-h]'); if (!b) return; S.h = +b.dataset.h; kick(); });
+$('#run').addEventListener('click', e => { S.run = !S.run; e.currentTarget.setAttribute('aria-pressed', S.run); e.currentTarget.textContent = S.run ? 'Остановить' : 'Сутки за 30 секунд'; kick(); });
+$('#wxChips').innerHTML = WX_KEYS.map(k => `<button class="chip" type="button" role="radio" aria-checked="${k === S.wk}" data-wk="${k}">${WX_RU[k]}</button>`).join('');
+$('#wxChips').addEventListener('click', e => { const b = e.target.closest('[data-wk]'); if (!b) return; S.wk = b.dataset.wk; $$('#wxChips .chip').forEach(x => x.setAttribute('aria-checked', x === b)); kick(); });
+bindSeg($('#segLang'), v => { S.lang = v; K = {}; buildDock(); if (S.sheet) renderSheet(); galleryBuild(); widgetsBuild(); kick(); });
+$('#swAnim').addEventListener('click', () => setAnim(!S.anim));
+
+/* ---------- Галерея состояний ---------- */
+const GAL = [
+  [8.2, 'clear', 'Ясное утро'], [13.5, 'rain', 'Дождь днём'], [16.9, 'partly', 'Закат с облаками'], [22.5, 'clear', 'Ясная ночь, полнолуние'],
+  [17.5, 'storm', 'Вечерняя гроза'], [7.6, 'fog', 'Утренний туман'], [11, 'snow', 'Снегопад'], [14, 'cloudy', 'Пасмурный день'],
+];
+const galScenes = [];
+function galleryBuild() {
+  const g = $('#gal'), l = L[S.lang];
+  if (!galScenes.length) {
+    g.innerHTML = GAL.map(([h, wk, nm], i) => `<figure class="mini"><div class="mini-screen" data-i="${i}"><canvas></canvas><div class="mini-ui"></div></div><figcaption>${nm}<span>${hhmm(h)}, ${deg(temp(h, wk))}</span></figcaption></figure>`).join('');
+    $$('.mini-screen', g).forEach((el, i) => {
+      const sc = new Scene($('canvas', el), { seed: 21 + i * 13, staticBolt: true, t0: 40 + i * 9 });
+      sc.motion = false; sc.setSize(clamp((devicePixelRatio || 1), 1, 2) * .6); galScenes.push(sc);
+    });
+  }
+  $$('.mini-screen', g).forEach((el, i) => {
+    const [h, wk] = GAL[i], hr = hourly(h, wk, 9);
+    const al = alertsFor(wk, h, l)[0];
+    el.querySelector('.mini-ui').innerHTML = `<div class="ml">${svg(I.nav).replace('class="i"', '')}${l.here}</div>
+      <div class="mn">${deg(temp(h, wk)).replace('°', '')}<span style="font-size:.5em;vertical-align:top;margin-left:2px">°</span></div><div class="mc">${l.wx[wk]}</div>
+      ${al ? `<div class="ma" style="--c:var(--${al[0]})">${svg(I[al[0]]).replace('class="i"', '')}${al[1]}</div>` : ''}
+      <div class="mg">${[0, 2, 4, 6, 8].map(k => `<div><span>${String(hr[k].h).padStart(2, '0')}</span>${wxSvg(wk, hr[k].night, '')}${deg(hr[k].t)}</div>`).join('')}</div>`;
+  });
+  galleryDraw();
+}
+function galleryDraw() {
+  galScenes.forEach((sc, i) => {
+    const [h, wk] = GAL[i], el = $$('#gal .mini-screen')[i];
+    sc.set(h, wk);
+    const tv = themeVars(sc.st, inkTarget(sc.st));
+    applyVars(el, tv); sc.scrim = tv.scrim;
+    sc.draw();
+  });
+}
+let galDone = false;
+function gallerySync() { if (!galDone) { galDone = true; galleryDraw(); } }
+
+/* ---------- Виджеты ---------- */
+const W = { wall: 'light', bg: 'glass', tr: 40, ink: 'auto' };
+function widgetsBuild() {
+  const l = L[S.lang], t = temp(S.h, S.wk), night = sunElev(S.h) < -1, hl = hiLo(S.wk), hr = hourly(S.h, S.wk, 7), al = alertsFor(S.wk, S.h, l)[0];
+  const hrs = (n, step = 1) => `<div class="whrs">${Array.from({ length: n }, (_, i) => hr[i * step]).map(d => `<div><span>${String(d.h).padStart(2, '0')}</span>${wxSvg(S.wk, d.night)}${deg(d.t)}</div>`).join('')}</div>`;
+  const items = [
+    ['1×1', `<div class="wdg w11">${wxSvg(S.wk, night)}<div class="wn">${deg(t)}</div></div>`],
+    ['2×1', `<div class="wdg w21"><div style="min-width:0"><div class="wn">${deg(t)}</div><div class="wsm">${l.wx[S.wk]}</div></div>${wxSvg(S.wk, night)}</div>`],
+    ['2×2', `<div class="wdg w22"><div class="wcity">${l.here}</div><div class="wn" style="font-size:42px;margin-top:2px">${deg(t)}</div><div class="wsm">${l.wx[S.wk]}</div><div style="margin-top:auto">${hrs(3, 2)}</div></div>`],
+    ['4×1', `<div class="wdg w41"><div><div class="wcity">${l.here}</div><div class="wn" style="font-size:34px">${deg(t)}</div></div>${hrs(5)}</div>`],
+    ['4×2', `<div class="wdg w42"><div class="wrow2"><div style="display:flex;gap:12px;align-items:center;min-width:0"><div class="wn" style="font-size:40px">${deg(t)}</div><div style="min-width:0"><div class="wcity">${l.here}</div><div class="wsm">${deg(hl.hi)} / ${deg(hl.lo)}</div></div></div>${al ? `<div class="wal"><i></i>${al[1]}</div>` : ''}</div><div style="margin-top:auto">${hrs(7)}</div></div>`],
+  ];
+  $('#wall').innerHTML = items.map(([c, h]) => `<div class="wcol">${h}<small>${c}</small></div>`).join('');
+  widgetsStyle();
+}
+function widgetsStyle() {
+  const wall = $('#wall');
+  wall.className = 'wall ' + W.wall;
+  const ink = W.ink === 'auto' ? (W.wall === 'light' ? 'dark' : 'light') : W.ink;
+  const dInk = ink === 'dark', glass = W.bg === 'glass';
+  const tint = dInk ? GL_L : GL_D, alpha = (1 - W.tr / 100) * .66;
+  wall.style.setProperty('--wink', dInk ? '#101722' : '#f4f7fb');
+  wall.style.setProperty('--wbg', glass ? rgb(tint, alpha) : 'transparent');
+  wall.style.setProperty('--wblur', glass ? '14px' : '0px');
+  wall.style.setProperty('--wsh', glass ? `inset 0 0 0 1px ${dInk ? 'rgba(16,23,34,.08)' : 'rgba(255,255,255,.1)'},0 10px 24px -12px rgba(0,0,0,.35)` : 'none');
+  $('#wTrWrap').style.display = glass ? '' : 'none';
+  const wallMid = W.wall === 'light' ? [196, 208, 212] : [34, 46, 64];
+  const bg = glass ? mix(wallMid, tint, alpha) : wallMid;
+  const c = contrast(bg, dInk ? INK_D : INK_L);
+  $('#wNote').innerHTML = `Контраст текста с фоном: <b>${fm(c, 1)} : 1</b>. ${c >= 4.5 ? 'Читается хорошо.' : c >= 3 ? 'Для крупных цифр хватает, мелкий текст читается хуже.' : 'Плохо читается. Поэтому по умолчанию цвет текста подбирается сам.'}`;
+}
+let wSig = '';
+function widgetsSync() { const sig = S.wk + S.lang + Math.round(temp(S.h, S.wk)) + Math.floor(S.h); if (sig !== wSig) { wSig = sig; widgetsBuild(); } }
+bindSeg($('#wWall'), v => { W.wall = v; widgetsStyle(); });
+bindSeg($('#wBg'), v => { W.bg = v; widgetsStyle(); });
+bindSeg($('#wInk'), v => { W.ink = v; widgetsStyle(); });
+$('#wTr').addEventListener('input', e => { W.tr = +e.target.value; $('#wTrV').textContent = W.tr + ' %'; widgetsStyle(); });
+
+/* ---------- Запуск ---------- */
+screen.classList.toggle('anim-on', S.anim);
+if (reduceMotion) { $('#swAnim').setAttribute('aria-checked', 'false'); $('#animNote').textContent = 'Выключено: в системе включено «убрать анимацию»'; }
+if (matchMedia('(min-width:900px)').matches) $('#more').open = true;
+buildDock(); galleryBuild(); widgetsBuild(); glassBind();
+resize(); update(.016); syncRun();
+
+</script>
+</body></html>
