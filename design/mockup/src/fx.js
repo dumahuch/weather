@@ -8,7 +8,7 @@ const approach = (v, to, up, down) => (to > v ? Math.min(to, v + up) : Math.max(
 
 class CardFx {
   constructor(cv, screen) {
-    this.cv = cv; this.ctx = cv.getContext('2d'); this.screen = screen;
+    this.cv = cv; this.ctx = cv.getContext('2d'); this.screen = screen; this.src = null;
     this.W = SCENE_W; this.H = SCENE_H; this.q = 1; this.sc = 1;
     this.on = true; this.w = null; this.s = null; this.key = '';
     this.wet = 0; this.snow = 0; this.fog = 0; this.rain = 0; this.t = 0; this.regT = 0;
@@ -202,9 +202,18 @@ class CardFx {
     for (const d of m) if (d.r > .85) { c.moveTo(x + d.x - d.r * .3 + .5, y + d.y - d.r * .4); c.arc(x + d.x - d.r * .3, y + d.y - d.r * .4, Math.max(.4, d.r * .25), 0, TAU); }
     c.fillStyle = `rgba(255,255,255,${(.85 * a).toFixed(3)})`; c.fill();
   }
+  lens(c, X, Y, r, ry, a) {                                              // капля как линза: внутри перевёрнутый кусочек неба за ней
+    const sc = this.src; if (!sc || !sc.width) return;
+    const q = sc.width / this.W, k = 3.2, sw = r * 2 * k, sh = ry * 2 * k;
+    c.save(); c.beginPath(); c.ellipse(X, Y, r, ry, 0, 0, TAU); c.clip();
+    c.translate(X, Y); c.scale(-1, -1); c.globalAlpha = .9 * a;
+    try { c.drawImage(sc, (X - sw / 2) * q, (Y - sh / 2) * q, sw * q, sh * q, -r, -ry, r * 2, ry * 2); } catch (_) {}
+    c.restore();
+  }
   bead(c, X, Y, r, a) {
     const ry = r * 1.22;
     c.fillStyle = `rgba(255,255,255,${(.18 * a).toFixed(3)})`; c.beginPath(); c.ellipse(X, Y, r, ry, 0, 0, TAU); c.fill();
+    if (r >= 1.05) this.lens(c, X, Y, r, ry, a);
     c.strokeStyle = `rgba(255,255,255,${(.62 * a).toFixed(3)})`; c.lineWidth = .8; c.beginPath(); c.ellipse(X, Y, r, ry, 0, 0, TAU); c.stroke();
     c.fillStyle = `rgba(10,16,30,${(.28 * a).toFixed(3)})`; c.beginPath(); c.ellipse(X + r * .2, Y + ry * .45, r * .5, ry * .28, 0, 0, TAU); c.fill();
     c.fillStyle = `rgba(255,255,255,${(.8 * a).toFixed(3)})`; c.beginPath(); c.arc(X - r * .32, Y - ry * .4, Math.max(.5, r * .26), 0, TAU); c.fill();
