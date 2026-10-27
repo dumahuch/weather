@@ -63,6 +63,12 @@
     <details class="glassctl" id="glassCtl">
       <summary>Прозрачность стекла</summary>
       <div class="gc-body">
+        <div class="ctl"><span class="lab" id="gsLab">Вид стекла</span>
+          <div class="seg" id="segGs" role="radiogroup" aria-labelledby="gsLab">
+            <button type="button" role="radio" aria-checked="false" data-v="light">Лёгкое</button>
+            <button type="button" role="radio" aria-checked="false" data-v="smoke">Дымчатое 3D</button>
+            <button type="button" role="radio" aria-checked="true" data-v="auto">Авто</button>
+          </div></div>
         <div class="gs"><div class="gs-h"><label for="g_cards">Карточки</label><button class="gauto" type="button" data-g="cards" aria-pressed="true">Авто</button><output id="gv_cards" for="g_cards"></output></div>
           <input type="range" id="g_cards" min="0" max="100" step="1" value="80" data-g="cards"><div class="gs-n" id="gn_cards"></div></div>
         <div class="gs"><div class="gs-h"><label for="g_btn">Кнопки и панель</label><button class="gauto" type="button" data-g="btn" aria-pressed="true">Авто</button><output id="gv_btn" for="g_btn"></output></div>
@@ -156,6 +162,7 @@
         <li>Место по умолчанию: ваше текущее. Любые населённые пункты можно закрепить.</li>
         <li>Фон: нарисованное небо, шесть картин (рассвет, утро, день, закат, сумерки, ночь). Они плавно сменяют друг друга по высоте солнца, облака плывут отдельным слоем, погода ложится поверх: серость, дождь, снег, туман, молния. Без фотографий и достопримечательностей.</li>
         <li>Стекло цветное, берёт оттенок неба. Кнопки сверху и снизу, включая карту, из одного материала. Оповещения без цветной полосы. Цвет текста считается от сцены.</li>
+        <li>Вид стекла: «Лёгкое» (молочное, как сейчас), «Дымчатое 3D» (тёмное, затемняет и насыщает фон за собой) и «Авто». В «Авто» стекло дымчатое, когда на экране светлый текст (ночь, гроза, сумерки), а днём лёгкое. У всех: объёмная тень из семи слоёв, блик по верхнему левому ребру, заметнее зерно. Переключатель в панели «Прозрачность стекла».</li>
         <li>Прозрачность по умолчанию: карточки 80 %, кнопки и оповещения подбираются сами, размытие 10 px, защита читаемости включена.</li>
         <li>Плитки во вкладке «Подробно» остаются в нынешнем порядке.</li>
         <li>Шрифт по умолчанию Manrope, в настройках ещё семь. Русский и немецкий, метрические единицы.</li>

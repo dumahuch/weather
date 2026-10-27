@@ -6,7 +6,7 @@ const S = {
   h: 16.9, wk: 'partly', lang: 'ru', anim: !reduceMotion, page: 'home', run: false,
   inkK: null, inkT: 0, layer: 0, sheet: null, fc: 7,
   place: 'gps', pinned: [], q: '', hv: 'line', sTab: 'look', font: 'manrope',
-  g: { cards: 80, btn: null, alert: null, blur: 10, guard: true },
+  g: { cards: 80, btn: null, alert: null, blur: 10, guard: true }, gs: 'auto',
   notif: { rain: 1, storm: 1, wind: 1, pollen: 1, snow: 1, hail: 1, ice: 1, fog: 0 }, lead: 60, quiet: true,
 };
 
@@ -390,6 +390,7 @@ let lastPal = 0, visible = true;
    Ползунок показывает прозрачность в процентах: 0 почти матовое, 100 почти невидимое. */
 const pToA = p => .94 - .009 * p, aToP = a => clamp(Math.round((.94 - a) / .009), 0, 100);
 const gAlpha = () => ({ cards: S.g.cards == null ? null : pToA(S.g.cards), btn: S.g.btn == null ? null : pToA(S.g.btn), alert: S.g.alert == null ? null : pToA(S.g.alert), blur: S.g.blur, guard: S.g.guard });
+const GS_NAMES = { light: 'лёгкое', smoke: 'дымчатое 3D', auto: 'авто (дымчатое, когда светлый текст)' };
 const G_NAMES = { cards: 'Карточки', btn: 'Кнопки и панель', alert: 'Оповещения' };
 let lastGl = 0;
 function glassSync(tv, force) {
@@ -406,7 +407,7 @@ function glassSync(tv, force) {
   }
   $('#gv_blur').textContent = S.g.blur + ' px';
   const sc = `${hhmm(S.h)}, ${L.ru.wx[S.wk].toLowerCase()}`;
-  $('#gOut').textContent = `Прозрачность: ${parts.join(', ')}, размытие ${S.g.blur} px, защита читаемости ${S.g.guard ? 'включена' : 'выключена'}. Сцена: ${sc}.`;
+  $('#gOut').textContent = `Стекло: ${GS_NAMES[S.gs]}. Прозрачность: ${parts.join(', ')}, размытие ${S.g.blur} px, защита читаемости ${S.g.guard ? 'включена' : 'выключена'}. Сцена: ${sc}.`;
 }
 function glassBind() {
   const hit = () => { lastGl = 0; kick(); };
@@ -414,7 +415,8 @@ function glassBind() {
   $$('#glassCtl .gauto').forEach(b => b.addEventListener('click', () => { S.g[b.dataset.g] = null; hit(); }));
   $('#g_blur').addEventListener('input', e => { S.g.blur = +e.target.value; hit(); });
   $('#gGuard').addEventListener('click', e => { S.g.guard = !S.g.guard; e.currentTarget.setAttribute('aria-checked', S.g.guard); hit(); });
-  $('#gReset').addEventListener('click', () => { S.g = { cards: 80, btn: null, alert: null, blur: 10, guard: true }; $('#g_cards').value = 80; $('#g_blur').value = 10; $('#gGuard').setAttribute('aria-checked', 'true'); hit(); });
+  bindSeg($('#segGs'), v => { S.gs = v; hit(); });
+  $('#gReset').addEventListener('click', () => { S.gs = 'auto'; $$('#segGs button').forEach(x => x.setAttribute('aria-checked', x.dataset.v === 'auto')); S.g = { cards: 80, btn: null, alert: null, blur: 10, guard: true }; $('#g_cards').value = 80; $('#g_blur').value = 10; $('#gGuard').setAttribute('aria-checked', 'true'); hit(); });
   $('#gCopy').addEventListener('click', async e => {
     const t = $('#gOut').textContent, b = e.currentTarget;
     try { await navigator.clipboard.writeText(t); b.textContent = 'Скопировано'; }
@@ -426,16 +428,19 @@ function glassBind() {
   if (matchMedia('(min-width:900px)').matches) $('#glassCtl').open = true;
 }
 function theme(dt) {
-  const s = scene.st, q = inkScores(s);
+  const s = scene.st; s.glassStyle = S.gs === 'smoke' ? 'smoke' : 'light';
+  const q = inkScores(s);
   if (S.inkK === null) { S.inkT = q.cL > q.cD ? 1 : 0; S.inkK = S.inkT; }
   else if (S.inkT === 0 && q.cL - q.cD > .6) S.inkT = 1;
   else if (S.inkT === 1 && q.cD - q.cL > .6) S.inkT = 0;
+  if (S.gs === 'smoke') S.inkT = 1;                                  // дымчатое: тёмное стекло и светлый текст всегда
   if (S.inkK !== S.inkT) {
     const d = S.inkT - S.inkK, st = dt * 3.2;
     S.inkK = Math.abs(d) <= st ? S.inkT : S.inkK + Math.sign(d) * st;
   }
   const tv = themeVars(s, S.inkK, gAlpha());
   applyVars(screen, tv); mapVars(screen, S.inkK);
+  screen.style.setProperty('--smoke', (S.gs === 'smoke' ? 1 : S.gs === 'auto' ? S.inkK : 0).toFixed(3));   // 0 лёгкое, 1 дымчатое; в «авто» следует за цветом текста
   scene.scrim = tv.scrim;
   S.tv = tv;
   return tv;

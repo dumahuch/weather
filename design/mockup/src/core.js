@@ -146,7 +146,16 @@ function needAlpha(bg, tint, ink, a0, a1) {
   for (let a = a0; a < a1; a += .02) { const g = mix(bg, tint, a); if (contrast(g, effInk(g, ink)) >= TARGET) return a; }
   return a1;
 }
+const SMOKE_BR = .85;                                      // дымчатое стекло затемняет то, что за ним, на 15 %
+const smokeMemo = new WeakMap();
 function backdrops(s) {
+  const B = backdrops0(s);
+  if (s.glassStyle !== 'smoke') return B;
+  let m = smokeMemo.get(B);
+  if (!m) { m = {}; for (const k in B) m[k] = B[k].map(v => v * SMOKE_BR); smokeMemo.set(B, m); }
+  return m;
+}
+function backdrops0(s) {
   if (s.bk) return s.bk;                                  // нарисованное небо: цвета сняты с готовой картинки
   const cc = cloudColors(s), w = s.w, g = groundColors(s);
   const hero = mix(mix(s.top, s.mid, .8), cc.lit, clamp(w.cloud * 1.1) * (1 - w.dark) * .3);
@@ -163,7 +172,7 @@ function inkScores(s) {
   const T = tints(s);
   const one = (ink, tint, ga, bt, gb) => {
     const hero = bkFor(B, 'hero', ink), alertB = bkFor(B, 'alert', ink), cardB = bkFor(B, 'card', ink), dockB = bkFor(B, 'dock', ink);
-    const sc = needAlpha(hero, tint, ink, 0, SC_MAX), hb = mix(hero, tint, sc);
+    const sc = needAlpha(hero, tint, ink, 0, s.glassStyle === 'smoke' ? .5 : SC_MAX), hb = mix(hero, tint, sc);
     const hc = contrast(hb, effInk(hb, ink));
     const a = Math.max(needAlpha(alertB, tint, ink, ga, .76), needAlpha(cardB, tint, ink, ga, .76));
     const aB = Math.max(needAlpha(dockB, bt, ink, gb, .8), needAlpha(hero, bt, ink, gb, .8));
