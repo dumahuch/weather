@@ -13,6 +13,13 @@ class CardFx {
     this.on = true; this.w = null; this.s = null; this.key = '';
     this.wet = 0; this.snow = 0; this.fog = 0; this.rain = 0; this.t = 0; this.regT = 0;
     this.cards = []; this.map = new WeakMap(); this.tile = null; this.brush = null;
+    this.tilt = { x: 0, y: 0, tx: 0, ty: 0, idle: 0, sensor: false };
+    try { window.addEventListener('deviceorientation', e => { if (e.gamma == null || e.beta == null) return; this.tilt.sensor = true; this.tilt.tx = clamp(e.gamma / 25, -1, 1); this.tilt.ty = clamp((e.beta - 55) / 25, -1, 1); }); } catch (_) {}
+    screen.addEventListener('pointermove', e => {                       // без датчика (компьютер) наклоном служит положение мыши
+      if (this.tilt.sensor) return;
+      const sr = screen.getBoundingClientRect();
+      this.tilt.tx = clamp(((e.clientX - sr.left) / sr.width - .5) * 2.4, -1, 1); this.tilt.ty = clamp(((e.clientY - sr.top) / sr.height - .5) * 2.4, -1, 1); this.tilt.idle = 0;
+    });
     screen.addEventListener('pointerdown', e => this.wipe(e));
     screen.addEventListener('pointermove', e => { if (e.buttons & 1) this.wipe(e); });
     for (const t of ['pointerup', 'pointercancel', 'pointerleave']) screen.addEventListener(t, () => this.lift());
@@ -53,7 +60,7 @@ class CardFx {
     let s = this.map.get(c.el);
     if (!s) {
       const r = mulberry32((Math.random() * 1e9) | 0);
-      s = { rnd: r, drops: [], spawn: 0, R: 16, size: '', ph: [r() * 6, r() * 6, r() * 6, r() * 6], beads: [], mist: [], fog: null };
+      s = { rnd: r, drops: [], spawn: 0, R: 16, size: '', ph: [r() * 6, r() * 6, r() * 6, r() * 6], beads: [], mist: [], grain: [], fac: [], fog: null };
       this.map.set(c.el, s);
     }
     const sz = Math.round(c.w) + 'x' + Math.round(c.h);
@@ -62,6 +69,8 @@ class CardFx {
       s.R = Math.min(parseFloat(getComputedStyle(c.el).borderTopLeftRadius) || 16, c.w / 2, c.h / 2);
       s.beads = Array.from({ length: Math.min(14, Math.max(2, Math.round(c.w / 26))) }, () => ({ u: s.rnd(), r: .8 + s.rnd() * 1.2 }));
       const nT = Math.min(110, Math.round(c.w * Math.min(c.h * .5, 60) / 420)), nL = Math.min(34, Math.round(c.h / 9));
+      s.grain = Array.from({ length: Math.min(90, Math.max(8, Math.round(c.w / 3.2))) }, () => ({ u: .02 + s.rnd() * .96, v: s.rnd(), r: .3 + s.rnd() * .45, l: s.rnd() < .55 }));    // мелкое зерно в теле сугроба
+      s.fac = Array.from({ length: Math.min(40, Math.max(6, Math.round(c.w / 9))) }, () => ({ u: .04 + s.rnd() * .92, v: .05 + s.rnd() * .5, nx: s.rnd() * 2 - 1, ny: s.rnd() * 2 - 1, sz: 1.1 + s.rnd() * 1.9 }));   // грани льдинок: каждая вспыхивает при своём наклоне
       s.mist = [];                                                      // мелкие неподвижные капли: густо у верхней кромки, реже книзу, и вдоль левой
       for (let i = 0; i < nT; i++) s.mist.push({ x: s.R * .4 + s.rnd() * (c.w - s.R * .8), y: 2 + Math.pow(s.rnd(), 2) * Math.min(c.h * .5, 60), r: .55 + s.rnd() * s.rnd() * 1.5, k: .5 + s.rnd() * .5 });
       for (let i = 0; i < nL; i++) s.mist.push({ x: 2 + Math.pow(s.rnd(), 2.4) * 22, y: s.R * .5 + s.rnd() * (c.h - s.R), r: .55 + s.rnd() * s.rnd() * 1.4, k: .5 + s.rnd() * .5 });
@@ -75,10 +84,13 @@ class CardFx {
   step(dt) {
     if (!this.w) return;
     this.t += dt;
+    const tl = this.tilt; tl.idle += dt;
+    if (!tl.sensor && tl.idle > 2.5) { tl.tx = Math.sin(this.t * .42) * .85; tl.ty = Math.cos(this.t * .31) * .5; }     // никто не двигает: слегка покачиваем сами
+    tl.x += (tl.tx - tl.x) * Math.min(1, dt * 5); tl.y += (tl.ty - tl.y) * Math.min(1, dt * 5);
     const w = this.w, o = this.on;
     this.rain = o ? w.rain : 0;
     this.wet = approach(this.wet, this.rain > .05 ? 1 : 0, dt / 3, dt / 10);
-    this.snow = approach(this.snow, o && w.snow > .05 ? 1 : 0, dt / 12, dt / 6);
+    this.snow = approach(this.snow, o && w.snow > .05 ? clamp(w.snow / .7, .2, 1.3) : 0, dt / 12, dt / 6);
     this.fog = approach(this.fog, o && w.fog > .25 ? w.fog : 0, dt / 2.5, dt / 3);
     this.screen.classList.toggle('fx-fog', this.fog > .1);
     this.refresh();
@@ -225,10 +237,24 @@ class CardFx {
     const g = c.createLinearGradient(0, y0 - hm, 0, y0 + 3.2);
     g.addColorStop(0, rgb(A, .98)); g.addColorStop(.6, rgb(mix(A, B, .35), .98)); g.addColorStop(1, rgb(B, .98));
     c.fillStyle = g; c.fill(body);
+    c.save(); c.clip(body);                                                                              // зерно снега
+    const ptAt = u => { const f = u * n, j = Math.min(n - 1, Math.floor(f)), t = f - j; return { x: pts[j][0] + (pts[j + 1][0] - pts[j][0]) * t, y: pts[j][1] + (pts[j + 1][1] - pts[j][1]) * t }; };
+    c.beginPath();
+    for (const q of st.grain) { if (!q.l) continue; const t = ptAt(q.u), yy = t.y + q.v * Math.max(1, y0 + 2.6 - t.y); c.moveTo(t.x + q.r, yy); c.arc(t.x, yy, q.r, 0, TAU); }
+    c.fillStyle = 'rgba(255,255,255,.55)'; c.fill();
+    c.beginPath();
+    for (const q of st.grain) { if (q.l) continue; const t = ptAt(q.u), yy = t.y + q.v * Math.max(1, y0 + 2.6 - t.y); c.moveTo(t.x + q.r, yy); c.arc(t.x, yy, q.r, 0, TAU); }
+    c.fillStyle = rgb(B, .5); c.fill();
+    c.restore();
     c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.1; c.lineJoin = 'round'; c.stroke(top);     // свет по верхней кромке
-    for (let i = 0; i < 5; i++) {                                                                        // блёстки
-      const u = (i * .2 + (ph[i % 4] % 1) * .15 + .08) % 1, j = Math.round(u * n), tw = this.on ? .5 + .5 * Math.sin(this.t * 2 + i * 1.7) : .7;
-      c.fillStyle = `rgba(255,255,255,${(.35 + .5 * tw).toFixed(3)})`; c.beginPath(); c.arc(pts[j][0], pts[j][1] + hm * .3, .8, 0, TAU); c.fill();
+    const tl = this.tilt;
+    for (const f of st.fac) {                                                                            // искры: вспыхивают, когда наклон совпал с гранью льдинки
+      const d = Math.hypot(f.nx - tl.x, f.ny - tl.y), gl = Math.max(0, 1 - d / .52);
+      if (gl < .04) continue;
+      const t = ptAt(f.u), X = t.x, Y = t.y + f.v * Math.max(1, hm * .8), I = gl * gl * (3 - 2 * gl), L = f.sz * (.7 + 1.6 * I);
+      c.strokeStyle = `rgba(255,255,255,${(.85 * I).toFixed(3)})`; c.lineWidth = .7; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(X - L, Y); c.lineTo(X + L, Y); c.moveTo(X, Y - L); c.lineTo(X, Y + L); c.stroke();
+      c.fillStyle = `rgba(235,246,255,${(.95 * I).toFixed(3)})`; c.beginPath(); c.arc(X, Y, .5 + .7 * I, 0, TAU); c.fill();
     }
     c.restore();
   }
