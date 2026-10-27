@@ -19,7 +19,7 @@ def sky_data():
         out[t]=['data:image/webp;base64,'+base64.b64encode(open(os.path.join(ad,f'{t}_{k}.webp'),'rb').read()).decode() for k in ('p','c')]
     return 'const SKY_DATA='+json.dumps(out)+';'
 sky=sky_data() if os.path.isdir(os.path.join(d,'assets')) else 'const SKY_DATA=null;'
-js=f"<script>\n{r('core.js')}\n{r('scene.js')}\n</script>\n<script>\n{sky}\n</script>\n<script>\n{r('app.js')}\n</script>\n"
+js=f"<script>\n{r('core.js')}\n{r('scene.js')}\n{r('fx.js')}\n</script>\n<script>\n{sky}\n</script>\n<script>\n{r('app.js')}\n</script>\n"
 page=head+body+js
 open(os.path.join(d,'page.html'),'w',encoding='utf-8').write(page)
 test='<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0}</style></head><body>'+page+'</body></html>'

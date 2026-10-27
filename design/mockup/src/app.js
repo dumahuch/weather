@@ -381,6 +381,9 @@ function toggleSheet(m) {
 const sky = $('#sky'), phone = $('#phone'), screen = $('#screen');
 const scene = new Scene(sky, { seed: 11 });
 scene.onTick = () => kick();                 // раз в секунду: облака сдвинулись, цвет под интерфейсом мог измениться
+const fx = new CardFx($('#fx'), screen);      // капли, сугробы и запотевание на карточках
+scene.onFrame = dt => fx.frame(dt);
+const FX_TXT = { rain: 'Дождь: верх и левая кромка карточек мокнут, капли набухают и стекают.', storm: 'Гроза: дождь сильнее, капель на карточках больше.', snow: 'Снег: на карточках нарастает сугроб, пока идёт снег. Если снег кончится, он стает.', fog: 'Туман: карточки запотевают. Проведите по ним пальцем или мышью, туман сотрётся и понемногу вернётся.' };
 let lastPal = 0, visible = true;
 
 /* ---------- Панель «Прозрачность стекла» ----------
@@ -462,6 +465,9 @@ function update(dt) {
   $('#hrOut').textContent = hhmm(S.h);
   if (document.activeElement !== $('#hr_in')) $('#hr_in').value = S.h;
   if (!scene.running) scene.draw();
+  fx.sync(scene.st);
+  if (!scene.running) { const k = S.wk + fx.on + S.page + S.lang + Math.floor(S.h) + S.hv; if (k !== fx.key) { fx.key = k; fx.warm(); } else fx.frame(0); }
+  const fxt = fx.on ? FX_TXT[S.wk] : '', fn = $('#fxNote'); fn.hidden = !fxt; if (fxt && fn.textContent !== fxt) fn.textContent = fxt;
   palette(tv); glassSync(tv);
   gallerySync();
   widgetsSync();
@@ -484,6 +490,7 @@ function resize() {
   phone.style.setProperty('--s', s.toFixed(4));
   scene.setSize(clamp(s * (devicePixelRatio || 1), 1, 2.5));
   scene.draw();
+  fx.setSize(clamp(s * (devicePixelRatio || 1), 1, 2.5)); fx.draw();
 }
 new ResizeObserver(resize).observe(fit);
 function syncRun() { const on = S.anim && visible && !document.hidden; if (on) scene.start(); else scene.stop(); if (!on) scene.draw(); }
@@ -548,6 +555,7 @@ $('#wxChips').innerHTML = WX_KEYS.map(k => `<button class="chip" type="button" r
 $('#wxChips').addEventListener('click', e => { const b = e.target.closest('[data-wk]'); if (!b) return; S.wk = b.dataset.wk; $$('#wxChips .chip').forEach(x => x.setAttribute('aria-checked', x === b)); kick(); });
 bindSeg($('#segLang'), v => { S.lang = v; K = {}; buildDock(); if (S.sheet) renderSheet(); galleryBuild(); widgetsBuild(); kick(); });
 $('#swAnim').addEventListener('click', () => setAnim(!S.anim));
+$('#swFx').addEventListener('click', e => { fx.on = !fx.on; e.currentTarget.setAttribute('aria-checked', fx.on); kick(); });
 
 /* ---------- Галерея состояний ---------- */
 const GAL = [

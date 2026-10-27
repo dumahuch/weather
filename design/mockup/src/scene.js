@@ -104,7 +104,7 @@ class Scene {
     this.pkey = ''; this.rain = []; this.snow = []; this.splash = []; this.drops = []; this.spAcc = 0;
     this.fogTile = null; this.fogSig = '';
     this.running = false; this.raf = 0; this.last = 0; this.fps = 30;
-    this.dph = 0; this.tickAcc = 0; this.onTick = null;                 // фаза дрейфа облаков, таймер пересчёта темы
+    this.dph = 0; this.tickAcc = 0; this.onTick = null; this.onFrame = null;                 // фаза дрейфа облаков, таймер пересчёта темы
     this.an = null; this.samp = null; this.sampKey = ''; this.sw = null; this.pan = .5;
     const r = mulberry32(this.seed + 99);
     this.stars = [];
@@ -252,6 +252,7 @@ class Scene {
       this.last = now;
       const d = Math.min(dt, 100) / 1000;
       this.t += d; this.step(d); this.draw();
+      if (this.onFrame) this.onFrame(d);
       if (SkyArt.ready && this.onTick && (this.tickAcc += d) > .8) { this.tickAcc = 0; this.onTick(); }
     };
     this.raf = requestAnimationFrame(tick);
