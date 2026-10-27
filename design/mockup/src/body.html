@@ -1,0 +1,190 @@
+<div class="wrap">
+
+<section class="stage" id="stage" aria-label="Живой макет приложения">
+  <div class="live">
+  <div class="phone-fit" id="fit">
+    <div class="phone" id="phone">
+      <div class="screen" id="screen">
+        <canvas id="sky" aria-hidden="true"></canvas>
+        <div class="status" aria-hidden="true">
+          <span id="clock">16:54</span><i class="punch"></i>
+          <span class="sys">
+            <svg viewBox="0 0 16 16"><path d="M1 14h2V10H1zM5 14h2V7H5zM9 14h2V4H9zM13 14h2V1h-2z"/></svg>
+            <svg viewBox="0 0 16 16"><path d="M8 14 4.6 10.6a4.8 4.8 0 0 1 6.8 0zM1.2 6.7l1.4 1.4a7.8 7.8 0 0 1 10.8 0l1.4-1.4a9.8 9.8 0 0 0-13.6 0z"/></svg>
+            <svg viewBox="0 0 24 16" style="width:22px"><rect x="1" y="3" width="19" height="10" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="3" y="5" width="12" height="6" rx="1.3"/><path d="M22 6v4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+          </span>
+        </div>
+
+        <section class="pg pg-home on" id="pgHome" aria-label="Главная">
+          <div class="toprow">
+            <button class="pill glass" id="cityBtn" type="button" aria-label="Места"><span id="pinI"></span><span id="city"></span><span id="chevI"></span></button>
+            <button class="rbtn glass" id="gear" type="button" aria-label="Настройки"></button>
+          </div>
+          <div class="hero">
+            <div class="hero-row"><div class="num" id="num"></div><div class="hico" id="hico"></div></div>
+            <div class="cond" id="cond"></div>
+            <div class="meta" id="meta"></div>
+          </div>
+          <div class="alerts" id="alerts"></div>
+          <div class="hourly glass">
+            <div class="hr-head"><b id="hrT"></b><span id="hrU"></span></div>
+            <div class="hr-scroll" id="hrScroll"><div class="hr" id="hr"></div></div>
+          </div>
+        </section>
+        <section class="pg pg-precip" id="pgPrecip" aria-label="Осадки"></section>
+        <section class="pg pg-details" id="pgDetails" aria-label="Подробно"></section>
+        <section class="pg pg-map" id="pgMap" aria-label="Карта"></section>
+
+        <nav class="dock glass" id="dock" aria-label="Разделы"></nav>
+        <canvas id="fx" aria-hidden="true"></canvas>
+        <div class="scrim" id="scrim"></div>
+        <div class="sheet glass" id="sheet" role="dialog" aria-label="Шторка"></div>
+        <i class="gesture"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick" id="quick" aria-label="Пульт">
+    <div class="q-time">
+      <label class="lab" for="hr_in">Время суток</label><output id="hrOut" for="hr_in">16:54</output>
+      <input type="range" id="hr_in" min="0" max="23.99" step="0.01" value="16.9">
+    </div>
+    <div class="q-chips" id="quickT">
+      <button class="chip" type="button" data-h="8.2">Утро</button>
+      <button class="chip" type="button" data-h="13">День</button>
+      <button class="chip" type="button" data-h="16.9">Закат</button>
+      <button class="chip" type="button" data-h="22.5">Ночь</button>
+      <button class="run" id="run" type="button" aria-pressed="false">Сутки за 30 секунд</button>
+    </div>
+    <div class="q-wx"><span class="lab" id="wxLab">Погода</span>
+      <div class="chips" id="wxChips" role="radiogroup" aria-labelledby="wxLab"></div>
+      <p class="fxn" id="fxNote" hidden></p>
+    </div>
+    <details class="glassctl" id="glassCtl">
+      <summary>Прозрачность стекла</summary>
+      <div class="gc-body">
+        <div class="ctl"><span class="lab" id="gsLab">Вид стекла</span>
+          <div class="seg" id="segGs" role="radiogroup" aria-labelledby="gsLab">
+            <button type="button" role="radio" aria-checked="false" data-v="light">Лёгкое</button>
+            <button type="button" role="radio" aria-checked="false" data-v="smoke">Дымчатое 3D</button>
+            <button type="button" role="radio" aria-checked="true" data-v="auto">Авто</button>
+          </div></div>
+        <div class="gs"><div class="gs-h"><label for="g_cards">Карточки</label><button class="gauto" type="button" data-g="cards" aria-pressed="true">Авто</button><output id="gv_cards" for="g_cards"></output></div>
+          <input type="range" id="g_cards" min="0" max="100" step="1" value="80" data-g="cards"><div class="gs-n" id="gn_cards"></div></div>
+        <div class="gs"><div class="gs-h"><label for="g_btn">Кнопки и панель</label><button class="gauto" type="button" data-g="btn" aria-pressed="true">Авто</button><output id="gv_btn" for="g_btn"></output></div>
+          <input type="range" id="g_btn" min="0" max="100" step="1" value="45" data-g="btn"><div class="gs-n" id="gn_btn"></div></div>
+        <div class="gs"><div class="gs-h"><label for="g_alert">Оповещения</label><button class="gauto" type="button" data-g="alert" aria-pressed="true">Авто</button><output id="gv_alert" for="g_alert"></output></div>
+          <input type="range" id="g_alert" min="0" max="100" step="1" value="70" data-g="alert"><div class="gs-n" id="gn_alert"></div></div>
+        <div class="gs"><div class="gs-h"><label for="g_blur">Размытие фона под стеклом</label><output id="gv_blur" for="g_blur"></output></div>
+          <input type="range" id="g_blur" min="0" max="40" step="1" value="10"><div class="gs-n">0 = стекло без размытия</div></div>
+        <button class="sw" id="gGuard" type="button" role="switch" aria-checked="true"><i></i><span>Не давать тексту стать нечитаемым<br><span class="mute" style="font-size:13px" id="gGuardNote">Если выбрано слишком прозрачно, стекло само станет плотнее</span></span></button>
+        <p class="gc-out" id="gOut"></p>
+        <div class="gc-act"><button type="button" id="gCopy">Скопировать значения</button><button type="button" id="gReset">Сбросить</button></div>
+      </div>
+    </details>
+  </div>
+  </div>
+
+  <div class="extras">
+    <header class="p-head">
+      <h1>Погодная среда</h1>
+      <p>Живой макет, а не приложение. Двигайте время и меняйте погоду: небо меняется по нарисованным картинам, а стекло и цвет текста перестраиваются сами. Здесь картины уменьшены ради веса страницы, в приложении будут крупнее.</p>
+    </header>
+    <details class="more" id="more">
+      <summary>Язык, анимация, цвета</summary>
+      <div class="more-body">
+        <div class="ctl"><span class="lab" id="lgLab">Язык в телефоне</span>
+          <div class="seg" id="segLang" role="radiogroup" aria-labelledby="lgLab">
+            <button type="button" role="radio" aria-checked="true" data-v="ru">Русский</button>
+            <button type="button" role="radio" aria-checked="false" data-v="de">Deutsch</button>
+          </div>
+        </div>
+        <button class="sw" id="swAnim" type="button" role="switch" aria-checked="true"><i></i><span>Анимация погоды<br><span class="mute" style="font-size:13px" id="animNote">Облака плывут, идёт дождь</span></span></button>
+        <button class="sw" id="swFx" type="button" role="switch" aria-checked="true"><i></i><span>Погода на карточках<br><span class="mute" style="font-size:13px">Капли, сугробы, запотевание</span></span></button>
+        <div class="pal" id="pal" aria-live="off">
+          <span class="lab">Палитра сейчас</span>
+          <div class="pal-bar"><span class="t">Аа</span><div class="pal-glass" id="palGlass">стекло и текст</div></div>
+          <div class="pal-sw" id="palSw"></div>
+          <p class="pal-note" id="palNote"></p>
+        </div>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="sec" id="states" aria-labelledby="hStates">
+  <header>
+    <h2 id="hStates">Восемь мгновений</h2>
+    <p>Те же картины неба, замороженные в разных состояниях. Цвета стекла и текста у каждого свои: считаются с самой картинки, не задаются руками.</p>
+  </header>
+  <div class="gal" id="gal"></div>
+</section>
+
+<section class="sec" id="widgets" aria-labelledby="hWidgets">
+  <header>
+    <h2 id="hWidgets">Виджеты</h2>
+    <p>От 1×1 до 4×2, любой можно растянуть. Фон убирается полностью, а текст сам подстраивается под обои. В реальном виджете стекло будет готовой картинкой: виджеты Android не умеют размытие вживую.</p>
+  </header>
+  <div class="wctl">
+    <div class="ctl"><span class="lab" id="wwLab">Обои</span>
+      <div class="seg" id="wWall" role="radiogroup" aria-labelledby="wwLab">
+        <button type="button" role="radio" aria-checked="true" data-v="light">Светлые</button>
+        <button type="button" role="radio" aria-checked="false" data-v="dark">Тёмные</button>
+      </div></div>
+    <div class="ctl"><span class="lab" id="wbLab">Фон виджета</span>
+      <div class="seg" id="wBg" role="radiogroup" aria-labelledby="wbLab">
+        <button type="button" role="radio" aria-checked="true" data-v="glass">Стекло</button>
+        <button type="button" role="radio" aria-checked="false" data-v="none">Без фона</button>
+      </div></div>
+    <div class="ctl" id="wTrWrap"><div class="ctl-row"><label class="lab" for="wTr">Прозрачность</label><span class="lab" id="wTrV">40 %</span></div>
+      <input type="range" id="wTr" min="0" max="100" value="40"></div>
+    <div class="ctl"><span class="lab" id="wiLab">Цвет текста</span>
+      <div class="seg" id="wInk" role="radiogroup" aria-labelledby="wiLab">
+        <button type="button" role="radio" aria-checked="true" data-v="auto">Авто</button>
+        <button type="button" role="radio" aria-checked="false" data-v="light">Светлый</button>
+        <button type="button" role="radio" aria-checked="false" data-v="dark">Тёмный</button>
+      </div></div>
+  </div>
+  <div class="wall light" id="wall"></div>
+  <p class="pal-note" id="wNote"></p>
+</section>
+
+<section class="sec" id="agreed" aria-labelledby="hAgreed">
+  <header><h2 id="hAgreed">Что решено, что нет</h2></header>
+  <div class="agreed">
+    <div>
+      <h3>Решено</h3>
+      <ul>
+        <li>Приложение для вас и друзей: APK без магазина. Собираем на GitHub, подписанный APK лежит в релизах, друзья обновляются через Obtainium.</li>
+        <li>Android 16 и новее. Старые версии не поддерживаем, поэтому можно брать современные средства Android: настоящее размытие и преломление на каплях без запасных вариантов.</li>
+        <li>Нижняя панель из четырёх вкладок: Главная, Осадки, Подробно, Карта. Прокрутки нет.</li>
+        <li>«Осадки»: сначала прогноз на 7 дней с переключателем на 14, ниже осадки на сутки.</li>
+        <li>Место по умолчанию: ваше текущее. Любые населённые пункты можно закрепить.</li>
+        <li>Фон: нарисованное небо, шесть картин (рассвет, утро, день, закат, сумерки, ночь). Они плавно сменяют друг друга по высоте солнца, облака плывут отдельным слоем, погода ложится поверх: серость, дождь, снег, туман, молния. Без фотографий и достопримечательностей.</li>
+        <li>Стекло цветное, берёт оттенок неба. Кнопки сверху и снизу, включая карту, из одного материала. Оповещения без цветной полосы. Цвет текста считается от сцены.</li>
+        <li>Вид стекла: «Лёгкое» (молочное, как сейчас), «Дымчатое 3D» (тёмное, затемняет и насыщает фон за собой) и «Авто». В «Авто» стекло дымчатое, когда на экране светлый текст (ночь, гроза, сумерки), а днём лёгкое. Это относится к карточкам и оповещениям: кнопки, нижняя панель и карта остаются как были. Тень из семи слоёв, блик по верхнему левому ребру и заметное зерно есть у карточек всех видов. Переключатель в панели «Прозрачность стекла».</li>
+        <li>Прозрачность по умолчанию: карточки 80 %, кнопки и оповещения подбираются сами, размытие 10 px, защита читаемости включена.</li>
+        <li>Плитки во вкладке «Подробно» остаются в нынешнем порядке.</li>
+        <li>Шрифт по умолчанию Manrope, в настройках ещё семь. Русский и немецкий, метрические единицы.</li>
+        <li>Почасовой прогноз: линия времени или карточки, переключается в настройках.</li>
+        <li>Уведомления: дождь, гроза, сильный ветер, пыльца, снег, град, гололёд, туман. Пороги: гроза и гололёд по любому предупреждению DWD, ветер от 65 км/ч, ливень от 15 мм/ч, снег от 5 см за 6 часов, пыльца «высокая», туман выключен. Всё настраивается.</li>
+        <li>Погода на карточках: в дождь верх и левый край намокают, капли набухают и стекают; в снег на верхней кромке нарастает сугроб (чем дольше снег, тем выше); в туман стекло запотевает, пальцем или мышью туман стирается и медленно возвращается. Выключается переключателем «Погода на карточках» в панели.</li>
+        <li>Виджеты от маленьких до крупных, фон убирается. Эффекты карточек в виджетах не нужны: там остаётся готовая картинка.</li>
+      </ul>
+    </div>
+    <div class="open">
+      <h3>Нужно решить</h3>
+      <ul>
+        <li>Материалы в репозитории: картины, макет и договорённости лежат в предложении №1 на GitHub и ждут вашего «слей».</li>
+        <li>Ключ подписи и автоматическая сборка APK на GitHub: начнём, когда скажете. Код приложения тоже только после вашего слова.</li>
+        <li>Свет рассвета и ярких облаков иногда мешает читать текст прямо на небе. Для таких моментов стекло и подложка под цифрами сами становятся плотнее, но если хочется иначе, скажите.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  Это макет в браузере. Данные придуманы (26 октября 2026), карта нарисована от руки, закреплённые места и уведомления нажимаются, но ничего не сохраняют. В приложении будут настоящие данные: прогноз Open-Meteo и предупреждения DWD.
+</footer>
+
+</div>
