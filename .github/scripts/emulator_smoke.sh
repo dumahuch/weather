@@ -147,18 +147,29 @@ wait_tap() {
 }
 
 # Нажимает кнопку системного окна: ждёт, пока окно встанет на место (оно выезжает с анимацией, касание в этот
-# момент может промахнуться), нажимает и убеждается, что кнопка исчезла; при неудаче пробует ещё до трёх раз.
+# момент может промахнуться), нажимает и ждёт до 10 с, пока кнопка исчезнет (окно закрывается с анимацией,
+# на нагруженной машине дольше двух секунд); при неудаче пробует ещё до трёх раз. Если после нажатия кнопки
+# уже нет, окно закрылось, это успех.
 tap_dialog() {
-  local pattern="$1" attempt
+  local pattern="$1" attempt tapped=0
   for attempt in 1 2 3 4; do
     local deadline=$((SECONDS + 20))
     until grep -qE "$pattern" <<<"$(screen_texts)"; do
+      [ "$tapped" -eq 0 ] || return 0
       [ "$SECONDS" -lt "$deadline" ] || return 1
       sleep 2
     done
     sleep 2
-    tap_text "$pattern" || return 1
-    sleep 2
+    if ! tap_text "$pattern"; then
+      [ "$tapped" -eq 1 ] && return 0
+      return 1
+    fi
+    tapped=1
+    local gone=$((SECONDS + 10))
+    while grep -qE "$pattern" <<<"$(screen_texts)"; do
+      [ "$SECONDS" -lt "$gone" ] || break
+      sleep 1
+    done
     if ! grep -qE "$pattern" <<<"$(screen_texts)"; then return 0; fi
   done
   return 1
