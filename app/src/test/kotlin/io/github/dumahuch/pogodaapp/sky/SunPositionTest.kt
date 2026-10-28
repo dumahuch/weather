@@ -8,7 +8,7 @@ import java.time.Instant
 /**
  * Высота солнца сверяется с независимой библиотекой astral 3.2 (Python, без поправки на рефракцию):
  * значения получены командой `elevation(Observer(lat, lon), момент, with_refraction=False)`.
- * Формулы NOAA приблизительные, допуск 0,35°: для выбора картины неба этого с запасом.
+ * Формулы приближённые (около угловой минуты), допуск 0,05°.
  */
 class SunPositionTest {
 
@@ -29,7 +29,7 @@ class SunPositionTest {
     fun elevationMatchesAnIndependentLibrary() {
         for (c in cases) {
             val sun = SunPosition.at(c.latitude, c.longitude, Instant.parse(c.time))
-            assertEquals("${c.name}: высота солнца", c.expected, sun.elevation, 0.35)
+            assertEquals("${c.name}: высота солнца", c.expected, sun.elevation, 0.05)
         }
     }
 

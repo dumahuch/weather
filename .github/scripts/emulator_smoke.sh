@@ -4,6 +4,8 @@
 #   2. С разрешением и сетью: настоящий прогноз Open-Meteo (если сеть из эмулятора недоступна, это предупреждение).
 #   3. Без сети с сохранённым прогнозом: данные и строка «нет сети · данные 3 ч назад» (en, ru, de).
 #   3б. Обновление протягиванием вниз: короткое движение не запускает обновление, длинное запускает (проверочная сборка замедляет место на 12 с); верх экрана сдвигается на 56 dp, у индикатора подпись, потом всё возвращается.
+#   3в. Небо: скрытый экран проверки (семь нажатий на номер версии), шесть времён суток и семь видов погоды со снимками,
+#       частота кадров; при выключенных анимациях (масштаб 0) небо стоит на месте.
 #   4. Рабочая сборка (release, сжатая R8): запускается, карточка без разрешения на трёх языках, после разрешения не падает.
 # Использование: emulator_smoke.sh <apk> <пакет> <versionName> <versionCode> [ответ.json] [release.apk пакет versionName versionCode]
 # Снимки экрана и разметка складываются в папку $SMOKE_OUT (по умолчанию smoke-out).
@@ -134,6 +136,22 @@ for node in re.findall(r"<node [^>]*>", data):
   [ -n "$coords" ] || return 1
   # shellcheck disable=SC2086
   adb shell input tap $coords
+}
+
+# Центр (x y) элемента с точным текстом; пусто, если такого нет.
+exact_center() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/ui.xml 2>/dev/null | TEXT="$1" PYTHONIOENCODING=utf-8 python3 -c '
+import html, os, re, sys
+data = sys.stdin.buffer.read().decode("utf-8", "replace")
+for node in re.findall(r"<node [^>]*>", data):
+    text = re.search(r" text=\"([^\"]*)\"", node)
+    bounds = re.search(r"bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"", node)
+    if text and bounds and html.unescape(text.group(1)) == os.environ["TEXT"]:
+        x1, y1, x2, y2 = map(int, bounds.groups())
+        print((x1 + x2) // 2, (y1 + y2) // 2)
+        break
+'
 }
 
 # Ждёт, пока на экране появится элемент с подходящим текстом, и нажимает на него.
@@ -378,6 +396,121 @@ shot "3б-после-протягивания"
 check_offline ru "Нет сети · данные 3 часа назад" "По часам"
 check_offline de "Kein Netz · Daten von vor 3 Std." "Stündlich"
 
+# --- 3в. Небо: экран проверки --------------------------------------------------------
+
+# Экран проверки открывается семью нажатиями подряд на номер версии (между нажатиями не больше 1,5 с).
+open_sky_check() {
+  local attempt coords
+  for attempt in 1 2 3; do
+    coords=$(exact_center "$VERSION_NAME ($VERSION_CODE)")
+    [ -n "$coords" ] || fail "[небо] на экране не найден номер версии «$VERSION_NAME ($VERSION_CODE)»"
+    # shellcheck disable=SC2086
+    set -- $coords
+    adb shell "for i in 1 2 3 4 5 6 7; do input tap $1 $2; done"
+    if wait_for_text "Проверка неба" 8; then return 0; fi
+  done
+  fail "[небо] семь нажатий на номер версии не открыли экран проверки"
+}
+
+# Строка экрана, начинающаяся с заданного начала (например «Картины:»).
+sky_line() {
+  screen_texts | grep -E "^$1" | head -1 || true
+}
+
+# Частота кадров из строки «Кадров в секунду: 18,4 (экран 60 Гц)» с точкой вместо запятой.
+frame_rate() {
+  sky_line "Кадров в секунду:" | sed -E 's/^Кадров в секунду: ([0-9]+),([0-9]).*/\1.\2/'
+}
+
+# Нажимает кнопку времени суток и ждёт, пока картины загрузятся и проявятся; в строке «Картины:» должно быть имя.
+sky_scene() {
+  local button="$1" name="$2" shot_name="$3"
+  tap_text "^$button\$" || fail "[небо] на экране проверки нет кнопки «$button»"
+  sleep 4
+  TEXTS=$(screen_texts)
+  grep -qE "^Картины: .*$name" <<<"$TEXTS" || fail "[небо] после «$button» в строке «Картины» нет «$name»: $(grep -E '^Картины' <<<"$TEXTS")"
+  echo "[небо] $button: $(grep -E '^(Солнце|Картины|Облака|Текст)' <<<"$TEXTS" | tr '\n' '|')"
+  shot "$shot_name"
+}
+
+sky_weather() {
+  local button="$1" shot_name="$2"
+  tap_text "^$button\$" || fail "[небо] на экране проверки нет кнопки «$button»"
+  sleep 3
+  TEXTS=$(screen_texts)
+  echo "[небо] $button: $(grep -E '^(Картины|Облака|Текст)' <<<"$TEXTS" | tr '\n' '|')"
+  shot "$shot_name"
+}
+
+set_locale en
+start_app
+wait_for_text "Offline · data from 3 h ago" 60 || fail "[небо] нет прогноза из памяти"
+open_sky_check
+echo "[небо] экран проверки открыт"
+shot "5-проверка-неба-открыта"
+
+sky_scene "Рассвет" "Рассвет" "5-небо-1-рассвет"
+sky_scene "Утро" "Утро" "5-небо-2-утро"
+sky_scene "День" "День" "5-небо-3-день"
+sky_scene "Закат" "Закат" "5-небо-4-закат"
+sky_scene "Сумерки" "Сумерки" "5-небо-5-сумерки"
+sky_scene "Ночь" "Ночь" "5-небо-6-ночь"
+
+# Погода при дневном небе и ночью: ночью облака и тёмные накладки видны иначе.
+sky_scene "День" "День" "5-небо-3-день-повтор"
+sky_weather "Ясно" "5-погода-1-ясно"
+sky_weather "Малооблачно" "5-погода-2-малооблачно"
+sky_weather "Облачно" "5-погода-3-облачно"
+sky_weather "Дождь" "5-погода-4-дождь"
+sky_weather "Гроза" "5-погода-5-гроза"
+sky_weather "Снег" "5-погода-6-снег"
+sky_weather "Туман" "5-погода-7-туман"
+sky_scene "Ночь" "Ночь" "5-небо-6-ночь-туман"
+sky_weather "Гроза" "5-погода-5-гроза-ночью"
+
+tap_text '^Сейчас$' || fail "[небо] на экране проверки нет кнопки «Сейчас»"
+sleep 3
+shot "5-небо-сейчас"
+
+# Облака плывут: частота кадров заметно выше нуля (на эмуляторе без видеокарты она ниже, чем на телефоне).
+tap_text '^Сбросить$' || fail "[небо] нет кнопки «Сбросить»"
+sleep 9
+rate_moving=$(frame_rate)
+echo "[небо] анимации включены, кадров в секунду: ${rate_moving:-нет}"
+[ -n "$rate_moving" ] || fail "[небо] на экране проверки нет строки «Кадров в секунду»"
+if ! awk -v r="$rate_moving" 'BEGIN { exit !(r >= 5) }'; then
+  annotate warning "Эмулятор" "Небо: при включённых анимациях кадров в секунду только $rate_moving (ждали не меньше 5). На эмуляторе без видеокарты это возможно, на телефоне проверить частоту кадров через экран проверки."
+fi
+
+# Анимации выключены (масштаб 0, как «Убрать анимацию»): небо должно стоять, кадры идут только от самого счётчика (раз в секунду).
+adb shell settings put global animator_duration_scale 0
+sleep 4
+tap_text '^Сбросить$' || fail "[небо] нет кнопки «Сбросить»"
+clouds_before=$(sky_line "Облака:")
+sleep 9
+rate_still=$(frame_rate)
+clouds_after=$(sky_line "Облака:")
+echo "[небо] анимации выключены, кадров в секунду: ${rate_still:-нет}; $clouds_before -> $clouds_after"
+shot "5-небо-анимации-выключены"
+adb shell settings put global animator_duration_scale 1
+[ -n "$rate_still" ] || fail "[небо] без анимаций на экране проверки нет строки «Кадров в секунду»"
+awk -v r="$rate_still" 'BEGIN { exit !(r <= 3) }' || fail "[небо] при выключенных анимациях кадров в секунду $rate_still (ждали не больше 3): облака не остановились"
+[ "$clouds_before" = "$clouds_after" ] || fail "[небо] при выключенных анимациях положение облаков изменилось: $clouds_before -> $clouds_after"
+echo "[небо] при выключенных анимациях небо стоит на месте"
+
+# Анимации снова включены: облака поплыли дальше.
+sleep 3
+tap_text '^Сбросить$' || fail "[небо] нет кнопки «Сбросить»"
+sleep 8
+echo "[небо] анимации снова включены, кадров в секунду: $(frame_rate)"
+
+tap_text '^Закрыть$' || fail "[небо] на экране проверки нет кнопки «Закрыть»"
+sleep 2
+TEXTS=$(screen_texts)
+! grep -qxF "Проверка неба" <<<"$TEXTS" || fail "[небо] экран проверки не закрылся"
+[ -n "$(adb shell pidof "$PKG" | tr -d '\r')" ] || fail "[небо] приложение упало"
+echo "[небо] экран проверки закрыт"
+
 adb shell svc wifi enable >/dev/null 2>&1 || true
 adb shell svc data enable >/dev/null 2>&1 || true
 
@@ -411,4 +544,4 @@ crash=$(adb logcat -d -b crash | tr -d '\r')
 [ -z "$crash" ] || fail "В журнале падений есть записи:
 $crash"
 
-annotate notice "Эмулятор" "Приложение установилось, запустилось, не упало; карточка без разрешения и прогноз без сети на en/ru/de показаны верно."
+annotate notice "Эмулятор" "Приложение установилось, запустилось, не упало; карточка без разрешения и прогноз без сети на en/ru/de показаны верно; небо: шесть времён суток и семь видов погоды показаны, при выключенных анимациях облака стоят."
