@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Верх ночной картины неба (см. design/docs/sky-art-prompts.md). -->
+    <color name="night_sky">#0E1226</color>
+</resources>

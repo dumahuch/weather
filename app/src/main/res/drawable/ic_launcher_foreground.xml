@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Облако и солнце в безопасной зоне 66×66 dp по центру. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFD27A"
+        android:pathData="M62,40 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 z" />
+    <path
+        android:fillColor="#F7FAFF"
+        android:pathData="M33,56 a8,8 0 0,0 0,16 H75 a8,8 0 0,0 0,-16 z M30,55 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0 z M40,48 a14,14 0 1,0 28,0 a14,14 0 1,0 -28,0 z M57.5,55 a9.5,9.5 0 1,0 19,0 a9.5,9.5 0 1,0 -19,0 z" />
+</vector>

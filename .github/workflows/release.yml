@@ -1,0 +1,118 @@
+name: Release
+
+# Срабатывает на метку версии (v0.0.1, v1.2.3): собирает подписанный APK
+# и публикует его в Releases. Оттуда его берёт Obtainium.
+
+on:
+  push:
+    tags: ['v[0-9]*']
+
+permissions:
+  contents: write # создание релиза
+
+jobs:
+  release:
+    name: Сборка и выпуск
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      APP_ID: io.github.dumahuch.pogodaapp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Версия из метки
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! [[ "$VERSION" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            echo "::error title=Неверная метка::Метка '$GITHUB_REF_NAME' должна выглядеть как v1.2.3"
+            exit 1
+          fi
+          IFS=. read -r MAJOR MINOR PATCH <<<"$VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$((10#$MAJOR * 1000000 + 10#$MINOR * 1000 + 10#$PATCH))" >> "$GITHUB_ENV"
+
+      - name: Ключ подписи
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          missing=""
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=Нет секретов подписи::Не заданы секреты:$missing. Добавьте их в Settings → Secrets and variables → Actions (см. README)."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
+
+      - name: Тесты и сборка релиза
+        env:
+          APP_VERSION: ${{ env.VERSION }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -o pipefail
+          ./gradlew --console=plain --stacktrace testDebugUnitTest assembleRelease 2>&1 | tee build-release.log
+
+      - name: Разбор APK
+        id: inspect
+        run: |
+          python3 .github/scripts/inspect_apk.py app/build/outputs/apk/release/app-release.apk \
+            --package "$APP_ID" \
+            --version-name "$VERSION" --version-code "$VERSION_CODE" \
+            --min-sdk 36 --target-sdk 36 --require-signature
+
+      - name: Сверка ключа с прошлым выпуском
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CERT_SHA256: ${{ steps.inspect.outputs.cert_sha256 }}
+        run: |
+          PREV_TAG=$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')
+          if [ -z "$PREV_TAG" ]; then
+            echo "Первый выпуск: сверять не с чем. Отпечаток ключа: $CERT_SHA256"
+            exit 0
+          fi
+          PREV_CERT=$(gh release view "$PREV_TAG" --json body --jq .body | grep -F 'Отпечаток ключа' | grep -oE '[0-9a-f]{64}' | head -1 || true)
+          if [ -z "$PREV_CERT" ]; then
+            echo "::warning::В выпуске $PREV_TAG нет отпечатка ключа, сверка пропущена"
+          elif [ "$PREV_CERT" != "$CERT_SHA256" ]; then
+            echo "::error title=Ключ подписи изменился::Выпуск $PREV_TAG подписан ключом $PREV_CERT, этот собран ключом $CERT_SHA256. Друзья не смогут поставить обновление поверх. Проверьте секреты подписи."
+            exit 1
+          else
+            echo "Ключ совпадает с выпуском $PREV_TAG"
+          fi
+
+      - name: Публикация в Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CERT_SHA256: ${{ steps.inspect.outputs.cert_sha256 }}
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/PogodaApp-$VERSION.apk"
+          {
+            if [ -f "release-notes/$VERSION.md" ]; then cat "release-notes/$VERSION.md"; else echo "PogodaApp $VERSION"; fi
+            echo
+            echo "Отпечаток ключа подписи (SHA-256): \`$CERT_SHA256\`"
+          } > release-body.md
+          gh release create "$GITHUB_REF_NAME" "dist/PogodaApp-$VERSION.apk" \
+            --title "PogodaApp $VERSION" --notes-file release-body.md --verify-tag
+
+      - name: Причина падения
+        if: failure()
+        run: python3 .github/scripts/annotate_failure.py build-release.log
+
+      - name: Удаление ключа с машины
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">PogodaApp</string>
+    <string name="step0_status">Empty app. Checking installation and updates.</string>
+    <string name="version_label">Version %1$s (build %2$d)</string>
+</resources>

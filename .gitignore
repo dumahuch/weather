@@ -1,2 +1,22 @@
 design/mockup/index.html
 design/mockup/page.html
+
+# Сборка
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+
+# Ключи и секреты никогда не попадают в репозиторий
+*.jks
+*.keystore
+*.p12
+keystore.properties
+signing-secrets*
+
+# Среда разработки
+.idea/
+*.iml
+.kotlin/
+.DS_Store

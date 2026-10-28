@@ -1,0 +1,83 @@
+name: CI
+
+# Проверка при каждом изменении: линт, тесты, сборка, разбор готового APK
+# и пробный выпуск с одноразовым ключом (тот же путь, что у настоящего релиза).
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Проверка и сборка
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Линт, тесты, сборка debug
+        run: |
+          set -o pipefail
+          ./gradlew --console=plain --stacktrace lintDebug testDebugUnitTest assembleDebug 2>&1 | tee build-debug.log
+
+      - name: Разбор debug-APK
+        run: |
+          python3 .github/scripts/inspect_apk.py app/build/outputs/apk/debug/app-debug.apk \
+            --package io.github.dumahuch.pogodaapp.debug \
+            --version-name 0.0.0-dev-debug --version-code 1 \
+            --min-sdk 36 --target-sdk 36 --require-signature
+
+      - name: Расчёт номера версии из метки
+        run: |
+          expect() {
+            local out
+            out=$(APP_VERSION="$1" ./gradlew -q --console=plain printVersion 2>&1)
+            echo "$1 -> $out"
+            grep -q "versionCode=$2\$" <<<"$out" || { echo "::error::Для $1 ожидался versionCode $2"; exit 1; }
+          }
+          expect 0.0.2 2
+          expect 0.1.0 1000
+          expect 1.2.3 1002003
+          if APP_VERSION=1.2 ./gradlew -q --console=plain printVersion >/dev/null 2>&1; then
+            echo "::error::Версия 1.2 должна отклоняться"; exit 1
+          fi
+
+      - name: Пробный выпуск с одноразовым ключом
+        env:
+          APP_VERSION: 0.0.2
+          KEYSTORE_PATH: ${{ runner.temp }}/smoke.jks
+          KEYSTORE_PASSWORD: smoke-test-only
+          KEY_ALIAS: smoke
+          KEY_PASSWORD: smoke-test-only
+        run: |
+          keytool -genkeypair -keystore "$KEYSTORE_PATH" -storetype PKCS12 -alias "$KEY_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 2 \
+            -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" -dname "CN=smoke test"
+          set -o pipefail
+          ./gradlew --console=plain --stacktrace assembleRelease 2>&1 | tee build-release.log
+          python3 .github/scripts/inspect_apk.py app/build/outputs/apk/release/app-release.apk \
+            --package io.github.dumahuch.pogodaapp \
+            --version-name 0.0.2 --version-code 2 \
+            --min-sdk 36 --target-sdk 36 --require-signature
+
+      - name: Причина падения
+        if: failure()
+        run: python3 .github/scripts/annotate_failure.py build-debug.log build-release.log
