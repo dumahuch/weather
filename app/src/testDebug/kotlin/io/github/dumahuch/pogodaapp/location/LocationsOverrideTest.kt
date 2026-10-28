@@ -36,4 +36,28 @@ class LocationsOverrideTest {
         assertNull(Locations.readOverride(file("52.37,9.74,10")))
         assertNull(Locations.readOverride(file("north,east")))
     }
+
+    private fun delayFile(text: String?): File {
+        val file = File(folder.root, Locations.DELAY_FILE)
+        if (text != null) file.writeText(text)
+        return file
+    }
+
+    @Test
+    fun noDelayFileMeansNoDelay() {
+        assertNull(Locations.readDelay(delayFile(null)))
+    }
+
+    @Test
+    fun readsTheDelayInMilliseconds() {
+        assertEquals(12000L, Locations.readDelay(delayFile("12000\n")))
+    }
+
+    @Test
+    fun brokenOrNonPositiveDelayMeansNoDelay() {
+        assertNull(Locations.readDelay(delayFile("")))
+        assertNull(Locations.readDelay(delayFile("долго")))
+        assertNull(Locations.readDelay(delayFile("0")))
+        assertNull(Locations.readDelay(delayFile("-5")))
+    }
 }
