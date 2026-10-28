@@ -1,5 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="step0_status">Leere App. Test von Installation und Updates.</string>
-    <string name="version_label">Version %1$s (Build %2$d)</string>
+    <string name="tab_home">Start</string>
+    <string name="tab_forecast">Vorhersage</string>
+    <string name="tab_details">Details</string>
+    <string name="tab_map">Karte</string>
+
+    <string name="place_current">Aktueller Standort</string>
+    <string name="place_locating">Standort wird bestimmt…</string>
+    <string name="place_none">Kein Ort gewählt</string>
+
+    <string name="now">Jetzt</string>
+    <string name="feels_like">Gefühlt</string>
+    <string name="temp_high">Max</string>
+    <string name="temp_low">Min</string>
+    <string name="hourly_title">Stündlich</string>
+    <string name="hourly_caption">Niederschlag, mm</string>
+
+    <string name="offline_title">Kein Netz</string>
+    <string name="data_age_under_hour">Daten von vor weniger als 1 Std.</string>
+    <plurals name="data_age_hours">
+        <item quantity="one">Daten von vor %d Std.</item>
+        <item quantity="other">Daten von vor %d Std.</item>
+    </plurals>
+
+    <string name="noloc_title">Kein Zugriff auf den Standort</string>
+    <string name="noloc_text">Erlaube den Zugriff, um das Wetter dort zu sehen, wo du bist.</string>
+    <string name="noloc_allow">Erlauben</string>
+    <string name="noloc_settings">Einstellungen öffnen</string>
+
+    <string name="locfail_title">Standort nicht gefunden</string>
+    <string name="locfail_text">Schalte die Standortbestimmung in den Einstellungen ein oder versuche es später noch einmal.</string>
+    <string name="nodata_title">Kein Netz</string>
+    <string name="nodata_text">Es gibt noch keine Wetterdaten. Prüfe deine Internetverbindung.</string>
+    <string name="retry">Erneut versuchen</string>
+
+    <string name="wx_clear">Klar</string>
+    <string name="wx_partly">Wechselnd bewölkt</string>
+    <string name="wx_cloudy">Bedeckt</string>
+    <string name="wx_rain">Regen</string>
+    <string name="wx_storm">Gewitter</string>
+    <string name="wx_snow">Schnee</string>
+    <string name="wx_fog">Nebel</string>
+
+    <string-array name="days_short">
+        <item>Mo</item>
+        <item>Di</item>
+        <item>Mi</item>
+        <item>Do</item>
+        <item>Fr</item>
+        <item>Sa</item>
+        <item>So</item>
+    </string-array>
 </resources>

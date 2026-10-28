@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PogodaApp" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/night_sky</item>
-        <item name="android:windowSplashScreenBackground">@color/night_sky</item>
+    <style name="Theme.PogodaApp" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/sky_placeholder</item>
+        <item name="android:windowSplashScreenBackground">@color/sky_placeholder</item>
     </style>
 </resources>

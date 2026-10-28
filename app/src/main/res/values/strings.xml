@@ -1,6 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name" translatable="false">PogodaApp</string>
-    <string name="step0_status">Empty app. Checking installation and updates.</string>
-    <string name="version_label">Version %1$s (build %2$d)</string>
+    <string name="version_footer" translatable="false">%1$s (%2$d)</string>
+    <string name="attribution_open_meteo" translatable="false">Weather data by Open-Meteo.com</string>
+
+    <string name="tab_home">Home</string>
+    <string name="tab_forecast">Forecast</string>
+    <string name="tab_details">Details</string>
+    <string name="tab_map">Map</string>
+
+    <string name="place_current">Current location</string>
+    <string name="place_locating">Finding your location…</string>
+    <string name="place_none">No place set</string>
+
+    <string name="now">Now</string>
+    <string name="feels_like">Feels like</string>
+    <string name="temp_high">High</string>
+    <string name="temp_low">Low</string>
+    <string name="hourly_title">Hourly</string>
+    <string name="hourly_caption">precipitation, mm</string>
+
+    <string name="offline_title">Offline</string>
+    <string name="data_age_under_hour">data from under 1 h ago</string>
+    <plurals name="data_age_hours">
+        <item quantity="one">data from %d h ago</item>
+        <item quantity="other">data from %d h ago</item>
+    </plurals>
+
+    <string name="noloc_title">No location access</string>
+    <string name="noloc_text">Allow access to see the weather where you are.</string>
+    <string name="noloc_allow">Allow</string>
+    <string name="noloc_settings">Open settings</string>
+
+    <string name="locfail_title">Couldn’t find your location</string>
+    <string name="locfail_text">Turn on location in your phone’s settings, or try again later.</string>
+    <string name="nodata_title">Offline</string>
+    <string name="nodata_text">There is no weather data yet. Check your internet connection.</string>
+    <string name="retry">Try again</string>
+
+    <string name="wx_clear">Clear</string>
+    <string name="wx_partly">Partly cloudy</string>
+    <string name="wx_cloudy">Overcast</string>
+    <string name="wx_rain">Rain</string>
+    <string name="wx_storm">Thunderstorm</string>
+    <string name="wx_snow">Snow</string>
+    <string name="wx_fog">Fog</string>
+
+    <string-array name="days_short">
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thu</item>
+        <item>Fri</item>
+        <item>Sat</item>
+        <item>Sun</item>
+    </string-array>
 </resources>

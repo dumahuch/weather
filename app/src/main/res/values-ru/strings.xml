@@ -1,5 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="step0_status">Пустое приложение. Проверка установки и обновлений.</string>
-    <string name="version_label">Версия %1$s (сборка %2$d)</string>
+    <string name="tab_home">Главная</string>
+    <string name="tab_forecast">Прогноз</string>
+    <string name="tab_details">Подробно</string>
+    <string name="tab_map">Карта</string>
+
+    <string name="place_current">Текущее место</string>
+    <string name="place_locating">Определяем место…</string>
+    <string name="place_none">Место не задано</string>
+
+    <string name="now">Сейчас</string>
+    <string name="feels_like">Ощущается как</string>
+    <string name="temp_high">Макс</string>
+    <string name="temp_low">Мин</string>
+    <string name="hourly_title">По часам</string>
+    <string name="hourly_caption">осадки, мм</string>
+
+    <string name="offline_title">Нет сети</string>
+    <string name="data_age_under_hour">данные менее часа назад</string>
+    <plurals name="data_age_hours">
+        <item quantity="one">данные %d час назад</item>
+        <item quantity="few">данные %d часа назад</item>
+        <item quantity="many">данные %d часов назад</item>
+        <item quantity="other">данные %d часа назад</item>
+    </plurals>
+
+    <string name="noloc_title">Нет доступа к местоположению</string>
+    <string name="noloc_text">Разрешите доступ, чтобы видеть погоду там, где вы.</string>
+    <string name="noloc_allow">Разрешить</string>
+    <string name="noloc_settings">Открыть настройки</string>
+
+    <string name="locfail_title">Не удалось определить место</string>
+    <string name="locfail_text">Включите геолокацию в настройках телефона или попробуйте позже.</string>
+    <string name="nodata_title">Нет сети</string>
+    <string name="nodata_text">Данных о погоде пока нет. Проверьте подключение к интернету.</string>
+    <string name="retry">Повторить</string>
+
+    <string name="wx_clear">Ясно</string>
+    <string name="wx_partly">Переменная облачность</string>
+    <string name="wx_cloudy">Пасмурно</string>
+    <string name="wx_rain">Дождь</string>
+    <string name="wx_storm">Гроза</string>
+    <string name="wx_snow">Снег</string>
+    <string name="wx_fog">Туман</string>
+
+    <string-array name="days_short">
+        <item>Пн</item>
+        <item>Вт</item>
+        <item>Ср</item>
+        <item>Чт</item>
+        <item>Пт</item>
+        <item>Сб</item>
+        <item>Вс</item>
+    </string-array>
 </resources>

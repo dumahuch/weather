@@ -1,25 +1,58 @@
 #!/usr/bin/env bash
-# Проверка на эмуляторе: установка, запуск, отсутствие падений и текст на экране на трёх языках.
-# Использование: emulator_smoke.sh <apk> <пакет> <versionName> <versionCode>
+# Проверка на эмуляторе: установка, запуск, тексты на трёх языках и три состояния главного экрана.
+#   1. Без разрешения на местоположение: карточка «Разрешить» (en, ru, de).
+#   2. С разрешением и сетью: настоящий прогноз Open-Meteo (если сеть из эмулятора недоступна, это предупреждение).
+#   3. Без сети с сохранённым прогнозом: данные и строка «нет сети · данные 3 ч назад» (en, ru, de).
+# Использование: emulator_smoke.sh <apk> <пакет> <versionName> <versionCode> [ответ.json]
+# Снимки экрана и разметка складываются в папку $SMOKE_OUT (по умолчанию smoke-out).
 set -euo pipefail
+export LC_ALL=C.UTF-8
 
 APK="${1:?путь к APK}"
 PKG="${2:?имя пакета}"
 VERSION_NAME="${3:?versionName}"
 VERSION_CODE="${4:?versionCode}"
+FIXTURE="${5:-app/src/test/resources/open-meteo/hannover.json}"
 ACTIVITY="io.github.dumahuch.pogodaapp.MainActivity"
+PERMISSION="android.permission.ACCESS_COARSE_LOCATION"
+OUT="${SMOKE_OUT:-smoke-out}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mkdir -p "$OUT"
+TEXTS=""
 
-annotate_error() {
+annotate() {
   local body
-  body=$(printf '%s' "$2" | sed -e 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
-  echo "::error title=$1::$body"
+  body=$(printf '%s' "$3" | sed -e 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+  echo "::$1 title=$2::$body"
+}
+
+shot() {
+  adb exec-out screencap -p >"$OUT/$1.png" 2>/dev/null || true
+  adb exec-out cat /sdcard/ui.xml >"$OUT/$1.xml" 2>/dev/null || true
 }
 
 fail() {
-  annotate_error "Эмулятор" "$1
+  shot "ошибка"
+  annotate error "Эмулятор" "$1
+--- на экране ---
+$TEXTS
 --- конец журнала Android ---
 $(adb logcat -d 2>/dev/null | tr -d '\r' | tail -60)"
   exit 1
+}
+
+# Тексты экрана: значения text и content-desc, по одному в строке.
+screen_texts() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/ui.xml 2>/dev/null | PYTHONIOENCODING=utf-8 python3 -c '
+import html, re, sys
+data = sys.stdin.buffer.read().decode("utf-8", "replace")
+for attribute in ("text", "content-desc"):
+    for value in re.findall(attribute + r"=\"([^\"]*)\"", data):
+        value = html.unescape(value)
+        if value:
+            print(value)
+'
 }
 
 start_app() {
@@ -27,47 +60,117 @@ start_app() {
   local out
   out=$(adb shell am start -W -n "$PKG/$ACTIVITY" | tr -d '\r')
   grep -q "Status: ok" <<<"$out" || fail "Приложение не запустилось: $out"
-  sleep 4
+  sleep 3
   [ -n "$(adb shell pidof "$PKG" | tr -d '\r')" ] || fail "Процесс приложения не найден после запуска (приложение упало?)"
 }
 
-screen_texts() {
-  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
-  adb exec-out cat /sdcard/ui.xml | python3 -c '
-import re, sys
-for text in re.findall(r"text=\"([^\"]*)\"", sys.stdin.read()):
-    if text:
-        print(text)
-'
+set_locale() {
+  adb shell cmd locale set-app-locales "$PKG" --locales "$1" >/dev/null
+}
+
+# Ждёт точной строки на экране; при успехе возвращает 0, TEXTS хранит последние тексты экрана.
+wait_for_text() {
+  local expected="$1" deadline=$((SECONDS + $2))
+  while :; do
+    TEXTS=$(screen_texts)
+    if grep -qxF "$expected" <<<"$TEXTS"; then return 0; fi
+    if [ "$SECONDS" -ge "$deadline" ]; then return 1; fi
+    sleep 3
+  done
 }
 
 expect_text() {
-  local texts="$1" expected="$2" locale="$3"
-  grep -qxF "$expected" <<<"$texts" || fail "[$locale] на экране нет текста «$expected». Есть:
-$texts"
-  echo "[$locale] на экране есть: $expected"
+  local expected="$1" label="$2"
+  grep -qxF "$expected" <<<"$TEXTS" || fail "[$label] на экране нет текста «$expected»"
+  echo "[$label] на экране есть: $expected"
 }
 
-check_locale() {
-  local locale="$1" status="$2" version_label="$3"
-  adb shell cmd locale set-app-locales "$PKG" --locales "$locale" >/dev/null
+expect_pattern() {
+  local pattern="$1" label="$2" what="$3"
+  grep -qE "$pattern" <<<"$TEXTS" || fail "[$label] на экране нет строки вида «$what»"
+  echo "[$label] на экране есть: $what"
+}
+
+# --- 1. Без разрешения -------------------------------------------------------
+
+check_no_permission() {
+  local locale="$1" title="$2" text="$3" button="$4" place="$5" tab="$6"
+  set_locale "$locale"
   start_app
-  local texts
-  texts=$(screen_texts)
-  expect_text "$texts" "PogodaApp" "$locale"
-  expect_text "$texts" "$status" "$locale"
-  expect_text "$texts" "$version_label" "$locale"
+  wait_for_text "$title" 20 || fail "[$locale без разрешения] нет карточки «$title»"
+  expect_text "$title" "$locale без разрешения"
+  expect_text "$text" "$locale без разрешения"
+  expect_text "$button" "$locale без разрешения"
+  expect_text "$place" "$locale без разрешения"
+  expect_text "$tab" "$locale без разрешения"
+  expect_text "$VERSION_NAME ($VERSION_CODE)" "$locale без разрешения"
+  shot "1-без-разрешения-$locale"
 }
 
 adb install -r "$APK" >/dev/null || fail "APK не установился"
 adb logcat -c
 
-check_locale en "Empty app. Checking installation and updates." "Version $VERSION_NAME (build $VERSION_CODE)"
-check_locale ru "Пустое приложение. Проверка установки и обновлений." "Версия $VERSION_NAME (сборка $VERSION_CODE)"
-check_locale de "Leere App. Test von Installation und Updates." "Version $VERSION_NAME (Build $VERSION_CODE)"
+check_no_permission en "No location access" "Allow access to see the weather where you are." "Allow" "No place set" "Home"
+check_no_permission ru "Нет доступа к местоположению" "Разрешите доступ, чтобы видеть погоду там, где вы." "Разрешить" "Место не задано" "Главная"
+check_no_permission de "Kein Zugriff auf den Standort" "Erlaube den Zugriff, um das Wetter dort zu sehen, wo du bist." "Erlauben" "Kein Ort gewählt" "Start"
+
+# --- 2. С разрешением и сетью --------------------------------------------------
+
+adb shell pm grant "$PKG" "$PERMISSION" || fail "Не удалось выдать разрешение на местоположение"
+adb shell cmd location set-location-enabled true >/dev/null 2>&1 || true
+adb shell settings put secure location_mode 3 >/dev/null 2>&1 || true
+# Ганновер: на консоли эмулятора сначала долгота, потом широта.
+adb emu geo fix 9.7386 52.3745 >/dev/null || true
+
+set_locale en
+start_app
+if wait_for_text "precipitation, mm" 90; then
+  expect_text "Hourly" "en с сетью"
+  expect_text "Now" "en с сетью"
+  expect_text "Weather data by Open-Meteo.com" "en с сетью"
+  expect_pattern '^Feels like −?[0-9]+° · High −?[0-9]+°, Low −?[0-9]+°$' "en с сетью" "Feels like 11° · High 14°, Low 8°"
+  expect_pattern '^−?[0-9]+°$' "en с сетью" "температура 13°"
+  shot "2-с-сетью-en"
+  annotate notice "Эмулятор" "С сетью: настоящий прогноз Open-Meteo показан. Название места: $(grep -vE '^(Hourly|Now|Home)$' <<<"$TEXTS" | head -3 | tr '\n' '|')"
+else
+  shot "2-с-сетью-нет-данных"
+  annotate warning "Эмулятор" "С сетью: прогноз за 90 с не появился (сеть эмулятора или определение места недоступны). Это не сбой приложения, но проверить показ настоящих данных не удалось.
+--- на экране ---
+$TEXTS"
+fi
+
+# --- 3. Без сети, прогноз из памяти --------------------------------------------
+
+adb shell am force-stop "$PKG"
+adb shell svc wifi disable >/dev/null 2>&1 || true
+adb shell svc data disable >/dev/null 2>&1 || true
+python3 "$HERE/make_cache.py" "$FIXTURE" "$OUT/forecast_cache.json" --age-hours 3
+adb push "$OUT/forecast_cache.json" /data/local/tmp/forecast_cache.json >/dev/null
+adb shell run-as "$PKG" cp /data/local/tmp/forecast_cache.json files/forecast_cache.json \
+  || fail "Не удалось положить сохранённый прогноз в память приложения"
+rm -f "$OUT/forecast_cache.json"
+
+check_offline() {
+  local locale="$1" pill="$2" title="$3"
+  set_locale "$locale"
+  start_app
+  wait_for_text "$pill" 60 || fail "[$locale без сети] нет строки «$pill»"
+  expect_text "$pill" "$locale без сети"
+  expect_text "$title" "$locale без сети"
+  expect_text "Hannover" "$locale без сети"
+  expect_pattern '^−?[0-9]+°$' "$locale без сети" "температура 13°"
+  shot "3-без-сети-$locale"
+}
+
+check_offline en "Offline · data from 3 h ago" "Hourly"
+check_offline ru "Нет сети · данные 3 часа назад" "По часам"
+check_offline de "Kein Netz · Daten von vor 3 Std." "Stündlich"
+
+adb shell svc wifi enable >/dev/null 2>&1 || true
+adb shell svc data enable >/dev/null 2>&1 || true
 
 crash=$(adb logcat -d -b crash | tr -d '\r')
 [ -z "$crash" ] || fail "В журнале падений есть записи:
 $crash"
 
-echo "::notice title=Эмулятор::Приложение установилось, запустилось, не упало; тексты en/ru/de на экране верны."
+annotate notice "Эмулятор" "Приложение установилось, запустилось, не упало; карточка без разрешения и прогноз без сети на en/ru/de показаны верно."

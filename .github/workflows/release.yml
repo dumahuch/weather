@@ -89,7 +89,9 @@ jobs:
           python3 .github/scripts/inspect_apk.py app/build/outputs/apk/release/app-release.apk \
             --package "$APP_ID" \
             --version-name "$VERSION" --version-code "$VERSION_CODE" \
-            --min-sdk 36 --target-sdk 36 --require-signature --require-v3
+            --min-sdk 36 --target-sdk 36 --require-signature --require-v3 \
+            --allow-permission android.permission.INTERNET \
+            --allow-permission android.permission.ACCESS_COARSE_LOCATION
 
       - name: Сверка ключа с прошлым выпуском
         env:
