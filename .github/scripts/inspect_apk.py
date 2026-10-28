@@ -126,7 +126,7 @@ def main() -> int:
         cert_sha256 = cert.group(1) if cert else ""
         lines.append(f"подпись: v2={v2}, v3={v3}, отпечаток SHA-256: {cert_sha256 or 'не найден'}")
         if report and not (v2 and v3 and cert_sha256):
-            problems.append("подпись есть, но нет схем v2/v3 или отпечатка ключа")
+            problems.append(f"подпись есть, но нет схем v2/v3 или отпечатка ключа. Ответ apksigner:\n{report[:1500]}")
 
     summary = "\n".join(lines)
     print(summary)
@@ -136,7 +136,7 @@ def main() -> int:
             handle.write(f"cert_sha256={cert_sha256}\n")
 
     if problems:
-        text = "\n".join(problems)
+        text = "\n".join(problems) + "\n--- итог разбора ---\n" + summary
         print(f"::error title=APK не прошёл проверку::{text.replace('%', '%25').replace(chr(10), '%0A')}")
         return 1
     print(f"::notice title=APK прошёл проверку ({Path(args.apk).name})::{summary.replace('%', '%25').replace(chr(10), '%0A')}")
