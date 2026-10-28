@@ -3,6 +3,7 @@
 #   1. Без разрешения на местоположение: карточка «Разрешить» (en, ru, de).
 #   2. С разрешением и сетью: настоящий прогноз Open-Meteo (если сеть из эмулятора недоступна, это предупреждение).
 #   3. Без сети с сохранённым прогнозом: данные и строка «нет сети · данные 3 ч назад» (en, ru, de).
+#   3б. Обновление протягиванием вниз: короткое движение не запускает обновление, длинное запускает; верх экрана сдвигается и возвращается.
 #   4. Рабочая сборка (release, сжатая R8): запускается, карточка без разрешения на трёх языках, после разрешения не падает.
 # Использование: emulator_smoke.sh <apk> <пакет> <versionName> <versionCode> [ответ.json] [release.apk пакет versionName versionCode]
 # Снимки экрана и разметка складываются в папку $SMOKE_OUT (по умолчанию smoke-out).
@@ -280,6 +281,69 @@ check_offline() {
 }
 
 check_offline en "Offline · data from 3 h ago" "Hourly"
+
+# --- 3б. Обновление протягиванием вниз ---------------------------------------------
+
+# Верхняя граница (y) первого элемента с точным текстом: по ней видно, сдвинулся ли верх экрана.
+text_top() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
+  adb exec-out cat /sdcard/ui.xml 2>/dev/null | TEXT="$1" PYTHONIOENCODING=utf-8 python3 -c '
+import html, os, re, sys
+data = sys.stdin.buffer.read().decode("utf-8", "replace")
+for node in re.findall(r"<node [^>]*>", data):
+    text = re.search(r" text=\"([^\"]*)\"", node)
+    bounds = re.search(r"bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"", node)
+    if text and bounds and html.unescape(text.group(1)) == os.environ["TEXT"]:
+        print(bounds.group(2))
+        break
+'
+}
+
+# Сколько раз приложение записало в журнал «обновление протягиванием».
+refresh_count() {
+  adb logcat -d -s PogodaRefresh:I 2>/dev/null | tr -d '\r' | grep -c "PogodaRefresh" || true
+}
+
+size=$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1)
+width=${size%x*}
+height=${size#*x}
+x=$((width / 2))
+y_rest=$(text_top "Hannover")
+[ -n "$y_rest" ] || fail "[протягивание] на экране не найдена плашка «Hannover»"
+before=$(refresh_count)
+
+# Короткое движение (около 45 dp пальцем, сдвиг экрана вдвое меньше): порог не взят, обновления нет.
+adb shell input swipe "$x" $((height * 45 / 100)) "$x" $((height * 50 / 100)) 400
+sleep 3
+[ "$(refresh_count)" = "$before" ] || fail "[протягивание] короткое движение запустило обновление"
+echo "[протягивание] короткое движение обновление не запустило"
+
+# Длинное движение медленно, в фоне: пока палец ещё на экране, снимаем сдвиг верха; потом палец отпускается.
+adb shell input swipe "$x" $((height * 30 / 100)) "$x" $((height * 62 / 100)) 4000 &
+swipe_pid=$!
+sleep 2.4
+y_pulled=$(text_top "Hannover")
+adb exec-out screencap -p >"$OUT/3б-протягивание.png" 2>/dev/null || true
+wait "$swipe_pid" || true
+sleep 1
+[ "$(refresh_count)" -gt "$before" ] || fail "[протягивание] длинное движение не запустило обновление"
+echo "[протягивание] длинное движение запустило обновление"
+if [ -n "$y_pulled" ] && [ "$((y_pulled - y_rest))" -gt 60 ]; then
+  echo "[протягивание] верх экрана сдвинулся вниз на $((y_pulled - y_rest)) px"
+else
+  annotate warning "Эмулятор" "Протягивание: сдвиг верха экрана по разметке не подтверждён (в покое y=$y_rest, при протягивании y=${y_pulled:-нет}). Посмотрите снимок 3б-протягивание.png."
+fi
+
+# Через несколько секунд всё на месте: экран вернулся, данные те же, приложение живо.
+sleep 4
+y_after=$(text_top "Hannover")
+[ -n "$y_after" ] || fail "[протягивание] после обновления плашка «Hannover» пропала"
+delta=$((y_after - y_rest))
+[ "${delta#-}" -le 8 ] || fail "[протягивание] после обновления экран не вернулся на место (было y=$y_rest, стало y=$y_after)"
+[ -n "$(adb shell pidof "$PKG" | tr -d '\r')" ] || fail "[протягивание] приложение упало"
+TEXTS=$(screen_texts)
+expect_text "Offline · data from 3 h ago" "после протягивания"
+shot "3б-после-протягивания"
 check_offline ru "Нет сети · данные 3 часа назад" "По часам"
 check_offline de "Kein Netz · Daten von vor 3 Std." "Stündlich"
 

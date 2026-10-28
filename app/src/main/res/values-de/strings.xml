@@ -33,6 +33,7 @@
     <string name="nodata_title">Kein Netz</string>
     <string name="nodata_text">Es gibt noch keine Wetterdaten. Prüfe deine Internetverbindung.</string>
     <string name="retry">Erneut versuchen</string>
+    <string name="refreshing">Wird aktualisiert…</string>
 
     <string name="wx_clear">Klar</string>
     <string name="wx_partly">Wechselnd bewölkt</string>

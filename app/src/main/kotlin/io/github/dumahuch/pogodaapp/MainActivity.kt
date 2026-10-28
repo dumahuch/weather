@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -65,12 +66,19 @@ class MainActivity : ComponentActivity() {
             onAllow = { permissionRequest.launch(LOCATION_PERMISSION) },
             onOpenSettings = ::openAppSettings,
             onRetry = { viewModel.retry(permissionGranted = hasLocationPermission()) },
+            onRefresh = {
+                // Строка в журнале нужна проверке на эмуляторе: по ней видно, что протягивание сработало.
+                Log.i(REFRESH_LOG_TAG, "обновление протягиванием")
+                viewModel.refresh(permissionGranted = hasLocationPermission())
+            },
         )
         setContent {
             PogodaTheme {
                 val state by viewModel.state.collectAsStateWithLifecycle()
+                val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
                 HomeScreen(
                     state = state,
+                    refreshing = refreshing,
                     permanentlyDenied = permanentlyDenied,
                     versionLabel = versionLabel,
                     actions = actions,
@@ -94,5 +102,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val LOCATION_PERMISSION = Manifest.permission.ACCESS_COARSE_LOCATION
+        const val REFRESH_LOG_TAG = "PogodaRefresh"
     }
 }

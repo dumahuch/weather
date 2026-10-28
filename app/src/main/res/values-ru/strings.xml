@@ -35,6 +35,7 @@
     <string name="nodata_title">Нет сети</string>
     <string name="nodata_text">Данных о погоде пока нет. Проверьте подключение к интернету.</string>
     <string name="retry">Повторить</string>
+    <string name="refreshing">Обновление…</string>
 
     <string name="wx_clear">Ясно</string>
     <string name="wx_partly">Переменная облачность</string>

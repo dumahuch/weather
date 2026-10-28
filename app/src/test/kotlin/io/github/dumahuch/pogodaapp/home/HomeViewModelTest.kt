@@ -94,6 +94,9 @@ class HomeViewModelTest {
     /** 11:20 по Гринвичу, 28 октября 2026: в тот же час, что и «сейчас» в файле ответа. */
     private val now = Instant.parse("2026-10-28T11:20:00Z")
 
+    /** Диспетчер главного потока с виртуальным временем: им двигаем часы, когда проверяем минимальное время индикатора. */
+    private val dispatcher = UnconfinedTestDispatcher()
+
     private lateinit var locations: FakeLocations
     private lateinit var namer: FakeNamer
     private lateinit var source: FakeSource
@@ -102,7 +105,7 @@ class HomeViewModelTest {
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        Dispatchers.setMain(dispatcher)
         locations = FakeLocations(hannoverPoint)
         namer = FakeNamer("Hannover")
         source = FakeSource(fixture)
@@ -434,5 +437,131 @@ class HomeViewModelTest {
         model.onResumed(permissionGranted = true)
         assertEquals("Hannover", model.content().place.name)
         assertEquals(1, source.calls)
+    }
+
+    @Test
+    fun pullRefreshFetchesAgainEvenWhenTheDataIsFresh() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        assertEquals(1, source.calls)
+        assertFalse(model.refreshing.value)
+
+        model.refresh(permissionGranted = true)
+        assertEquals(2, source.calls)
+        assertEquals("Hannover", model.content().place.name)
+    }
+
+    @Test
+    fun pullRefreshIndicatorStaysForTheMinimumTimeEvenWhenTheAnswerIsInstant() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        assertFalse("обычная загрузка при открытии индикатор не включает", model.refreshing.value)
+
+        model.refresh(permissionGranted = true)
+        assertTrue(model.refreshing.value)
+        dispatcher.scheduler.advanceTimeBy(699)
+        assertTrue(model.refreshing.value)
+        dispatcher.scheduler.advanceTimeBy(2)
+        assertFalse(model.refreshing.value)
+    }
+
+    @Test
+    fun pullRefreshIndicatorStaysWhileTheAnswerIsPending() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        val gate = CompletableDeferred<Unit>()
+        source.gate = gate
+
+        model.refresh(permissionGranted = true)
+        dispatcher.scheduler.advanceTimeBy(10_000)
+        assertTrue(model.refreshing.value)
+
+        gate.complete(Unit)
+        assertFalse(model.refreshing.value)
+        assertFalse(model.content().offline)
+    }
+
+    @Test
+    fun secondPullWhileRefreshingDoesNothing() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        val gate = CompletableDeferred<Unit>()
+        source.gate = gate
+
+        model.refresh(permissionGranted = true)
+        model.refresh(permissionGranted = true)
+        gate.complete(Unit)
+        assertEquals(2, source.calls)
+    }
+
+    @Test
+    fun failedPullRefreshKeepsTheDataAndMarksItOffline() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        clock.now = now.plus(Duration.ofHours(2))
+        source.raw = null
+
+        model.refresh(permissionGranted = true)
+        val content = model.content()
+        assertTrue(content.offline)
+        assertEquals(2, content.staleHours)
+        assertEquals("Hannover", content.place.name)
+
+        dispatcher.scheduler.advanceUntilIdle()
+        assertFalse(model.refreshing.value)
+    }
+
+    @Test
+    fun pullRefreshWithoutPermissionShowsTheCard() {
+        val model = viewModel()
+        model.refresh(permissionGranted = false)
+        assertEquals(HomeUiState.NoPermission, model.state.value)
+        assertFalse(model.refreshing.value)
+        assertEquals(0, locations.calls)
+    }
+
+    @Test
+    fun revokedPermissionDuringPullRefreshTurnsTheIndicatorOff() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        source.gate = CompletableDeferred()
+
+        model.refresh(permissionGranted = true)
+        assertTrue(model.refreshing.value)
+
+        model.refresh(permissionGranted = false)
+        assertEquals(HomeUiState.NoPermission, model.state.value)
+        assertFalse(model.refreshing.value)
+    }
+
+    @Test
+    fun retryDuringPullRefreshTurnsTheIndicatorOff() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        source.gate = CompletableDeferred()
+
+        model.refresh(permissionGranted = true)
+        assertTrue(model.refreshing.value)
+
+        model.retry(permissionGranted = true)
+        assertFalse(model.refreshing.value)
+    }
+
+    @Test
+    fun pullRefreshDuringTheFirstLoadRestartsItAndFinishesCleanly() {
+        locations.known = null
+        val gate = CompletableDeferred<Unit>()
+        locations.gate = gate
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        assertEquals(HomeUiState.Loading, model.state.value)
+
+        model.refresh(permissionGranted = true)
+        assertTrue(model.refreshing.value)
+
+        gate.complete(Unit)
+        assertEquals("Hannover", model.content().place.name)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertFalse(model.refreshing.value)
     }
 }

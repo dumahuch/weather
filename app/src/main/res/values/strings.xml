@@ -37,6 +37,7 @@
     <string name="nodata_title">Offline</string>
     <string name="nodata_text">There is no weather data yet. Check your internet connection.</string>
     <string name="retry">Try again</string>
+    <string name="refreshing">Refreshing…</string>
 
     <string name="wx_clear">Clear</string>
     <string name="wx_partly">Partly cloudy</string>

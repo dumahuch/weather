@@ -14,10 +14,12 @@ import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +38,8 @@ import java.time.Instant
  *  4. название места ищется параллельно с запросом прогноза и появляется, когда готово, прогноз его не ждёт;
  *  5. место неизвестно совсем: карточка «Не удалось определить место»;
  *  6. обновление удалось: свежие данные; не удалось: сохранённые с пометкой «нет сети», а если их нет, «нет данных».
+ * Обновление протягиванием ([refresh]) делает то же самое сразу, без оглядки на 15 минут, и поднимает флаг [refreshing],
+ * по которому экран показывает индикатор.
  */
 class HomeViewModel(
     private val locations: LocationSource,
@@ -47,6 +51,11 @@ class HomeViewModel(
 
     private val mutableState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = mutableState.asStateFlow()
+
+    private val mutableRefreshing = MutableStateFlow(false)
+
+    /** Идёт обновление, запрошенное протягиванием экрана вниз (автоматическое при открытии сюда не входит). */
+    val refreshing: StateFlow<Boolean> = mutableRefreshing.asStateFlow()
 
     private var job: Job? = null
     private var lastSuccess: Instant? = null
@@ -60,6 +69,7 @@ class HomeViewModel(
     fun onResumed(permissionGranted: Boolean) {
         if (!permissionGranted) {
             job?.cancel()
+            mutableRefreshing.value = false
             mutableState.value = HomeUiState.NoPermission
             return
         }
@@ -73,15 +83,52 @@ class HomeViewModel(
     /** Кнопка «Повторить». */
     fun retry(permissionGranted: Boolean) {
         if (!permissionGranted) {
+            job?.cancel()
+            mutableRefreshing.value = false
             mutableState.value = HomeUiState.NoPermission
             return
         }
         job?.cancel()
-        start()
+        start(manual = false)
     }
 
-    private fun start() {
-        job = viewModelScope.launch { load() }
+    /**
+     * Обновление протягиванием экрана вниз: загружает заново, даже если данные свежие.
+     * Пока уже идёт такое обновление, повторное протягивание ничего не делает.
+     */
+    fun refresh(permissionGranted: Boolean) {
+        if (!permissionGranted) {
+            job?.cancel()
+            mutableRefreshing.value = false
+            mutableState.value = HomeUiState.NoPermission
+            return
+        }
+        if (mutableRefreshing.value) return
+        job?.cancel()
+        start(manual = true)
+    }
+
+    private fun start(manual: Boolean = false) {
+        // Запуск отложен: нужно сначала записать задачу в [job], чтобы в `finally` отличить её от более новой.
+        val started = viewModelScope.launch(start = CoroutineStart.LAZY) {
+            try {
+                if (manual) {
+                    // Индикатор виден не меньше [MIN_REFRESH_SHOWN_MS]: иначе при быстром ответе он лишь мигнёт.
+                    coroutineScope {
+                        val minimum = launch { delay(MIN_REFRESH_SHOWN_MS) }
+                        load()
+                        minimum.join()
+                    }
+                } else {
+                    load()
+                }
+            } finally {
+                if (job === coroutineContext[Job]) mutableRefreshing.value = false
+            }
+        }
+        job = started
+        mutableRefreshing.value = manual
+        started.start()
     }
 
     private suspend fun load() = coroutineScope {
@@ -98,11 +145,11 @@ class HomeViewModel(
         // Свежее место определяется в фоне, а прогноз по последнему известному запрашивается сразу.
         val fresh = async { freshOrNull() }
         val known = lastKnownOrNull()
-        val published = known != null && refresh(known, cached, cachedForecast, alreadyPublished = false)
+        val published = known != null && showFor(known, cached, cachedForecast, alreadyPublished = false)
 
         val latest = fresh.await()
         if (latest != null && (known == null || !nearby(known, latest))) {
-            refresh(latest, cached, cachedForecast, alreadyPublished = published)
+            showFor(latest, cached, cachedForecast, alreadyPublished = published)
         }
         if (known == null && latest == null) {
             mutableState.value = HomeUiState.LocationUnavailable
@@ -113,7 +160,7 @@ class HomeViewModel(
      * Запрашивает и показывает прогноз для точки; название ищется параллельно и добавляется позже.
      * Возвращает true, если свежий прогноз показан. Неудача не затирает то, что уже показано в этом проходе.
      */
-    private suspend fun CoroutineScope.refresh(
+    private suspend fun CoroutineScope.showFor(
         point: GeoPoint,
         cached: ForecastCache.Entry?,
         cachedForecast: Forecast?,
@@ -216,6 +263,9 @@ class HomeViewModel(
     private companion object {
         /** Не дёргать сеть при каждом возвращении на экран. */
         val REFRESH_AFTER: Duration = Duration.ofMinutes(15)
+
+        /** Сколько миллисекунд индикатор обновления остаётся на экране минимум. */
+        const val MIN_REFRESH_SHOWN_MS = 700L
 
         /** В пределах этого расстояния название места берётся из сохранённого, без запроса к службе адресов. */
         const val SAME_PLACE_KM = 2.0

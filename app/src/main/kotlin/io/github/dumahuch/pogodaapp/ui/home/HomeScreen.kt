@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -26,6 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -47,16 +48,19 @@ import io.github.dumahuch.pogodaapp.ui.components.HourlySkeleton
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
+import io.github.dumahuch.pogodaapp.ui.components.PullRefreshIndicator
+import io.github.dumahuch.pogodaapp.ui.components.rememberPullRefreshState
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Condition
 
-/** Действия экрана: что делать по нажатиям кнопок. */
+/** Действия экрана: что делать по нажатиям кнопок и по протягиванию вниз. */
 class HomeActions(
     val onAllow: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onRetry: () -> Unit,
+    val onRefresh: () -> Unit,
 )
 
 private const val OPEN_METEO_URL = "https://open-meteo.com/"
@@ -65,51 +69,95 @@ private val DockBottomGap = 8.dp
 /**
  * Вкладка «Главная». Фон пока спокойный дневной градиент: картины неба придут на следующем шаге.
  * Содержимое прокручивается, если не помещается (крупный шрифт системы); лента «По часам» прижата вниз.
+ * Протягивание вниз сдвигает верхнюю часть (плашку места и текущую погоду) и запускает обновление;
+ * лента «По часам» и нижняя панель остаются на месте.
  */
 @Composable
 fun HomeScreen(
     state: HomeUiState,
+    refreshing: Boolean,
     permanentlyDenied: Boolean,
     versionLabel: String,
     actions: HomeActions,
     modifier: Modifier = Modifier,
 ) {
+    val pull = rememberPullRefreshState(
+        refreshing = refreshing,
+        // Пока идёт первая загрузка или нет разрешения, тянуть нечего.
+        enabled = state is HomeUiState.Content ||
+            state == HomeUiState.NoData ||
+            state == HomeUiState.LocationUnavailable,
+        onRefresh = actions.onRefresh,
+    )
     Box(modifier.fillMaxSize().background(PogodaColors.SkyBrush)) {
         val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-        BoxWithConstraints(Modifier.fillMaxSize().statusBarsPadding()) {
+        BoxWithConstraints(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .nestedScroll(pull.connection),
+        ) {
             Column(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .heightIn(min = maxHeight),
             ) {
-                TopRow(
-                    name = placeName(state),
-                    modifier = Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
-                )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { translationY = pull.offset },
+                ) {
+                    TopRow(
+                        name = placeName(state),
+                        modifier = Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
+                    )
+                    when (state) {
+                        HomeUiState.Loading -> LoadingTop()
+                        is HomeUiState.Content -> ContentTop(state)
+                        HomeUiState.NoPermission -> NoPermissionTop(permanentlyDenied, actions)
+                        HomeUiState.LocationUnavailable -> StateTop(
+                            icon = LineIcons.NavigationOff,
+                            title = stringResource(R.string.locfail_title),
+                            text = stringResource(R.string.locfail_text),
+                            buttonLabel = stringResource(R.string.retry),
+                            onButton = actions.onRetry,
+                        )
+                        HomeUiState.NoData -> StateTop(
+                            icon = LineIcons.CloudOff,
+                            title = stringResource(R.string.nodata_title),
+                            text = stringResource(R.string.nodata_text),
+                            buttonLabel = stringResource(R.string.retry),
+                            onButton = actions.onRetry,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.weight(1f))
                 when (state) {
-                    HomeUiState.Loading -> LoadingBody()
-                    is HomeUiState.Content -> ContentBody(state)
-                    HomeUiState.NoPermission -> NoPermissionBody(permanentlyDenied, actions)
-                    HomeUiState.LocationUnavailable -> StateBody(
-                        icon = LineIcons.NavigationOff,
-                        title = stringResource(R.string.locfail_title),
-                        text = stringResource(R.string.locfail_text),
-                        buttonLabel = stringResource(R.string.retry),
-                        onButton = actions.onRetry,
-                    )
-                    HomeUiState.NoData -> StateBody(
-                        icon = LineIcons.CloudOff,
-                        title = stringResource(R.string.nodata_title),
-                        text = stringResource(R.string.nodata_text),
-                        buttonLabel = stringResource(R.string.retry),
-                        onButton = actions.onRetry,
-                    )
+                    HomeUiState.Loading -> HourlyFrame(
+                        caption = "",
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    ) { HourlySkeleton() }
+                    is HomeUiState.Content -> HourlyFrame(
+                        caption = stringResource(R.string.hourly_caption),
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    ) { HourlyStrip(points = state.strip, zone = state.forecast.zone) }
+                    HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData -> Unit
                 }
                 SourceFooter(versionLabel = versionLabel, showAttribution = state is HomeUiState.Content)
                 Spacer(Modifier.height(bottomInset + DockBottomGap + DockHeight + 6.dp))
             }
         }
+        // Индикатор лежит там, где стояла плашка места: плашка при протягивании сдвигается вниз и освобождает его.
+        PullRefreshIndicator(
+            state = pull,
+            refreshing = refreshing,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 14.dp),
+        )
         Dock(
             Modifier
                 .align(Alignment.BottomCenter)
@@ -149,15 +197,13 @@ private fun TopRow(name: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ColumnScope.LoadingBody() {
+private fun LoadingTop() {
     HeroSkeleton(Modifier.padding(top = 26.dp))
-    Spacer(Modifier.height(16.dp))
-    Spacer(Modifier.weight(1f))
-    HourlyFrame(caption = "", modifier = Modifier.padding(horizontal = 20.dp)) { HourlySkeleton() }
 }
 
+/** Верхняя часть «Главной» с данными: текущая погода. Лента «По часам» стоит ниже и не сдвигается. */
 @Composable
-private fun ColumnScope.ContentBody(state: HomeUiState.Content) {
+private fun ContentTop(state: HomeUiState.Content) {
     val current = state.forecast.current
     Spacer(Modifier.height(26.dp))
     HeroRow(
@@ -191,14 +237,6 @@ private fun ColumnScope.ContentBody(state: HomeUiState.Content) {
             )
         }
     }
-    Spacer(Modifier.height(16.dp))
-    Spacer(Modifier.weight(1f))
-    HourlyFrame(
-        caption = stringResource(R.string.hourly_caption),
-        modifier = Modifier.padding(horizontal = 20.dp),
-    ) {
-        HourlyStrip(points = state.strip, zone = state.forecast.zone)
-    }
 }
 
 @Composable
@@ -215,9 +253,9 @@ private fun conditionName(condition: Condition): String = stringResource(
 )
 
 @Composable
-private fun ColumnScope.NoPermissionBody(permanentlyDenied: Boolean, actions: HomeActions) {
+private fun NoPermissionTop(permanentlyDenied: Boolean, actions: HomeActions) {
     // После отказа с галочкой «больше не спрашивать» системное окно уже не появится: ведём в настройки.
-    StateBody(
+    StateTop(
         icon = LineIcons.NavigationOff,
         title = stringResource(R.string.noloc_title),
         text = stringResource(R.string.noloc_text),
@@ -227,7 +265,7 @@ private fun ColumnScope.NoPermissionBody(permanentlyDenied: Boolean, actions: Ho
 }
 
 @Composable
-private fun ColumnScope.StateBody(
+private fun StateTop(
     icon: LineIcon,
     title: String,
     text: String,
@@ -242,7 +280,6 @@ private fun ColumnScope.StateBody(
         onButton = onButton,
         modifier = Modifier.padding(start = 24.dp, top = 38.dp, end = 24.dp),
     )
-    Spacer(Modifier.weight(1f))
 }
 
 /** Источник данных (условие лицензии Open-Meteo) и номер версии. */
