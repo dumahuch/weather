@@ -37,17 +37,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          missing=""
-          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
-            [ -n "${!name}" ] || missing="$missing $name"
-          done
-          if [ -n "$missing" ]; then
-            echo "::error title=Нет секретов подписи::Не заданы секреты:$missing. Добавьте их в Settings → Secrets and variables → Actions (см. README)."
-            exit 1
-          fi
-          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          echo "KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+        run: .github/scripts/prepare_keystore.sh
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -55,6 +45,9 @@ jobs:
           java-version: '21'
 
       - uses: gradle/actions/setup-gradle@b9bee63ef481cc545e4517ec730544a4d8b1dfa0 # v6.4.0
+
+      - name: Тесты скриптов выпуска
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
       - name: Тесты и сборка релиза
         env:
@@ -78,21 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CERT_SHA256: ${{ steps.inspect.outputs.cert_sha256 }}
-        run: |
-          PREV_TAG=$(gh release list --exclude-drafts --limit 1 --json tagName --jq '.[0].tagName // ""')
-          if [ -z "$PREV_TAG" ]; then
-            echo "Первый выпуск: сверять не с чем. Отпечаток ключа: $CERT_SHA256"
-            exit 0
-          fi
-          PREV_CERT=$(gh release view "$PREV_TAG" --json body --jq .body | grep -F 'Отпечаток ключа' | grep -oE '[0-9a-f]{64}' | head -1 || true)
-          if [ -z "$PREV_CERT" ]; then
-            echo "::warning::В выпуске $PREV_TAG нет отпечатка ключа, сверка пропущена"
-          elif [ "$PREV_CERT" != "$CERT_SHA256" ]; then
-            echo "::error title=Ключ подписи изменился::Выпуск $PREV_TAG подписан ключом $PREV_CERT, этот собран ключом $CERT_SHA256. Друзья не смогут поставить обновление поверх. Проверьте секреты подписи."
-            exit 1
-          else
-            echo "Ключ совпадает с выпуском $PREV_TAG"
-          fi
+        run: python3 .github/scripts/key_continuity.py --current-tag "$GITHUB_REF_NAME" --cert-sha256 "$CERT_SHA256"
 
       - name: Публикация в Releases
         env:

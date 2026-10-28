@@ -33,6 +33,9 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: Тесты скриптов выпуска
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
       - name: Линт, тесты, сборка debug
         run: |
           set -o pipefail
@@ -60,17 +63,25 @@ jobs:
             echo "::error::Версия 1.2 должна отклоняться"; exit 1
           fi
 
-      - name: Пробный выпуск с одноразовым ключом
+      # Одноразовый ключ проходит через тот же скрипт, что и секреты в релизе.
+      - name: Одноразовый ключ
         env:
-          APP_VERSION: 0.0.2
-          KEYSTORE_PATH: ${{ runner.temp }}/smoke.jks
           KEYSTORE_PASSWORD: smoke-test-only
           KEY_ALIAS: smoke
           KEY_PASSWORD: smoke-test-only
         run: |
-          keytool -genkeypair -keystore "$KEYSTORE_PATH" -storetype PKCS12 -alias "$KEY_ALIAS" \
+          keytool -genkeypair -keystore "$RUNNER_TEMP/smoke.p12" -storetype PKCS12 -alias "$KEY_ALIAS" \
             -keyalg RSA -keysize 2048 -validity 2 \
             -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" -dname "CN=smoke test"
+          KEYSTORE_BASE64=$(base64 -w0 "$RUNNER_TEMP/smoke.p12") .github/scripts/prepare_keystore.sh
+
+      - name: Пробный выпуск
+        env:
+          APP_VERSION: 0.0.2
+          KEYSTORE_PASSWORD: smoke-test-only
+          KEY_ALIAS: smoke
+          KEY_PASSWORD: smoke-test-only
+        run: |
           set -o pipefail
           ./gradlew --console=plain --stacktrace assembleRelease 2>&1 | tee build-release.log
           python3 .github/scripts/inspect_apk.py app/build/outputs/apk/release/app-release.apk \

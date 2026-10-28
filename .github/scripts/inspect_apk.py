@@ -61,7 +61,7 @@ def main() -> int:
     parser.add_argument("--min-sdk", required=True, type=int)
     parser.add_argument("--target-sdk", required=True, type=int)
     parser.add_argument("--allow-permission", action="append", default=[])
-    parser.add_argument("--require-signature", action="store_true", help="APK подписан схемой v2")
+    parser.add_argument("--require-signature", action="store_true", help="APK подписан схемой v2 или v3")
     parser.add_argument("--require-v3", action="store_true", help="дополнительно нужна схема v3 (для смены ключа)")
     args = parser.parse_args()
 
@@ -126,8 +126,8 @@ def main() -> int:
         cert = re.search(r"certificate SHA-256 digest: ([0-9a-f]{64})", report)
         cert_sha256 = cert.group(1) if cert else ""
         lines.append(f"подпись: v2={v2}, v3={v3}, отпечаток SHA-256: {cert_sha256 or 'не найден'}")
-        if report and not (v2 and cert_sha256):
-            problems.append(f"нет подписи v2 или отпечатка ключа. Ответ apksigner:\n{report[:1500]}")
+        if report and not ((v2 or v3) and cert_sha256):
+            problems.append(f"нет подписи v2/v3 или отпечатка ключа. Ответ apksigner:\n{report[:1500]}")
         if report and args.require_v3 and not v3:
             problems.append(f"нет подписи v3. Ответ apksigner:\n{report[:1500]}")
 

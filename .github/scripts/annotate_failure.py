@@ -26,6 +26,8 @@ def main() -> None:
         if not path.is_file():
             continue
         text = path.read_text(errors="replace")
+        if "BUILD FAILED" not in text and "FAILURE:" not in text:
+            continue
         compiler = re.findall(r"^[ew]: .*$", text, re.M)
         if compiler:
             emit(f"Компилятор Kotlin ({path.name})", "\n".join(compiler[:60]))
