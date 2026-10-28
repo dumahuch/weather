@@ -46,15 +46,9 @@ def find(pattern: str, text: str, what: str) -> re.Match:
     return match
 
 
-def icon_has_monochrome(aapt2: Path, apk: str) -> bool:
-    resources = run([str(aapt2), "dump", "resources", apk])
-    head = resources.find("mipmap/ic_launcher")
-    if head < 0:
-        raise RuntimeError("Иконка mipmap/ic_launcher не найдена в ресурсах APK")
-    file_match = re.search(r"\(file\) (\S+)", resources[head:head + 600])
-    if file_match is None:
-        raise RuntimeError(f"Не найден файл иконки\n{resources[head:head + 600]}")
-    tree = run([str(aapt2), "dump", "xmltree", "--file", file_match.group(1), apk])
+def icon_has_monochrome(aapt2: Path, apk: str, badging: str) -> bool:
+    icon = find(r"^application: label='[^']*' icon='([^']+)'", badging, "иконка приложения").group(1)
+    tree = run([str(aapt2), "dump", "xmltree", "--file", icon, apk])
     return "monochrome" in tree
 
 
@@ -79,13 +73,13 @@ def main() -> int:
         badging = run([str(aapt2), "dump", "badging", args.apk])
         pkg = find(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']*)'", badging, "строка package")
         name, code, vname = pkg.group(1), int(pkg.group(2)), pkg.group(3)
-        min_sdk = int(find(r"^sdkVersion:'(\d+)'", badging, "sdkVersion").group(1))
+        min_sdk = int(find(r"^(?:minSdkVersion|sdkVersion):'(\d+)'", badging, "minSdkVersion").group(1))
         target_sdk = int(find(r"^targetSdkVersion:'(\d+)'", badging, "targetSdkVersion").group(1))
         launcher = find(r"^launchable-activity: name='([^']+)'", badging, "launchable-activity").group(1)
         locales_line = find(r"^locales:(.*)$", badging, "locales").group(1)
         locales = set(re.findall(r"'([^']+)'", locales_line))
         permissions = sorted(re.findall(r"^uses-permission: name='([^']+)'", badging, re.M))
-        monochrome = icon_has_monochrome(aapt2, args.apk)
+        monochrome = icon_has_monochrome(aapt2, args.apk, badging)
     except RuntimeError as error:
         print(f"::error title=Разбор APK::{str(error).replace('%', '%25').replace(chr(10), '%0A')}")
         return 1

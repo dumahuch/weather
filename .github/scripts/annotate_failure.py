@@ -20,6 +20,7 @@ def emit(title: str, body: str) -> None:
 
 
 def main() -> None:
+    lint_failed = False
     for name in sys.argv[1:]:
         path = Path(name)
         if not path.is_file():
@@ -31,10 +32,12 @@ def main() -> None:
         went_wrong = re.search(r"\* What went wrong:\n(.*?)\n\* Try:", text, re.S)
         if went_wrong:
             emit(f"Gradle: что пошло не так ({path.name})", went_wrong.group(1))
+            lint_failed = lint_failed or "lint" in went_wrong.group(1).lower()
         emit(f"Конец журнала ({path.name})", "\n".join(text.splitlines()[-70:]))
 
-    for report in sorted(Path("app/build/reports").glob("lint-results*.txt")):
-        emit(f"Линт ({report.name})", report.read_text(errors="replace"))
+    if lint_failed:
+        for report in sorted(Path("app/build/reports").glob("lint-results*.txt")):
+            emit(f"Линт ({report.name})", report.read_text(errors="replace"))
     for xml in sorted(Path("app/build/test-results").rglob("*.xml")):
         body = xml.read_text(errors="replace")
         if "<failure" in body:

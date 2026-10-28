@@ -84,6 +84,8 @@ android {
     lint {
         abortOnError = true
         warningsAsErrors = false
+        // Сознательные решения: цель 36 (телефоны на Android 16), только портрет.
+        disable += setOf("OldTargetApi", "LockedOrientationActivity", "DiscouragedApi")
     }
 
     packaging {
