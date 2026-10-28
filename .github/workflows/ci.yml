@@ -76,7 +76,7 @@ jobs:
           python3 .github/scripts/inspect_apk.py app/build/outputs/apk/release/app-release.apk \
             --package io.github.dumahuch.pogodaapp \
             --version-name 0.0.2 --version-code 2 \
-            --min-sdk 36 --target-sdk 36 --require-signature
+            --min-sdk 36 --target-sdk 36 --require-signature --require-v3
 
       - name: Причина падения
         if: failure()

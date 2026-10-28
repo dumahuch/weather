@@ -53,6 +53,9 @@ android {
                 storePassword = requiredEnv("KEYSTORE_PASSWORD")
                 keyAlias = requiredEnv("KEY_ALIAS")
                 keyPassword = requiredEnv("KEY_PASSWORD")
+                // v3 нужна, чтобы при необходимости можно было сменить ключ, не потеряв обновления.
+                enableV2Signing = true
+                enableV3Signing = true
             }
         }
     }
