@@ -17,7 +17,9 @@ object Locations {
         val real = AndroidLocationSource(context)
         val file = File(context.filesDir, OVERRIDE_FILE)
         return object : LocationSource {
-            override suspend fun currentLocation(): GeoPoint? = readOverride(file) ?: real.currentLocation()
+            override fun lastKnown(): GeoPoint? = readOverride(file) ?: real.lastKnown()
+
+            override suspend fun fresh(): GeoPoint? = readOverride(file) ?: real.fresh()
         }
     }
 

@@ -37,28 +37,44 @@ class HomeViewModelTest {
     @get:Rule
     val folder = TemporaryFolder()
 
-    private class FakeLocations(var point: GeoPoint?) : LocationSource {
+    private class FakeLocations(var point: GeoPoint?, var known: GeoPoint? = null) : LocationSource {
+        /** Сколько раз спросили свежее место. */
         var calls = 0
-        override suspend fun currentLocation(): GeoPoint? {
+        var gate: CompletableDeferred<Unit>? = null
+
+        override fun lastKnown(): GeoPoint? = known
+
+        override suspend fun fresh(): GeoPoint? {
             calls++
+            gate?.await()
             return point
         }
     }
 
     private class FakeNamer(var name: String?) : PlaceNamer {
         var calls = 0
+
+        /** Ответы по очереди: пока ответ не выдан, поиск названия «идёт». Если очередь пуста, отвечает сразу. */
+        val pending = ArrayDeque<CompletableDeferred<String?>>()
+
         override suspend fun nameOf(point: GeoPoint): String? {
             calls++
-            return name
+            val gate = pending.removeFirstOrNull()
+            return if (gate != null) gate.await() else name
         }
     }
 
     private class FakeSource(var raw: String?) : ForecastSource {
         var calls = 0
         var gate: CompletableDeferred<Unit>? = null
+
+        /** Номера запросов (с единицы), на которых «пропадает сеть». */
+        var failOn: Set<Int> = emptySet()
+
         override suspend fun fetchRaw(latitude: Double, longitude: Double): String {
             calls++
             gate?.await()
+            if (calls in failOn) throw ForecastException("нет сети")
             return raw ?: throw ForecastException("нет сети")
         }
     }
@@ -70,6 +86,7 @@ class HomeViewModelTest {
     }
 
     private val hannoverPoint = GeoPoint(52.3745, 9.7386)
+    private val munichPoint = GeoPoint(48.1374, 11.5755)
     private val fixture: String by lazy {
         checkNotNull(javaClass.classLoader?.getResource("open-meteo/hannover.json")).readText(Charsets.UTF_8)
     }
@@ -299,5 +316,123 @@ class HomeViewModelTest {
 
         model.onResumed(permissionGranted = false)
         assertEquals(HomeUiState.NoPermission, model.state.value)
+    }
+
+    @Test
+    fun forecastIsShownByTheLastKnownPlaceWithoutWaitingForTheFreshOne() {
+        locations.known = hannoverPoint
+        val gate = CompletableDeferred<Unit>()
+        locations.gate = gate
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+
+        // Свежее место ещё не определено, а прогноз уже на экране.
+        assertEquals("Hannover", model.content().place.name)
+        assertEquals(1, source.calls)
+
+        // Свежее место рядом с первым: второго запроса нет.
+        gate.complete(Unit)
+        assertEquals(1, source.calls)
+        assertFalse(model.content().offline)
+    }
+
+    @Test
+    fun freshPlaceFarFromTheLastKnownOneFetchesTheForecastAgain() {
+        locations.known = munichPoint
+        locations.point = hannoverPoint
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+
+        assertEquals(2, source.calls)
+        val place = model.content().place
+        assertEquals(hannoverPoint.latitude, place.latitude, 0.0)
+        assertEquals("Hannover", place.name)
+        assertEquals(hannoverPoint.latitude, cache.load()?.place?.latitude)
+    }
+
+    @Test
+    fun forecastDoesNotWaitForThePlaceName() {
+        locations.known = hannoverPoint
+        val answer = CompletableDeferred<String?>()
+        namer.pending.add(answer)
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+
+        assertNull(model.content().place.name)
+        assertEquals(48, model.content().strip.size)
+
+        answer.complete("Hannover")
+        assertEquals("Hannover", model.content().place.name)
+        assertEquals("Hannover", cache.load()?.place?.name)
+    }
+
+    @Test
+    fun aLateNameOfAnEarlierPlaceDoesNotReplaceTheCurrentOne() {
+        locations.known = munichPoint
+        locations.point = hannoverPoint
+        val munichName = CompletableDeferred<String?>()
+        val hannoverName = CompletableDeferred<String?>()
+        namer.pending.add(munichName)
+        namer.pending.add(hannoverName)
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+
+        munichName.complete("München")
+        assertNull(model.content().place.name)
+
+        hannoverName.complete("Hannover")
+        assertEquals("Hannover", model.content().place.name)
+        assertEquals("Hannover", cache.load()?.place?.name)
+    }
+
+    @Test
+    fun failedFirstFetchDoesNotStopTheSecondPlaceFromSucceeding() {
+        locations.known = munichPoint
+        locations.point = hannoverPoint
+        source.failOn = setOf(1)
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+
+        assertEquals(2, source.calls)
+        assertFalse(model.content().offline)
+        assertEquals("Hannover", model.content().place.name)
+    }
+
+    @Test
+    fun failedSecondFetchKeepsTheFreshDataAlreadyShown() {
+        locations.known = munichPoint
+        locations.point = hannoverPoint
+        source.failOn = setOf(2)
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+
+        assertEquals(2, source.calls)
+        assertFalse(model.content().offline)
+        assertEquals(munichPoint.latitude, model.content().place.latitude, 0.0)
+    }
+
+    @Test
+    fun noLastKnownPlaceWaitsForTheFreshOne() {
+        locations.known = null
+        val gate = CompletableDeferred<Unit>()
+        locations.gate = gate
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+
+        assertEquals(HomeUiState.Loading, model.state.value)
+        assertEquals(0, source.calls)
+
+        gate.complete(Unit)
+        assertEquals("Hannover", model.content().place.name)
+    }
+
+    @Test
+    fun lastKnownPlaceIsEnoughWhenTheFreshOneFails() {
+        locations.known = hannoverPoint
+        locations.point = null
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        assertEquals("Hannover", model.content().place.name)
+        assertEquals(1, source.calls)
     }
 }

@@ -9,9 +9,13 @@ import kotlin.math.sqrt
 /** Точка на карте в градусах. */
 data class GeoPoint(val latitude: Double, val longitude: Double)
 
-/** Определяет, где сейчас телефон. Возвращает null, если место определить не удалось. */
+/** Определяет, где сейчас телефон. Оба способа возвращают null, если место неизвестно или доступ закрыт. */
 interface LocationSource {
-    suspend fun currentLocation(): GeoPoint?
+    /** Последнее известное место: отвечает сразу, без ожидания спутников и сети. */
+    fun lastKnown(): GeoPoint?
+
+    /** Свежее место: может занять несколько секунд. */
+    suspend fun fresh(): GeoPoint?
 }
 
 /** Находит название населённого пункта по координатам (null, если не вышло). */

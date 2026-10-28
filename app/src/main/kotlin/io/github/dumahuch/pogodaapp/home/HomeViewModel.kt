@@ -13,7 +13,11 @@ import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,8 +31,11 @@ import java.time.Instant
  * Порядок выбора, что показать:
  *  1. нет разрешения: карточка «Разрешить»;
  *  2. сохранённые данные показываются сразу, пока идёт обновление;
- *  3. место не определилось: карточка «Не удалось определить место»;
- *  4. обновление удалось: свежие данные; не удалось: сохранённые с пометкой «нет сети», а если их нет, «нет данных».
+ *  3. прогноз запрашивается сразу по последнему известному месту, не дожидаясь свежего; свежее место определяется
+ *     параллельно, и если оно дальше [SAME_PLACE_KM] от первого, прогноз запрашивается ещё раз;
+ *  4. название места ищется параллельно с запросом прогноза и появляется, когда готово, прогноз его не ждёт;
+ *  5. место неизвестно совсем: карточка «Не удалось определить место»;
+ *  6. обновление удалось: свежие данные; не удалось: сохранённые с пометкой «нет сети», а если их нет, «нет данных».
  */
 class HomeViewModel(
     private val locations: LocationSource,
@@ -43,6 +50,11 @@ class HomeViewModel(
 
     private var job: Job? = null
     private var lastSuccess: Instant? = null
+
+    /** То, что сейчас показано свежим: нужно, чтобы дописать название места. */
+    private class Snapshot(val place: Place, val forecast: Forecast, val raw: String, val savedAt: Instant)
+
+    private var snapshot: Snapshot? = null
 
     /** Вызывается при каждом открытии экрана. Обновляет, если данные не свежие или были ошибки. */
     fun onResumed(permissionGranted: Boolean) {
@@ -72,7 +84,7 @@ class HomeViewModel(
         job = viewModelScope.launch { load() }
     }
 
-    private suspend fun load() {
+    private suspend fun load() = coroutineScope {
         val cached = cache.load()
         val cachedForecast = cached?.let { parseOrNull(it.raw) }
         if (mutableState.value !is HomeUiState.Content) {
@@ -83,11 +95,32 @@ class HomeViewModel(
             }
         }
 
-        val point = locations.currentLocation()
-        if (point == null) {
-            mutableState.value = HomeUiState.LocationUnavailable
-            return
+        // Свежее место определяется в фоне, а прогноз по последнему известному запрашивается сразу.
+        val fresh = async { freshOrNull() }
+        val known = lastKnownOrNull()
+        val published = known != null && refresh(known, cached, cachedForecast, alreadyPublished = false)
+
+        val latest = fresh.await()
+        if (latest != null && (known == null || !nearby(known, latest))) {
+            refresh(latest, cached, cachedForecast, alreadyPublished = published)
         }
+        if (known == null && latest == null) {
+            mutableState.value = HomeUiState.LocationUnavailable
+        }
+    }
+
+    /**
+     * Запрашивает и показывает прогноз для точки; название ищется параллельно и добавляется позже.
+     * Возвращает true, если свежий прогноз показан. Неудача не затирает то, что уже показано в этом проходе.
+     */
+    private suspend fun CoroutineScope.refresh(
+        point: GeoPoint,
+        cached: ForecastCache.Entry?,
+        cachedForecast: Forecast?,
+        alreadyPublished: Boolean,
+    ): Boolean {
+        val knownName = cached?.place?.takeIf { it.name != null && nearby(it, point) }?.name
+        val lookup: Deferred<String?>? = if (knownName == null) async { nameOrNull(point) } else null
 
         val fetched = try {
             val raw = source.fetchRaw(point.latitude, point.longitude)
@@ -98,32 +131,55 @@ class HomeViewModel(
             null
         }
         if (fetched == null) {
-            showStaleOrNoData(cached, cachedForecast)
-            return
+            lookup?.cancel()
+            if (!alreadyPublished) showStaleOrNoData(cached, cachedForecast)
+            return false
         }
         val (raw, forecast) = fetched
 
         val now = clock.instant()
         lastSuccess = now
-        val knownName = cached?.place?.takeIf { it.name != null && nearby(it, point) }?.name
-        var place = Place(point.latitude, point.longitude, knownName)
+        val place = Place(point.latitude, point.longitude, knownName)
         publish(place, forecast, raw, now)
-        if (knownName == null) {
-            val name = try {
-                namer.nameOf(point)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                null
-            }
-            if (name != null) {
-                place = place.copy(name = name)
-                publish(place, forecast, raw, now)
-            }
+        if (lookup != null) {
+            launch { lookup.await()?.let { applyName(place, it) } }
         }
+        return true
+    }
+
+    /** Сбой службы местоположения (например, доступ отозвали на ходу) считается «места нет», а не падением. */
+    private suspend fun freshOrNull(): GeoPoint? = try {
+        locations.fresh()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun lastKnownOrNull(): GeoPoint? = try {
+        locations.lastKnown()
+    } catch (e: Exception) {
+        null
+    }
+
+    private suspend fun nameOrNull(point: GeoPoint): String? = try {
+        namer.nameOf(point)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Добавляет название, только если на экране всё ещё этот прогноз для этого места и названия у него нет. */
+    private fun applyName(place: Place, name: String) {
+        val shown = snapshot ?: return
+        val same = shown.place.latitude == place.latitude && shown.place.longitude == place.longitude
+        if (!same || shown.place.name != null) return
+        publish(shown.place.copy(name = name), shown.forecast, shown.raw, shown.savedAt)
     }
 
     private fun publish(place: Place, forecast: Forecast, raw: String, savedAt: Instant) {
+        snapshot = Snapshot(place, forecast, raw, savedAt)
         cache.save(ForecastCache.Entry(savedAt, place, raw))
         mutableState.value = content(place, forecast, savedAt, offline = false)
     }
@@ -153,8 +209,9 @@ class HomeViewModel(
         null
     }
 
-    private fun nearby(place: Place, point: GeoPoint): Boolean =
-        distanceKm(GeoPoint(place.latitude, place.longitude), point) < SAME_PLACE_KM
+    private fun nearby(place: Place, point: GeoPoint): Boolean = nearby(GeoPoint(place.latitude, place.longitude), point)
+
+    private fun nearby(a: GeoPoint, b: GeoPoint): Boolean = distanceKm(a, b) < SAME_PLACE_KM
 
     private companion object {
         /** Не дёргать сеть при каждом возвращении на экран. */
