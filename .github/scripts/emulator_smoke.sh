@@ -49,16 +49,6 @@ location_diagnostics() {
   echo "включено=$(adb shell cmd location is-location-enabled 2>&1 | tr -d '\r')"
   echo "журнал приложения:"
   adb logcat -d -s PogodaLocation:V 2>&1 | tr -d '\r' | tail -15
-  echo "dumpsys location:"
-  adb shell dumpsys location 2>&1 | tr -d '\r' | grep -iE 'provider|enabled|last location|test' | head -40
-}
-
-# Подаёт эмулятору место (Ганновер) всеми способами: консоль эмулятора и пробные источники системы.
-feed_location() {
-  adb emu geo fix 9.7386 52.3745 >/dev/null 2>&1 || true
-  for provider in fused network gps; do
-    adb shell cmd location providers set-test-provider-location "$provider" --location 52.3745,9.7386 --accuracy 100 >/dev/null 2>&1 || true
-  done
 }
 
 # Тексты экрана: значения text и content-desc, по одному в строке.
@@ -92,7 +82,6 @@ set_locale() {
 wait_for_text() {
   local expected="$1" deadline=$((SECONDS + $2))
   while :; do
-    if [ -n "${WAIT_HOOK:-}" ]; then "$WAIT_HOOK"; fi
     TEXTS=$(screen_texts)
     if grep -qxF "$expected" <<<"$TEXTS"; then return 0; fi
     if [ "$SECONDS" -ge "$deadline" ]; then return 1; fi
@@ -138,16 +127,16 @@ check_no_permission de "Kein Zugriff auf den Standort" "Erlaube den Zugriff, um 
 # --- 2. С разрешением и сетью --------------------------------------------------
 
 adb shell pm grant "$PKG" "$PERMISSION" || fail "Не удалось выдать разрешение на местоположение"
-adb shell cmd location set-location-enabled true >/dev/null 2>&1 || true
-adb shell settings put secure location_mode 3 >/dev/null 2>&1 || true
-# Пробные источники места: система отдаёт приложению заданные координаты, как настоящие.
-for provider in fused network gps; do
-  adb shell cmd location providers add-test-provider "$provider" >/dev/null 2>&1 || true
-  adb shell cmd location providers set-test-provider-enabled "$provider" true >/dev/null 2>&1 || true
-done
-# Ганновер: на консоли эмулятора сначала долгота, потом широта.
-feed_location
-export WAIT_HOOK=feed_location
+# Место эмулятору не подаётся через его службу (ей нужны сеть и спутники): проверочная сборка читает
+# широту и долготу из файла в своей папке (Ганновер), см. Locations.kt в src/debug.
+put_file() {
+  adb push "$1" /data/local/tmp/"$2" >/dev/null
+  adb shell run-as "$PKG" cp /data/local/tmp/"$2" files/"$2" || fail "Не удалось положить $2 в память приложения"
+}
+adb shell am force-stop "$PKG"
+echo "52.3745,9.7386" >"$OUT/location_override.txt"
+put_file "$OUT/location_override.txt" location_override.txt
+rm -f "$OUT/location_override.txt"
 
 set_locale en
 start_app
@@ -174,9 +163,7 @@ adb shell am force-stop "$PKG"
 adb shell svc wifi disable >/dev/null 2>&1 || true
 adb shell svc data disable >/dev/null 2>&1 || true
 python3 "$HERE/make_cache.py" "$FIXTURE" "$OUT/forecast_cache.json" --age-hours 3
-adb push "$OUT/forecast_cache.json" /data/local/tmp/forecast_cache.json >/dev/null
-adb shell run-as "$PKG" cp /data/local/tmp/forecast_cache.json files/forecast_cache.json \
-  || fail "Не удалось положить сохранённый прогноз в память приложения"
+put_file "$OUT/forecast_cache.json" forecast_cache.json
 rm -f "$OUT/forecast_cache.json"
 
 check_offline() {

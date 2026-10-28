@@ -22,7 +22,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
-import io.github.dumahuch.pogodaapp.location.AndroidLocationSource
+import io.github.dumahuch.pogodaapp.location.Locations
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
             initializer {
                 val context = applicationContext
                 HomeViewModel(
-                    locations = AndroidLocationSource(context),
+                    locations = Locations.create(context),
                     namer = AndroidPlaceNamer(context),
                     source = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     cache = ForecastCache(File(context.filesDir, "forecast_cache.json")),
