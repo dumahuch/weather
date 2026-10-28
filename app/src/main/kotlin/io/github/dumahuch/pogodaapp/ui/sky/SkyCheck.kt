@@ -30,6 +30,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -78,7 +79,7 @@ internal class SkyCheckModel : ViewModel() {
     }
 }
 
-private val PanelBackground = Color(0xE6101722)
+private val PanelBackground = Color(0xF5101722)
 private val PanelText = Color(0xFFF4F7FB)
 private val PanelTextDim = Color(0xFFB8C4D3)
 private val ButtonIdle = Color(0x24FFFFFF)
@@ -125,6 +126,56 @@ internal fun SkyCheckPanel(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var collapsed by rememberSaveable { mutableStateOf(false) }
+    if (collapsed) {
+        CollapsedBar(onExpand = { collapsed = false }, onClose = onClose, modifier = modifier)
+    } else {
+        ExpandedPanel(
+            input = input,
+            override = override,
+            diagnostics = diagnostics,
+            onOverride = onOverride,
+            onCollapse = { collapsed = true },
+            onClose = onClose,
+            modifier = modifier,
+        )
+    }
+}
+
+/** Свёрнутая панель оставляет на виду весь экран: видно, как текст и стекло лежат на небе. */
+@Composable
+private fun CollapsedBar(onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .navigationBarsPadding()
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(PanelBackground)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            stringResource(R.string.check_title),
+            style = pogodaText(14f, 700, color = PanelText),
+            modifier = Modifier.weight(1f),
+        )
+        CheckButton(stringResource(R.string.check_expand), selected = false, onClick = onExpand)
+        CheckButton(stringResource(R.string.check_close), selected = false, onClick = onClose)
+    }
+}
+
+@Composable
+private fun ExpandedPanel(
+    input: SkyInput?,
+    override: SkyOverride,
+    diagnostics: SkyDiagnostics,
+    onOverride: (SkyOverride) -> Unit,
+    onCollapse: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val snapshot = diagnostics.snapshot
     Column(
         modifier
@@ -137,12 +188,17 @@ internal fun SkyCheckPanel(
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(
                 stringResource(R.string.check_title),
                 style = pogodaText(16f, 700, color = PanelText),
                 modifier = Modifier.weight(1f),
             )
+            CheckButton(stringResource(R.string.check_collapse), selected = false, onClick = onCollapse)
             CheckButton(stringResource(R.string.check_close), selected = false, onClick = onClose)
         }
         if (input == null) {
@@ -174,7 +230,7 @@ internal fun SkyCheckPanel(
         )
 
         Caption(stringResource(R.string.check_weather_title))
-        ButtonGrid(columns = 4, items = Weathers) { (condition, label) ->
+        ButtonGrid(columns = 3, items = Weathers) { (condition, label) ->
             CheckButton(
                 text = stringResource(label),
                 selected = override.condition == condition,

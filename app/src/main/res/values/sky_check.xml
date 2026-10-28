@@ -3,6 +3,8 @@
 <resources>
     <string name="check_title" translatable="false">Проверка неба</string>
     <string name="check_close" translatable="false">Закрыть</string>
+    <string name="check_collapse" translatable="false">Свернуть</string>
+    <string name="check_expand" translatable="false">Развернуть</string>
     <string name="check_no_forecast" translatable="false">Прогноза пока нет. Небо появится после первой загрузки.</string>
 
     <string name="check_scene_title" translatable="false">Картина неба (время суток)</string>

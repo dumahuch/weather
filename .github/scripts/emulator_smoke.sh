@@ -422,6 +422,15 @@ frame_rate() {
   sky_line "Кадров в секунду:" | sed -E 's/^Кадров в секунду: ([0-9]+),([0-9]).*/\1.\2/'
 }
 
+# Снимок со свёрнутой панелью проверки (панель закрывает полэкрана), затем панель снова разворачивается.
+shot_collapsed() {
+  tap_text '^Свернуть$' || fail "[небо] на экране проверки нет кнопки «Свернуть»"
+  sleep 2
+  shot "$1"
+  tap_text '^Развернуть$' || fail "[небо] нет кнопки «Развернуть» у свёрнутой панели"
+  sleep 1
+}
+
 # Нажимает кнопку времени суток и ждёт, пока картины загрузятся и проявятся; в строке «Картины:» должно быть имя.
 sky_scene() {
   local button="$1" name="$2" shot_name="$3"
@@ -430,7 +439,7 @@ sky_scene() {
   TEXTS=$(screen_texts)
   grep -qE "^Картины: .*$name" <<<"$TEXTS" || fail "[небо] после «$button» в строке «Картины» нет «$name»: $(grep -E '^Картины' <<<"$TEXTS")"
   echo "[небо] $button: $(grep -E '^(Солнце|Картины|Облака|Текст)' <<<"$TEXTS" | tr '\n' '|')"
-  shot "$shot_name"
+  shot_collapsed "$shot_name"
 }
 
 sky_weather() {
@@ -439,7 +448,7 @@ sky_weather() {
   sleep 3
   TEXTS=$(screen_texts)
   echo "[небо] $button: $(grep -E '^(Картины|Облака|Текст)' <<<"$TEXTS" | tr '\n' '|')"
-  shot "$shot_name"
+  shot_collapsed "$shot_name"
 }
 
 set_locale en
@@ -472,7 +481,10 @@ tap_text '^Сейчас$' || fail "[небо] на экране проверки
 sleep 3
 shot "5-небо-сейчас"
 
-# Облака плывут: частота кадров заметно выше нуля (на эмуляторе без видеокарты она ниже, чем на телефоне).
+# Пока снимки делались, анимации на эмуляторе были выключены (так их ставит запуск эмулятора), небо стояло.
+# Включаем: облака плывут, частота кадров заметно выше нуля (на эмуляторе без видеокарты она ниже, чем на телефоне).
+adb shell settings put global animator_duration_scale 1
+sleep 4
 tap_text '^Сбросить$' || fail "[небо] нет кнопки «Сбросить»"
 sleep 9
 rate_moving=$(frame_rate)
@@ -492,17 +504,18 @@ rate_still=$(frame_rate)
 clouds_after=$(sky_line "Облака:")
 echo "[небо] анимации выключены, кадров в секунду: ${rate_still:-нет}; $clouds_before -> $clouds_after"
 shot "5-небо-анимации-выключены"
-adb shell settings put global animator_duration_scale 1
 [ -n "$rate_still" ] || fail "[небо] без анимаций на экране проверки нет строки «Кадров в секунду»"
 awk -v r="$rate_still" 'BEGIN { exit !(r <= 3) }' || fail "[небо] при выключенных анимациях кадров в секунду $rate_still (ждали не больше 3): облака не остановились"
 [ "$clouds_before" = "$clouds_after" ] || fail "[небо] при выключенных анимациях положение облаков изменилось: $clouds_before -> $clouds_after"
 echo "[небо] при выключенных анимациях небо стоит на месте"
 
 # Анимации снова включены: облака поплыли дальше.
-sleep 3
+adb shell settings put global animator_duration_scale 1
+sleep 4
 tap_text '^Сбросить$' || fail "[небо] нет кнопки «Сбросить»"
 sleep 8
 echo "[небо] анимации снова включены, кадров в секунду: $(frame_rate)"
+adb shell settings put global animator_duration_scale 0
 
 tap_text '^Закрыть$' || fail "[небо] на экране проверки нет кнопки «Закрыть»"
 sleep 2
