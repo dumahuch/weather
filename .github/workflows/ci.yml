@@ -159,17 +159,20 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash .github/scripts/emulator_smoke.sh app/build/outputs/apk/debug/app-debug.apk io.github.dumahuch.pogodaapp.debug 0.0.0-dev-debug 1 app/src/test/resources/open-meteo/hannover.json app/build/outputs/apk/release/app-release.apk io.github.dumahuch.pogodaapp 0.0.2 2
 
-      # Для веток шагов (step-*): снимки экрана с эмулятора выкладываются в ветку ci-screenshots, чтобы их можно было посмотреть.
-      - name: Снимки экрана
-        if: always() && github.event_name == 'push' && startsWith(github.ref_name, 'step-')
+      # Снимки экрана и журналы проверки (сценарий, телефон, сборка) выкладываются в ветку ci-screenshots, чтобы их
+      # можно было прочитать: журналы самого GitHub из сессии Claude недоступны. Каждая проверка заменяет содержимое
+      # ветки, поэтому в README.txt записаны коммит и ветка, которым принадлежат файлы.
+      - name: Снимки экрана и журналы
+        if: always() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ ! -d smoke-out ] || [ -z "$(ls -A smoke-out)" ]; then exit 0; fi
           shots="$RUNNER_TEMP/shots"
           rm -rf "$shots" && mkdir "$shots"
-          cp smoke-out/* "$shots/"
-          echo "Снимки экрана проверки на эмуляторе. Коммит $GITHUB_SHA, ветка $GITHUB_REF_NAME." > "$shots/README.txt"
+          [ ! -d smoke-out ] || cp smoke-out/* "$shots/" 2>/dev/null || true
+          cp build-debug.log build-release.log "$shots/" 2>/dev/null || true
+          if [ -z "$(ls -A "$shots")" ]; then exit 0; fi
+          echo "Снимки экрана и журналы проверки на эмуляторе. Коммит $GITHUB_SHA, ветка $GITHUB_REF_NAME." > "$shots/README.txt"
           cd "$shots"
           git init -q -b ci-screenshots
           git config user.name "github-actions"

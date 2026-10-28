@@ -24,6 +24,14 @@ PERMISSION="android.permission.ACCESS_COARSE_LOCATION"
 OUT="${SMOKE_OUT:-smoke-out}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$OUT"
+# Весь вывод сценария дублируется в файл, а при любом выходе (в том числе при сбое) сохраняется журнал телефона:
+# CI выкладывает их в ветку ci-screenshots, потому что журналы самого GitHub из сессии Claude недоступны.
+exec > >(tee -a "$OUT/smoke.log") 2>&1
+save_logcat() {
+  adb logcat -d -v time -t 8000 >"$OUT/logcat.txt" 2>/dev/null || true
+  sleep 1
+}
+trap save_logcat EXIT
 TEXTS=""
 
 annotate() {
