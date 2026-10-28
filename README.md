@@ -33,7 +33,7 @@ Android принимает обновление только от приложе
 
 ## Материалы концепта (`design/`)
 
-- `design/docs/`: договорённости по концепту (`concept-decisions.md`), промпты для картин неба (`sky-art-prompts.md`), инструкция по GitHub (`github-setup.md`).
+- `design/docs/`: договорённости по концепту (`concept-decisions.md`), промпты для картин неба (`sky-art-prompts.md`), инструкция по GitHub (`github-setup.md`), сборка, подпись и выпуск (`build-and-release.md`).
 - `design/mockup/`: живой макет в браузере. Исходники в `src/`, картины неба для макета в `assets/` (1920×1280, WebP). Сборка командой `python3 build.py` создаёт `index.html` (6–7 МБ, в репозиторий не кладётся). Опубликованная версия лежит в проекте Claude. `make_assets.py` делает `assets/` из увеличенных файлов `design/sky/2x/`.
 - `design/sky/`: картины неба для фона, шесть времён суток.
   - `original/`: как пришли из ChatGPT, 1536×1024.
