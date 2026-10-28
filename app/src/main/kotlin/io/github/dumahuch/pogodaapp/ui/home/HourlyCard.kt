@@ -58,6 +58,12 @@ import java.util.Locale
 private val ColumnWidth = HourlyGeometry.COLUMN_WIDTH.dp
 private val StripHeight = HourlyGeometry.HEIGHT.dp
 
+/**
+ * Насколько верх подписи температуры выше точки кривой: 22 в макете минус 2,5, потому что Compose ставит
+ * базовую линию строки высотой в 1 em ниже, чем браузер (там строка обрезается поровну сверху и снизу).
+ */
+private const val TEMPERATURE_LABEL_RISE = 24.5f
+
 /** Карточка «По часам»: заголовок и своё содержимое (лента или заглушки). */
 @Composable
 fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
@@ -211,7 +217,7 @@ private fun HourColumn(
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = (curveY - 22f).dp)
+                .offset(y = (curveY - TEMPERATURE_LABEL_RISE).dp)
                 .wrapContentWidth(Alignment.CenterHorizontally, unbounded = true),
         )
 
