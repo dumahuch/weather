@@ -40,12 +40,18 @@ shot() {
 fail() {
   shot "ошибка"
   annotate error "Эмулятор" "$1
---- на экране ---
+--- на экране (последняя проверка) ---
 $TEXTS
+--- на экране сейчас ---
+$(screen_texts)
 --- определение места ---
 $(location_diagnostics)
 --- журнал приложения ---
-$(adb logcat -d -s PogodaLocation:V AndroidRuntime:E 2>/dev/null | tr -d '\r' | tail -40)"
+$(adb logcat -d -s PogodaLocation:V AndroidRuntime:E 2>/dev/null | tr -d '\r' | tail -40)
+--- журнал падений ---
+$(adb logcat -d -b crash 2>/dev/null | tr -d '\r' | tail -40)
+--- система о приложении ---
+$(adb logcat -d -t 400 2>/dev/null | tr -d '\r' | grep -iE "pogodaapp|FATAL|am_kill|am_proc_died|Process .* died" | tail -25)"
   exit 1
 }
 
@@ -77,7 +83,12 @@ start_app() {
   out=$(adb shell am start -W -n "$PKG/$ACTIVITY" | tr -d '\r')
   grep -q "Status: ok" <<<"$out" || fail "Приложение не запустилось: $out"
   sleep 3
-  [ -n "$(adb shell pidof "$PKG" | tr -d '\r')" ] || fail "Процесс приложения не найден после запуска (приложение упало?)"
+  local waited=0
+  while [ -z "$(adb shell pidof "$PKG" | tr -d '\r')" ]; do
+    [ "$waited" -lt 12 ] || fail "Процесс приложения не найден после запуска (приложение упало?)"
+    sleep 2
+    waited=$((waited + 2))
+  done
 }
 
 set_locale() {
@@ -126,6 +137,24 @@ wait_tap() {
   done
 }
 
+# Нажимает кнопку системного окна: ждёт, пока окно встанет на место (оно выезжает с анимацией, касание в этот
+# момент может промахнуться), нажимает и убеждается, что кнопка исчезла; при неудаче пробует ещё до трёх раз.
+tap_dialog() {
+  local pattern="$1" attempt
+  for attempt in 1 2 3 4; do
+    local deadline=$((SECONDS + 20))
+    until grep -qE "$pattern" <<<"$(screen_texts)"; do
+      [ "$SECONDS" -lt "$deadline" ] || return 1
+      sleep 2
+    done
+    sleep 2
+    tap_text "$pattern" || return 1
+    sleep 2
+    if ! grep -qE "$pattern" <<<"$(screen_texts)"; then return 0; fi
+  done
+  return 1
+}
+
 expect_text() {
   local expected="$1" label="$2"
   grep -qxF "$expected" <<<"$TEXTS" || fail "[$label] на экране нет текста «$expected»"
@@ -167,11 +196,11 @@ set_locale en
 start_app
 wait_for_text "Allow" 20 || fail "[en окно разрешения] нет кнопки «Allow»"
 tap_text '^Allow$' || fail "[en окно разрешения] не удалось нажать «Allow»"
-wait_tap "^Don.t allow$" 20 || fail "[en окно разрешения] системное окно с кнопкой «Don't allow» не появилось"
+tap_dialog "^Don.t allow$" || fail "[en окно разрешения] системное окно с кнопкой «Don't allow» не появилось или не закрылось"
 wait_for_text "Allow" 20 || fail "[en окно разрешения] после первого отказа карточка пропала"
 ! grep -qxF "Open settings" <<<"$TEXTS" || fail "[en окно разрешения] после первого отказа уже показана «Open settings»"
 tap_text '^Allow$' || fail "[en окно разрешения] не удалось нажать «Allow» второй раз"
-wait_tap "^Don.t allow$" 20 || fail "[en окно разрешения] второе системное окно не появилось"
+tap_dialog "^Don.t allow$" || fail "[en окно разрешения] второе системное окно не появилось или не закрылось"
 wait_for_text "Open settings" 20 || fail "[en окно разрешения] после второго отказа нет кнопки «Open settings»"
 shot "1б-после-отказа-en"
 tap_text '^Open settings$' || fail "[en окно разрешения] не удалось нажать «Open settings»"
@@ -203,7 +232,7 @@ set_locale en
 start_app
 wait_for_text "Allow" 20 || fail "[en с сетью] после сброса нет кнопки «Allow»"
 tap_text '^Allow$' || fail "[en с сетью] не удалось нажать «Allow»"
-wait_tap "^While using" 20 || fail "[en с сетью] системное окно с кнопкой «While using the app» не появилось"
+tap_dialog "^While using" || fail "[en с сетью] системное окно с кнопкой «While using the app» не появилось или не закрылось"
 if wait_for_text "precipitation, mm" 90; then
   expect_text "Hourly" "en с сетью"
   expect_text "Now" "en с сетью"
