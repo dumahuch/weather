@@ -46,7 +46,7 @@ import io.github.dumahuch.pogodaapp.home.hourLabel
 import io.github.dumahuch.pogodaapp.home.precipitationText
 import io.github.dumahuch.pogodaapp.home.roundTemperature
 import io.github.dumahuch.pogodaapp.home.temperatureText
-import io.github.dumahuch.pogodaapp.ui.PogodaColors
+import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.components.iconFor
@@ -67,10 +67,11 @@ private const val TEMPERATURE_LABEL_RISE = 24.5f
 /** Карточка «По часам»: заголовок и своё содержимое (лента или заглушки). */
 @Composable
 fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val palette = LocalPogodaPalette.current
     Column(
         modifier
             .fillMaxWidth()
-            .glassCard(RoundedCornerShape(26.dp))
+            .glassCard(RoundedCornerShape(26.dp), palette)
             .padding(top = 14.dp, bottom = 10.dp),
     ) {
         Row(
@@ -86,7 +87,7 @@ fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Compos
             )
             Text(
                 caption,
-                style = pogodaText(12f, 400, color = PogodaColors.Ink2),
+                style = pogodaText(12f, 400, color = palette.ink2),
                 modifier = Modifier.alignByBaseline(),
             )
         }
@@ -138,6 +139,7 @@ fun HourlyStrip(points: List<HourPoint>, zone: ZoneId, modifier: Modifier = Modi
 
 @Composable
 private fun CurveLayer(curve: List<Float>, modifier: Modifier) {
+    val palette = LocalPogodaPalette.current
     Canvas(modifier) {
         if (curve.isEmpty()) return@Canvas
         val unit = density
@@ -149,11 +151,11 @@ private fun CurveLayer(curve: List<Float>, modifier: Modifier) {
             val middle = (x(i - 1) + x(i)) / 2
             path.cubicTo(middle, curve[i - 1] * unit, middle, curve[i] * unit, x(i), curve[i] * unit)
         }
-        drawPath(path, PogodaColors.Accent, style = Stroke(width = 1.8f * unit, cap = StrokeCap.Round))
+        drawPath(path, palette.accent, style = Stroke(width = 1.8f * unit, cap = StrokeCap.Round))
         for (i in curve.indices) {
             val center = Offset(x(i), curve[i] * unit)
-            drawCircle(PogodaColors.Ink, radius = 3.2f * unit, center = center)
-            drawCircle(PogodaColors.Accent, radius = 3.2f * unit, center = center, style = Stroke(width = 1.6f * unit))
+            drawCircle(palette.ink, radius = 3.2f * unit, center = center)
+            drawCircle(palette.accent, radius = 3.2f * unit, center = center, style = Stroke(width = 1.6f * unit))
         }
     }
 }
@@ -168,17 +170,18 @@ private fun HourColumn(
     barHeight: Float,
     locale: Locale,
 ) {
+    val palette = LocalPogodaPalette.current
     Box(
         Modifier
             .width(ColumnWidth)
             .fillMaxHeight()
-            .then(if (isMidnight) Modifier.dayDivider() else Modifier)
+            .then(if (isMidnight) Modifier.dayDivider(palette.ink) else Modifier)
             .semantics(mergeDescendants = true) {},
     ) {
         val labelStyle = pogodaText(
             size = 12f,
             weight = if (isMidnight) 700 else 500,
-            color = if (isNow || isMidnight) PogodaColors.Ink else PogodaColors.Ink2,
+            color = if (isNow || isMidnight) palette.ink else palette.ink2,
             lineHeight = 20f / 12f,
             tabular = true,
         )
@@ -193,7 +196,7 @@ private fun HourColumn(
                 maxLines = 1,
                 softWrap = false,
                 modifier = labelModifier
-                    .background(PogodaColors.AccentSoft, RoundedCornerShape(10.dp))
+                    .background(palette.accentSoft, RoundedCornerShape(10.dp))
                     .padding(horizontal = 9.dp),
             )
         } else {
@@ -203,7 +206,7 @@ private fun HourColumn(
         LineIconView(
             icon = iconFor(point.condition, point.isDay),
             size = 24.dp,
-            color = PogodaColors.Ink,
+            color = palette.ink,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 24.dp),
@@ -228,12 +231,12 @@ private fun HourColumn(
                 .padding(bottom = 28.dp)
                 .width(12.dp)
                 .height(if (barHeight > 0f) barHeight.dp else 2.dp)
-                .background(if (barHeight > 0f) PogodaColors.Bar else PogodaColors.Bar.copy(alpha = 0.35f), barShape),
+                .background(if (barHeight > 0f) palette.bar else palette.bar.copy(alpha = 0.35f), barShape),
         )
 
         Text(
             precipitationText(point.precipitationMm, locale),
-            style = pogodaText(11.5f, 400, color = PogodaColors.Ink2, tabular = true),
+            style = pogodaText(11.5f, 400, color = palette.ink2, tabular = true),
             maxLines = 1,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -243,9 +246,9 @@ private fun HourColumn(
 }
 
 /** Пунктир слева от первого часа нового дня. */
-private fun Modifier.dayDivider(): Modifier = drawBehind {
+private fun Modifier.dayDivider(ink: Color): Modifier = drawBehind {
     drawLine(
-        color = PogodaColors.Ink.copy(alpha = 0.30f),
+        color = ink.copy(alpha = 0.30f),
         start = Offset(0f, 2.dp.toPx()),
         end = Offset(0f, size.height - 6.dp.toPx()),
         strokeWidth = 1.dp.toPx(),

@@ -30,7 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
-import io.github.dumahuch.pogodaapp.ui.PogodaColors
+import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
@@ -170,6 +170,7 @@ fun rememberPullRefreshState(refreshing: Boolean, enabled: Boolean, onRefresh: (
 @Composable
 fun PullRefreshIndicator(state: PullRefreshState, refreshing: Boolean, modifier: Modifier = Modifier) {
     val label = stringResource(R.string.refreshing)
+    val palette = LocalPogodaPalette.current
     Box(
         modifier
             .size(BadgeSize)
@@ -179,14 +180,14 @@ fun PullRefreshIndicator(state: PullRefreshState, refreshing: Boolean, modifier:
                 scaleX = 0.6f + 0.4f * visible
                 scaleY = 0.6f + 0.4f * visible
             }
-            .glassButton(CircleShape)
+            .glassButton(CircleShape, palette)
             .then(if (refreshing) Modifier.semantics { contentDescription = label } else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         if (refreshing) {
             CircularProgressIndicator(
                 modifier = Modifier.size(BadgeArcSize),
-                color = PogodaColors.Ink,
+                color = palette.ink,
                 strokeWidth = 2.dp,
                 trackColor = Color.Transparent,
             )
@@ -194,7 +195,7 @@ fun PullRefreshIndicator(state: PullRefreshState, refreshing: Boolean, modifier:
             CircularProgressIndicator(
                 progress = { state.progress },
                 modifier = Modifier.size(BadgeArcSize),
-                color = PogodaColors.Ink,
+                color = palette.ink,
                 strokeWidth = 2.dp,
                 trackColor = Color.Transparent,
             )

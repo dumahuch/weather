@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Скрытый экран проверки неба (семь нажатий на номер версии). Служебный, только по-русски. -->
+<resources>
+    <string name="check_title" translatable="false">Проверка неба</string>
+    <string name="check_close" translatable="false">Закрыть</string>
+    <string name="check_no_forecast" translatable="false">Прогноза пока нет. Небо появится после первой загрузки.</string>
+
+    <string name="check_scene_title" translatable="false">Картина неба (время суток)</string>
+    <string name="check_scene_dawn" translatable="false">Рассвет</string>
+    <string name="check_scene_morning" translatable="false">Утро</string>
+    <string name="check_scene_afternoon" translatable="false">День</string>
+    <string name="check_scene_sunset" translatable="false">Закат</string>
+    <string name="check_scene_dusk" translatable="false">Сумерки</string>
+    <string name="check_scene_night" translatable="false">Ночь</string>
+
+    <string name="check_time_title" translatable="false">Солнечное время: %1$s</string>
+
+    <string name="check_weather_title" translatable="false">Погода</string>
+    <string name="check_wx_clear" translatable="false">Ясно</string>
+    <string name="check_wx_partly" translatable="false">Малооблачно</string>
+    <string name="check_wx_cloudy" translatable="false">Облачно</string>
+    <string name="check_wx_rain" translatable="false">Дождь</string>
+    <string name="check_wx_storm" translatable="false">Гроза</string>
+    <string name="check_wx_snow" translatable="false">Снег</string>
+    <string name="check_wx_fog" translatable="false">Туман</string>
+
+    <string name="check_now" translatable="false">Сейчас</string>
+
+    <string name="check_info_title" translatable="false">Что видно сейчас</string>
+    <string name="check_info_sun" translatable="false">Солнце: высота %1$s°</string>
+    <string name="check_info_scenes" translatable="false">Картины: %1$s</string>
+    <string name="check_info_clouds" translatable="false">Облака: положение %1$s из 1</string>
+    <string name="check_info_ink_dark" translatable="false">Текст тёмный</string>
+    <string name="check_info_ink_light" translatable="false">Текст светлый</string>
+    <string name="check_info_contrast" translatable="false">%1$s. Контраст: цифры %2$s, карточки %3$s, кнопки %4$s</string>
+
+    <string name="check_frames_title" translatable="false">Кадры</string>
+    <string name="check_frames_reset" translatable="false">Сбросить</string>
+    <string name="check_frames_total" translatable="false">Нарисовано кадров: %1$d, дольше нормы: %2$d</string>
+    <string name="check_frames_times" translatable="false">Время кадра, мс: обычно %1$s, 95 %% быстрее %2$s, самый долгий %3$s</string>
+    <string name="check_frames_rate" translatable="false">Кадров в секунду: %1$s (экран %2$s Гц)</string>
+</resources>

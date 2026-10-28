@@ -22,7 +22,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import io.github.dumahuch.pogodaapp.ui.PogodaColors
+import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
@@ -43,16 +43,17 @@ fun StateCard(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(24.dp)
+    val palette = LocalPogodaPalette.current
     Column(
         modifier
             .fillMaxWidth()
-            .glassCard(shape)
+            .glassCard(shape, palette)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LineIconView(icon, 30.dp, PogodaColors.Accent)
+        LineIconView(icon, 30.dp, palette.accent)
         Text(title, style = pogodaText(18f, 600, lineHeight = 1.3f))
-        Text(text, style = pogodaText(14f, 500, color = PogodaColors.Ink2, lineHeight = 1.45f))
+        Text(text, style = pogodaText(14f, 500, color = palette.ink2, lineHeight = 1.45f))
         ActionButton(buttonLabel, onButton, Modifier.padding(top = 4.dp))
     }
 }
@@ -69,7 +70,7 @@ private fun ActionButton(label: String, onClick: () -> Unit, modifier: Modifier 
         Box(
             Modifier
                 .height(34.dp)
-                .background(PogodaColors.Button2, RoundedCornerShape(12.dp))
+                .background(LocalPogodaPalette.current.button2, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -82,15 +83,16 @@ private fun ActionButton(label: String, onClick: () -> Unit, modifier: Modifier 
 @Composable
 fun OfflinePill(title: String, age: String, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(12.dp)
+    val warning = LocalPogodaPalette.current.warning
     Row(
         modifier
-            .background(PogodaColors.Warning.copy(alpha = 0.16f), shape)
-            .border(1.dp, PogodaColors.Warning.copy(alpha = 0.30f), shape)
+            .background(warning.copy(alpha = 0.16f), shape)
+            .border(1.dp, warning.copy(alpha = 0.30f), shape)
             .padding(start = 8.dp, top = 5.dp, end = 10.dp, bottom = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        LineIconView(LineIcons.CloudOff, 16.dp, PogodaColors.Warning)
+        LineIconView(LineIcons.CloudOff, 16.dp, warning)
         Text(
             text = buildAnnotatedString {
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(title) }

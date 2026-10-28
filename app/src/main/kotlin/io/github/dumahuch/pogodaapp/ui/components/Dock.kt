@@ -22,7 +22,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
-import io.github.dumahuch.pogodaapp.ui.PogodaColors
+import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 
 private class DockTab(val label: Int, val icon: LineIcon, val enabled: Boolean)
@@ -43,9 +43,10 @@ val DockHeight = 60.dp
  */
 @Composable
 fun Dock(modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
     Row(
         modifier = modifier
-            .glassButton(RoundedCornerShape(34.dp))
+            .glassButton(RoundedCornerShape(34.dp), palette)
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -56,13 +57,14 @@ fun Dock(modifier: Modifier = Modifier) {
 @Composable
 private fun DockButton(tab: DockTab, selected: Boolean) {
     val label = stringResource(tab.label)
+    val palette = LocalPogodaPalette.current
     val shape = RoundedCornerShape(24.dp)
     Row(
         modifier = Modifier
             .height(48.dp)
             .widthIn(min = 48.dp)
             .clip(shape)
-            .then(if (selected) Modifier.background(PogodaColors.ButtonOn, shape) else Modifier)
+            .then(if (selected) Modifier.background(palette.buttonOn, shape) else Modifier)
             .alpha(if (tab.enabled) 1f else 0.45f)
             .selectable(selected = selected, enabled = tab.enabled, role = Role.Tab, onClick = {})
             .then(if (selected) Modifier else Modifier.semantics { contentDescription = label })
@@ -70,7 +72,7 @@ private fun DockButton(tab: DockTab, selected: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        LineIconView(tab.icon, 24.dp, if (selected) PogodaColors.Ink else PogodaColors.Ink2)
+        LineIconView(tab.icon, 24.dp, if (selected) palette.ink else palette.ink2)
         if (selected) {
             Spacer(Modifier.width(8.dp))
             Text(label, style = pogodaText(14f, 600))

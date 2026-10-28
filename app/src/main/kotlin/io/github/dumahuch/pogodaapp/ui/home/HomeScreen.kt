@@ -1,7 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -40,7 +41,7 @@ import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.heroDigitsSize
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
-import io.github.dumahuch.pogodaapp.ui.PogodaColors
+import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.Dock
 import io.github.dumahuch.pogodaapp.ui.components.DockHeight
 import io.github.dumahuch.pogodaapp.ui.components.HeroSkeleton
@@ -67,8 +68,8 @@ private const val OPEN_METEO_URL = "https://open-meteo.com/"
 private val DockBottomGap = 8.dp
 
 /**
- * Вкладка «Главная». Фон пока спокойный дневной градиент: картины неба придут на следующем шаге.
- * Содержимое прокручивается, если не помещается (крупный шрифт системы); лента «По часам» прижата вниз.
+ * Вкладка «Главная». Фон (небо) рисует хозяин неба [io.github.dumahuch.pogodaapp.ui.sky.SkyHost] под этим экраном,
+ * цвета текста и стекла приходят из [LocalPogodaPalette]. Содержимое прокручивается, если не помещается (крупный шрифт системы); лента «По часам» прижата вниз.
  * Протягивание вниз сдвигает верхнюю часть (плашку места и текущую погоду) и запускает обновление;
  * лента «По часам» и нижняя панель остаются на месте.
  */
@@ -79,6 +80,7 @@ fun HomeScreen(
     permanentlyDenied: Boolean,
     versionLabel: String,
     actions: HomeActions,
+    onVersionTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pull = rememberPullRefreshState(
@@ -89,7 +91,7 @@ fun HomeScreen(
             state == HomeUiState.LocationUnavailable,
         onRefresh = actions.onRefresh,
     )
-    Box(modifier.fillMaxSize().background(PogodaColors.SkyBrush)) {
+    Box(modifier.fillMaxSize()) {
         val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         BoxWithConstraints(
             Modifier
@@ -145,7 +147,11 @@ fun HomeScreen(
                     ) { HourlyStrip(points = state.strip, zone = state.forecast.zone) }
                     HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData -> Unit
                 }
-                SourceFooter(versionLabel = versionLabel, showAttribution = state is HomeUiState.Content)
+                SourceFooter(
+                    versionLabel = versionLabel,
+                    showAttribution = state is HomeUiState.Content,
+                    onVersionTap = onVersionTap,
+                )
                 Spacer(Modifier.height(bottomInset + DockBottomGap + DockHeight + 6.dp))
             }
         }
@@ -177,15 +183,16 @@ private fun placeName(state: HomeUiState): String = when (state) {
 /** Плашка с названием места. Поиска города пока нет, поэтому она не нажимается. */
 @Composable
 private fun TopRow(name: String, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
     Row(
         modifier
             .height(44.dp)
-            .glassCard(RoundedCornerShape(22.dp))
+            .glassCard(RoundedCornerShape(22.dp), palette)
             .padding(start = 15.dp, end = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LineIconView(LineIcons.Navigation, 18.dp, PogodaColors.Ink)
+        LineIconView(LineIcons.Navigation, 18.dp, palette.ink)
         Text(
             name,
             style = pogodaText(15f, 600),
@@ -204,6 +211,7 @@ private fun LoadingTop() {
 /** Верхняя часть «Главной» с данными: текущая погода. Лента «По часам» стоит ниже и не сдвигается. */
 @Composable
 private fun ContentTop(state: HomeUiState.Content) {
+    val palette = LocalPogodaPalette.current
     val current = state.forecast.current
     Spacer(Modifier.height(26.dp))
     HeroRow(
@@ -222,7 +230,7 @@ private fun ContentTop(state: HomeUiState.Content) {
             text = "${stringResource(R.string.feels_like)} ${temperatureText(current.feelsLike)} · " +
                 "${stringResource(R.string.temp_high)} ${temperatureText(state.forecast.today.max)}, " +
                 "${stringResource(R.string.temp_low)} ${temperatureText(state.forecast.today.min)}",
-            style = pogodaText(14f, 500, color = PogodaColors.Ink2, lineHeight = 1.4f),
+            style = pogodaText(14f, 500, color = palette.ink2, lineHeight = 1.4f),
             modifier = Modifier.padding(top = 5.dp),
         )
         if (state.offline) {
@@ -284,9 +292,9 @@ private fun StateTop(
 
 /** Источник данных (условие лицензии Open-Meteo) и номер версии. */
 @Composable
-private fun SourceFooter(versionLabel: String, showAttribution: Boolean) {
+private fun SourceFooter(versionLabel: String, showAttribution: Boolean, onVersionTap: () -> Unit) {
     val uriHandler = LocalUriHandler.current
-    val style = pogodaText(11f, 500, color = PogodaColors.Ink2)
+    val style = pogodaText(11f, 500, color = LocalPogodaPalette.current.ink2)
     Row(
         Modifier
             .fillMaxWidth()
@@ -310,6 +318,14 @@ private fun SourceFooter(versionLabel: String, showAttribution: Boolean) {
             )
             Text(" · ", style = style)
         }
-        Text(versionLabel, style = style, textAlign = TextAlign.Center)
+        // Скрытый вход на экран проверки неба: несколько нажатий подряд. Для чтения с экрана это обычный текст.
+        Text(
+            versionLabel,
+            style = style,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .pointerInput(onVersionTap) { detectTapGestures { onVersionTap() } }
+                .padding(vertical = 8.dp),
+        )
     }
 }

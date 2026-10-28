@@ -26,7 +26,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.dumahuch.pogodaapp.ui.PogodaColors
+import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 
 /**
  * Прозрачность заглушек: мягко мигает, пока не пришли данные.
@@ -53,7 +53,7 @@ private fun Block(width: Dp, height: Dp, shape: Shape, alpha: Float, modifier: M
             .width(width)
             .height(height)
             .alpha(alpha)
-            .background(PogodaColors.Ink.copy(alpha = 0.16f), shape),
+            .background(LocalPogodaPalette.current.ink.copy(alpha = 0.16f), shape),
     )
 }
 

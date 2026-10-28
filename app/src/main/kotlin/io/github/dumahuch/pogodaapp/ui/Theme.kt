@@ -16,8 +16,8 @@ import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
 
 /**
- * Цвета экрана из макета (дневной вариант). Пока вместо картин неба спокойный дневной фон;
- * подстройка цвета под время суток и погоду придёт вместе с небом.
+ * Цвета экрана из макета (дневной вариант). Это нейтральный вид без неба ([PogodaPalette.Neutral]):
+ * с небом цвета интерфейса считаются заново под картину (см. пакет sky).
  */
 object PogodaColors {
     val Ink = Color(0xFF101722)
@@ -51,11 +51,14 @@ val Manrope = FontFamily(
     },
 )
 
-/** Стиль текста экрана: размер, вес и межстрочный интервал в долях размера, как в макете. */
+/**
+ * Стиль текста экрана: размер, вес и межстрочный интервал в долях размера, как в макете.
+ * Цвет по умолчанию не задан: текст берёт основной цвет палитры из [LocalContentColor][androidx.compose.material3.LocalContentColor].
+ */
 fun pogodaText(
     size: Float,
     weight: Int,
-    color: Color = PogodaColors.Ink,
+    color: Color = Color.Unspecified,
     lineHeight: Float = 1.25f,
     letterSpacing: TextUnit = 0.sp,
     tabular: Boolean = false,

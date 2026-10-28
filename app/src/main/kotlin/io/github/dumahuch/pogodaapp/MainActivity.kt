@@ -6,17 +6,24 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import android.view.WindowInsetsController
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -28,6 +35,12 @@ import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
+import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckModel
+import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckPanel
+import io.github.dumahuch.pogodaapp.ui.sky.SkyDiagnostics
+import io.github.dumahuch.pogodaapp.ui.sky.SkyHost
+import io.github.dumahuch.pogodaapp.ui.sky.TapSequence
+import io.github.dumahuch.pogodaapp.ui.sky.skyInput
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -46,6 +59,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Экран проверки неба: открыт ли и что подставлено вместо настоящих времени и погоды. */
+    private val skyCheck: SkyCheckModel by viewModels()
+
     /** Истина, если система больше не покажет окно запроса (отказ с «не спрашивать»). */
     private var permanentlyDenied by mutableStateOf(false)
 
@@ -56,7 +72,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Фон светлый, поэтому значки системных панелей тёмные.
+        // Начальный вид панелей: прозрачные, значки тёмные (фон светлый). Дальше цвет значков следует за небом.
         val transparentLight = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = transparentLight, navigationBarStyle = transparentLight)
 
@@ -76,13 +92,39 @@ class MainActivity : ComponentActivity() {
             PogodaTheme {
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
-                HomeScreen(
-                    state = state,
-                    refreshing = refreshing,
-                    permanentlyDenied = permanentlyDenied,
-                    versionLabel = versionLabel,
-                    actions = actions,
-                )
+                val checkOpen by skyCheck.open.collectAsStateWithLifecycle()
+                val override by skyCheck.override.collectAsStateWithLifecycle()
+                val diagnostics = remember { SkyDiagnostics() }
+                val taps = remember { TapSequence() }
+                val input = remember(state) { state.skyInput() }
+                SkyHost(
+                    input = input,
+                    override = override,
+                    diagnostics = if (checkOpen) diagnostics else null,
+                    onDarkIcons = ::setDarkBarIcons,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Box(Modifier.fillMaxSize()) {
+                        HomeScreen(
+                            state = state,
+                            refreshing = refreshing,
+                            permanentlyDenied = permanentlyDenied,
+                            versionLabel = versionLabel,
+                            actions = actions,
+                            onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
+                        )
+                        if (checkOpen) {
+                            SkyCheckPanel(
+                                input = input,
+                                override = override,
+                                diagnostics = diagnostics,
+                                onOverride = skyCheck::set,
+                                onClose = skyCheck::close,
+                                modifier = Modifier.align(Alignment.BottomCenter),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -90,6 +132,14 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.onResumed(permissionGranted = hasLocationPermission())
+    }
+
+    /** Значки системных панелей: тёмные на светлом небе, светлые на тёмном. */
+    private fun setDarkBarIcons(dark: Boolean) {
+        val controller = window.insetsController ?: return
+        val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
+            WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        controller.setSystemBarsAppearance(if (dark) mask else 0, mask)
     }
 
     private fun hasLocationPermission(): Boolean =

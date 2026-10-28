@@ -14,7 +14,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.ui.HeroLetterSpacing
-import io.github.dumahuch.pogodaapp.ui.PogodaColors
+import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -78,7 +78,7 @@ fun HeroRow(
             LineIconView(
                 icon = icon,
                 size = ICON_SIZE_DP.dp,
-                color = PogodaColors.Ink2,
+                color = LocalPogodaPalette.current.ink2,
                 strokeWidth = 0.85f,
                 modifier = Modifier.clearAndSetSemantics { },
             )
