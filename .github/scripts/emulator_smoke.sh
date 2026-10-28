@@ -36,9 +36,29 @@ fail() {
   annotate error "Эмулятор" "$1
 --- на экране ---
 $TEXTS
---- конец журнала Android ---
-$(adb logcat -d 2>/dev/null | tr -d '\r' | tail -60)"
+--- определение места ---
+$(location_diagnostics)
+--- журнал приложения ---
+$(adb logcat -d -s PogodaLocation:V AndroidRuntime:E 2>/dev/null | tr -d '\r' | tail -40)"
   exit 1
+}
+
+# Состояние службы местоположения эмулятора: нужно, когда место не определилось.
+location_diagnostics() {
+  echo "location_mode=$(adb shell settings get secure location_mode 2>&1 | tr -d '\r')"
+  echo "включено=$(adb shell cmd location is-location-enabled 2>&1 | tr -d '\r')"
+  echo "журнал приложения:"
+  adb logcat -d -s PogodaLocation:V 2>&1 | tr -d '\r' | tail -15
+  echo "dumpsys location:"
+  adb shell dumpsys location 2>&1 | tr -d '\r' | grep -iE 'provider|enabled|last location|test' | head -40
+}
+
+# Подаёт эмулятору место (Ганновер) всеми способами: консоль эмулятора и пробные источники системы.
+feed_location() {
+  adb emu geo fix 9.7386 52.3745 >/dev/null 2>&1 || true
+  for provider in fused network gps; do
+    adb shell cmd location providers set-test-provider-location "$provider" --location 52.3745,9.7386 --accuracy 100 >/dev/null 2>&1 || true
+  done
 }
 
 # Тексты экрана: значения text и content-desc, по одному в строке.
@@ -72,6 +92,7 @@ set_locale() {
 wait_for_text() {
   local expected="$1" deadline=$((SECONDS + $2))
   while :; do
+    if [ -n "${WAIT_HOOK:-}" ]; then "$WAIT_HOOK"; fi
     TEXTS=$(screen_texts)
     if grep -qxF "$expected" <<<"$TEXTS"; then return 0; fi
     if [ "$SECONDS" -ge "$deadline" ]; then return 1; fi
@@ -119,8 +140,14 @@ check_no_permission de "Kein Zugriff auf den Standort" "Erlaube den Zugriff, um 
 adb shell pm grant "$PKG" "$PERMISSION" || fail "Не удалось выдать разрешение на местоположение"
 adb shell cmd location set-location-enabled true >/dev/null 2>&1 || true
 adb shell settings put secure location_mode 3 >/dev/null 2>&1 || true
+# Пробные источники места: система отдаёт приложению заданные координаты, как настоящие.
+for provider in fused network gps; do
+  adb shell cmd location providers add-test-provider "$provider" >/dev/null 2>&1 || true
+  adb shell cmd location providers set-test-provider-enabled "$provider" true >/dev/null 2>&1 || true
+done
 # Ганновер: на консоли эмулятора сначала долгота, потом широта.
-adb emu geo fix 9.7386 52.3745 >/dev/null || true
+feed_location
+export WAIT_HOOK=feed_location
 
 set_locale en
 start_app
@@ -136,7 +163,9 @@ else
   shot "2-с-сетью-нет-данных"
   annotate warning "Эмулятор" "С сетью: прогноз за 90 с не появился (сеть эмулятора или определение места недоступны). Это не сбой приложения, но проверить показ настоящих данных не удалось.
 --- на экране ---
-$TEXTS"
+$TEXTS
+--- определение места ---
+$(location_diagnostics)"
 fi
 
 # --- 3. Без сети, прогноз из памяти --------------------------------------------

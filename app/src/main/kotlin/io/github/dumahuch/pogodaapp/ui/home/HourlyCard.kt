@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -93,7 +94,7 @@ fun HourlyStrip(points: List<HourPoint>, zone: ZoneId, modifier: Modifier = Modi
     if (points.isEmpty()) return
     val dayNames = stringArrayResource(R.array.days_short).toList()
     val nowLabel = stringResource(R.string.now)
-    val locale = Locale.getDefault()
+    val locale = LocalLocale.current.platformLocale
     val rounded = remember(points) { points.map { roundTemperature(it.temperature) } }
     val curve = remember(rounded) { HourlyGeometry.curveY(rounded) }
     val bars = remember(points) { HourlyGeometry.barHeights(points.map { it.precipitationMm }) }
