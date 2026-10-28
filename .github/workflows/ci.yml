@@ -120,6 +120,28 @@ jobs:
           set -o pipefail
           ./gradlew --console=plain --stacktrace assembleDebug 2>&1 | tee build-debug.log
 
+      # Рабочая сборка с одноразовым ключом: R8 сжимает код, и на эмуляторе проверяется уже сжатый APK.
+      - name: Одноразовый ключ
+        env:
+          KEYSTORE_PASSWORD: smoke-test-only
+          KEY_ALIAS: smoke
+          KEY_PASSWORD: smoke-test-only
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/smoke.p12" -storetype PKCS12 -alias "$KEY_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 2 \
+            -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" -dname "CN=smoke test"
+          KEYSTORE_BASE64=$(base64 -w0 "$RUNNER_TEMP/smoke.p12") .github/scripts/prepare_keystore.sh
+
+      - name: Сборка release
+        env:
+          APP_VERSION: 0.0.2
+          KEYSTORE_PASSWORD: smoke-test-only
+          KEY_ALIAS: smoke
+          KEY_PASSWORD: smoke-test-only
+        run: |
+          set -o pipefail
+          ./gradlew --console=plain --stacktrace assembleRelease 2>&1 | tee build-release.log
+
       - name: Включение KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -135,7 +157,7 @@ jobs:
           profile: pixel_6_pro
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/emulator_smoke.sh app/build/outputs/apk/debug/app-debug.apk io.github.dumahuch.pogodaapp.debug 0.0.0-dev-debug 1
+          script: bash .github/scripts/emulator_smoke.sh app/build/outputs/apk/debug/app-debug.apk io.github.dumahuch.pogodaapp.debug 0.0.0-dev-debug 1 app/src/test/resources/open-meteo/hannover.json app/build/outputs/apk/release/app-release.apk io.github.dumahuch.pogodaapp 0.0.2 2
 
       # Для веток шагов (step-*): снимки экрана с эмулятора выкладываются в ветку ci-screenshots, чтобы их можно было посмотреть.
       - name: Снимки экрана
@@ -158,4 +180,4 @@ jobs:
 
       - name: Причина падения
         if: failure()
-        run: python3 .github/scripts/annotate_failure.py build-debug.log
+        run: python3 .github/scripts/annotate_failure.py build-debug.log build-release.log

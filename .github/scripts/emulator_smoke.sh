@@ -3,7 +3,8 @@
 #   1. Без разрешения на местоположение: карточка «Разрешить» (en, ru, de).
 #   2. С разрешением и сетью: настоящий прогноз Open-Meteo (если сеть из эмулятора недоступна, это предупреждение).
 #   3. Без сети с сохранённым прогнозом: данные и строка «нет сети · данные 3 ч назад» (en, ru, de).
-# Использование: emulator_smoke.sh <apk> <пакет> <versionName> <versionCode> [ответ.json]
+#   4. Рабочая сборка (release, сжатая R8): запускается, карточка без разрешения на трёх языках, после разрешения не падает.
+# Использование: emulator_smoke.sh <apk> <пакет> <versionName> <versionCode> [ответ.json] [release.apk пакет versionName versionCode]
 # Снимки экрана и разметка складываются в папку $SMOKE_OUT (по умолчанию smoke-out).
 set -euo pipefail
 export LC_ALL=C.UTF-8
@@ -13,6 +14,11 @@ PKG="${2:?имя пакета}"
 VERSION_NAME="${3:?versionName}"
 VERSION_CODE="${4:?versionCode}"
 FIXTURE="${5:-app/src/test/resources/open-meteo/hannover.json}"
+# Необязательно: рабочая сборка (release, с одноразовым ключом) проверяется отдельно, так как R8 сжимает код.
+RELEASE_APK="${6:-}"
+RELEASE_PKG="${7:-}"
+RELEASE_VERSION_NAME="${8:-}"
+RELEASE_VERSION_CODE="${9:-}"
 ACTIVITY="io.github.dumahuch.pogodaapp.MainActivity"
 PERMISSION="android.permission.ACCESS_COARSE_LOCATION"
 OUT="${SMOKE_OUT:-smoke-out}"
@@ -89,6 +95,37 @@ wait_for_text() {
   done
 }
 
+# Нажимает на элемент экрана, текст которого подходит под регулярное выражение (по его середине).
+tap_text() {
+  local coords
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 || true
+  coords=$(adb exec-out cat /sdcard/ui.xml 2>/dev/null | PATTERN="$1" PYTHONIOENCODING=utf-8 python3 -c '
+import html, os, re, sys
+data = sys.stdin.buffer.read().decode("utf-8", "replace")
+pattern = re.compile(os.environ["PATTERN"])
+for node in re.findall(r"<node [^>]*>", data):
+    text = re.search(r" text=\"([^\"]*)\"", node)
+    bounds = re.search(r"bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"", node)
+    if text and bounds and pattern.search(html.unescape(text.group(1))):
+        x1, y1, x2, y2 = map(int, bounds.groups())
+        print((x1 + x2) // 2, (y1 + y2) // 2)
+        break
+')
+  [ -n "$coords" ] || return 1
+  # shellcheck disable=SC2086
+  adb shell input tap $coords
+}
+
+# Ждёт, пока на экране появится элемент с подходящим текстом, и нажимает на него.
+wait_tap() {
+  local deadline=$((SECONDS + $2))
+  while :; do
+    if tap_text "$1"; then return 0; fi
+    if [ "$SECONDS" -ge "$deadline" ]; then return 1; fi
+    sleep 2
+  done
+}
+
 expect_text() {
   local expected="$1" label="$2"
   grep -qxF "$expected" <<<"$TEXTS" || fail "[$label] на экране нет текста «$expected»"
@@ -124,22 +161,49 @@ check_no_permission en "No location access" "Allow access to see the weather whe
 check_no_permission ru "Нет доступа к местоположению" "Разрешите доступ, чтобы видеть погоду там, где вы." "Разрешить" "Место не задано" "Главная"
 check_no_permission de "Kein Zugriff auf den Standort" "Erlaube den Zugriff, um das Wetter dort zu sehen, wo du bist." "Erlauben" "Kein Ort gewählt" "Start"
 
-# --- 2. С разрешением и сетью --------------------------------------------------
+# --- 1б. Системное окно разрешения: два отказа, затем кнопка «Открыть настройки» -----
 
-adb shell pm grant "$PKG" "$PERMISSION" || fail "Не удалось выдать разрешение на местоположение"
+set_locale en
+start_app
+wait_for_text "Allow" 20 || fail "[en окно разрешения] нет кнопки «Allow»"
+tap_text '^Allow$' || fail "[en окно разрешения] не удалось нажать «Allow»"
+wait_tap "^Don.t allow$" 20 || fail "[en окно разрешения] системное окно с кнопкой «Don't allow» не появилось"
+wait_for_text "Allow" 20 || fail "[en окно разрешения] после первого отказа карточка пропала"
+! grep -qxF "Open settings" <<<"$TEXTS" || fail "[en окно разрешения] после первого отказа уже показана «Open settings»"
+tap_text '^Allow$' || fail "[en окно разрешения] не удалось нажать «Allow» второй раз"
+wait_tap "^Don.t allow$" 20 || fail "[en окно разрешения] второе системное окно не появилось"
+wait_for_text "Open settings" 20 || fail "[en окно разрешения] после второго отказа нет кнопки «Open settings»"
+shot "1б-после-отказа-en"
+tap_text '^Open settings$' || fail "[en окно разрешения] не удалось нажать «Open settings»"
+sleep 3
+focus=$(adb shell dumpsys window | tr -d '\r' | grep -E 'mCurrentFocus' | head -1)
+grep -qi 'settings' <<<"$focus" || fail "[en окно разрешения] после «Open settings» открылось не системное приложение настроек: $focus"
+echo "[en окно разрешения] открылись настройки: $focus"
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+wait_for_text "Open settings" 20 || fail "[en окно разрешения] после возврата из настроек карточка пропала"
+
+# --- 2. Разрешение через системное окно, затем настоящий прогноз ------------------
+
+# Сброс данных и разрешений приложения: окно запроса снова покажется.
+adb shell pm clear "$PKG" >/dev/null || fail "Не удалось сбросить данные приложения"
+start_app
+adb shell am force-stop "$PKG"
 # Место эмулятору не подаётся через его службу (ей нужны сеть и спутники): проверочная сборка читает
 # широту и долготу из файла в своей папке (Ганновер), см. Locations.kt в src/debug.
 put_file() {
   adb push "$1" /data/local/tmp/"$2" >/dev/null
   adb shell run-as "$PKG" cp /data/local/tmp/"$2" files/"$2" || fail "Не удалось положить $2 в память приложения"
 }
-adb shell am force-stop "$PKG"
 echo "52.3745,9.7386" >"$OUT/location_override.txt"
 put_file "$OUT/location_override.txt" location_override.txt
 rm -f "$OUT/location_override.txt"
 
 set_locale en
 start_app
+wait_for_text "Allow" 20 || fail "[en с сетью] после сброса нет кнопки «Allow»"
+tap_text '^Allow$' || fail "[en с сетью] не удалось нажать «Allow»"
+wait_tap "^While using" 20 || fail "[en с сетью] системное окно с кнопкой «While using the app» не появилось"
 if wait_for_text "precipitation, mm" 90; then
   expect_text "Hourly" "en с сетью"
   expect_text "Now" "en с сетью"
@@ -184,6 +248,32 @@ check_offline de "Kein Netz · Daten von vor 3 Std." "Stündlich"
 
 adb shell svc wifi enable >/dev/null 2>&1 || true
 adb shell svc data enable >/dev/null 2>&1 || true
+
+crash=$(adb logcat -d -b crash | tr -d '\r')
+[ -z "$crash" ] || fail "В журнале падений есть записи:
+$crash"
+
+# --- 4. Рабочая сборка ------------------------------------------------------------
+
+if [ -n "$RELEASE_APK" ]; then
+  PKG="$RELEASE_PKG"
+  VERSION_NAME="$RELEASE_VERSION_NAME"
+  VERSION_CODE="$RELEASE_VERSION_CODE"
+  adb install -r "$RELEASE_APK" >/dev/null || fail "Рабочий APK не установился"
+  adb logcat -c
+  check_no_permission en "No location access" "Allow access to see the weather where you are." "Allow" "No place set" "Home"
+  check_no_permission ru "Нет доступа к местоположению" "Разрешите доступ, чтобы видеть погоду там, где вы." "Разрешить" "Место не задано" "Главная"
+  check_no_permission de "Kein Zugriff auf den Standort" "Erlaube den Zugriff, um das Wetter dort zu sehen, wo du bist." "Erlauben" "Kein Ort gewählt" "Start"
+  # После разрешения приложение идёт определять место. На эмуляторе оно не определится (или определится),
+  # важно, что приложение не падает и остаётся на экране с нижней панелью.
+  adb shell pm grant "$PKG" "$PERMISSION" || fail "Не удалось выдать разрешение рабочей сборке"
+  set_locale en
+  start_app
+  sleep 20
+  TEXTS=$(screen_texts)
+  expect_text "Home" "release после разрешения"
+  shot "4-release-после-разрешения"
+fi
 
 crash=$(adb logcat -d -b crash | tr -d '\r')
 [ -z "$crash" ] || fail "В журнале падений есть записи:
