@@ -1,6 +1,9 @@
 package io.github.dumahuch.pogodaapp.ui.components
 
+import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.runtime.Composable
@@ -14,20 +17,27 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidPath
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
@@ -35,7 +45,12 @@ import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import io.github.dumahuch.pogodaapp.ui.PogodaPalette
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
@@ -111,7 +126,7 @@ internal object GlassBlur {
  * Один слой тени в единицах макета (CSS px = dp): сдвиг, размытие, расширение и непрозрачность.
  * Для вставных теней (блик по кромке) расширение сжимает «дыру», как в CSS.
  */
-internal class ShadowLayer(val dx: Float, val dy: Float, val blur: Float, val spread: Float, val alpha: Float)
+internal data class ShadowLayer(val dx: Float, val dy: Float, val blur: Float, val spread: Float, val alpha: Float)
 
 /** Тень карточек, `--sh3d` макета: семь слоёв цвета hsl(205 20% 10%). Порядок как в макете, сверху вниз. */
 internal val CardShadow = listOf(
@@ -146,10 +161,10 @@ internal val ButtonShadow = listOf(ShadowLayer(0f, 8f, 20f, -10f, 1f))
 fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier {
     val palette = glass.palette
     return this
-        .outerShadow(shape, CardShadow, CardShadowColor)
+        .rasterShadow(shape, CardShadow, inset = false, color = CardShadowColor)
         .clip(shape)
-        .insetShadow(shape, CardRim, CardRimColor)
-        .insetShadow(shape, listOf(ShadowLayer(0f, 1f, 0f, 0f, 1f)), palette.glassHighlight)
+        .rasterShadow(shape, CardRim, inset = true, color = CardRimColor)
+        .topHighlight(shape, palette.glassHighlight)
         .border(1.dp, palette.glassLine, shape)
         .hazeGlass(glass, glass.cardBlur)
         .background(palette.glass, shape)
@@ -163,9 +178,9 @@ fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier {
 fun Modifier.glassButton(shape: Shape, glass: Glass): Modifier {
     val palette = glass.palette
     return this
-        .outerShadow(shape, ButtonShadow, palette.shadow)
+        .rasterShadow(shape, ButtonShadow, inset = false, color = palette.shadow)
         .clip(shape)
-        .insetShadow(shape, listOf(ShadowLayer(0f, 1f, 0f, 0f, 1f)), palette.buttonHighlight)
+        .topHighlight(shape, palette.buttonHighlight)
         .border(1.dp, palette.glassLine, shape)
         .hazeGlass(glass, GlassBlur.Button)
         .background(palette.buttonBackground, shape)
@@ -180,66 +195,168 @@ private fun Modifier.hazeGlass(glass: Glass, style: HazeBlurStyle): Modifier {
 internal fun maskRadiusForSigma(sigma: Float): Float = if (sigma <= 0.5f) 0f else (sigma - 0.5f) / 0.57735f
 
 /**
- * Наружная тень по слоям, как CSS `box-shadow` без `inset`: тень видна только вне формы (под прозрачным стеклом
- * её нет). Размытие CSS с радиусом B даёт гауссову сигму B / 2.
+ * Светлая линия в один dp по верхней кромке формы (CSS `inset 0 1px 0`): форма без самой себя, сдвинутой вниз.
+ * Чёткая заливка без размытия, поэтому дешёвая.
  */
-private fun Modifier.outerShadow(shape: Shape, layers: List<ShadowLayer>, color: Color): Modifier = drawWithCache {
+private fun Modifier.topHighlight(shape: Shape, color: Color): Modifier = drawWithCache {
     val outline = shape.createOutline(size, layoutDirection, this)
-    val hole = outline.toPath()
-    val paths = layers.map { layer -> outline.grown(layer.spread.dp.toPx()).shifted(layer.dx.dp.toPx(), layer.dy.dp.toPx()) }
-    val paints = layers.map { layer -> shadowPaint(color.copy(alpha = color.alpha * layer.alpha), layer.blur.dp.toPx() / 2f) }
-    onDrawBehind {
-        clipPath(hole, ClipOp.Difference) {
-            drawIntoCanvas { canvas ->
-                // Нижние слои первыми: так сверху остаётся самый резкий.
-                for (index in layers.indices.reversed()) canvas.nativeCanvas.drawPath(paths[index].asAndroidPath(), paints[index])
-            }
-        }
+    val band = Path.combine(PathOperation.Difference, outline.toPath(), outline.shifted(0f, 1.dp.toPx()))
+    onDrawWithContent {
+        drawContent()
+        drawPath(band, color)
     }
 }
 
 /**
- * Вставная тень по слоям, как CSS `inset`: тень «снаружи» формы, сдвинутой на (dx, dy) и сжатой на spread,
- * рисуется только внутри формы. Так получается блик вдоль верхней и левой кромки.
+ * Тень по слоям, как CSS `box-shadow` (при [inset] как `box-shadow: inset`). Размытые слои один раз рисуются в
+ * растр на фоновом потоке, а на экран выводятся картинкой с цветом: так видеокарта не размывает тени каждый
+ * кадр, и они не зависят от того, как часто пересобирается экран. Пока растр не готов, тени нет.
+ * Наружная тень видна только вне формы (под прозрачным стеклом её нет). Размытие CSS радиуса B это гауссова сигма B / 2.
  */
-private fun Modifier.insetShadow(shape: Shape, layers: List<ShadowLayer>, color: Color): Modifier = drawWithCache {
-    val outline = shape.createOutline(size, layoutDirection, this)
-    val inside = outline.toPath()
-    // Слой, у которого полоса тени целиком вне формы (сдвиг меньше расширения), даёт не больше 2 % и не рисуется:
-    // у блика макета это первые два слоя. Размытие CSS радиуса B это сигма B / 2, значит хвост размытия 2 · сигма = B.
-    val visible = layers.filter { it.spread + maxOf(abs(it.dx), abs(it.dy)) + it.blur > 0f }
-    val margins = visible.map { (it.blur * 1.5f + abs(it.spread) + maxOf(abs(it.dx), abs(it.dy)) + 2f).dp.toPx() }
-    val paths = visible.mapIndexed { index, layer ->
-        val hole = outline.grown(-layer.spread.dp.toPx()).shifted(layer.dx.dp.toPx(), layer.dy.dp.toPx())
-        val margin = margins[index]
-        Path().apply {
-            fillType = PathFillType.EvenOdd
-            addRect(Rect(-margin, -margin, size.width + margin, size.height + margin))
-            addPath(hole)
-        }
+private fun Modifier.rasterShadow(shape: Shape, layers: List<ShadowLayer>, inset: Boolean, color: Color): Modifier =
+    this then RasterShadowElement(shape, layers, inset, color)
+
+private class RasterShadowElement(
+    val shape: Shape,
+    val layers: List<ShadowLayer>,
+    val inset: Boolean,
+    val color: Color,
+) : ModifierNodeElement<RasterShadowNode>() {
+    override fun create() = RasterShadowNode(shape, layers, inset, color)
+
+    override fun update(node: RasterShadowNode) = node.update(shape, layers, inset, color)
+
+    override fun equals(other: Any?): Boolean =
+        other is RasterShadowElement && other.shape == shape && other.layers == layers && other.inset == inset && other.color == color
+
+    override fun hashCode(): Int = ((shape.hashCode() * 31 + layers.hashCode()) * 31 + inset.hashCode()) * 31 + color.hashCode()
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "rasterShadow"
     }
-    val paints = visible.map { layer -> shadowPaint(color.copy(alpha = color.alpha * layer.alpha), layer.blur.dp.toPx() / 2f) }
-    onDrawWithContent {
+}
+
+/** От чего зависит растр тени: размер, плотность, форма и слои. Цвет в растр не входит, он накладывается при выводе. */
+private data class ShadowKey(
+    val size: Size,
+    val density: Float,
+    val direction: LayoutDirection,
+    val shape: Shape,
+    val layers: List<ShadowLayer>,
+    val inset: Boolean,
+)
+
+private class RasterShadowNode(
+    private var shape: Shape,
+    private var layers: List<ShadowLayer>,
+    private var inset: Boolean,
+    color: Color,
+) : Modifier.Node(), DrawModifierNode {
+
+    private var tint = ColorFilter.tint(color, BlendMode.SrcIn)
+    private var image: ImageBitmap? = null
+    private var imageKey: ShadowKey? = null
+    private var margin = 0
+    private var pendingKey: ShadowKey? = null
+    private var pending: Job? = null
+
+    fun update(shape: Shape, layers: List<ShadowLayer>, inset: Boolean, color: Color) {
+        this.shape = shape
+        this.layers = layers
+        this.inset = inset
+        tint = ColorFilter.tint(color, BlendMode.SrcIn)
+        invalidateDraw()
+    }
+
+    override fun ContentDrawScope.draw() {
+        if (size.minDimension > 0f) ensureImage(ShadowKey(size, density, layoutDirection, shape, layers, inset))
+        if (!inset) drawShadowImage()
         drawContent()
-        clipPath(inside) {
-            drawIntoCanvas { canvas ->
-                for (index in visible.indices) canvas.nativeCanvas.drawPath(paths[index].asAndroidPath(), paints[index])
+        if (inset) drawShadowImage()
+    }
+
+    private fun ContentDrawScope.drawShadowImage() {
+        val ready = image ?: return
+        drawImage(ready, topLeft = Offset(-margin.toFloat(), -margin.toFloat()), colorFilter = tint)
+    }
+
+    private fun ContentDrawScope.ensureImage(key: ShadowKey) {
+        if (key == imageKey || key == pendingKey) return
+        pending?.cancel()
+        pendingKey = key
+        val outline = key.shape.createOutline(key.size, key.direction, this)
+        val width = ceil(key.size.width).toInt()
+        val height = ceil(key.size.height).toInt()
+        val marginPx = if (key.inset) 0 else ceil(key.layers.maxOf { layer -> layer.reach() } * key.density).toInt()
+        pending = coroutineScope.launch {
+            val bitmap = withContext(Dispatchers.Default) {
+                renderShadow(outline, key.layers, key.inset, key.density, width, height, marginPx)
             }
+            image = bitmap.asImageBitmap()
+            imageKey = key
+            margin = marginPx
+            pendingKey = null
+            invalidateDraw()
         }
     }
 }
 
-private fun shadowPaint(color: Color, sigma: Float): android.graphics.Paint =
+/** Насколько слой выходит за форму (dp): хвост размытия (три сигмы), расширение и сдвиг. */
+private fun ShadowLayer.reach(): Float = blur * 1.5f + abs(spread) + maxOf(abs(dx), abs(dy))
+
+private fun alphaPaint(alpha: Float, sigma: Float): android.graphics.Paint =
     android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = android.graphics.Color.argb(
-            (color.alpha * 255f).roundToInt(),
-            (color.red * 255f).roundToInt(),
-            (color.green * 255f).roundToInt(),
-            (color.blue * 255f).roundToInt(),
-        )
+        color = android.graphics.Color.argb((alpha.coerceIn(0f, 1f) * 255f).roundToInt(), 255, 255, 255)
         val radius = maskRadiusForSigma(sigma)
         if (radius > 0f) maskFilter = BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL)
     }
+
+/**
+ * Растр тени в виде карты прозрачности (один канал). Наружная тень: слои, форма, увеличенная на расширение и
+ * сдвинутая, размытые; потом вырезана сама форма. Вставная тень: «снаружи» формы, сжатой на расширение и сдвинутой,
+ * размытое и обрезанное по форме. Слои, полоса которых целиком вне формы, не рисуются: они дают меньше 2 %.
+ */
+private fun renderShadow(
+    outline: Outline,
+    layers: List<ShadowLayer>,
+    inset: Boolean,
+    density: Float,
+    width: Int,
+    height: Int,
+    margin: Int,
+): Bitmap {
+    val bitmap = Bitmap.createBitmap(width + 2 * margin, height + 2 * margin, Bitmap.Config.ALPHA_8)
+    val canvas = android.graphics.Canvas(bitmap)
+    canvas.translate(margin.toFloat(), margin.toFloat())
+    val inside = outline.toPath().asAndroidPath()
+    if (inset) canvas.clipPath(inside)
+    for (layer in layers) {
+        val spread = layer.spread * density
+        val dx = layer.dx * density
+        val dy = layer.dy * density
+        val paint = alphaPaint(layer.alpha, layer.blur / 2f * density)
+        if (inset) {
+            if (layer.spread + maxOf(abs(layer.dx), abs(layer.dy)) + layer.blur <= 0f) continue
+            val hole = outline.grown(-spread).shifted(dx, dy)
+            val reach = layer.reach() * density + 2f * density
+            val complement = Path().apply {
+                fillType = PathFillType.EvenOdd
+                addRect(Rect(-reach, -reach, width + reach, height + reach))
+                addPath(hole)
+            }
+            canvas.drawPath(complement.asAndroidPath(), paint)
+        } else {
+            canvas.drawPath(outline.grown(spread).shifted(dx, dy).asAndroidPath(), paint)
+        }
+    }
+    if (!inset) {
+        val clear = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+        }
+        canvas.drawPath(inside, clear)
+    }
+    return bitmap
+}
 
 /** Контур, увеличенный на [by] со всех сторон (отрицательное число сжимает); углы растут вместе с ним. */
 internal fun Outline.grown(by: Float): Outline = when (this) {
