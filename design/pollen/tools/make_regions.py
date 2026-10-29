@@ -2,7 +2,9 @@
 """Превращает границы районов пыльцы DWD (GeoJSON, градусы WGS84) в компактный файл для приложения.
 
 Вход: GeoJSON FeatureCollection, у каждого объекта в свойствах номер района. Имя свойства ищется среди
-partregion_id, PARTREGION_ID, region_id, REGION_ID и т. п.; у районов без частей берётся номер земли.
+partregion_id, PARTREGION_ID, GF и т. п.; у районов без частей берётся номер земли (region_id).
+Источник: слой dwd:Pollenfluggebiete сервиса WFS https://maps.dwd.de/geoserver/dwd/ows с параметрами
+outputFormat=application/json и srsName=EPSG:4326. В нём GF это partregion_id, а у Бранденбурга и Берлина 50.
 Выход: app/src/main/assets/pollen/regions.json в формате, который читает PollenRegions.parse:
   {"regions":[{"id":11,"polygons":[[[lon,lat,lon,lat,...],[дыра...]],...]}]}
 Кольца упрощены (Дуглас-Пекер, допуск 0,01° около 1 км) и округлены до 4 знаков (около 10 м).
@@ -16,7 +18,7 @@ import sys
 TOLERANCE_DEG = 0.01
 DECIMALS = 4
 
-ID_KEYS = ("partregion_id", "PARTREGION_ID", "partregionid", "PartregionID")
+ID_KEYS = ("partregion_id", "PARTREGION_ID", "partregionid", "PartregionID", "GF")
 PARENT_KEYS = ("region_id", "REGION_ID", "regionid", "RegionID")
 
 
