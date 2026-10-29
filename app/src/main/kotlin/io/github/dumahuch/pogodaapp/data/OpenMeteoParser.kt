@@ -5,6 +5,7 @@ import io.github.dumahuch.pogodaapp.weather.DayForecast
 import io.github.dumahuch.pogodaapp.weather.DayRange
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
+import io.github.dumahuch.pogodaapp.weather.HourDetails
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import io.github.dumahuch.pogodaapp.weather.WeatherCodes
 import org.json.JSONArray
@@ -35,6 +36,7 @@ object OpenMeteoParser {
                 today = parseToday(root.getJSONObject("daily")),
                 hours = parseHours(root.getJSONObject("hourly")),
                 days = parseDays(root.getJSONObject("daily"), zone),
+                hourDetails = parseHourDetails(root.getJSONObject("hourly")),
             )
         } catch (e: JSONException) {
             throw ForecastException("Ответ Open-Meteo не разобран: ${e.message}", e)
@@ -119,6 +121,35 @@ object OpenMeteoParser {
                 condition = WeatherCodes.toCondition(codes.getInt(i)),
                 isDay = isDay.getInt(i) == 1,
                 precipitationMm = precipitation.optNumber(i + 1),
+            )
+        }
+    }
+
+    /**
+     * Часовые значения «Подробно». Все записи берутся как есть, без сдвига (это мгновенные значения, не суммы).
+     * Ответ старого формата (до 0.4.0) полей не содержит: тогда список пуст и вкладка просит обновить прогноз.
+     * Недостающее значение остаётся пустым.
+     */
+    private fun parseHourDetails(hourly: JSONObject): List<HourDetails> {
+        val times = hourly.getJSONArray("time")
+        val humidity = hourly.optJSONArray("relative_humidity_2m")
+        val pressure = hourly.optJSONArray("pressure_msl")
+        val visibility = hourly.optJSONArray("visibility")
+        val wind = hourly.optJSONArray("wind_speed_10m")
+        val direction = hourly.optJSONArray("wind_direction_10m")
+        val gusts = hourly.optJSONArray("wind_gusts_10m")
+        val uv = hourly.optJSONArray("uv_index")
+        if (listOf(humidity, pressure, visibility, wind, direction, gusts, uv).all { it == null }) return emptyList()
+        return (0 until times.length()).map { i ->
+            HourDetails(
+                time = Instant.ofEpochSecond(times.getLong(i)),
+                humidity = humidity.numberAt(i)?.let { Math.round(it).toInt() },
+                pressureHpa = pressure.numberAt(i),
+                visibilityM = visibility.numberAt(i),
+                windKmh = wind.numberAt(i),
+                windDirection = direction.numberAt(i)?.let { Math.round(it).toInt() },
+                gustKmh = gusts.numberAt(i),
+                uvIndex = uv.numberAt(i),
             )
         }
     }

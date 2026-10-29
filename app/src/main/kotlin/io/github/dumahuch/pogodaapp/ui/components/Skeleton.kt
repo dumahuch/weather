@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -109,5 +111,27 @@ fun DayRowsSkeleton(rows: Int, modifier: Modifier = Modifier) {
                 Block(150.dp, 8.dp, RoundedCornerShape(10.dp), alpha)
             }
         }
+    }
+}
+
+/** Заглушка вместо плиток вкладки «Подробно»: широкая плитка, две пары плиток и ещё одна широкая. */
+@Composable
+fun DetailsSkeleton(modifier: Modifier = Modifier) {
+    val alpha = skeletonAlpha()
+    val shape = RoundedCornerShape(22.dp)
+    val tint = LocalPogodaPalette.current.ink.copy(alpha = 0.16f)
+    @Composable
+    fun Tile(height: Dp, tileModifier: Modifier = Modifier) {
+        Box(tileModifier.height(height).alpha(alpha).background(tint, shape))
+    }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Tile(112.dp, Modifier.fillMaxWidth())
+        repeat(2) {
+            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Tile(132.dp, Modifier.weight(1f).fillMaxHeight())
+                Tile(132.dp, Modifier.weight(1f).fillMaxHeight())
+            }
+        }
+        Tile(210.dp, Modifier.fillMaxWidth())
     }
 }

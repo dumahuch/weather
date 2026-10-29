@@ -91,4 +91,54 @@
     <string name="uv_very_high">Very high</string>
     <string name="uv_extreme">Extreme</string>
     <string name="hours_minutes">%1$d h %2$d min</string>
+
+    <string name="details_missing_title">No current details yet</string>
+    <string name="details_missing_text">Update the forecast to see air, wind, pressure and more. This needs an internet connection.</string>
+    <string name="tile_air">Air quality</string>
+    <string name="air_source" translatable="false">CAMS</string>
+    <string name="air_unit" translatable="false">EAQI</string>
+    <string name="air_no_data">No data</string>
+    <string-array name="air_levels">
+        <item>Good</item>
+        <item>Fair</item>
+        <item>Moderate</item>
+        <item>Poor</item>
+        <item>Very poor</item>
+        <item>Extremely poor</item>
+    </string-array>
+    <string name="tile_wind_now">Wind</string>
+    <string-array name="wind_directions">
+        <item>northerly</item>
+        <item>north-easterly</item>
+        <item>easterly</item>
+        <item>south-easterly</item>
+        <item>southerly</item>
+        <item>south-westerly</item>
+        <item>westerly</item>
+        <item>north-westerly</item>
+    </string-array>
+    <string name="tile_pressure">Pressure</string>
+    <string name="hpa_unit">hPa</string>
+    <string name="trend_rising">rising</string>
+    <string name="trend_steady">steady</string>
+    <string name="trend_falling">falling</string>
+    <string name="trend_falling_fast">falling fast</string>
+    <string name="tile_humidity">Humidity</string>
+    <string name="visibility_line">Visibility: %1$s km</string>
+    <string name="tile_sun_moon">Sun &amp; Moon</string>
+    <string name="sunrise">Sunrise</string>
+    <string name="sunset">Sunset</string>
+    <string name="moon_phase_percent">%1$s, %2$s</string>
+    <string name="moonrise_at">moonrise %1$s</string>
+    <string name="moonset_at">moonset %1$s</string>
+    <string-array name="moon_phases">
+        <item>New moon</item>
+        <item>Waxing crescent</item>
+        <item>First quarter</item>
+        <item>Waxing gibbous</item>
+        <item>Full moon</item>
+        <item>Waning gibbous</item>
+        <item>Last quarter</item>
+        <item>Waning crescent</item>
+    </string-array>
 </resources>

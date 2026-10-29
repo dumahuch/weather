@@ -28,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.dumahuch.pogodaapp.data.ForecastCache
+import io.github.dumahuch.pogodaapp.data.OpenMeteoAirQualityClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
 import io.github.dumahuch.pogodaapp.location.Locations
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity() {
                     namer = AndroidPlaceNamer(context),
                     source = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     cache = ForecastCache(File(context.filesDir, "forecast_cache.json")),
+                    air = OpenMeteoAirQualityClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                 )
             }
         }

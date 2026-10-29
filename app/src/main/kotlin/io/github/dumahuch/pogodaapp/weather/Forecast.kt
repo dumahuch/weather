@@ -48,6 +48,21 @@ data class DayForecast(
     val sunset: Instant?,
 )
 
+/**
+ * Значения часа для вкладки «Подробно» (мгновенные, на начало часа). Любое поле пусто, если модель его не дала.
+ * Ветер в км/ч, давление приведено к уровню моря (гПа), видимость в метрах.
+ */
+data class HourDetails(
+    val time: Instant,
+    val humidity: Int?,
+    val pressureHpa: Double?,
+    val visibilityM: Double?,
+    val windKmh: Double?,
+    val windDirection: Int?,
+    val gustKmh: Double?,
+    val uvIndex: Double?,
+)
+
 data class Forecast(
     /** Часовой пояс места: по нему считаются подписи часов и смена суток. */
     val zone: ZoneId,
@@ -59,7 +74,15 @@ data class Forecast(
      * пока он не обновится.
      */
     val days: List<DayForecast> = emptyList(),
+    /** Часовые значения для «Подробно». Пусто у прогноза в старом формате (до 0.4.0), пока он не обновится. */
+    val hourDetails: List<HourDetails> = emptyList(),
 ) {
+    /** Значения часа, в который попадает [now]; если [now] раньше всех данных, первого часа. */
+    fun detailsAt(now: Instant): HourDetails? {
+        val index = hourDetails.indexOfLast { !it.time.isAfter(now) }
+        return hourDetails.getOrNull(index.coerceAtLeast(0))
+    }
+
     /**
      * Лента «По часам»: до [count] часов, первый из них «сейчас».
      * Если данные свежие (час первой точки совпадает с часом «сейчас» из блока current),

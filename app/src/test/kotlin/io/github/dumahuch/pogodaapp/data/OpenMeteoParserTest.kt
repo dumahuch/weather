@@ -207,4 +207,49 @@ class OpenMeteoParserTest {
         )
         assertEquals(1, OpenMeteoParser.parse(json).days.size)
     }
+
+    @Test
+    fun hourDetailsAreReadFromTheFifteenDayAnswer() {
+        val forecast = OpenMeteoParser.parse(fixture("hannover-15d.json"))
+        assertEquals(360, forecast.hourDetails.size)
+        val first = forecast.hourDetails.first()
+        assertEquals(Instant.ofEpochSecond(1793142000), first.time)
+        assertEquals(1016.0, first.pressureHpa!!, 0.0)
+        assertTrue(first.humidity!! in 1..100)
+        assertEquals(18500.0, first.visibilityM!!, 0.0)
+        assertTrue(first.windKmh!! > 0.0 && first.gustKmh!! > first.windKmh!!)
+        assertTrue(first.windDirection!! in 0..359)
+        assertEquals(0.0, first.uvIndex!!, 0.0)
+    }
+
+    @Test
+    fun detailsAtPicksTheHourThatContainsNow() {
+        val forecast = OpenMeteoParser.parse(fixture("hannover-15d.json"))
+        // 13:40 по Берлину 28 октября 2026 (UTC+1) = 12:40 по Гринвичу
+        val details = forecast.detailsAt(Instant.parse("2026-10-28T12:40:00Z"))!!
+        assertEquals(Instant.parse("2026-10-28T12:00:00Z"), details.time)
+        // до начала данных берётся первый час
+        assertEquals(Instant.parse("2026-10-27T23:00:00Z"), forecast.detailsAt(Instant.parse("2026-10-20T00:00:00Z"))!!.time)
+    }
+
+    @Test
+    fun oldAnswerWithoutDetailsGivesAnEmptyList() {
+        val forecast = OpenMeteoParser.parse(fixture("hannover.json"))
+        assertTrue(forecast.hourDetails.isEmpty())
+        assertEquals(null, forecast.detailsAt(Instant.parse("2026-10-28T12:40:00Z")))
+    }
+
+    @Test
+    fun missingValuesInOneHourStayEmpty() {
+        val json = small(extra = "").replace(
+            """"precipitation":[9.0,0.4,0.0,2.5]""",
+            """"precipitation":[9.0,0.4,0.0,2.5],"pressure_msl":[1010,null,1012,1013],"relative_humidity_2m":[50,60,70,80]""",
+        )
+        val details = OpenMeteoParser.parse(json).hourDetails
+        assertEquals(4, details.size)
+        assertEquals(null, details[1].pressureHpa)
+        assertEquals(1012.0, details[2].pressureHpa!!, 0.0)
+        assertEquals(60, details[1].humidity)
+        assertEquals(null, details[1].windKmh)
+    }
 }

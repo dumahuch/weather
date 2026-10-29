@@ -1,10 +1,12 @@
 package io.github.dumahuch.pogodaapp.home
 
+import io.github.dumahuch.pogodaapp.data.AirQualitySource
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.ForecastSource
 import io.github.dumahuch.pogodaapp.location.GeoPoint
 import io.github.dumahuch.pogodaapp.location.LocationSource
 import io.github.dumahuch.pogodaapp.location.PlaceNamer
+import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
@@ -79,6 +81,15 @@ class HomeViewModelTest {
         }
     }
 
+    private class FakeAir(var raw: String?) : AirQualitySource {
+        var calls = 0
+
+        override suspend fun fetchRaw(latitude: Double, longitude: Double): String {
+            calls++
+            return raw ?: throw ForecastException("нет сети")
+        }
+    }
+
     private class TestClock(var now: Instant) : Clock() {
         override fun getZone(): ZoneId = ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock = this
@@ -119,6 +130,14 @@ class HomeViewModelTest {
     }
 
     private fun viewModel() = HomeViewModel(locations, namer, source, cache, clock)
+
+    private fun viewModel(air: AirQualitySource) = HomeViewModel(locations, namer, source, cache, clock, air)
+
+    /** Ответ качества воздуха с одним и тем же индексом в текущем и следующем часе. */
+    private fun airJson(value: Int): String {
+        val hour = now.truncatedTo(java.time.temporal.ChronoUnit.HOURS).epochSecond
+        return """{"hourly":{"time":[$hour,${hour + 3600}],"european_aqi":[$value,$value]}}"""
+    }
 
     private fun HomeViewModel.content(): HomeUiState.Content {
         val current = state.value
@@ -563,5 +582,48 @@ class HomeViewModelTest {
         assertEquals("Hannover", model.content().place.name)
         dispatcher.scheduler.advanceUntilIdle()
         assertFalse(model.refreshing.value)
+    }
+
+    @Test
+    fun airQualityArrivesWithTheForecast() {
+        val air = FakeAir(airJson(23))
+        val model = viewModel(air)
+        model.onResumed(permissionGranted = true)
+
+        assertEquals(1, air.calls)
+        assertEquals(AirQuality(23), model.content().airQuality)
+    }
+
+    @Test
+    fun withoutAirQualitySourceTheTileStaysEmpty() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        assertNull(model.content().airQuality)
+    }
+
+    @Test
+    fun airQualityFailureDoesNotBreakTheForecast() {
+        val air = FakeAir(null)
+        val model = viewModel(air)
+        model.onResumed(permissionGranted = true)
+
+        val content = model.content()
+        assertFalse(content.offline)
+        assertEquals(12.7, content.strip.first().temperature, 0.0)
+        assertNull(content.airQuality)
+    }
+
+    @Test
+    fun oldAirQualityIsNotShownAfterThreeHours() {
+        val air = FakeAir(airJson(23))
+        val model = viewModel(air)
+        model.onResumed(permissionGranted = true)
+        assertEquals(AirQuality(23), model.content().airQuality)
+
+        // Через четыре часа воздух не получается, прогноз обновляется: старый индекс уже не показывается.
+        clock.now = now.plus(Duration.ofHours(4))
+        air.raw = null
+        model.retry(permissionGranted = true)
+        assertNull(model.content().airQuality)
     }
 }

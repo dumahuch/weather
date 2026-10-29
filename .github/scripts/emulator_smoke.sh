@@ -455,6 +455,43 @@ fi
 check_forecast ru "Нет сети · данные 3 часа назад" "Прогноз" "Ближайшие 24 часа" "7 дней" "14 дней" "ru прогноз"
 check_forecast de "Kein Netz · Daten von vor 3 Std." "Vorhersage" "Nächste 24 Stunden" "7 Tage" "14 Tage" "de прогноз"
 
+# --- 3д. Вкладка «Подробно» (0.4.0): плитки из прогноза в памяти; воздух без сети («нет данных») ----------
+
+check_details() {
+  local locale="$1" pill="$2" tab="$3" air="$4" nodata="$5" wind="$6" pressure="$7" uv="$8" humidity="$9" sunmoon="${10}" sunrise="${11}" label="${12}"
+  set_locale "$locale"
+  start_app
+  wait_for_text "$pill" 60 || fail "[$label] нет строки «$pill»"
+  tap_text "^$tab\$" || fail "[$label] не удалось нажать на вкладку «$tab»"
+  wait_for_text "$air" 20 || fail "[$label] после нажатия на «$tab» нет плитки «$air»"
+  expect_text "$nodata" "$label"
+  expect_text "$wind" "$label"
+  expect_text "$pressure" "$label"
+  expect_text "Weather data by Open-Meteo.com" "$label"
+  shot "3д-подробно-$locale"
+  # Нижние плитки видны после прокрутки; сбой здесь предупреждение, если разметка экрана не отдала строки.
+  local height x
+  height=$(adb shell wm size | tr -d '\r' | sed -E 's/.* ([0-9]+)x([0-9]+).*/\2/' | tail -1)
+  x=$(adb shell wm size | tr -d '\r' | sed -E 's/.* ([0-9]+)x([0-9]+).*/\1/' | tail -1)
+  adb shell input swipe $((x / 2)) $((height * 75 / 100)) $((x / 2)) $((height * 20 / 100)) 400
+  sleep 2
+  TEXTS=$(screen_texts)
+  if grep -qxF "$sunmoon" <<<"$TEXTS" && grep -qxF "$sunrise" <<<"$TEXTS"; then
+    expect_text "$uv" "$label"
+    expect_text "$humidity" "$label"
+    shot "3д-подробно-внизу-$locale"
+  else
+    shot "3д-подробно-внизу-нет-$locale"
+    annotate warning "Эмулятор" "[$label] после прокрутки нет плитки «$sunmoon» или строки «$sunrise».
+--- на экране ---
+$TEXTS"
+  fi
+}
+
+check_details en "Offline · data from 3 h ago" "Details" "Air quality" "No data" "Wind" "Pressure" "UV index" "Humidity" "Sun & Moon" "Sunrise" "en подробно"
+check_details ru "Нет сети · данные 3 часа назад" "Подробно" "Качество воздуха" "Нет данных" "Ветер" "Давление" "УФ-индекс" "Влажность" "Солнце и Луна" "Восход" "ru подробно"
+check_details de "Kein Netz · Daten von vor 3 Std." "Details" "Luftqualität" "Keine Daten" "Wind" "Luftdruck" "UV-Index" "Luftfeuchte" "Sonne & Mond" "Aufgang" "de подробно"
+
 # Прежний прогноз без суточных данных (из памяти версии до 0.3.0) возвращается для следующих проверок.
 python3 "$HERE/make_cache.py" "$FIXTURE" "$OUT/forecast_cache.json" --age-hours 3
 put_file "$OUT/forecast_cache.json" forecast_cache.json

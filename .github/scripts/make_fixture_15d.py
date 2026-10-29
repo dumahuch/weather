@@ -45,6 +45,7 @@ def hourly_temperature(day_index: int, hour: int) -> float:
 
 def main() -> None:
     times, temperature, codes, precipitation, is_day = [], [], [], [], []
+    humidity, pressure, visibility, wind, direction, gusts, uv_hourly = [], [], [], [], [], [], []
     for index in range(HOURS):
         day, hour = divmod(index, 24)
         code, high, low, rain, _prob, _w, _g, _uv, rise, sset = DAYS[day]
@@ -60,6 +61,17 @@ def main() -> None:
         codes.append(hour_code)
         daylight = (rise[0] * 60 + rise[1]) <= hour * 60 + 30 < (sset[0] * 60 + sset[1])
         is_day.append(1 if daylight else 0)
+        # мгновенные значения для «Подробно»: числа придуманы, ход суточный и плавный
+        wet = mm > 0
+        humidity.append(round(min(99, 88 - 24 * (math.cos((hour - 15) / 24 * 2 * math.pi) + 1) / 2 + (8 if wet else 0))))
+        pressure.append(round(1016 + 7 * math.sin(index / 37) + 2 * math.sin(index / 9), 1))
+        visibility.append(6200.0 if wet else (24140.0 if hour_code in (0, 1, 2) else 18500.0))
+        day_wind, day_gust = DAYS[day][5], DAYS[day][6]
+        wind.append(round(day_wind * (0.7 + 0.3 * math.cos((hour - 14) / 24 * 2 * math.pi)), 1))
+        direction.append(int(round(225 + 25 * math.sin(index / 11))))
+        gusts.append(round(day_gust * (0.7 + 0.3 * math.cos((hour - 14) / 24 * 2 * math.pi)), 1))
+        bell = max(0.0, math.cos((hour - 12.5) / 6.5 * math.pi / 2)) if 6 <= hour <= 19 else 0.0
+        uv_hourly.append(round(DAYS[day][7] * bell, 2))
 
     # сдвиг: запись N описывает осадки часа, закончившегося в её время, поэтому значения часа H лежат в записи H+1
     shifted = [0.0] + precipitation[:-1]
@@ -89,9 +101,14 @@ def main() -> None:
         "current": {"time": START + 12 * 3600 + 900, "interval": 900, "temperature_2m": 12.7,
                     "apparent_temperature": 10.8, "weather_code": 1, "is_day": 1},
         "hourly_units": {"time": "unixtime", "temperature_2m": "°C", "weather_code": "wmo code",
-                         "precipitation": "mm", "is_day": ""},
+                         "precipitation": "mm", "is_day": "", "relative_humidity_2m": "%",
+                         "pressure_msl": "hPa", "visibility": "m", "wind_speed_10m": "km/h",
+                         "wind_direction_10m": "°", "wind_gusts_10m": "km/h", "uv_index": ""},
         "hourly": {"time": times, "temperature_2m": temperature, "weather_code": codes,
-                   "precipitation": shifted, "is_day": is_day},
+                   "precipitation": shifted, "is_day": is_day,
+                   "relative_humidity_2m": humidity, "pressure_msl": pressure, "visibility": visibility,
+                   "wind_speed_10m": wind, "wind_direction_10m": direction, "wind_gusts_10m": gusts,
+                   "uv_index": uv_hourly},
         "daily_units": {"time": "unixtime", "weather_code": "wmo code", "temperature_2m_max": "°C",
                         "temperature_2m_min": "°C", "precipitation_sum": "mm",
                         "precipitation_probability_max": "%", "wind_speed_10m_max": "km/h",

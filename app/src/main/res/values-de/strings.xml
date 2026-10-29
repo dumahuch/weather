@@ -87,4 +87,54 @@
     <string name="uv_very_high">Sehr hoch</string>
     <string name="uv_extreme">Extrem</string>
     <string name="hours_minutes">%1$d Std. %2$d Min.</string>
+
+    <string name="details_missing_title">Noch keine aktuellen Details</string>
+    <string name="details_missing_text">Aktualisieren Sie die Vorhersage, um Luft, Wind, Luftdruck und mehr zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
+    <string name="tile_air">Luftqualität</string>
+    <string name="air_source" translatable="false">CAMS</string>
+    <string name="air_unit" translatable="false">EAQI</string>
+    <string name="air_no_data">Keine Daten</string>
+    <string-array name="air_levels">
+        <item>Gut</item>
+        <item>Ausreichend</item>
+        <item>Mäßig</item>
+        <item>Schlecht</item>
+        <item>Sehr schlecht</item>
+        <item>Extrem schlecht</item>
+    </string-array>
+    <string name="tile_wind_now">Wind</string>
+    <string-array name="wind_directions">
+        <item>Nord</item>
+        <item>Nordost</item>
+        <item>Ost</item>
+        <item>Südost</item>
+        <item>Süd</item>
+        <item>Südwest</item>
+        <item>West</item>
+        <item>Nordwest</item>
+    </string-array>
+    <string name="tile_pressure">Luftdruck</string>
+    <string name="hpa_unit">hPa</string>
+    <string name="trend_rising">steigend</string>
+    <string name="trend_steady">stabil</string>
+    <string name="trend_falling">fallend</string>
+    <string name="trend_falling_fast">stark fallend</string>
+    <string name="tile_humidity">Luftfeuchte</string>
+    <string name="visibility_line">Sicht: %1$s km</string>
+    <string name="tile_sun_moon">Sonne &amp; Mond</string>
+    <string name="sunrise">Aufgang</string>
+    <string name="sunset">Untergang</string>
+    <string name="moon_phase_percent">%1$s, %2$s</string>
+    <string name="moonrise_at">Mondaufgang %1$s</string>
+    <string name="moonset_at">Monduntergang %1$s</string>
+    <string-array name="moon_phases">
+        <item>Neumond</item>
+        <item>Zunehmende Sichel</item>
+        <item>Erstes Viertel</item>
+        <item>Zunehmender Mond</item>
+        <item>Vollmond</item>
+        <item>Abnehmender Mond</item>
+        <item>Letztes Viertel</item>
+        <item>Abnehmende Sichel</item>
+    </string-array>
 </resources>

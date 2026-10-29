@@ -29,7 +29,7 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 enum class AppTab(val label: Int, val icon: LineIcon, val enabled: Boolean) {
     Home(R.string.tab_home, LineIcons.Home, enabled = true),
     Forecast(R.string.tab_forecast, LineIcons.Calendar, enabled = true),
-    Details(R.string.tab_details, LineIcons.Grid, enabled = false),
+    Details(R.string.tab_details, LineIcons.Grid, enabled = true),
     Map(R.string.tab_map, LineIcons.Map, enabled = false),
 }
 
@@ -37,8 +37,8 @@ enum class AppTab(val label: Int, val icon: LineIcon, val enabled: Boolean) {
 val DockHeight = 60.dp
 
 /**
- * Нижняя панель с четырьмя вкладками. Вкладки, которые ещё не сделаны («Подробно», «Карта»),
- * приглушены и недоступны.
+ * Нижняя панель с четырьмя вкладками. Вкладка, которая ещё не сделана («Карта»),
+ * приглушена и недоступна.
  */
 @Composable
 fun Dock(selected: AppTab, onSelect: (AppTab) -> Unit, modifier: Modifier = Modifier) {

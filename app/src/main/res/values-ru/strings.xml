@@ -89,4 +89,54 @@
     <string name="uv_very_high">Очень высокий</string>
     <string name="uv_extreme">Экстремальный</string>
     <string name="hours_minutes">%1$d ч %2$d мин</string>
+
+    <string name="details_missing_title">Текущих подробностей пока нет</string>
+    <string name="details_missing_text">Обновите прогноз, чтобы увидеть воздух, ветер, давление и остальное. Для этого нужен интернет.</string>
+    <string name="tile_air">Качество воздуха</string>
+    <string name="air_source" translatable="false">CAMS</string>
+    <string name="air_unit" translatable="false">EAQI</string>
+    <string name="air_no_data">Нет данных</string>
+    <string-array name="air_levels">
+        <item>Хорошо</item>
+        <item>Удовлетворительно</item>
+        <item>Умеренно</item>
+        <item>Плохо</item>
+        <item>Очень плохо</item>
+        <item>Крайне плохо</item>
+    </string-array>
+    <string name="tile_wind_now">Ветер</string>
+    <string-array name="wind_directions">
+        <item>северный</item>
+        <item>северо-восточный</item>
+        <item>восточный</item>
+        <item>юго-восточный</item>
+        <item>южный</item>
+        <item>юго-западный</item>
+        <item>западный</item>
+        <item>северо-западный</item>
+    </string-array>
+    <string name="tile_pressure">Давление</string>
+    <string name="hpa_unit">гПа</string>
+    <string name="trend_rising">растёт</string>
+    <string name="trend_steady">стабильно</string>
+    <string name="trend_falling">падает</string>
+    <string name="trend_falling_fast">быстро падает</string>
+    <string name="tile_humidity">Влажность</string>
+    <string name="visibility_line">Видимость: %1$s км</string>
+    <string name="tile_sun_moon">Солнце и Луна</string>
+    <string name="sunrise">Восход</string>
+    <string name="sunset">Закат</string>
+    <string name="moon_phase_percent">%1$s, %2$s</string>
+    <string name="moonrise_at">восход Луны %1$s</string>
+    <string name="moonset_at">заход Луны %1$s</string>
+    <string-array name="moon_phases">
+        <item>Новолуние</item>
+        <item>Растущий серп</item>
+        <item>Первая четверть</item>
+        <item>Растущая Луна</item>
+        <item>Полнолуние</item>
+        <item>Убывающая Луна</item>
+        <item>Последняя четверть</item>
+        <item>Убывающий серп</item>
+    </string-array>
 </resources>

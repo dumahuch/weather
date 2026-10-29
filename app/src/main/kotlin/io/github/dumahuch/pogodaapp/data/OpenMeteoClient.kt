@@ -1,13 +1,7 @@
 package io.github.dumahuch.pogodaapp.data
 
-import io.github.dumahuch.pogodaapp.weather.ForecastException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONException
-import org.json.JSONObject
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URI
 import java.util.Locale
 
 /** Источник прогноза в виде сырого ответа; в тестах подменяется. */
@@ -26,7 +20,7 @@ class OpenMeteoClient(
 ) : ForecastSource {
 
     override suspend fun fetchRaw(latitude: Double, longitude: Double): String = withContext(Dispatchers.IO) {
-        download(buildUrl(latitude, longitude))
+        HttpJson.get(buildUrl(latitude, longitude), userAgent)
     }
 
     internal fun buildUrl(latitude: Double, longitude: Double): String {
@@ -34,37 +28,10 @@ class OpenMeteoClient(
         val lon = String.format(Locale.ROOT, "%.2f", longitude)
         return "$baseUrl?latitude=$lat&longitude=$lon" +
             "&current=temperature_2m,apparent_temperature,weather_code,is_day" +
-            "&hourly=temperature_2m,weather_code,precipitation,is_day" +
+            "&hourly=temperature_2m,weather_code,precipitation,is_day,$HOURLY_DETAIL_FIELDS" +
             "&daily=$DAILY_FIELDS" +
             "&wind_speed_unit=kmh" +
             "&timezone=auto&timeformat=unixtime&forecast_days=$DAYS_REQUESTED"
-    }
-
-    private fun download(url: String): String {
-        val connection = URI(url).toURL().openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = CONNECT_TIMEOUT_MS
-            connection.readTimeout = READ_TIMEOUT_MS
-            connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", userAgent)
-            val status = connection.responseCode
-            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
-            if (status !in 200..299) {
-                throw ForecastException("Open-Meteo ответил кодом $status: ${reasonOf(body)}")
-            }
-            return body
-        } catch (e: IOException) {
-            throw ForecastException("Нет связи с Open-Meteo: ${e.message}", e)
-        } finally {
-            connection.disconnect()
-        }
-    }
-
-    private fun reasonOf(body: String): String = try {
-        JSONObject(body).optString("reason", body.take(120))
-    } catch (e: JSONException) {
-        body.take(120)
     }
 
     companion object {
@@ -77,10 +44,12 @@ class OpenMeteoClient(
          */
         const val DAYS_REQUESTED = 15
 
+        /** Часовые значения вкладки «Подробно» (мгновенные); видимость в метрах, ветер в км/ч (см. wind_speed_unit). */
+        const val HOURLY_DETAIL_FIELDS = "relative_humidity_2m,pressure_msl,visibility,wind_speed_10m," +
+            "wind_direction_10m,wind_gusts_10m,uv_index"
+
         /** Суточные поля; ветер в км/ч, время восхода и заката в секундах Unix вместе с остальным временем. */
         const val DAILY_FIELDS = "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum," +
             "precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,uv_index_max,sunrise,sunset"
-        private const val CONNECT_TIMEOUT_MS = 10_000
-        private const val READ_TIMEOUT_MS = 15_000
     }
 }

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
+import io.github.dumahuch.pogodaapp.ui.details.DetailsScreen
 import io.github.dumahuch.pogodaapp.ui.forecast.DayDetailScreen
 import io.github.dumahuch.pogodaapp.ui.forecast.ForecastScreen
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
@@ -75,8 +76,14 @@ fun PogodaApp(
                 }
             }
 
-            // Эти вкладки ещё не сделаны: кнопки в панели недоступны, сюда попасть нельзя.
-            AppTab.Details, AppTab.Map -> Unit
+            AppTab.Details -> DetailsScreen(
+                state = state,
+                permanentlyDenied = permanentlyDenied,
+                actions = actions,
+            )
+
+            // Эта вкладка ещё не сделана: кнопка в панели недоступна, сюда попасть нельзя.
+            AppTab.Map -> Unit
         }
         BottomBar(
             selected = tab,

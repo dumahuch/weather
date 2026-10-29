@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.home
 
+import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import io.github.dumahuch.pogodaapp.weather.Place
@@ -21,7 +22,8 @@ sealed interface HomeUiState {
 
     /**
      * Есть прогноз. [offline] означает, что обновить не вышло и показаны сохранённые данные;
-     * [staleHours] сколько полных часов им, 0 если меньше часа.
+     * [staleHours] сколько полных часов им, 0 если меньше часа. [airQuality] приходит отдельным запросом позже прогноза
+     * (и совсем не приходит без сети или за пределами Европы); пусто, пока его нет.
      */
     data class Content(
         val place: Place,
@@ -29,5 +31,6 @@ sealed interface HomeUiState {
         val strip: List<HourPoint>,
         val offline: Boolean,
         val staleHours: Int,
+        val airQuality: AirQuality? = null,
     ) : HomeUiState
 }

@@ -219,7 +219,7 @@ private fun DayTiles(day: DayForecast, zone: ZoneId, modifier: Modifier = Modifi
     }
 }
 
-private fun uvLevelLabel(level: UvLevel): Int = when (level) {
+internal fun uvLevelLabel(level: UvLevel): Int = when (level) {
     UvLevel.Low -> R.string.uv_low
     UvLevel.Moderate -> R.string.uv_moderate
     UvLevel.High -> R.string.uv_high

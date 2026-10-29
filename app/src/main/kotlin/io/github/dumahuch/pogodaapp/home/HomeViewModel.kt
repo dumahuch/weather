@@ -2,6 +2,8 @@ package io.github.dumahuch.pogodaapp.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.dumahuch.pogodaapp.data.AirQualityParser
+import io.github.dumahuch.pogodaapp.data.AirQualitySource
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.ForecastSource
 import io.github.dumahuch.pogodaapp.data.OpenMeteoParser
@@ -9,6 +11,7 @@ import io.github.dumahuch.pogodaapp.location.GeoPoint
 import io.github.dumahuch.pogodaapp.location.LocationSource
 import io.github.dumahuch.pogodaapp.location.PlaceNamer
 import io.github.dumahuch.pogodaapp.location.distanceKm
+import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
@@ -38,6 +41,8 @@ import java.time.Instant
  *  4. название места ищется параллельно с запросом прогноза и появляется, когда готово, прогноз его не ждёт;
  *  5. место неизвестно совсем: карточка «Не удалось определить место»;
  *  6. обновление удалось: свежие данные; не удалось: сохранённые с пометкой «нет сети», а если их нет, «нет данных».
+ * Качество воздуха для вкладки «Подробно» запрашивается отдельно от прогноза, после него и без ожидания: его сбой или
+ * отсутствие (нет сети, не Европа) ничего не ломает, плитка показывает прочерк.
  * Обновление протягиванием ([refresh]) делает то же самое сразу, без оглядки на 15 минут, и поднимает флаг [refreshing],
  * по которому экран показывает индикатор.
  */
@@ -47,6 +52,7 @@ class HomeViewModel(
     private val source: ForecastSource,
     private val cache: ForecastCache,
     private val clock: Clock = Clock.systemUTC(),
+    private val air: AirQualitySource? = null,
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -64,6 +70,11 @@ class HomeViewModel(
     private class Snapshot(val place: Place, val forecast: Forecast, val raw: String, val savedAt: Instant)
 
     private var snapshot: Snapshot? = null
+
+    /** Последнее полученное качество воздуха: для какой точки, когда и что. Живёт [AIR_VALID_FOR], дальше не показывается. */
+    private class AirEntry(val point: GeoPoint, val at: Instant, val quality: AirQuality)
+
+    private var airEntry: AirEntry? = null
 
     /** Вызывается при каждом открытии экрана. Обновляет, если данные не свежие или были ошибки. */
     fun onResumed(permissionGranted: Boolean) {
@@ -188,6 +199,7 @@ class HomeViewModel(
         lastSuccess = now
         val place = Place(point.latitude, point.longitude, knownName)
         publish(place, forecast, raw, now)
+        fetchAirQuality(point)
         if (lookup != null) {
             launch { lookup.await()?.let { applyName(place, it) } }
         }
@@ -239,6 +251,32 @@ class HomeViewModel(
         }
     }
 
+    /** Запрашивает качество воздуха вне области задач загрузки: индикатор обновления его не ждёт. */
+    private fun fetchAirQuality(point: GeoPoint) {
+        val source = air ?: return
+        viewModelScope.launch {
+            val quality: AirQuality? = try {
+                AirQualityParser.parse(source.fetchRaw(point.latitude, point.longitude), clock.instant())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (quality == null) return@launch
+            airEntry = AirEntry(point, clock.instant(), quality)
+            val shown = mutableState.value
+            if (shown is HomeUiState.Content && nearby(shown.place, point)) {
+                mutableState.value = shown.copy(airQuality = quality)
+            }
+        }
+    }
+
+    private fun airFor(place: Place): AirQuality? {
+        val entry = airEntry ?: return null
+        val fresh = Duration.between(entry.at, clock.instant()) < AIR_VALID_FOR
+        return if (fresh && nearby(place, entry.point)) entry.quality else null
+    }
+
     private fun content(place: Place, forecast: Forecast, savedAt: Instant, offline: Boolean): HomeUiState.Content {
         val now = clock.instant()
         return HomeUiState.Content(
@@ -247,6 +285,7 @@ class HomeViewModel(
             strip = forecast.strip(now),
             offline = offline,
             staleHours = Duration.between(savedAt, now).toHours().toInt().coerceAtLeast(0),
+            airQuality = airFor(place),
         )
     }
 
@@ -269,5 +308,8 @@ class HomeViewModel(
 
         /** В пределах этого расстояния название места берётся из сохранённого, без запроса к службе адресов. */
         const val SAME_PLACE_KM = 2.0
+
+        /** Качество воздуха старше этого срока не показывается: индекс меняется по часам. */
+        val AIR_VALID_FOR: Duration = Duration.ofHours(3)
     }
 }
