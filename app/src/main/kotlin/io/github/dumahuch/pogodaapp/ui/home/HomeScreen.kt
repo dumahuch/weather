@@ -49,9 +49,10 @@ import io.github.dumahuch.pogodaapp.ui.components.HourlySkeleton
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
+import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.PullRefreshIndicator
 import io.github.dumahuch.pogodaapp.ui.components.rememberPullRefreshState
-import io.github.dumahuch.pogodaapp.ui.components.glassCard
+import io.github.dumahuch.pogodaapp.ui.components.glassButton
 import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Condition
@@ -184,10 +185,11 @@ private fun placeName(state: HomeUiState): String = when (state) {
 @Composable
 private fun TopRow(name: String, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
+    val glass = LocalGlass.current
     Row(
         modifier
             .height(44.dp)
-            .glassCard(RoundedCornerShape(22.dp), palette)
+            .glassButton(RoundedCornerShape(22.dp), glass)
             .padding(start = 15.dp, end = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -21,6 +21,9 @@ internal fun SkyPalette.toUi(): PogodaPalette = PogodaPalette(
     ink2 = ink2.toColor(),
     glass = glass.toColor(),
     glassLine = glassLine.toColor(),
+    glassHighlight = glassHighlight.toColor(),
+    buttonHighlight = buttonHighlight.toColor(),
+    shadow = shadow.toColor(),
     sheen = sheen.toColor(),
     buttonBackground = buttonBackground.toColor(),
     buttonOn = buttonOn.toColor(),
@@ -31,4 +34,5 @@ internal fun SkyPalette.toUi(): PogodaPalette = PogodaPalette(
     warning = warning.toColor(),
     scrim = scrim.toColor(),
     darkInk = darkInk,
+    smoke = smoke.toFloat(),
 )

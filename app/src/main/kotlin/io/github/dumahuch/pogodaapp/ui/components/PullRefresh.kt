@@ -171,6 +171,7 @@ fun rememberPullRefreshState(refreshing: Boolean, enabled: Boolean, onRefresh: (
 fun PullRefreshIndicator(state: PullRefreshState, refreshing: Boolean, modifier: Modifier = Modifier) {
     val label = stringResource(R.string.refreshing)
     val palette = LocalPogodaPalette.current
+    val glass = LocalGlass.current
     Box(
         modifier
             .size(BadgeSize)
@@ -180,7 +181,7 @@ fun PullRefreshIndicator(state: PullRefreshState, refreshing: Boolean, modifier:
                 scaleX = 0.6f + 0.4f * visible
                 scaleY = 0.6f + 0.4f * visible
             }
-            .glassButton(CircleShape, palette)
+            .glassButton(CircleShape, glass)
             .then(if (refreshing) Modifier.semantics { contentDescription = label } else Modifier),
         contentAlignment = Alignment.Center,
     ) {

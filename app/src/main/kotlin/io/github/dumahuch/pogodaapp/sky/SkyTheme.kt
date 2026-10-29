@@ -26,6 +26,12 @@ internal class SkyPalette(
     val buttonOn: Rgba,
     val sheen: Rgba,
     val glassLine: Rgba,
+    /** Светлая линия по верхней кромке карточки (в макете `--glass-hi`). */
+    val glassHighlight: Rgba,
+    /** То же для кнопок и нижней панели (`--btn-hi`). */
+    val buttonHighlight: Rgba,
+    /** Тень под кнопками и нижней панелью (`--shadow`). */
+    val shadow: Rgba,
     val button2: Rgba,
     val accent: Rgb,
     val accentSoft: Rgba,
@@ -35,6 +41,11 @@ internal class SkyPalette(
     val scrim: Rgba,
     /** Истина, пока текст тёмный (на светлом небе). */
     val darkInk: Boolean,
+    /**
+     * Насколько стекло «дымчатое»: 0 при тёмном тексте, 1 при светлом, между ними при плавной смене.
+     * В виде «Авто» от этого зависят яркость и насыщенность фона под стеклом и зерно.
+     */
+    val smoke: Double,
     val contrast: ContrastReport,
 )
 
@@ -71,7 +82,8 @@ internal class InkScores(
 /**
  * Динамическая тема: по цветам фона выбирает цвет текста (тёмный или светлый) и плотность стекла.
  * Формулы взяты из макета (inkScores и themeVars), где они проверены в браузере.
- * Стекло пока «лёгкое»; вид «Авто» с дымчатым стеклом придёт в версии 0.2.1.
+ * Вид стекла «Авто» (решение Димы): цвета и плотность считаются как для лёгкого стекла, а насколько оно дымчатое,
+ * задаёт положение переключателя текста ([SkyPalette.smoke]); как это рисуется, см. `ui/components/Glass.kt`.
  */
 internal object SkyTheme {
     val INK_DARK = Rgb(16.0, 23.0, 34.0)
@@ -179,6 +191,9 @@ internal object SkyTheme {
             buttonOn = Rgba(Rgb.White, lerp(0.8, 0.22, k)),
             sheen = Rgba(Rgb.White, lerp(0.2, 0.07, k)),
             glassLine = Rgba(ink, 0.12),
+            glassHighlight = Rgba(mix(Rgb.White, tint, 0.1), lerp(0.30, 0.10, k)),
+            buttonHighlight = Rgba(Rgb.White, lerp(0.8, 0.2, k)),
+            shadow = Rgba(mix(Rgb(20.0, 34.0, 56.0), Rgb(0.0, 0.0, 0.0), k), lerp(0.16, 0.34, k)),
             button2 = Rgba(ink, 0.2),
             accent = accent,
             accentSoft = Rgba(accent, 0.2),
@@ -186,6 +201,7 @@ internal object SkyTheme {
             warning = mix(Rgb(192.0, 105.0, 45.0), Rgb(242.0, 186.0, 98.0), k),
             scrim = Rgba(tint, lerp(d.scrim, l.scrim, k)),
             darkInk = k < 0.5,
+            smoke = k,
             contrast = ContrastReport(
                 hero = lerp(d.hero, l.hero, k),
                 cards = readable(under(b.card), tint, cards),

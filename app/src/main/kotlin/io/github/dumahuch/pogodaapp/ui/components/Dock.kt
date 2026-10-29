@@ -43,10 +43,10 @@ val DockHeight = 60.dp
  */
 @Composable
 fun Dock(modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
+    val glass = LocalGlass.current
     Row(
         modifier = modifier
-            .glassButton(RoundedCornerShape(34.dp), palette)
+            .glassButton(RoundedCornerShape(34.dp), glass)
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {

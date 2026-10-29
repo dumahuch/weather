@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleStartEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
 import io.github.dumahuch.pogodaapp.sky.SkyMaps
@@ -38,6 +40,8 @@ import io.github.dumahuch.pogodaapp.sky.SunPosition
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.PogodaColors
 import io.github.dumahuch.pogodaapp.ui.PogodaPalette
+import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
+import io.github.dumahuch.pogodaapp.ui.components.rememberGlass
 import io.github.dumahuch.pogodaapp.ui.mixWith
 import io.github.dumahuch.pogodaapp.weather.Condition
 import kotlinx.coroutines.Dispatchers
@@ -187,8 +191,13 @@ internal fun SkyHost(
     val palette = PogodaPalette.Neutral.mixWith(skyPalette ?: PogodaPalette.Neutral, reveal)
     LaunchedEffect(palette.darkInk) { onDarkIcons(palette.darkInk) }
 
+    // Стекло размывает то, что нарисовано на небе (вместе с нейтральным фоном, пока неба ещё нет).
+    val hazeState = rememberHazeState()
+    val glass = rememberGlass(palette, hazeState)
+
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,
+        LocalGlass provides glass,
         LocalContentColor provides palette.ink,
     ) {
         Box(modifier) {
@@ -198,7 +207,7 @@ internal fun SkyHost(
                 phase = { phase },
                 reveal = { reveal },
                 scrim = palette.scrim,
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier.matchParentSize().hazeSource(hazeState),
             )
             content()
         }

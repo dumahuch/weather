@@ -8,6 +8,7 @@ junit = "4.13.2"
 lifecycle = "2.11.0"
 kotlinxCoroutines = "1.11.0"
 orgJson = "20260719"
+haze = "2.0.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -15,6 +16,10 @@ androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = 
 androidx-compose-foundation = { module = "androidx.compose.foundation:foundation" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }
+# Размытие фона под стеклом (Haze 2.0: ядро и размытие в разных модулях). Версия 2.0.1 проверена 29.10.2026 по метке и истории изменений на GitHub
+# (Compose 1.12.1, как наш BOM); реестр Maven Central из сессии недоступен, наличие артефактов подтверждает сборка.
+haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
+haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 junit = { module = "junit:junit", version.ref = "junit" }

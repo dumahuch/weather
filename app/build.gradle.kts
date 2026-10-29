@@ -112,6 +112,8 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.haze)
+    implementation(libs.haze.blur)
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)

@@ -16,6 +16,12 @@ data class PogodaPalette(
     val ink2: Color,
     val glass: Color,
     val glassLine: Color,
+    /** Светлая линия по верхней кромке карточки. */
+    val glassHighlight: Color,
+    /** То же для кнопок и нижней панели. */
+    val buttonHighlight: Color,
+    /** Тень под кнопками и нижней панелью. */
+    val shadow: Color,
     val sheen: Color,
     val buttonBackground: Color,
     val buttonOn: Color,
@@ -28,6 +34,8 @@ data class PogodaPalette(
     val scrim: Color,
     /** Истина, если текст тёмный: значки системных панелей тогда тоже тёмные. */
     val darkInk: Boolean,
+    /** Насколько стекло дымчатое: 0 при тёмном тексте, 1 при светлом (см. `SkyPalette.smoke`). */
+    val smoke: Float,
 ) {
     companion object {
         val Neutral = PogodaPalette(
@@ -35,6 +43,9 @@ data class PogodaPalette(
             ink2 = PogodaColors.Ink2,
             glass = PogodaColors.Glass,
             glassLine = PogodaColors.GlassLine,
+            glassHighlight = PogodaColors.GlassHighlight,
+            buttonHighlight = PogodaColors.ButtonHighlight,
+            shadow = PogodaColors.Shadow,
             sheen = PogodaColors.Sheen,
             buttonBackground = PogodaColors.ButtonBackground,
             buttonOn = PogodaColors.ButtonOn,
@@ -45,6 +56,7 @@ data class PogodaPalette(
             warning = PogodaColors.Warning,
             scrim = Color.Transparent,
             darkInk = true,
+            smoke = 0f,
         )
     }
 }
@@ -60,6 +72,9 @@ fun PogodaPalette.mixWith(other: PogodaPalette, fraction: Float): PogodaPalette 
         ink2 = lerp(ink2, other.ink2, fraction),
         glass = lerp(glass, other.glass, fraction),
         glassLine = lerp(glassLine, other.glassLine, fraction),
+        glassHighlight = lerp(glassHighlight, other.glassHighlight, fraction),
+        buttonHighlight = lerp(buttonHighlight, other.buttonHighlight, fraction),
+        shadow = lerp(shadow, other.shadow, fraction),
         sheen = lerp(sheen, other.sheen, fraction),
         buttonBackground = lerp(buttonBackground, other.buttonBackground, fraction),
         buttonOn = lerp(buttonOn, other.buttonOn, fraction),
@@ -70,5 +85,6 @@ fun PogodaPalette.mixWith(other: PogodaPalette, fraction: Float): PogodaPalette 
         warning = lerp(warning, other.warning, fraction),
         scrim = lerp(scrim, other.scrim, fraction),
         darkInk = if (fraction < 0.5f) darkInk else other.darkInk,
+        smoke = smoke + (other.smoke - smoke) * fraction,
     )
 }

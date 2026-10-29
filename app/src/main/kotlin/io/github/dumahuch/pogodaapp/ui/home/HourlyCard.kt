@@ -48,6 +48,7 @@ import io.github.dumahuch.pogodaapp.home.roundTemperature
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
+import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -68,10 +69,11 @@ private const val TEMPERATURE_LABEL_RISE = 24.5f
 @Composable
 fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val palette = LocalPogodaPalette.current
+    val glass = LocalGlass.current
     Column(
         modifier
             .fillMaxWidth()
-            .glassCard(RoundedCornerShape(26.dp), palette)
+            .glassCard(RoundedCornerShape(26.dp), glass)
             .padding(top = 14.dp, bottom = 10.dp),
     ) {
         Row(

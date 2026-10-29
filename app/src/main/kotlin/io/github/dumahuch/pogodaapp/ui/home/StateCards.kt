@@ -26,6 +26,7 @@ import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
+import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 
@@ -44,10 +45,11 @@ fun StateCard(
 ) {
     val shape = RoundedCornerShape(24.dp)
     val palette = LocalPogodaPalette.current
+    val glass = LocalGlass.current
     Column(
         modifier
             .fillMaxWidth()
-            .glassCard(shape, palette)
+            .glassCard(shape, glass)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
