@@ -3,13 +3,17 @@ package io.github.dumahuch.pogodaapp.home
 import io.github.dumahuch.pogodaapp.data.AirQualitySource
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.ForecastSource
+import io.github.dumahuch.pogodaapp.data.PollenSource
 import io.github.dumahuch.pogodaapp.location.GeoPoint
 import io.github.dumahuch.pogodaapp.location.LocationSource
 import io.github.dumahuch.pogodaapp.location.PlaceNamer
+import io.github.dumahuch.pogodaapp.location.PollenRegionLocator
 import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
+import io.github.dumahuch.pogodaapp.weather.PollenKind
+import io.github.dumahuch.pogodaapp.weather.PollenLevel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -90,6 +94,19 @@ class HomeViewModelTest {
         }
     }
 
+    private class FakePollen(var raw: String?) : PollenSource {
+        var calls = 0
+
+        override suspend fun fetchRaw(): String {
+            calls++
+            return raw ?: throw ForecastException("нет сети")
+        }
+    }
+
+    private class FakeRegions(var key: Int?) : PollenRegionLocator {
+        override suspend fun keyOf(latitude: Double, longitude: Double): Int? = key
+    }
+
     private class TestClock(var now: Instant) : Clock() {
         override fun getZone(): ZoneId = ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock = this
@@ -132,6 +149,16 @@ class HomeViewModelTest {
     private fun viewModel() = HomeViewModel(locations, namer, source, cache, clock)
 
     private fun viewModel(air: AirQualitySource) = HomeViewModel(locations, namer, source, cache, clock, air)
+
+    private fun viewModel(pollen: PollenSource, regions: PollenRegionLocator) =
+        HomeViewModel(locations, namer, source, cache, clock, null, pollen, regions)
+
+    /** Файл DWD с одним районом Рейн-Майн (92): у всех видов на сегодня одна и та же [level], выпуск 28 октября. */
+    private fun pollenJson(level: String): String {
+        val kinds = listOf("Hasel", "Erle", "Esche", "Birke", "Graeser", "Roggen", "Beifuss", "Ambrosia")
+            .joinToString(",") { "\"$it\":{\"today\":\"$level\",\"tomorrow\":\"0\",\"dayafter_to\":\"0\"}" }
+        return """{"last_update":"2026-10-28 11:00 Uhr","content":[{"partregion_id":92,"region_id":90,"Pollen":{$kinds}}]}"""
+    }
 
     /** Ответ качества воздуха с одним и тем же индексом в текущем и следующем часе. */
     private fun airJson(value: Int): String {
@@ -625,5 +652,80 @@ class HomeViewModelTest {
         air.raw = null
         model.retry(permissionGranted = true)
         assertNull(model.content().airQuality)
+    }
+
+    @Test
+    fun pollenArrivesWithTheForecast() {
+        val pollen = FakePollen(pollenJson("1-2"))
+        val model = viewModel(pollen, FakeRegions(92))
+        model.onResumed(permissionGranted = true)
+
+        assertEquals(1, pollen.calls)
+        val shown = model.content().pollen
+        assertNotNull(shown)
+        assertEquals(92, shown!!.regionKey)
+        assertEquals(PollenLevel(3), shown.on(java.time.LocalDate.of(2026, 10, 28))?.get(PollenKind.Birch))
+    }
+
+    @Test
+    fun placeOutsideGermanyHasNoPollenAndDownloadsNothing() {
+        val pollen = FakePollen(pollenJson("1"))
+        val model = viewModel(pollen, FakeRegions(null))
+        model.onResumed(permissionGranted = true)
+
+        assertEquals(0, pollen.calls)
+        assertNull(model.content().pollen)
+    }
+
+    @Test
+    fun withoutPollenSourceTheTileStaysEmpty() {
+        val model = viewModel()
+        model.onResumed(permissionGranted = true)
+        assertNull(model.content().pollen)
+    }
+
+    @Test
+    fun pollenFailureDoesNotBreakTheForecast() {
+        val model = viewModel(FakePollen(null), FakeRegions(92))
+        model.onResumed(permissionGranted = true)
+
+        val content = model.content()
+        assertFalse(content.offline)
+        assertEquals(12.7, content.strip.first().temperature, 0.0)
+        assertNull(content.pollen)
+    }
+
+    @Test
+    fun brokenPollenFileDoesNotBreakTheForecast() {
+        val model = viewModel(FakePollen("не json"), FakeRegions(92))
+        model.onResumed(permissionGranted = true)
+        assertFalse(model.content().offline)
+        assertNull(model.content().pollen)
+    }
+
+    @Test
+    fun freshPollenIsNotDownloadedAgainForTheSamePlace() {
+        val pollen = FakePollen(pollenJson("1"))
+        val model = viewModel(pollen, FakeRegions(92))
+        model.onResumed(permissionGranted = true)
+        assertEquals(1, pollen.calls)
+
+        clock.now = now.plus(Duration.ofHours(2))
+        model.retry(permissionGranted = true)
+        assertEquals(1, pollen.calls)
+        assertNotNull(model.content().pollen)
+    }
+
+    @Test
+    fun oldPollenIsDownloadedAgainAfterSixHours() {
+        val pollen = FakePollen(pollenJson("1"))
+        val model = viewModel(pollen, FakeRegions(92))
+        model.onResumed(permissionGranted = true)
+
+        clock.now = now.plus(Duration.ofHours(7))
+        pollen.raw = null
+        model.retry(permissionGranted = true)
+        assertEquals(2, pollen.calls)
+        assertNull(model.content().pollen)
     }
 }

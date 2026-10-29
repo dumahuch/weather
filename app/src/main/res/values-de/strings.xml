@@ -102,6 +102,27 @@
         <item>Sehr schlecht</item>
         <item>Extrem schlecht</item>
     </string-array>
+    <string name="tile_pollen">Pollen</string>
+    <string name="pollen_source" translatable="false">DWD</string>
+    <string-array name="pollen_kinds">
+        <item>Hasel</item>
+        <item>Erle</item>
+        <item>Esche</item>
+        <item>Birke</item>
+        <item>Gräser</item>
+        <item>Roggen</item>
+        <item>Beifuß</item>
+        <item>Ambrosia</item>
+    </string-array>
+    <string-array name="pollen_levels">
+        <item>keine</item>
+        <item>keine bis geringe</item>
+        <item>geringe</item>
+        <item>geringe bis mittlere</item>
+        <item>mittlere</item>
+        <item>mittlere bis hohe</item>
+        <item>hohe</item>
+    </string-array>
     <string name="tile_wind_now">Wind</string>
     <string-array name="wind_directions">
         <item>Nord</item>

@@ -7,14 +7,18 @@ import io.github.dumahuch.pogodaapp.data.AirQualitySource
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.ForecastSource
 import io.github.dumahuch.pogodaapp.data.OpenMeteoParser
+import io.github.dumahuch.pogodaapp.data.PollenParser
+import io.github.dumahuch.pogodaapp.data.PollenSource
 import io.github.dumahuch.pogodaapp.location.GeoPoint
 import io.github.dumahuch.pogodaapp.location.LocationSource
 import io.github.dumahuch.pogodaapp.location.PlaceNamer
+import io.github.dumahuch.pogodaapp.location.PollenRegionLocator
 import io.github.dumahuch.pogodaapp.location.distanceKm
 import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
+import io.github.dumahuch.pogodaapp.weather.PollenForecast
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -30,6 +34,7 @@ import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 
 /**
  * Логика вкладки «Главная»: место → прогноз → сохранение → состояние для экрана.
@@ -42,7 +47,9 @@ import java.time.Instant
  *  5. место неизвестно совсем: карточка «Не удалось определить место»;
  *  6. обновление удалось: свежие данные; не удалось: сохранённые с пометкой «нет сети», а если их нет, «нет данных».
  * Качество воздуха для вкладки «Подробно» запрашивается отдельно от прогноза, после него и без ожидания: его сбой или
- * отсутствие (нет сети, не Европа) ничего не ломает, плитка показывает прочерк.
+ * отсутствие (нет сети, не Европа) ничего не ломает, плитка показывает прочерк. Так же отдельно и без ожидания
+ * загружается пыльца DWD: сначала по месту определяется район ([PollenRegionLocator]), потом берётся его строка из файла
+ * DWD для всей Германии; вне Германии, без сети и без файла границ плитка показывает «Нет данных».
  * Обновление протягиванием ([refresh]) делает то же самое сразу, без оглядки на 15 минут, и поднимает флаг [refreshing],
  * по которому экран показывает индикатор.
  */
@@ -53,6 +60,8 @@ class HomeViewModel(
     private val cache: ForecastCache,
     private val clock: Clock = Clock.systemUTC(),
     private val air: AirQualitySource? = null,
+    private val pollenSource: PollenSource? = null,
+    private val pollenRegions: PollenRegionLocator? = null,
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -75,6 +84,11 @@ class HomeViewModel(
     private class AirEntry(val point: GeoPoint, val at: Instant, val quality: AirQuality)
 
     private var airEntry: AirEntry? = null
+
+    /** Последний полученный индекс пыльцы: для какой точки, когда и что. Живёт [POLLEN_VALID_FOR]. */
+    private class PollenEntry(val point: GeoPoint, val at: Instant, val forecast: PollenForecast)
+
+    private var pollenEntry: PollenEntry? = null
 
     /** Вызывается при каждом открытии экрана. Обновляет, если данные не свежие или были ошибки. */
     fun onResumed(permissionGranted: Boolean) {
@@ -200,6 +214,7 @@ class HomeViewModel(
         val place = Place(point.latitude, point.longitude, knownName)
         publish(place, forecast, raw, now)
         fetchAirQuality(point)
+        fetchPollen(point)
         if (lookup != null) {
             launch { lookup.await()?.let { applyName(place, it) } }
         }
@@ -271,6 +286,46 @@ class HomeViewModel(
         }
     }
 
+    /**
+     * Запрашивает пыльцу вне области задач загрузки. Если для этого места данные ещё свежие, повторно не качает
+     * (файл DWD выходит раз в сутки). Район в файле находится по границам, без них или вне Германии пыльцы нет.
+     */
+    private fun fetchPollen(point: GeoPoint) {
+        val source = pollenSource ?: return
+        val locator = pollenRegions ?: return
+        if (pollenFor(Place(point.latitude, point.longitude, null)) != null) return
+        viewModelScope.launch {
+            val key: Int? = try {
+                locator.keyOf(point.latitude, point.longitude)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (key == null) return@launch
+            val now = clock.instant()
+            val forecast: PollenForecast? = try {
+                PollenParser.parse(source.fetchRaw(), key, now.atZone(PollenZone).toLocalDate())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (forecast == null) return@launch
+            pollenEntry = PollenEntry(point, now, forecast)
+            val shown = mutableState.value
+            if (shown is HomeUiState.Content && nearby(shown.place, point)) {
+                mutableState.value = shown.copy(pollen = forecast)
+            }
+        }
+    }
+
+    private fun pollenFor(place: Place): PollenForecast? {
+        val entry = pollenEntry ?: return null
+        val fresh = Duration.between(entry.at, clock.instant()) < POLLEN_VALID_FOR
+        return if (fresh && nearby(place, entry.point)) entry.forecast else null
+    }
+
     private fun airFor(place: Place): AirQuality? {
         val entry = airEntry ?: return null
         val fresh = Duration.between(entry.at, clock.instant()) < AIR_VALID_FOR
@@ -286,6 +341,7 @@ class HomeViewModel(
             offline = offline,
             staleHours = Duration.between(savedAt, now).toHours().toInt().coerceAtLeast(0),
             airQuality = airFor(place),
+            pollen = pollenFor(place),
         )
     }
 
@@ -311,5 +367,11 @@ class HomeViewModel(
 
         /** Качество воздуха старше этого срока не показывается: индекс меняется по часам. */
         val AIR_VALID_FOR: Duration = Duration.ofHours(3)
+
+        /** Файл DWD выходит раз в сутки, поэтому пыльцу перезапрашиваем не чаще чем раз в шесть часов. */
+        val POLLEN_VALID_FOR: Duration = Duration.ofHours(6)
+
+        /** День выпуска файла DWD считается по немецкому времени. */
+        val PollenZone: ZoneId = ZoneId.of("Europe/Berlin")
     }
 }

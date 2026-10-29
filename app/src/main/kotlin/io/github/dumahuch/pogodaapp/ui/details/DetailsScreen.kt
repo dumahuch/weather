@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.details
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,9 +23,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,12 +58,15 @@ import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourDetails
 import io.github.dumahuch.pogodaapp.weather.Place
+import io.github.dumahuch.pogodaapp.weather.PollenForecast
+import io.github.dumahuch.pogodaapp.weather.PollenLevel
 import java.time.Instant
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
- * Вкладка «Подробно»: плитки с воздухом, ветром, давлением, УФ-индексом, влажностью, видимостью, солнцем и луной.
- * Макет: страница «Подробно» в живом макете. Пыльцы пока нет (версия 0.4.1), её плитка встанет рядом с воздухом.
+ * Вкладка «Подробно»: плитки с воздухом, пыльцой, ветром, давлением, УФ-индексом, влажностью, видимостью, солнцем и луной.
+ * Макет: страница «Подробно» в живом макете. Пыльца (DWD, только Германия, версия 0.4.3) стоит рядом с воздухом.
  * Значения берутся для текущего часа из прогноза; качество воздуха приходит отдельным запросом ([AirQuality]).
  * Если места или данных нет, показывается та же карточка состояния, что на «Главной».
  */
@@ -94,7 +102,7 @@ fun DetailsScreen(
                     modifier = Modifier.padding(horizontal = 20.dp),
                 )
             } else {
-                DetailsContent(state.place, state.forecast, state.airQuality, Modifier.padding(horizontal = 20.dp))
+                DetailsContent(state.place, state.forecast, state.airQuality, state.pollen, Modifier.padding(horizontal = 20.dp))
             }
 
             HomeUiState.NoPermission -> NoPermissionTop(permanentlyDenied, actions)
@@ -120,8 +128,15 @@ fun DetailsScreen(
 private val TileSpacing = 8.dp
 
 @Composable
-private fun DetailsContent(place: Place, forecast: Forecast, air: AirQuality?, modifier: Modifier = Modifier) {
+private fun DetailsContent(
+    place: Place,
+    forecast: Forecast,
+    air: AirQuality?,
+    pollen: PollenForecast?,
+    modifier: Modifier = Modifier,
+) {
     val now = remember(forecast) { Instant.now() }
+    val today = remember(forecast, now) { now.atZone(forecast.zone).toLocalDate() }
     val details = remember(forecast, now) { forecast.detailsAt(now) }
     val series = remember(forecast, now) { PressureOutlook.series(forecast.hourDetails, now) }
     val trend = remember(forecast, now) { PressureOutlook.trend(forecast.hourDetails, now) }
@@ -130,7 +145,10 @@ private fun DetailsContent(place: Place, forecast: Forecast, air: AirQuality?, m
         forecast.hourDetails.indexOfLast { !it.time.isAfter(now) }.coerceAtLeast(0).coerceAtMost(PressureOutlook.HOURS_BEFORE)
     }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(TileSpacing)) {
-        AirTile(air, Modifier.fillMaxWidth())
+        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
+            AirTile(air, Modifier.weight(1f).fillMaxHeight())
+            PollenTile(pollen, today, Modifier.weight(1f).fillMaxHeight())
+        }
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
             WindTile(details, Modifier.weight(1f).fillMaxHeight())
             PressureTile(details, series, nowIndex, trend, Modifier.weight(1f).fillMaxHeight())
@@ -197,14 +215,66 @@ private fun AirTile(air: AirQuality?, modifier: Modifier = Modifier) {
             BigValue("–")
             SubText(stringResource(R.string.air_no_data))
         } else {
-            // Число и ступень в одной строке: плитка ниже, все плитки помещаются на экран без прокрутки.
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                BigValue(air.eaqi.toString(), stringResource(R.string.air_unit))
-                Spacer(Modifier.weight(1f))
-                SubText(levels[air.level.ordinal], Modifier.padding(bottom = 6.dp))
-            }
-            Spacer(Modifier.height(2.dp))
+            // Плитка в половину ширины, как в макете: число, ступень под ним, шкала внизу.
+            BigValue(air.eaqi.toString(), stringResource(R.string.air_unit))
+            SubText(levels[air.level.ordinal])
+            Spacer(Modifier.weight(1f).heightIn(min = 2.dp))
             ScaleBar(fraction = (air.eaqi / 100f).coerceIn(0f, 1f), colors = AirScale, stepped = true)
+        }
+    }
+}
+
+/**
+ * Плитка «Пыльца» как в макете: названия видов и по три точки справа (промежуточная ступень это наполовину закрашенная
+ * точка). Показаны четыре вида с наибольшей нагрузкой на сегодня; если нагрузки нигде нет, берёза, злаки, полынь и амброзия.
+ * Без данных (вне Германии, нет сети, нет файла границ) прочерк и «Нет данных».
+ */
+@Composable
+private fun PollenTile(pollen: PollenForecast?, today: LocalDate, modifier: Modifier = Modifier) {
+    val kinds = stringArrayResource(R.array.pollen_kinds)
+    val levels = stringArrayResource(R.array.pollen_levels)
+    val rows = pollen?.shown(today)
+    DetailTile(stringResource(R.string.tile_pollen), modifier, tag = stringResource(R.string.pollen_source)) {
+        if (rows == null) {
+            BigValue("–")
+            SubText(stringResource(R.string.air_no_data))
+        } else {
+            Column(Modifier.padding(top = 2.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                rows.forEach { (kind, level) ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            kinds[kind.ordinal],
+                            style = pogodaText(13f, 500),
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                        )
+                        PollenDots(level, levels[level.halves])
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Три точки нагрузки: закрашено столько, до какой ступени дошла нагрузка, промежуточная ступень закрашена наполовину. */
+@Composable
+private fun PollenDots(level: PollenLevel, description: String, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    Canvas(modifier.size(width = 35.dp, height = 9.dp).semantics { contentDescription = description }) {
+        val diameter = 9.dp.toPx()
+        val radius = diameter / 2
+        val gap = 4.dp.toPx()
+        for (step in 1..3) {
+            val cx = (step - 1) * (diameter + gap) + radius
+            val center = Offset(cx, radius)
+            drawCircle(palette.glassLine, radius, center)
+            when {
+                level.halves >= 2 * step -> drawCircle(palette.warning, radius, center)
+                level.halves == 2 * step - 1 ->
+                    clipRect(left = cx - radius, top = 0f, right = cx, bottom = diameter) {
+                        drawCircle(palette.warning, radius, center)
+                    }
+            }
         }
     }
 }

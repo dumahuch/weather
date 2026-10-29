@@ -4,6 +4,7 @@ import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import io.github.dumahuch.pogodaapp.weather.Place
+import io.github.dumahuch.pogodaapp.weather.PollenForecast
 
 /** Всё, что может показывать вкладка «Главная». */
 sealed interface HomeUiState {
@@ -23,7 +24,8 @@ sealed interface HomeUiState {
     /**
      * Есть прогноз. [offline] означает, что обновить не вышло и показаны сохранённые данные;
      * [staleHours] сколько полных часов им, 0 если меньше часа. [airQuality] приходит отдельным запросом позже прогноза
-     * (и совсем не приходит без сети или за пределами Европы); пусто, пока его нет.
+     * (и совсем не приходит без сети или за пределами Европы); пусто, пока его нет. [pollen] приходит так же отдельно:
+     * индекс пыльцы DWD для района места (только Германия), пусто вне Германии, без сети и пока он не пришёл.
      */
     data class Content(
         val place: Place,
@@ -32,5 +34,6 @@ sealed interface HomeUiState {
         val offline: Boolean,
         val staleHours: Int,
         val airQuality: AirQuality? = null,
+        val pollen: PollenForecast? = null,
     ) : HomeUiState
 }

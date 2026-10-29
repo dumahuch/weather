@@ -27,12 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import io.github.dumahuch.pogodaapp.data.DwdPollenClient
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.OpenMeteoAirQualityClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
 import io.github.dumahuch.pogodaapp.location.Locations
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
+import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
 import io.github.dumahuch.pogodaapp.ui.PogodaApp
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
@@ -56,6 +58,8 @@ class MainActivity : ComponentActivity() {
                     source = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     cache = ForecastCache(File(context.filesDir, "forecast_cache.json")),
                     air = OpenMeteoAirQualityClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
+                    pollenSource = DwdPollenClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
+                    pollenRegions = AssetPollenRegionLocator(context),
                 )
             }
         }

@@ -104,6 +104,27 @@
         <item>Очень плохо</item>
         <item>Крайне плохо</item>
     </string-array>
+    <string name="tile_pollen">Пыльца</string>
+    <string name="pollen_source" translatable="false">DWD</string>
+    <string-array name="pollen_kinds">
+        <item>Лещина</item>
+        <item>Ольха</item>
+        <item>Ясень</item>
+        <item>Берёза</item>
+        <item>Злаки</item>
+        <item>Рожь</item>
+        <item>Полынь</item>
+        <item>Амброзия</item>
+    </string-array>
+    <string-array name="pollen_levels">
+        <item>нет</item>
+        <item>от нуля до слабой</item>
+        <item>слабая</item>
+        <item>от слабой до средней</item>
+        <item>средняя</item>
+        <item>от средней до высокой</item>
+        <item>высокая</item>
+    </string-array>
     <string name="tile_wind_now">Ветер</string>
     <string-array name="wind_directions">
         <item>северный</item>

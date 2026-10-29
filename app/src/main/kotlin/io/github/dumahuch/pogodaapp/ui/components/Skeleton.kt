@@ -125,8 +125,7 @@ fun DetailsSkeleton(modifier: Modifier = Modifier) {
         Box(tileModifier.height(height).alpha(alpha).background(tint, shape))
     }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Tile(112.dp, Modifier.fillMaxWidth())
-        repeat(2) {
+        repeat(3) {
             Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Tile(132.dp, Modifier.weight(1f).fillMaxHeight())
                 Tile(132.dp, Modifier.weight(1f).fillMaxHeight())

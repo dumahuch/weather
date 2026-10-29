@@ -7,13 +7,13 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 
-/** Скачивание ответа Open-Meteo одним запросом: общее для прогноза и качества воздуха. */
+/** Скачивание ответа одним запросом: общее для прогноза и качества воздуха (Open-Meteo) и пыльцы (DWD). */
 internal object HttpJson {
 
     private const val CONNECT_TIMEOUT_MS = 10_000
     private const val READ_TIMEOUT_MS = 15_000
 
-    fun get(url: String, userAgent: String): String {
+    fun get(url: String, userAgent: String, source: String = "Open-Meteo"): String {
         val connection = URI(url).toURL().openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = CONNECT_TIMEOUT_MS
@@ -24,11 +24,11 @@ internal object HttpJson {
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
             val body = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }.orEmpty()
             if (status !in 200..299) {
-                throw ForecastException("Open-Meteo ответил кодом $status: ${reasonOf(body)}")
+                throw ForecastException("$source ответил кодом $status: ${reasonOf(body)}")
             }
             return body
         } catch (e: IOException) {
-            throw ForecastException("Нет связи с Open-Meteo: ${e.message}", e)
+            throw ForecastException("Нет связи с $source: ${e.message}", e)
         } finally {
             connection.disconnect()
         }

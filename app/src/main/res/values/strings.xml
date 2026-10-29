@@ -106,6 +106,27 @@
         <item>Very poor</item>
         <item>Extremely poor</item>
     </string-array>
+    <string name="tile_pollen">Pollen</string>
+    <string name="pollen_source" translatable="false">DWD</string>
+    <string-array name="pollen_kinds">
+        <item>Hazel</item>
+        <item>Alder</item>
+        <item>Ash</item>
+        <item>Birch</item>
+        <item>Grasses</item>
+        <item>Rye</item>
+        <item>Mugwort</item>
+        <item>Ragweed</item>
+    </string-array>
+    <string-array name="pollen_levels">
+        <item>none</item>
+        <item>none to low</item>
+        <item>low</item>
+        <item>low to moderate</item>
+        <item>moderate</item>
+        <item>moderate to high</item>
+        <item>high</item>
+    </string-array>
     <string name="tile_wind_now">Wind</string>
     <string-array name="wind_directions">
         <item>northerly</item>
