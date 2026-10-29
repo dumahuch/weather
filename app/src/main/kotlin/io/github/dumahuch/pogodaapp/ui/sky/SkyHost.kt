@@ -125,6 +125,7 @@ internal fun SkyHost(
     diagnostics: SkyDiagnostics?,
     onDarkIcons: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    glassBlur: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val appContext = LocalContext.current.applicationContext
@@ -193,7 +194,8 @@ internal fun SkyHost(
 
     // Стекло размывает то, что нарисовано на небе (вместе с нейтральным фоном, пока неба ещё нет).
     val hazeState = rememberHazeState()
-    val glass = rememberGlass(palette, hazeState)
+    // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
+    val glass = rememberGlass(palette, if (glassBlur) hazeState else null)
 
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,
@@ -207,7 +209,7 @@ internal fun SkyHost(
                 phase = { phase },
                 reveal = { reveal },
                 scrim = palette.scrim,
-                modifier = Modifier.matchParentSize().hazeSource(hazeState),
+                modifier = Modifier.matchParentSize().then(if (glassBlur) Modifier.hazeSource(hazeState) else Modifier),
             )
             content()
         }

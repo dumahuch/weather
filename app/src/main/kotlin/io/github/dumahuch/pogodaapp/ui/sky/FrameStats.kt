@@ -21,6 +21,7 @@ internal class FrameStats(private val budgetMillis: Double, private val capacity
     private var stored = 0
     private var frames = 0
     private var slow = 0
+    private var firstStamp = 0L
 
     fun reset() {
         next = 0
@@ -31,6 +32,7 @@ internal class FrameStats(private val budgetMillis: Double, private val capacity
 
     /** Кадр закончен в момент [atNanos] и занял [durationMillis]. */
     fun add(atNanos: Long, durationMillis: Double) {
+        if (frames == 0) firstStamp = atNanos
         durations[next] = durationMillis
         stamps[next] = atNanos
         next = (next + 1) % capacity
@@ -46,18 +48,22 @@ internal class FrameStats(private val budgetMillis: Double, private val capacity
         for (i in 0 until stored) {
             if (nowNanos - stamps[i] <= WINDOW_NANOS) recent++
         }
+        // Пока после сброса или открытия прошло меньше пяти секунд, делим на прошедшее время (не меньше секунды),
+        // иначе частота занижена: 63 кадра за 3 секунды показывались как 12,6 вместо 20 (29.10.2026).
+        val observed = (nowNanos - firstStamp).coerceIn(MIN_WINDOW_NANOS, WINDOW_NANOS)
         return Summary(
             frames = frames,
             slow = slow,
             median = sorted[(stored - 1) / 2],
             p95 = sorted[((stored - 1) * 0.95).toInt()],
             longest = sorted[stored - 1],
-            perSecond = recent * 1e9 / WINDOW_NANOS,
+            perSecond = recent * 1e9 / observed,
         )
     }
 
     private companion object {
         /** Частота кадров считается по последним пяти секундам. */
         const val WINDOW_NANOS = 5_000_000_000L
+        const val MIN_WINDOW_NANOS = 1_000_000_000L
     }
 }

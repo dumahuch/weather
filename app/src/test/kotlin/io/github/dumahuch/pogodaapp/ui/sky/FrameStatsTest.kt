@@ -34,6 +34,18 @@ class FrameStatsTest {
     }
 
     @Test
+    fun shortObservationIsNotDilutedByFullWindow() {
+        val stats = FrameStats(budgetMillis = 16.67)
+        // 63 кадра за три секунды после сброса: это 20 кадров в секунду, а не 12,6 (деление на полное окно в пять секунд).
+        repeat(63) { stats.add(it * 50_000_000L, 5.0) }
+        assertEquals(20.0, stats.summary(3 * second + 100_000_000L).perSecond, 0.5)
+        // Меньше секунды наблюдения: делим на секунду, чтобы единичные кадры не давали огромных чисел.
+        val fresh = FrameStats(budgetMillis = 16.67)
+        repeat(4) { fresh.add(it * 50_000_000L, 5.0) }
+        assertEquals(4.0, fresh.summary(200_000_000L).perSecond, 1e-9)
+    }
+
+    @Test
     fun keepsOnlyLastFramesButCountsAll() {
         val stats = FrameStats(budgetMillis = 10.0, capacity = 10)
         repeat(5) { stats.add(it * 1_000L, 50.0) }

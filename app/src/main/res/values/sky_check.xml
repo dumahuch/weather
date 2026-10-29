@@ -37,6 +37,9 @@
     <string name="check_info_ink_light" translatable="false">Текст светлый</string>
     <string name="check_info_contrast" translatable="false">%1$s. Контраст: цифры %2$s, карточки %3$s, кнопки %4$s</string>
 
+    <string name="check_glass_on" translatable="false">Размытие: вкл</string>
+    <string name="check_glass_off" translatable="false">Размытие: выкл</string>
+
     <string name="check_frames_title" translatable="false">Кадры</string>
     <string name="check_frames_reset" translatable="false">Сбросить</string>
     <string name="check_frames_total" translatable="false">Нарисовано кадров: %1$d, дольше нормы: %2$d</string>

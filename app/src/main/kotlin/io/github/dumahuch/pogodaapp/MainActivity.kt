@@ -94,12 +94,14 @@ class MainActivity : ComponentActivity() {
                 val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
                 val checkOpen by skyCheck.open.collectAsStateWithLifecycle()
                 val override by skyCheck.override.collectAsStateWithLifecycle()
+                val glassBlur by skyCheck.glassBlur.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
                 val input = remember(state) { state.skyInput() }
                 SkyHost(
                     input = input,
                     override = override,
+                    glassBlur = glassBlur,
                     diagnostics = if (checkOpen) diagnostics else null,
                     onDarkIcons = ::setDarkBarIcons,
                     modifier = Modifier.fillMaxSize(),
@@ -118,7 +120,9 @@ class MainActivity : ComponentActivity() {
                                 input = input,
                                 override = override,
                                 diagnostics = diagnostics,
+                                glassBlur = glassBlur,
                                 onOverride = skyCheck::set,
+                                onGlassBlur = skyCheck::setGlassBlur,
                                 onClose = skyCheck::close,
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             )

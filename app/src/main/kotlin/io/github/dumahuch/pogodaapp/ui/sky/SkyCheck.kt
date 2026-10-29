@@ -64,14 +64,24 @@ internal class SkyCheckModel : ViewModel() {
     private val mutableOverride = MutableStateFlow(SkyOverride())
     val override: StateFlow<SkyOverride> = mutableOverride.asStateFlow()
 
+    private val mutableGlassBlur = MutableStateFlow(true)
+
+    /** Размытие под стеклом включено. Выключатель нужен, чтобы сравнить кадры на телефоне с размытием и без. */
+    val glassBlur: StateFlow<Boolean> = mutableGlassBlur.asStateFlow()
+
     fun show() {
         mutableOpen.value = true
     }
 
-    /** При закрытии небо возвращается к настоящему времени и погоде. */
+    /** При закрытии небо возвращается к настоящему времени и погоде, размытие включается. */
     fun close() {
         mutableOpen.value = false
         mutableOverride.value = SkyOverride()
+        mutableGlassBlur.value = true
+    }
+
+    fun setGlassBlur(on: Boolean) {
+        mutableGlassBlur.value = on
     }
 
     fun set(value: SkyOverride) {
@@ -122,7 +132,9 @@ internal fun SkyCheckPanel(
     input: SkyInput?,
     override: SkyOverride,
     diagnostics: SkyDiagnostics,
+    glassBlur: Boolean,
     onOverride: (SkyOverride) -> Unit,
+    onGlassBlur: (Boolean) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -134,7 +146,9 @@ internal fun SkyCheckPanel(
             input = input,
             override = override,
             diagnostics = diagnostics,
+            glassBlur = glassBlur,
             onOverride = onOverride,
+            onGlassBlur = onGlassBlur,
             onCollapse = { collapsed = true },
             onClose = onClose,
             modifier = modifier,
@@ -171,7 +185,9 @@ private fun ExpandedPanel(
     input: SkyInput?,
     override: SkyOverride,
     diagnostics: SkyDiagnostics,
+    glassBlur: Boolean,
     onOverride: (SkyOverride) -> Unit,
+    onGlassBlur: (Boolean) -> Unit,
     onCollapse: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -270,12 +286,12 @@ private fun ExpandedPanel(
                 ),
             )
         }
-        FrameSection()
+        FrameSection(glassBlur = glassBlur, onGlassBlur = onGlassBlur)
     }
 }
 
 @Composable
-private fun FrameSection() {
+private fun FrameSection(glassBlur: Boolean, onGlassBlur: (Boolean) -> Unit) {
     val view = LocalView.current
     val refreshRate = view.display?.refreshRate ?: DEFAULT_REFRESH_RATE
     val stats = remember(refreshRate) { FrameStats(budgetMillis = 1000.0 / refreshRate) }
@@ -297,8 +313,23 @@ private fun FrameSection() {
             summary = stats.summary(SystemClock.elapsedRealtimeNanos())
         }
     }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Caption(stringResource(R.string.check_frames_title), modifier = Modifier.weight(1f))
+        // Выключатель размытия рядом со счётчиком: так видно, как меняются кадры. Подпись показывает, что сейчас;
+        // при переключении счётчик начинается заново, чтобы цифры относились только к одному положению.
+        CheckButton(
+            stringResource(if (glassBlur) R.string.check_glass_on else R.string.check_glass_off),
+            selected = glassBlur,
+            onClick = {
+                onGlassBlur(!glassBlur)
+                stats.reset()
+                summary = stats.summary(SystemClock.elapsedRealtimeNanos())
+            },
+        )
         CheckButton(
             stringResource(R.string.check_frames_reset),
             selected = false,

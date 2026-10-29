@@ -57,6 +57,11 @@ jobs:
           echo "TAG=v$VERSION" >> "$GITHUB_ENV"
           echo "VERSION_CODE=$((10#$MAJOR * 1000000 + 10#$MINOR * 1000 + 10#$PATCH))" >> "$GITHUB_ENV"
 
+      - name: Номер версии по порядку
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/version_step.py --version "$VERSION" --current-tag "$TAG"
+
       - name: Ключ подписи
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
