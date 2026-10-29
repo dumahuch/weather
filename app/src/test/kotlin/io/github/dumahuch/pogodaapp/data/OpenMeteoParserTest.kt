@@ -217,7 +217,7 @@ class OpenMeteoParserTest {
         assertEquals(1016.0, first.pressureHpa!!, 0.0)
         assertTrue(first.humidity!! in 1..100)
         assertEquals(18500.0, first.visibilityM!!, 0.0)
-        assertTrue(first.windKmh!! > 0.0 && first.gustKmh!! > first.windKmh!!)
+        assertTrue(first.windKmh!! > 0.0 && first.gustKmh!! > first.windKmh)
         assertTrue(first.windDirection!! in 0..359)
         assertEquals(0.0, first.uvIndex!!, 0.0)
     }
