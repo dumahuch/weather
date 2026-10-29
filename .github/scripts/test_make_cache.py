@@ -54,6 +54,23 @@ class MakeCacheTest(unittest.TestCase):
         self.assertEqual(raw["current"]["temperature_2m"], original["current"]["temperature_2m"])
         self.assertEqual(raw["timezone"], original["timezone"])
 
+    def test_sun_times_move_with_the_days(self):
+        fixture = os.path.join(os.path.dirname(FIXTURE), "hannover-15d.json")
+        with open(fixture, encoding="utf-8") as file:
+            original = json.load(file)
+        with tempfile.TemporaryDirectory() as folder:
+            output = os.path.join(folder, "cache.json")
+            subprocess.run(
+                [sys.executable, os.path.join(HERE, "make_cache.py"), fixture, output, "--now", "1800000000"],
+                check=True,
+            )
+            with open(output, encoding="utf-8") as file:
+                raw = json.loads(json.load(file)["raw"])
+        shift = raw["daily"]["time"][0] - original["daily"]["time"][0]
+        self.assertGreater(shift, 0)
+        self.assertEqual(raw["daily"]["sunrise"][0], original["daily"]["sunrise"][0] + shift)
+        self.assertEqual(raw["daily"]["sunset"][4], original["daily"]["sunset"][4] + shift)
+
 
 if __name__ == "__main__":
     unittest.main()

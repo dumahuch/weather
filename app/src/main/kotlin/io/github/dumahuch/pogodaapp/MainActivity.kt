@@ -32,9 +32,9 @@ import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
 import io.github.dumahuch.pogodaapp.location.Locations
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
+import io.github.dumahuch.pogodaapp.ui.PogodaApp
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
-import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckModel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckPanel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyDiagnostics
@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     Box(Modifier.fillMaxSize()) {
-                        HomeScreen(
+                        PogodaApp(
                             state = state,
                             refreshing = refreshing,
                             permanentlyDenied = permanentlyDenied,

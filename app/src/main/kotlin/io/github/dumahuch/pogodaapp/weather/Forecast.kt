@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.weather
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
@@ -28,12 +29,36 @@ data class HourPoint(
 /** Наибольшая и наименьшая температура сегодняшних суток по местному времени. */
 data class DayRange(val max: Double, val min: Double)
 
+/**
+ * Прогноз на одни сутки по местному времени (вкладка «Прогноз» и подробности дня).
+ * [precipitationProbability] в процентах, пусто, если модель на этот день вероятность не даёт.
+ * Ветер в км/ч, УФ-индекс безразмерный. Время восхода и заката пусто в полярный день и полярную ночь.
+ */
+data class DayForecast(
+    val date: LocalDate,
+    val condition: Condition,
+    val max: Double,
+    val min: Double,
+    val precipitationMm: Double,
+    val precipitationProbability: Int?,
+    val windMaxKmh: Double,
+    val gustMaxKmh: Double,
+    val uvMax: Double,
+    val sunrise: Instant?,
+    val sunset: Instant?,
+)
+
 data class Forecast(
     /** Часовой пояс места: по нему считаются подписи часов и смена суток. */
     val zone: ZoneId,
     val current: CurrentWeather,
     val today: DayRange,
     val hours: List<HourPoint>,
+    /**
+     * Сутки по порядку, первые сегодняшние. Пусто у прогноза в старом формате (сохранённого версией до 0.3.0),
+     * пока он не обновится.
+     */
+    val days: List<DayForecast> = emptyList(),
 ) {
     /**
      * Лента «По часам»: до [count] часов, первый из них «сейчас».
@@ -52,8 +77,14 @@ data class Forecast(
         return listOf(head) + slice.drop(1)
     }
 
+    /** Часы указанных суток по местному времени (в день перехода на зимнее или летнее время их 25 или 23). */
+    fun hoursOf(date: LocalDate): List<HourPoint> = hours.filter { it.time.atZone(zone).toLocalDate() == date }
+
     companion object {
         const val STRIP_HOURS = 48
+
+        /** Сколько суток показывает вкладка «Прогноз» (переключатель «7 дней» и «14 дней»). */
+        const val DAYS_SHOWN = 14
     }
 }
 

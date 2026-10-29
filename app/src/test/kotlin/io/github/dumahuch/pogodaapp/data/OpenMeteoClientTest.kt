@@ -59,11 +59,12 @@ class OpenMeteoClientTest {
         for (part in listOf(
             "current=temperature_2m,apparent_temperature,weather_code,is_day",
             "hourly=temperature_2m,weather_code,precipitation,is_day",
-            "daily=temperature_2m_max,temperature_2m_min",
+            "daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max," +
+                "wind_speed_10m_max,wind_gusts_10m_max,uv_index_max,sunrise,sunset",
+            "wind_speed_unit=kmh",
             "timezone=auto",
             "timeformat=unixtime",
-            "forecast_days=1",
-            "forecast_hours=49",
+            "forecast_days=15",
         )) {
             assertTrue("в адресе нет $part: $url", url.contains(part))
         }

@@ -92,6 +92,13 @@ object LineIcons {
         ),
     )
 
+    /** Стрелка «назад» (Lucide chevron-left). */
+    val ChevronLeft = LineIcon(
+        listOf(
+            "m15 18-6-6 6-6",
+        ),
+    )
+
     val Home = LineIcon(
         listOf(
             "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z",

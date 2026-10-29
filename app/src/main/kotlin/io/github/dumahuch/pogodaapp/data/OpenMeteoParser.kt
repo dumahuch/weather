@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.data
 
 import io.github.dumahuch.pogodaapp.weather.CurrentWeather
+import io.github.dumahuch.pogodaapp.weather.DayForecast
 import io.github.dumahuch.pogodaapp.weather.DayRange
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
@@ -11,7 +12,9 @@ import org.json.JSONException
 import org.json.JSONObject
 import java.time.DateTimeException
 import java.time.Instant
+import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeParseException
 
 /**
  * Разбор ответа Open-Meteo (запрос собирает [OpenMeteoClient]): время в секундах Unix,
@@ -31,6 +34,7 @@ object OpenMeteoParser {
                 current = parseCurrent(root.getJSONObject("current")),
                 today = parseToday(root.getJSONObject("daily")),
                 hours = parseHours(root.getJSONObject("hourly")),
+                days = parseDays(root.getJSONObject("daily"), zone),
             )
         } catch (e: JSONException) {
             throw ForecastException("Ответ Open-Meteo не разобран: ${e.message}", e)
@@ -51,6 +55,46 @@ object OpenMeteoParser {
         max = daily.getJSONArray("temperature_2m_max").getDouble(0),
         min = daily.getJSONArray("temperature_2m_min").getDouble(0),
     )
+
+    /**
+     * Сутки вкладки «Прогноз»: не больше [Forecast.DAYS_SHOWN]. Ответ в старом формате (из сохранённого прогноза
+     * версии до 0.3.0) не содержит суточных кодов погоды: тогда список пуст и вкладка просит обновить прогноз.
+     * Если у какого-то дня нет температуры или кода погоды, список обрывается на нём: дни идут подряд, дыр не бывает.
+     * Остальные суточные значения без данных (вероятность, ветер, УФ, восход) заменяются нулём или «нет данных».
+     */
+    private fun parseDays(daily: JSONObject, zone: ZoneId): List<DayForecast> {
+        val times = daily.optJSONArray("time") ?: return emptyList()
+        val codes = daily.optJSONArray("weather_code") ?: return emptyList()
+        val maxima = daily.getJSONArray("temperature_2m_max")
+        val minima = daily.getJSONArray("temperature_2m_min")
+        val sums = daily.optJSONArray("precipitation_sum")
+        val probabilities = daily.optJSONArray("precipitation_probability_max")
+        val winds = daily.optJSONArray("wind_speed_10m_max")
+        val gusts = daily.optJSONArray("wind_gusts_10m_max")
+        val uvs = daily.optJSONArray("uv_index_max")
+        val sunrises = daily.optJSONArray("sunrise")
+        val sunsets = daily.optJSONArray("sunset")
+
+        val count = minOf(times.length(), codes.length(), maxima.length(), minima.length(), Forecast.DAYS_SHOWN)
+        val days = ArrayList<DayForecast>(count)
+        for (i in 0 until count) {
+            if (times.isNull(i) || codes.isNull(i) || maxima.isNull(i) || minima.isNull(i)) break
+            days += DayForecast(
+                date = Instant.ofEpochSecond(times.getLong(i)).atZone(zone).toLocalDate(),
+                condition = WeatherCodes.toCondition(codes.getInt(i)),
+                max = maxima.getDouble(i),
+                min = minima.getDouble(i),
+                precipitationMm = sums.numberAt(i) ?: 0.0,
+                precipitationProbability = probabilities.numberAt(i)?.let { Math.round(it).toInt() },
+                windMaxKmh = winds.numberAt(i) ?: 0.0,
+                gustMaxKmh = gusts.numberAt(i) ?: 0.0,
+                uvMax = uvs.numberAt(i) ?: 0.0,
+                sunrise = sunrises.instantAt(i, zone),
+                sunset = sunsets.instantAt(i, zone),
+            )
+        }
+        return days
+    }
 
     /**
      * Осадки в ответе относятся к часу, который закончился в указанное время,
@@ -76,6 +120,24 @@ object OpenMeteoParser {
                 isDay = isDay.getInt(i) == 1,
                 precipitationMm = precipitation.optNumber(i + 1),
             )
+        }
+    }
+
+    /** Число из массива или null, если массива нет, он короче или в нём пусто. */
+    private fun JSONArray?.numberAt(index: Int): Double? =
+        if (this == null || index >= length() || isNull(index)) null else getDouble(index)
+
+    /** Момент из массива: секунды Unix (формат запроса) или запасной вариант «2026-10-29T07:20» по времени места. */
+    private fun JSONArray?.instantAt(index: Int, zone: ZoneId): Instant? {
+        if (this == null || index >= length() || isNull(index)) return null
+        return when (val value = get(index)) {
+            is Number -> Instant.ofEpochSecond(value.toLong())
+            is String -> try {
+                LocalDateTime.parse(value).atZone(zone).toInstant()
+            } catch (e: DateTimeParseException) {
+                null
+            }
+            else -> null
         }
     }
 

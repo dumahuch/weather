@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.data
 
 import io.github.dumahuch.pogodaapp.weather.Condition
+import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,6 +9,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 class OpenMeteoParserTest {
@@ -130,5 +132,79 @@ class OpenMeteoParserTest {
     @Test
     fun arraysOfDifferentLengthBecomeForecastException() {
         assertThrows(ForecastException::class.java) { OpenMeteoParser.parse(small(precipitation = "[0.0,1.0]")) }
+    }
+
+    @Test
+    fun oldFormatWithoutDailyFieldsGivesNoDays() {
+        val forecast = OpenMeteoParser.parse(fixture("hannover.json"))
+        assertTrue(forecast.days.isEmpty())
+    }
+
+    @Test
+    fun fifteenDayFixtureGivesFourteenDays() {
+        val forecast = OpenMeteoParser.parse(fixture("hannover-15d.json"))
+        assertEquals(Forecast.DAYS_SHOWN, forecast.days.size)
+        // Часы: 15 суток по 24 часа, последняя запись нужна только для осадков и в ленту не идёт.
+        assertEquals(15 * 24 - 1, forecast.hours.size)
+        val first = forecast.days.first()
+        assertEquals(LocalDate.of(2026, 10, 28), first.date)
+        assertEquals(Condition.Clear, first.condition)
+        assertEquals(13.5, first.max, 0.0)
+        assertEquals(8.3, first.min, 0.0)
+        assertEquals(5, first.precipitationProbability)
+        assertEquals(31.0, first.gustMaxKmh, 0.0)
+        assertEquals(
+            Instant.parse("2026-10-28T06:11:00Z"),
+            first.sunrise,
+        )
+        assertEquals(Instant.parse("2026-10-28T15:49:00Z"), first.sunset)
+    }
+
+    @Test
+    fun daysAreConsecutive() {
+        val days = OpenMeteoParser.parse(fixture("hannover-15d.json")).days
+        for (i in 1 until days.size) {
+            assertEquals(days[i - 1].date.plusDays(1), days[i].date)
+        }
+    }
+
+    @Test
+    fun missingProbabilityStaysEmpty() {
+        val days = OpenMeteoParser.parse(fixture("hannover-15d.json")).days
+        assertEquals(null, days.last().precipitationProbability)
+        assertEquals(85, days[1].precipitationProbability)
+    }
+
+    @Test
+    fun dayPrecipitationMatchesHourlyOnes() {
+        val forecast = OpenMeteoParser.parse(fixture("hannover-15d.json"))
+        val day = forecast.days[1]
+        assertEquals(day.precipitationMm, forecast.hoursOf(day.date).sumOf { it.precipitationMm }, 0.05)
+    }
+
+    @Test
+    fun sunTimesInIsoFormAreReadInThePlaceZone() {
+        val json = small(
+            extra = "",
+        ).replace(
+            """"daily":{"temperature_2m_max":[4.0],"temperature_2m_min":[1.0]}""",
+            """"daily":{"time":[0],"weather_code":[3],"temperature_2m_max":[4.0],"temperature_2m_min":[1.0],""" +
+                """"sunrise":["1970-01-01T07:20"],"sunset":[null]}""",
+        ).replace(""""timezone":"UTC"""", """"timezone":"Europe/Berlin"""")
+        val day = OpenMeteoParser.parse(json).days.single()
+        assertEquals(Instant.parse("1970-01-01T06:20:00Z"), day.sunrise)
+        assertEquals(null, day.sunset)
+        assertEquals(0.0, day.windMaxKmh, 0.0)
+        assertEquals(0.0, day.precipitationMm, 0.0)
+    }
+
+    @Test
+    fun daysStopAtTheFirstDayWithoutTemperature() {
+        val json = small().replace(
+            """"daily":{"temperature_2m_max":[4.0],"temperature_2m_min":[1.0]}""",
+            """"daily":{"time":[0,86400,172800],"weather_code":[3,3,3],""" +
+                """"temperature_2m_max":[4.0,null,5.0],"temperature_2m_min":[1.0,0.0,1.0]}""",
+        )
+        assertEquals(1, OpenMeteoParser.parse(json).days.size)
     }
 }

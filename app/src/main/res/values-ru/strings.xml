@@ -54,4 +54,40 @@
         <item>Сб</item>
         <item>Вс</item>
     </string-array>
+
+    <string name="today">Сегодня</string>
+    <string name="back">Назад</string>
+    <string name="forecast_7_days">7 дней</string>
+    <string name="forecast_14_days">14 дней</string>
+    <string name="forecast_far_note">После 10-го дня прогноз менее надёжен</string>
+    <string name="forecast_missing_title">Прогноза по дням пока нет</string>
+    <string name="forecast_missing_text">Обновите прогноз, чтобы увидеть ближайшие дни. Для этого нужна сеть.</string>
+
+    <string name="next24_title">Ближайшие 24 часа</string>
+    <string name="next24_total">%1$s мм за сутки</string>
+    <string name="next24_none">Осадков не ожидается</string>
+    <string name="outlook_until">%1$s до %2$s</string>
+    <string name="outlook_from">%1$s с %2$s</string>
+    <string name="outlook_all_day">%1$s весь день</string>
+    <string name="kind_generic">Осадки</string>
+    <string name="kind_rain">Дождь</string>
+    <string name="kind_storm">Гроза с дождём</string>
+    <string name="kind_snow">Снег</string>
+    <string name="kind_drizzle">Морось</string>
+
+    <string name="mm_unit">мм</string>
+    <string name="kmh_unit">км/ч</string>
+    <string name="tile_precipitation">Осадки</string>
+    <string name="tile_wind">Ветер</string>
+    <string name="tile_uv">УФ-индекс</string>
+    <string name="tile_daylight">Световой день</string>
+    <string name="precip_chance">вероятность %1$s</string>
+    <string name="wind_up_to">до %1$d %2$s</string>
+    <string name="gusts_up_to">порывы до %1$d %2$s</string>
+    <string name="uv_low">Низкий</string>
+    <string name="uv_moderate">Умеренный</string>
+    <string name="uv_high">Высокий</string>
+    <string name="uv_very_high">Очень высокий</string>
+    <string name="uv_extreme">Экстремальный</string>
+    <string name="hours_minutes">%1$d ч %2$d мин</string>
 </resources>

@@ -56,4 +56,40 @@
         <item>Sat</item>
         <item>Sun</item>
     </string-array>
+
+    <string name="today">Today</string>
+    <string name="back">Back</string>
+    <string name="forecast_7_days">7 days</string>
+    <string name="forecast_14_days">14 days</string>
+    <string name="forecast_far_note">Forecast is less reliable after day 10</string>
+    <string name="forecast_missing_title">No daily forecast yet</string>
+    <string name="forecast_missing_text">Update the forecast to see the coming days. This needs an internet connection.</string>
+
+    <string name="next24_title">Next 24 hours</string>
+    <string name="next24_total">%1$s mm in 24 h</string>
+    <string name="next24_none">No precipitation expected</string>
+    <string name="outlook_until">%1$s until %2$s</string>
+    <string name="outlook_from">%1$s from %2$s</string>
+    <string name="outlook_all_day">%1$s all day</string>
+    <string name="kind_generic">Precipitation</string>
+    <string name="kind_rain">Rain</string>
+    <string name="kind_storm">Thunderstorm with rain</string>
+    <string name="kind_snow">Snow</string>
+    <string name="kind_drizzle">Drizzle</string>
+
+    <string name="mm_unit">mm</string>
+    <string name="kmh_unit">km/h</string>
+    <string name="tile_precipitation">Precipitation</string>
+    <string name="tile_wind">Wind</string>
+    <string name="tile_uv">UV index</string>
+    <string name="tile_daylight">Daylight</string>
+    <string name="precip_chance">%1$s chance</string>
+    <string name="wind_up_to">up to %1$d %2$s</string>
+    <string name="gusts_up_to">gusts up to %1$d %2$s</string>
+    <string name="uv_low">Low</string>
+    <string name="uv_moderate">Moderate</string>
+    <string name="uv_high">High</string>
+    <string name="uv_very_high">Very high</string>
+    <string name="uv_extreme">Extreme</string>
+    <string name="hours_minutes">%1$d h %2$d min</string>
 </resources>

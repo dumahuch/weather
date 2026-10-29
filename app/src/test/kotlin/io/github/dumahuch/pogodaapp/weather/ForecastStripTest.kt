@@ -78,4 +78,15 @@ class ForecastStripTest {
         val forecast = hannover().copy(hours = emptyList())
         assertTrue(forecast.strip(at("2026-10-28T11:20:00Z")).isEmpty())
     }
+
+    @Test
+    fun hoursOfADayAreOnlyThatLocalDay() {
+        val url = checkNotNull(javaClass.classLoader?.getResource("open-meteo/hannover-15d.json"))
+        val forecast = OpenMeteoParser.parse(url.readText(Charsets.UTF_8))
+        val day = forecast.days[3].date
+        val hours = forecast.hoursOf(day)
+        assertEquals(24, hours.size)
+        assertTrue(hours.all { it.time.atZone(forecast.zone).toLocalDate() == day })
+        assertTrue(forecast.hoursOf(day.plusDays(100)).isEmpty())
+    }
 }

@@ -52,4 +52,40 @@
         <item>Sa</item>
         <item>So</item>
     </string-array>
+
+    <string name="today">Heute</string>
+    <string name="back">Zurück</string>
+    <string name="forecast_7_days">7 Tage</string>
+    <string name="forecast_14_days">14 Tage</string>
+    <string name="forecast_far_note">Nach dem 10. Tag ist die Vorhersage weniger zuverlässig</string>
+    <string name="forecast_missing_title">Noch keine Tagesvorhersage</string>
+    <string name="forecast_missing_text">Aktualisieren Sie die Vorhersage, um die nächsten Tage zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
+
+    <string name="next24_title">Nächste 24 Stunden</string>
+    <string name="next24_total">%1$s mm in 24 Std.</string>
+    <string name="next24_none">Kein Niederschlag erwartet</string>
+    <string name="outlook_until">%1$s bis %2$s</string>
+    <string name="outlook_from">%1$s ab %2$s</string>
+    <string name="outlook_all_day">%1$s den ganzen Tag</string>
+    <string name="kind_generic">Niederschlag</string>
+    <string name="kind_rain">Regen</string>
+    <string name="kind_storm">Gewitter mit Regen</string>
+    <string name="kind_snow">Schnee</string>
+    <string name="kind_drizzle">Nieselregen</string>
+
+    <string name="mm_unit">mm</string>
+    <string name="kmh_unit">km/h</string>
+    <string name="tile_precipitation">Niederschlag</string>
+    <string name="tile_wind">Wind</string>
+    <string name="tile_uv">UV-Index</string>
+    <string name="tile_daylight">Tageslicht</string>
+    <string name="precip_chance">Wahrscheinlichkeit %1$s</string>
+    <string name="wind_up_to">bis %1$d %2$s</string>
+    <string name="gusts_up_to">Böen bis %1$d %2$s</string>
+    <string name="uv_low">Niedrig</string>
+    <string name="uv_moderate">Mäßig</string>
+    <string name="uv_high">Hoch</string>
+    <string name="uv_very_high">Sehr hoch</string>
+    <string name="uv_extreme">Extrem</string>
+    <string name="hours_minutes">%1$d Std. %2$d Min.</string>
 </resources>

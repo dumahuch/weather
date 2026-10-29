@@ -25,24 +25,23 @@ import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 
-private class DockTab(val label: Int, val icon: LineIcon, val enabled: Boolean)
-
-private val Tabs = listOf(
-    DockTab(R.string.tab_home, LineIcons.Home, enabled = true),
-    DockTab(R.string.tab_forecast, LineIcons.Calendar, enabled = false),
-    DockTab(R.string.tab_details, LineIcons.Grid, enabled = false),
-    DockTab(R.string.tab_map, LineIcons.Map, enabled = false),
-)
+/** Вкладки приложения в порядке нижней панели. */
+enum class AppTab(val label: Int, val icon: LineIcon, val enabled: Boolean) {
+    Home(R.string.tab_home, LineIcons.Home, enabled = true),
+    Forecast(R.string.tab_forecast, LineIcons.Calendar, enabled = true),
+    Details(R.string.tab_details, LineIcons.Grid, enabled = false),
+    Map(R.string.tab_map, LineIcons.Map, enabled = false),
+}
 
 /** Высота нижней панели (кнопка 48 и по 6 отступа). */
 val DockHeight = 60.dp
 
 /**
- * Нижняя панель с четырьмя вкладками. Пока работает только «Главная»: остальные вкладки
- * приглушены и недоступны, пока не будут сделаны.
+ * Нижняя панель с четырьмя вкладками. Вкладки, которые ещё не сделаны («Подробно», «Карта»),
+ * приглушены и недоступны.
  */
 @Composable
-fun Dock(modifier: Modifier = Modifier) {
+fun Dock(selected: AppTab, onSelect: (AppTab) -> Unit, modifier: Modifier = Modifier) {
     val glass = LocalGlass.current
     Row(
         modifier = modifier
@@ -50,12 +49,12 @@ fun Dock(modifier: Modifier = Modifier) {
             .padding(6.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Tabs.forEachIndexed { index, tab -> DockButton(tab, selected = index == 0) }
+        AppTab.entries.forEach { tab -> DockButton(tab, selected = tab == selected, onClick = { onSelect(tab) }) }
     }
 }
 
 @Composable
-private fun DockButton(tab: DockTab, selected: Boolean) {
+private fun DockButton(tab: AppTab, selected: Boolean, onClick: () -> Unit) {
     val label = stringResource(tab.label)
     val palette = LocalPogodaPalette.current
     val shape = RoundedCornerShape(24.dp)
@@ -66,7 +65,7 @@ private fun DockButton(tab: DockTab, selected: Boolean) {
             .clip(shape)
             .then(if (selected) Modifier.background(palette.buttonOn, shape) else Modifier)
             .alpha(if (tab.enabled) 1f else 0.45f)
-            .selectable(selected = selected, enabled = tab.enabled, role = Role.Tab, onClick = {})
+            .selectable(selected = selected, enabled = tab.enabled, role = Role.Tab, onClick = onClick)
             .then(if (selected) Modifier else Modifier.semantics { contentDescription = label })
             .padding(horizontal = 13.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -27,6 +27,10 @@ def main() -> None:
     data["hourly"]["time"] = [t + shift for t in data["hourly"]["time"]]
     data["current"]["time"] += shift
     data["daily"]["time"] = [t + shift for t in data["daily"]["time"]]
+    # Восход и закат (ответ версии 0.3.0 и новее) — секунды Unix, сдвигаются вместе с остальным временем.
+    for key in ("sunrise", "sunset"):
+        if key in data["daily"]:
+            data["daily"][key] = [t + shift if isinstance(t, int) else t for t in data["daily"][key]]
 
     entry = {
         "v": 1,

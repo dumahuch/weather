@@ -1,21 +1,15 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -27,13 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
@@ -42,14 +31,13 @@ import io.github.dumahuch.pogodaapp.home.heroDigitsSize
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
-import io.github.dumahuch.pogodaapp.ui.components.Dock
-import io.github.dumahuch.pogodaapp.ui.components.DockHeight
 import io.github.dumahuch.pogodaapp.ui.components.HeroSkeleton
 import io.github.dumahuch.pogodaapp.ui.components.HourlySkeleton
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
+import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
 import io.github.dumahuch.pogodaapp.ui.components.PullRefreshIndicator
 import io.github.dumahuch.pogodaapp.ui.components.rememberPullRefreshState
 import io.github.dumahuch.pogodaapp.ui.components.glassButton
@@ -65,23 +53,18 @@ class HomeActions(
     val onRefresh: () -> Unit,
 )
 
-private const val OPEN_METEO_URL = "https://open-meteo.com/"
-private val DockBottomGap = 8.dp
-
 /**
  * Вкладка «Главная». Фон (небо) рисует хозяин неба [io.github.dumahuch.pogodaapp.ui.sky.SkyHost] под этим экраном,
  * цвета текста и стекла приходят из [LocalPogodaPalette]. Содержимое прокручивается, если не помещается (крупный шрифт системы); лента «По часам» прижата вниз.
  * Протягивание вниз сдвигает верхнюю часть (плашку места и текущую погоду) и запускает обновление;
- * лента «По часам» и нижняя панель остаются на месте.
+ * лента «По часам» и нижняя часть окна (панель вкладок и строка источника, см. [io.github.dumahuch.pogodaapp.ui.PogodaApp]) остаются на месте.
  */
 @Composable
 fun HomeScreen(
     state: HomeUiState,
     refreshing: Boolean,
     permanentlyDenied: Boolean,
-    versionLabel: String,
     actions: HomeActions,
-    onVersionTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pull = rememberPullRefreshState(
@@ -93,7 +76,6 @@ fun HomeScreen(
         onRefresh = actions.onRefresh,
     )
     Box(modifier.fillMaxSize()) {
-        val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
@@ -148,12 +130,7 @@ fun HomeScreen(
                     ) { HourlyStrip(points = state.strip, zone = state.forecast.zone) }
                     HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData -> Unit
                 }
-                SourceFooter(
-                    versionLabel = versionLabel,
-                    showAttribution = state is HomeUiState.Content,
-                    onVersionTap = onVersionTap,
-                )
-                Spacer(Modifier.height(bottomInset + DockBottomGap + DockHeight + 6.dp))
+                Spacer(Modifier.height(bottomContentPadding()))
             }
         }
         // Индикатор лежит там, где стояла плашка места: плашка при протягивании сдвигается вниз и освобождает его.
@@ -165,17 +142,11 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .padding(top = 14.dp),
         )
-        Dock(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = DockBottomGap),
-        )
     }
 }
 
 @Composable
-private fun placeName(state: HomeUiState): String = when (state) {
+internal fun placeName(state: HomeUiState): String = when (state) {
     HomeUiState.Loading -> stringResource(R.string.place_locating)
     is HomeUiState.Content -> state.place.name ?: stringResource(R.string.place_current)
     HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData -> stringResource(R.string.place_none)
@@ -250,7 +221,7 @@ private fun ContentTop(state: HomeUiState.Content) {
 }
 
 @Composable
-private fun conditionName(condition: Condition): String = stringResource(
+internal fun conditionName(condition: Condition): String = stringResource(
     when (condition) {
         Condition.Clear -> R.string.wx_clear
         Condition.Partly -> R.string.wx_partly
@@ -263,7 +234,7 @@ private fun conditionName(condition: Condition): String = stringResource(
 )
 
 @Composable
-private fun NoPermissionTop(permanentlyDenied: Boolean, actions: HomeActions) {
+internal fun NoPermissionTop(permanentlyDenied: Boolean, actions: HomeActions) {
     // После отказа с галочкой «больше не спрашивать» системное окно уже не появится: ведём в настройки.
     StateTop(
         icon = LineIcons.NavigationOff,
@@ -275,7 +246,7 @@ private fun NoPermissionTop(permanentlyDenied: Boolean, actions: HomeActions) {
 }
 
 @Composable
-private fun StateTop(
+internal fun StateTop(
     icon: LineIcon,
     title: String,
     text: String,
@@ -290,44 +261,4 @@ private fun StateTop(
         onButton = onButton,
         modifier = Modifier.padding(start = 24.dp, top = 38.dp, end = 24.dp),
     )
-}
-
-/** Источник данных (условие лицензии Open-Meteo) и номер версии. */
-@Composable
-private fun SourceFooter(versionLabel: String, showAttribution: Boolean, onVersionTap: () -> Unit) {
-    val uriHandler = LocalUriHandler.current
-    val style = pogodaText(11f, 500, color = LocalPogodaPalette.current.ink2)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (showAttribution) {
-            Text(
-                stringResource(R.string.attribution_open_meteo),
-                style = style.copy(textDecoration = TextDecoration.Underline),
-                modifier = Modifier
-                    .clickable(role = Role.Button) {
-                        try {
-                            uriHandler.openUri(OPEN_METEO_URL)
-                        } catch (e: IllegalArgumentException) {
-                            // Нет приложения для открытия ссылок: ничего не делаем.
-                        }
-                    }
-                    .padding(vertical = 8.dp),
-            )
-            Text(" · ", style = style)
-        }
-        // Скрытый вход на экран проверки неба: несколько нажатий подряд. Для чтения с экрана это обычный текст.
-        Text(
-            versionLabel,
-            style = style,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .pointerInput(onVersionTap) { detectTapGestures { onVersionTap() } }
-                .padding(vertical = 8.dp),
-        )
-    }
 }

@@ -45,7 +45,7 @@ object PogodaColors {
 
 /** Manrope: переменный шрифт, вес выбирается осью wght (200…800). */
 val Manrope = FontFamily(
-    listOf(200, 400, 500, 600, 700).map { weight ->
+    listOf(200, 300, 400, 500, 600, 700).map { weight ->
         Font(
             resId = R.font.manrope,
             weight = FontWeight(weight),

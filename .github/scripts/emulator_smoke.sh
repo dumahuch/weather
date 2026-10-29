@@ -406,6 +406,59 @@ shot "3б-после-протягивания"
 check_offline ru "Нет сети · данные 3 часа назад" "По часам"
 check_offline de "Kein Netz · Daten von vor 3 Std." "Stündlich"
 
+# --- 3г. Вкладка «Прогноз» (0.3.0): прогноз на 15 суток из памяти ---------------------------
+
+python3 "$HERE/make_cache.py" "$(dirname "$FIXTURE")/hannover-15d.json" "$OUT/forecast_cache.json" --age-hours 3
+put_file "$OUT/forecast_cache.json" forecast_cache.json
+rm -f "$OUT/forecast_cache.json"
+
+check_forecast() {
+  local locale="$1" pill="$2" tab="$3" title="$4" seven="$5" fourteen="$6" label="$7"
+  set_locale "$locale"
+  start_app
+  wait_for_text "$pill" 60 || fail "[$label] нет строки «$pill»"
+  tap_text "^$tab\$" || fail "[$label] не удалось нажать на вкладку «$tab»"
+  wait_for_text "$title" 20 || fail "[$label] после нажатия на «$tab» нет карточки «$title»"
+  expect_text "$seven" "$label"
+  expect_text "$fourteen" "$label"
+  expect_text "Weather data by Open-Meteo.com" "$label"
+  shot "3г-прогноз-$locale"
+}
+
+check_forecast en "Offline · data from 3 h ago" "Forecast" "Next 24 hours" "7 days" "14 days" "en прогноз"
+
+# Все 14 дней и подробности дня; кнопка «назад» возвращает к списку. Подробности проверяются мягко: если строку
+# дня не удалось нажать через разметку, это предупреждение, а не сбой.
+tap_text '^14 days$' || fail "[en прогноз] не удалось нажать «14 days»"
+sleep 2
+shot "3г-прогноз-14-дней-en"
+if tap_text '^Today'; then
+  if wait_for_text "Daylight" 15; then
+    expect_text "UV index" "en подробности дня"
+    expect_text "Wind" "en подробности дня"
+    shot "3г-подробности-дня-en"
+    adb shell input keyevent KEYCODE_BACK
+    wait_for_text "Next 24 hours" 15 || fail "[en подробности дня] после «назад» нет списка прогноза"
+  else
+    shot "3г-подробности-дня-нет"
+    annotate warning "Эмулятор" "Подробности дня не открылись после нажатия на строку «Today».
+--- на экране ---
+$(screen_texts)"
+    adb shell input keyevent KEYCODE_BACK
+  fi
+else
+  annotate warning "Эмулятор" "Строку дня «Today» не удалось нажать через разметку экрана: подробности дня не проверены.
+--- на экране ---
+$(screen_texts)"
+fi
+check_forecast ru "Нет сети · данные 3 часа назад" "Прогноз" "Ближайшие 24 часа" "7 дней" "14 дней" "ru прогноз"
+check_forecast de "Kein Netz · Daten von vor 3 Std." "Vorhersage" "Nächste 24 Stunden" "7 Tage" "14 Tage" "de прогноз"
+
+# Прежний прогноз без суточных данных (из памяти версии до 0.3.0) возвращается для следующих проверок.
+python3 "$HERE/make_cache.py" "$FIXTURE" "$OUT/forecast_cache.json" --age-hours 3
+put_file "$OUT/forecast_cache.json" forecast_cache.json
+rm -f "$OUT/forecast_cache.json"
+
 # --- 3в. Небо: экран проверки --------------------------------------------------------
 
 # Экран проверки открывается семью нажатиями подряд на номер версии (между нажатиями не больше 1,5 с).

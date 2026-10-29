@@ -91,3 +91,23 @@ fun HourlySkeleton(modifier: Modifier = Modifier) {
         }
     }
 }
+
+/** Заглушка вместо строк списка по дням: название дня, значок и полоска температур. */
+@Composable
+fun DayRowsSkeleton(rows: Int, modifier: Modifier = Modifier) {
+    val alpha = skeletonAlpha()
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
+    ) {
+        repeat(rows) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Block(54.dp, 14.dp, RoundedCornerShape(10.dp), alpha)
+                Block(24.dp, 24.dp, CircleShape, alpha)
+                Block(150.dp, 8.dp, RoundedCornerShape(10.dp), alpha)
+            }
+        }
+    }
+}

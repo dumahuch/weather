@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -97,9 +98,21 @@ fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Compos
     }
 }
 
-/** Лента на 48 часов: время, значок, температура на плавной линии, столбики осадков (мм). */
+/**
+ * Лента часов: время, значок, температура на плавной линии, столбики осадков (мм).
+ * На «Главной» это 48 часов с первой колонкой «Сейчас» и подписью дня в полночь. В подробностях дня ([markNow] и
+ * [dayBreaks] выключены) это сутки: подписи только часы, без отметки «Сейчас» и без границы суток, а лента
+ * сразу прокручена на [initialColumn]-ю колонку (для сегодняшнего дня это текущий час).
+ */
 @Composable
-fun HourlyStrip(points: List<HourPoint>, zone: ZoneId, modifier: Modifier = Modifier) {
+fun HourlyStrip(
+    points: List<HourPoint>,
+    zone: ZoneId,
+    modifier: Modifier = Modifier,
+    markNow: Boolean = true,
+    dayBreaks: Boolean = true,
+    initialColumn: Int = 0,
+) {
     if (points.isEmpty()) return
     val dayNames = stringArrayResource(R.array.days_short).toList()
     val nowLabel = stringResource(R.string.now)
@@ -107,12 +120,14 @@ fun HourlyStrip(points: List<HourPoint>, zone: ZoneId, modifier: Modifier = Modi
     val rounded = remember(points) { points.map { roundTemperature(it.temperature) } }
     val curve = remember(rounded) { HourlyGeometry.curveY(rounded) }
     val bars = remember(points) { HourlyGeometry.barHeights(points.map { it.precipitationMm }) }
+    val density = LocalDensity.current
+    val scroll = rememberScrollState(with(density) { (ColumnWidth * initialColumn).roundToPx() })
 
     Box(
         modifier
             .fillMaxWidth()
             .edgeFade(18.dp)
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(scroll)
             .padding(horizontal = 8.dp),
     ) {
         Box(
@@ -125,9 +140,13 @@ fun HourlyStrip(points: List<HourPoint>, zone: ZoneId, modifier: Modifier = Modi
                 points.forEachIndexed { index, point ->
                     val local = point.time.atZone(zone)
                     HourColumn(
-                        label = if (index == 0) nowLabel else hourLabel(point.time, zone, dayNames),
-                        isNow = index == 0,
-                        isMidnight = index > 0 && local.hour == 0,
+                        label = when {
+                            index == 0 && markNow -> nowLabel
+                            dayBreaks -> hourLabel(point.time, zone, dayNames)
+                            else -> "%02d".format(Locale.ROOT, local.hour)
+                        },
+                        isNow = index == 0 && markNow,
+                        isMidnight = dayBreaks && index > 0 && local.hour == 0,
                         point = point,
                         curveY = curve[index],
                         barHeight = bars[index],
