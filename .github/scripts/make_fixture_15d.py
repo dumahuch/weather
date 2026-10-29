@@ -79,7 +79,7 @@ def main() -> None:
     daily = {"time": [], "weather_code": [], "temperature_2m_max": [], "temperature_2m_min": [],
              "precipitation_sum": [], "precipitation_probability_max": [], "wind_speed_10m_max": [],
              "wind_gusts_10m_max": [], "uv_index_max": [], "sunrise": [], "sunset": []}
-    for day, (code, high, low, rain, prob, wind, gust, uv, rise, sset) in enumerate(DAYS):
+    for day, (code, high, low, rain, prob, wind_max, gust_max, uv_max, rise, sset) in enumerate(DAYS):
         base = START + day * 86400
         daily["time"].append(base)
         daily["weather_code"].append(code)
@@ -87,9 +87,9 @@ def main() -> None:
         daily["temperature_2m_min"].append(low)
         daily["precipitation_sum"].append(round(sum(a * (e - b) for b, e, a in rain), 1))
         daily["precipitation_probability_max"].append(prob)
-        daily["wind_speed_10m_max"].append(wind)
-        daily["wind_gusts_10m_max"].append(gust)
-        daily["uv_index_max"].append(uv)
+        daily["wind_speed_10m_max"].append(wind_max)
+        daily["wind_gusts_10m_max"].append(gust_max)
+        daily["uv_index_max"].append(uv_max)
         daily["sunrise"].append(base + rise[0] * 3600 + rise[1] * 60)
         daily["sunset"].append(base + sset[0] * 3600 + sset[1] * 60)
 
