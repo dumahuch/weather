@@ -1,7 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.details
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -212,19 +211,14 @@ private fun WindTile(details: HourDetails?, modifier: Modifier = Modifier) {
     val directions = stringArrayResource(R.array.wind_directions)
     val speed = details?.windKmh
     DetailTile(stringResource(R.string.tile_wind_now), modifier) {
-        Box(Modifier.fillMaxWidth()) {
-            Column {
-                BigValue(speed?.roundToInt()?.toString() ?: "–", kmh)
-                details?.gustKmh?.let { SubText(stringResource(R.string.gusts_up_to, it.roundToInt(), kmh)) }
-                details?.windDirection?.let { SubText(directions[CompassPoint.of(it).ordinal]) }
-            }
-            details?.windDirection?.let {
-                Compass(
-                    blowsTowardDegrees = it + 180f,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 6.dp),
-                )
-            }
+        // Компас стоит справа от числа, подписи под ним занимают всю ширину плитки и не налезают на него.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            BigValue(speed?.roundToInt()?.toString() ?: "–", kmh)
+            Spacer(Modifier.weight(1f))
+            details?.windDirection?.let { Compass(blowsTowardDegrees = it + 180f, modifier = Modifier.padding(top = 2.dp)) }
         }
+        details?.gustKmh?.let { SubText(stringResource(R.string.gusts_up_to, it.roundToInt(), kmh)) }
+        details?.windDirection?.let { SubText(directions[CompassPoint.of(it).ordinal]) }
     }
 }
 
