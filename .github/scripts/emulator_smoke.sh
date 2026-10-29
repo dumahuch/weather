@@ -136,9 +136,10 @@ import html, os, re, sys
 data = sys.stdin.buffer.read().decode("utf-8", "replace")
 pattern = re.compile(os.environ["PATTERN"])
 for node in re.findall(r"<node [^>]*>", data):
-    text = re.search(r" text=\"([^\"]*)\"", node)
+    # Подпись элемента: текст, а у вкладок и кнопок без текста описание (content-desc).
+    values = [html.unescape(m) for m in re.findall(r" (?:text|content-desc)=\"([^\"]*)\"", node)]
     bounds = re.search(r"bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"", node)
-    if text and bounds and pattern.search(html.unescape(text.group(1))):
+    if bounds and any(v and pattern.search(v) for v in values):
         x1, y1, x2, y2 = map(int, bounds.groups())
         print((x1 + x2) // 2, (y1 + y2) // 2)
         break
