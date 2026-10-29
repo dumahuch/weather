@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.dp
@@ -66,42 +65,44 @@ internal fun ScaleBar(fraction: Float, colors: List<Color>, stepped: Boolean, mo
 }
 
 /**
- * Компас ветра: круг с четырьмя рисками (север сверху) и стрелка в ту сторону, куда ветер дует.
- * [blowsTowardDegrees] отсчитывается от севера по часовой стрелке.
+ * Компас ветра как в макете: тонкое кольцо, четыре короткие засечки и длинная стрелка цветом акцента с открытым
+ * наконечником. Стрелка смотрит туда, куда ветер дует ([blowsTowardDegrees], 0 это на север, по часовой стрелке).
+ * Размеры заданы в долях стороны (в макете 64 единицы), поэтому рисунок не зависит от размера.
  */
 @Composable
 internal fun Compass(blowsTowardDegrees: Float, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
-    Canvas(modifier.size(44.dp)) {
+    Canvas(modifier.size(52.dp)) {
+        val unit = size.minDimension / 64f
         val center = Offset(size.width / 2, size.height / 2)
-        val radius = size.minDimension / 2 - 1.dp.toPx()
-        drawCircle(palette.ink2.copy(alpha = 0.45f), radius, center, style = Stroke(width = 1.2.dp.toPx()))
+        drawCircle(palette.glassLine, 29f * unit, center, style = Stroke(width = 2f * unit))
+        val tick = palette.ink.copy(alpha = 0.5f)
         for (quarter in 0..3) {
             rotate(quarter * 90f, center) {
                 drawLine(
-                    palette.ink2,
-                    Offset(center.x, center.y - radius),
-                    Offset(center.x, center.y - radius + 5.dp.toPx()),
-                    strokeWidth = 1.4.dp.toPx(),
+                    tick,
+                    Offset(center.x, center.y - 29f * unit),
+                    Offset(center.x, center.y - 24f * unit),
+                    strokeWidth = 2f * unit,
                     cap = StrokeCap.Round,
                 )
             }
         }
         rotate(blowsTowardDegrees, center) {
-            drawLine(
-                palette.ink,
-                Offset(center.x, center.y + 11.dp.toPx()),
-                Offset(center.x, center.y - 8.dp.toPx()),
-                strokeWidth = 2.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-            val head = Path().apply {
-                moveTo(center.x, center.y - 13.dp.toPx())
-                lineTo(center.x - 4.dp.toPx(), center.y - 6.dp.toPx())
-                lineTo(center.x + 4.dp.toPx(), center.y - 6.dp.toPx())
-                close()
+            val tip = Offset(center.x, center.y - 20f * unit)
+            val arrow = Path().apply {
+                moveTo(tip.x, tip.y)
+                lineTo(center.x, center.y + 14f * unit)
+                moveTo(tip.x, tip.y)
+                lineTo(center.x - 6f * unit, center.y - 12f * unit)
+                moveTo(tip.x, tip.y)
+                lineTo(center.x + 6f * unit, center.y - 12f * unit)
             }
-            drawPath(head, palette.ink, style = Fill)
+            drawPath(
+                arrow,
+                palette.accent,
+                style = Stroke(width = 2.4f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            )
         }
     }
 }

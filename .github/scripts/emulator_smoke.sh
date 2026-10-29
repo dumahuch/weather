@@ -469,6 +469,21 @@ check_details() {
   expect_text "$pressure" "$label"
   expect_text "Weather data by Open-Meteo.com" "$label"
   shot "3д-подробно-$locale"
+  if [ "$locale" = en ]; then
+    # Снимок неба для следующего запуска (0.4.2): ложится на диск спустя несколько секунд после появления неба. Мягкая проверка.
+    local waited=0 snap=""
+    while [ "$waited" -lt 12 ]; do
+      snap=$(adb shell run-as "$PKG" ls -l files/sky_snapshot.webp files/sky_snapshot.txt 2>&1 | tr -d '\r' || true)
+      grep -q "sky_snapshot.webp" <<<"$snap" && ! grep -q "No such file" <<<"$snap" && break
+      sleep 2
+      waited=$((waited + 2))
+    done
+    echo "[снимок неба] $snap"
+    if grep -q "No such file" <<<"$snap" || ! grep -q "sky_snapshot.webp" <<<"$snap"; then
+      annotate warning "Эмулятор" "Снимок неба (sky_snapshot.webp) не появился за 12 секунд после появления вкладки «Подробно».
+$snap"
+    fi
+  fi
   # Нижние плитки видны после прокрутки; сбой здесь предупреждение, если разметка экрана не отдала строки.
   local height x
   height=$(adb shell wm size | tr -d '\r' | sed -E 's/.* ([0-9]+)x([0-9]+).*/\2/' | tail -1)

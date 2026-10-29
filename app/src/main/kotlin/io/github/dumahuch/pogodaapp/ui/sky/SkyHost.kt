@@ -17,10 +17,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.toImageBitmap
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import kotlinx.coroutines.CancellationException
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -48,6 +62,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import kotlin.math.roundToInt
 import java.time.Instant
 import kotlin.math.PI
 
@@ -198,8 +213,51 @@ internal fun SkyHost(
         animationSpec = tween(REVEAL_MILLIS),
         label = "skyReveal",
     )
-    val palette = PogodaPalette.Neutral.mixWith(skyPalette ?: PogodaPalette.Neutral, reveal)
+
+    // Снимок последнего неба: показывается с первого кадра, пока настоящие картины декодируются, и плавно уступает им место.
+    val restored = remember(appContext) { SkySnapshotStorage.load(appContext) }
+    var snapshotGivenUp by remember { mutableStateOf(false) }
+    LaunchedEffect(ready) {
+        if (ready) {
+            snapshotGivenUp = false
+        } else {
+            // Если неба так и нет (нет разрешения, нет данных), старый снимок не должен висеть вечно.
+            delay(SNAPSHOT_HOLD_MILLIS)
+            snapshotGivenUp = true
+        }
+    }
+    val snapshotAlpha by animateFloatAsState(
+        targetValue = if (restored != null && !snapshotGivenUp) 1f else 0f,
+        animationSpec = tween(REVEAL_MILLIS),
+        label = "skySnapshot",
+    )
+    val base = PogodaPalette.Neutral.mixWith(restored?.palette ?: PogodaPalette.Neutral, snapshotAlpha)
+    val palette = base.mixWith(skyPalette ?: base, reveal)
     LaunchedEffect(palette.darkInk) { onDarkIcons(palette.darkInk) }
+
+    // Раз в две минуты, пока приложение на виду и небо настоящее, снимок неба уходит на диск для следующего запуска.
+    val snapshotLayer = rememberGraphicsLayer()
+    val snapshotPainter = remember { SkyPainter() }
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    var hostSize by remember { mutableStateOf(IntSize.Zero) }
+    val latestSky by rememberUpdatedState(sky)
+    val latestPalette by rememberUpdatedState(skyPalette)
+    LaunchedEffect(ready, started, override.active) {
+        if (!ready || !started || override.active) return@LaunchedEffect
+        delay(SNAPSHOT_FIRST_DELAY_MILLIS)
+        while (true) {
+            val state = latestSky
+            val colors = latestPalette
+            if (state != null && colors != null && hostSize.width > 0) {
+                captureSnapshot(
+                    appContext, snapshotLayer, snapshotPainter, store, state, colors,
+                    SkyDrift.position(state.pan, phase), density, layoutDirection, hostSize,
+                )
+            }
+            delay(SNAPSHOT_REPEAT_MILLIS)
+        }
+    }
 
     // Стекло размывает то, что нарисовано на небе (вместе с нейтральным фоном, пока неба ещё нет).
     val hazeState = rememberHazeState()
@@ -211,10 +269,12 @@ internal fun SkyHost(
         LocalGlass provides glass,
         LocalContentColor provides palette.ink,
     ) {
-        Box(modifier) {
+        Box(modifier.onSizeChanged { hostSize = it }) {
             SkyBackground(
                 sky = sky,
                 store = store,
+                snapshot = restored?.image,
+                snapshotAlpha = { snapshotAlpha },
                 phase = { phase },
                 reveal = { reveal },
                 scrim = palette.scrim,
@@ -230,6 +290,8 @@ internal fun SkyHost(
 private fun SkyBackground(
     sky: SkyState?,
     store: SkyBitmapStore,
+    snapshot: ImageBitmap?,
+    snapshotAlpha: () -> Float,
     phase: () -> Double,
     reveal: () -> Float,
     scrim: Color,
@@ -237,6 +299,20 @@ private fun SkyBackground(
 ) {
     val painter = remember { SkyPainter() }
     Box(modifier.background(PogodaColors.SkyBrush)) {
+        if (snapshot != null) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .graphicsLayer { alpha = snapshotAlpha() }
+                    .drawBehind {
+                        drawImage(
+                            snapshot,
+                            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                            filterQuality = FilterQuality.Medium,
+                        )
+                    },
+            )
+        }
         if (sky != null) {
             Box(
                 Modifier
@@ -252,6 +328,47 @@ private fun SkyBackground(
 }
 
 private const val NANOS_PER_SECOND = 1e9
+
+/** Сколько ждать неба при запуске, прежде чем отпустить старый снимок (если неба так и нет). */
+private const val SNAPSHOT_HOLD_MILLIS = 5_000L
+
+/** Снимок делается спустя это время после того, как небо проявилось (цвета успевают устояться), затем регулярно. */
+private const val SNAPSHOT_FIRST_DELAY_MILLIS = 3_000L
+private const val SNAPSHOT_REPEAT_MILLIS = 120_000L
+
+/** Ширина снимка в пикселях: маленькая картинка вместо неба, сглаживание при растяжении даёт нужную размытость. */
+private const val SNAPSHOT_WIDTH = 96
+
+/** Рисует небо в маленький слой и сохраняет его вместе с цветами интерфейса. Ошибки только в журнал. */
+private suspend fun captureSnapshot(
+    context: Context,
+    layer: GraphicsLayer,
+    painter: SkyPainter,
+    store: SkyBitmapStore,
+    sky: SkyState,
+    colors: PogodaPalette,
+    cloudPosition: Double,
+    density: Density,
+    layoutDirection: LayoutDirection,
+    host: IntSize,
+) {
+    try {
+        val height = (SNAPSHOT_WIDTH * host.height.toFloat() / host.width).roundToInt().coerceAtLeast(1)
+        layer.record(density, layoutDirection, IntSize(SNAPSHOT_WIDTH, height)) {
+            painter.draw(this, sky.look(cloudPosition), store)
+            painter.drawScrim(this, colors.scrim)
+        }
+        val image = layer.toImageBitmap().asAndroidBitmap()
+        withContext(Dispatchers.IO) {
+            val soft = image.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+            SkySnapshotStorage.save(context, soft, colors)
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "Не удалось снять снимок неба", e)
+    }
+}
 
 private fun buildSky(input: SkyInput, override: SkyOverride, now: Instant): SkyState {
     val sun = override.solarHour?.let { SunPosition.atSolarHour(input.latitude, now, it) }

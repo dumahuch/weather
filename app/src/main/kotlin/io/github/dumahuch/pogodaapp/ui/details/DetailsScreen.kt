@@ -219,7 +219,7 @@ private fun WindTile(details: HourDetails?, modifier: Modifier = Modifier) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             BigValue(speed?.roundToInt()?.toString() ?: "–", kmh)
             Spacer(Modifier.weight(1f))
-            details?.windDirection?.let { Compass(blowsTowardDegrees = it + 180f, modifier = Modifier.padding(top = 2.dp)) }
+            details?.windDirection?.let { Compass(blowsTowardDegrees = it + 180f) }
         }
         details?.gustKmh?.let { SubText(stringResource(R.string.gusts_up_to, it.roundToInt(), kmh)) }
         details?.windDirection?.let { SubText(directions[CompassPoint.of(it).ordinal]) }
