@@ -102,6 +102,9 @@ private const val DRIFT_STEP_MILLIS = 50L
 private const val THEME_STEP_MILLIS = 250L
 private const val THEME_FAST_STEP_MILLIS = 33L
 private const val REVEAL_MILLIS = 600
+
+/** Через сколько после ухода с экрана картины выгружаются из памяти (две минуты). */
+private const val UNLOAD_DELAY_MILLIS = 120_000L
 private const val TWO_PI = 2 * PI
 
 /** Секунд «прошло» для смены цвета текста, когда анимации выключены: переключение происходит сразу. */
@@ -142,10 +145,16 @@ internal fun SkyHost(
     val now by rememberNow(started)
     val sky = remember(input, override, now) { input?.let { buildSky(it, override, now) } }
 
-    // Картины в памяти: ровно те, что нужны сейчас; когда приложение ушло с экрана, память освобождается.
+    // Картины в памяти: ровно те, что нужны сейчас; когда приложение ушло с экрана надолго, память освобождается.
     val scenes = remember(sky) { sky?.weights?.visible()?.toSet().orEmpty() }
     LaunchedEffect(scenes, started) {
-        if (started) store.ensure(scenes) else store.clear()
+        if (started) {
+            store.ensure(scenes)
+        } else {
+            // Короткий уход (свайп между приложениями) картины не трогает: иначе при возвращении небо мигало бы нейтральным светлым фоном.
+            delay(UNLOAD_DELAY_MILLIS)
+            store.clear()
+        }
     }
 
     var phase by remember { mutableDoubleStateOf(SkyDrift.START_PHASE) }

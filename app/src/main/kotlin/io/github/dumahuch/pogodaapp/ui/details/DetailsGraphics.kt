@@ -72,7 +72,7 @@ internal fun ScaleBar(fraction: Float, colors: List<Color>, stepped: Boolean, mo
 @Composable
 internal fun Compass(blowsTowardDegrees: Float, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
-    Canvas(modifier.size(56.dp)) {
+    Canvas(modifier.size(44.dp)) {
         val center = Offset(size.width / 2, size.height / 2)
         val radius = size.minDimension / 2 - 1.dp.toPx()
         drawCircle(palette.ink2.copy(alpha = 0.45f), radius, center, style = Stroke(width = 1.2.dp.toPx()))
@@ -90,15 +90,15 @@ internal fun Compass(blowsTowardDegrees: Float, modifier: Modifier = Modifier) {
         rotate(blowsTowardDegrees, center) {
             drawLine(
                 palette.ink,
-                Offset(center.x, center.y + 14.dp.toPx()),
-                Offset(center.x, center.y - 12.dp.toPx()),
+                Offset(center.x, center.y + 11.dp.toPx()),
+                Offset(center.x, center.y - 8.dp.toPx()),
                 strokeWidth = 2.dp.toPx(),
                 cap = StrokeCap.Round,
             )
             val head = Path().apply {
-                moveTo(center.x, center.y - 18.dp.toPx())
-                lineTo(center.x - 5.dp.toPx(), center.y - 9.dp.toPx())
-                lineTo(center.x + 5.dp.toPx(), center.y - 9.dp.toPx())
+                moveTo(center.x, center.y - 13.dp.toPx())
+                lineTo(center.x - 4.dp.toPx(), center.y - 6.dp.toPx())
+                lineTo(center.x + 4.dp.toPx(), center.y - 6.dp.toPx())
                 close()
             }
             drawPath(head, palette.ink, style = Fill)

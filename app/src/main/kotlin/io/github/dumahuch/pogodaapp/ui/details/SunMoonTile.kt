@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.res.stringArrayResource
@@ -84,7 +85,7 @@ internal fun SunMoonTile(place: Place, forecast: Forecast, now: Instant, modifie
                 Alignment.End,
             )
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(6.dp))
         MoonRow(place, forecast, now)
     }
 }
@@ -125,7 +126,10 @@ private fun MoonRow(place: Place, forecast: Forecast, now: Instant) {
 }
 
 private const val ARC_WIDTH = 320f
-private const val ARC_HEIGHT = 84f
+private const val ARC_HEIGHT = 70f
+
+/** Сколько единиц макета сверху срезано: до верха метки на вершине дуги остаётся запас. */
+private const val ARC_TOP = 8f
 
 /** Дуга пути солнца: пунктир целиком, пройденная часть сплошной линией, метка на текущем месте. */
 @Composable
@@ -135,24 +139,27 @@ private fun SunArc(position: ArcPosition, modifier: Modifier = Modifier) {
     val moon = remember { PathParser().parsePathString(LineIcons.Moon.paths[0]).toPath() }
     Canvas(modifier) {
         val scale = size.width / ARC_WIDTH
-        val baseY = 70f * scale
-        drawLine(palette.ink2.copy(alpha = 0.4f), Offset(8f * scale, baseY), Offset(312f * scale, baseY), strokeWidth = 1.dp.toPx())
-        val arc = Path().apply {
-            moveTo(24f * scale, baseY)
-            quadraticTo(160f * scale, -26f * scale, 296f * scale, baseY)
+        // Верхние ARC_TOP единиц макета пусты (дуга ниже), их срезаем: плитка ниже, все плитки помещаются на экран.
+        translate(top = -ARC_TOP * scale) {
+            val baseY = 70f * scale
+            drawLine(palette.ink2.copy(alpha = 0.4f), Offset(8f * scale, baseY), Offset(312f * scale, baseY), strokeWidth = 1.dp.toPx())
+            val arc = Path().apply {
+                moveTo(24f * scale, baseY)
+                quadraticTo(160f * scale, -26f * scale, 296f * scale, baseY)
+            }
+            drawPath(
+                arc,
+                palette.ink2.copy(alpha = 0.7f),
+                style = Stroke(width = 1.4.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))),
+            )
+            val measure = PathMeasure().apply { setPath(arc, false) }
+            val passed = measure.length * position.fraction.toFloat()
+            val done = Path()
+            measure.getSegment(0f, passed, done, true)
+            drawPath(done, color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            val at = measure.getPosition(passed)
+            drawMarker(at, color, position.daytime, moon)
         }
-        drawPath(
-            arc,
-            palette.ink2.copy(alpha = 0.7f),
-            style = Stroke(width = 1.4.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))),
-        )
-        val measure = PathMeasure().apply { setPath(arc, false) }
-        val passed = measure.length * position.fraction.toFloat()
-        val done = Path()
-        measure.getSegment(0f, passed, done, true)
-        drawPath(done, color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-        val at = measure.getPosition(passed)
-        drawMarker(at, color, position.daytime, moon)
     }
 }
 

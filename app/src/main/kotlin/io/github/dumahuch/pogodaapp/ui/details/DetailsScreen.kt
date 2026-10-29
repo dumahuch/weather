@@ -117,7 +117,7 @@ fun DetailsScreen(
     }
 }
 
-private val TileSpacing = 10.dp
+private val TileSpacing = 8.dp
 
 @Composable
 private fun DetailsContent(place: Place, forecast: Forecast, air: AirQuality?, modifier: Modifier = Modifier) {
@@ -172,7 +172,7 @@ internal fun DetailTile(
 internal fun BigValue(value: String, unit: String? = null) {
     val palette = LocalPogodaPalette.current
     Row(verticalAlignment = Alignment.Bottom) {
-        Text(value, style = pogodaText(38f, 200, lineHeight = 1.05f, letterSpacing = (-0.95f).sp, tabular = true))
+        Text(value, style = pogodaText(34f, 200, lineHeight = 1.05f, letterSpacing = (-0.85f).sp, tabular = true))
         if (unit != null) {
             Text(
                 unit,
@@ -197,9 +197,13 @@ private fun AirTile(air: AirQuality?, modifier: Modifier = Modifier) {
             BigValue("–")
             SubText(stringResource(R.string.air_no_data))
         } else {
-            BigValue(air.eaqi.toString(), stringResource(R.string.air_unit))
-            SubText(levels[air.level.ordinal])
-            Spacer(Modifier.height(6.dp))
+            // Число и ступень в одной строке: плитка ниже, все плитки помещаются на экран без прокрутки.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                BigValue(air.eaqi.toString(), stringResource(R.string.air_unit))
+                Spacer(Modifier.weight(1f))
+                SubText(levels[air.level.ordinal], Modifier.padding(bottom = 6.dp))
+            }
+            Spacer(Modifier.height(2.dp))
             ScaleBar(fraction = (air.eaqi / 100f).coerceIn(0f, 1f), colors = AirScale, stepped = true)
         }
     }
@@ -254,7 +258,7 @@ private fun UvTile(details: HourDetails?, modifier: Modifier = Modifier) {
         BigValue(uv?.toString() ?: "–")
         if (uv != null) {
             SubText(stringResource(uvLevelLabel(UvLevel.of(uv))))
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(2.dp))
             ScaleBar(fraction = (uv.coerceIn(0, UV_SCALE_MAX) / UV_SCALE_MAX.toFloat()), colors = UvScale, stepped = false)
         }
     }
