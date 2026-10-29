@@ -48,8 +48,18 @@ shot() {
   adb exec-out cat /sdcard/ui.xml >"$OUT/$1.xml" 2>/dev/null || true
 }
 
+# Сведения для разбора зависания и тормозов: стек главного потока из записи о «не отвечает» (ANR), кадры и память.
+# Кладутся в файлы рядом со снимками (в ветку ci-screenshots).
+save_hang_info() {
+  adb shell dumpsys dropbox --print data_app_anr 2>/dev/null | tr -d '\r' | head -400 >"$OUT/anr.txt" || true
+  adb shell dumpsys gfxinfo "$PKG" 2>/dev/null | tr -d '\r' | head -80 >"$OUT/gfxinfo.txt" || true
+  adb shell dumpsys meminfo "$PKG" 2>/dev/null | tr -d '\r' | head -60 >"$OUT/meminfo.txt" || true
+  adb logcat -d -b all -v threadtime 2>/dev/null | tr -d '\r' | grep -iE "pogodaapp|ANR in|Choreographer|Davey|haze|RenderThread" | tail -200 >"$OUT/app-logcat.txt" || true
+}
+
 fail() {
   shot "ошибка"
+  save_hang_info
   annotate error "Эмулятор" "$1
 --- на экране (последняя проверка) ---
 $TEXTS
