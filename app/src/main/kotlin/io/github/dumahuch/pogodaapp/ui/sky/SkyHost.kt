@@ -73,12 +73,13 @@ internal class SkyDiagnostics {
         val hero: Double,
         val cards: Double,
         val buttons: Double,
+        val load: SkyBitmapStore.LoadTiming?,
     )
 
     var snapshot by mutableStateOf<Snapshot?>(null)
         private set
 
-    fun publish(sky: SkyState, palette: SkyPalette, cloudPosition: Double) {
+    fun publish(sky: SkyState, palette: SkyPalette, cloudPosition: Double, load: SkyBitmapStore.LoadTiming?) {
         snapshot = Snapshot(
             elevation = sky.sun.elevation,
             solarHour = sky.sun.solarHour,
@@ -88,6 +89,7 @@ internal class SkyDiagnostics {
             hero = palette.contrast.hero,
             cards = palette.contrast.cards,
             buttons = palette.contrast.buttons,
+            load = load,
         )
     }
 }
@@ -169,7 +171,7 @@ internal fun SkyHost(
             val scores = themeDriver.measure(state, cloudPosition)
             val palette = themeDriver.palette(scores, seconds)
             skyPalette = palette.toUi()
-            diagnostics?.publish(state, palette, cloudPosition)
+            diagnostics?.publish(state, palette, cloudPosition, store.lastLoad)
             if (!animationsOn) break
             delay(if (themeDriver.settled) THEME_STEP_MILLIS else THEME_FAST_STEP_MILLIS)
         }

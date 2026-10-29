@@ -2,9 +2,13 @@ package io.github.dumahuch.pogodaapp.ui.sky
 
 import android.content.Context
 import android.graphics.ImageDecoder
+import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import io.github.dumahuch.pogodaapp.sky.SkyScene
@@ -25,7 +29,18 @@ internal class SceneBitmaps(val plate: ImageBitmap, val clouds: ImageBitmap)
 @Stable
 internal class SkyBitmapStore(private val context: Context) {
 
+    /**
+     * Сколько заняла последняя загрузка картин: сколько времён суток декодировано, через сколько миллисекунд готова
+     * первая (с неё небо уже можно показывать) и через сколько все. Нужно экрану проверки: по нему видно, сколько
+     * небо ждёт картин при запуске и при возвращении в приложение.
+     */
+    class LoadTiming(val scenes: Int, val firstMillis: Long, val totalMillis: Long)
+
     private val loaded = mutableStateMapOf<SkyScene, SceneBitmaps>()
+
+    /** Последняя загрузка, которая что-то декодировала; пусто, пока картины ни разу не загружались. */
+    var lastLoad by mutableStateOf<LoadTiming?>(null)
+        private set
 
     fun get(scene: SkyScene): SceneBitmaps? = loaded[scene]
 
@@ -44,10 +59,20 @@ internal class SkyBitmapStore(private val context: Context) {
         for (scene in loaded.keys.toList()) {
             if (scene !in scenes) loaded.remove(scene)
         }
+        val begin = SystemClock.elapsedRealtime()
+        var decoded = 0
+        var firstMillis = 0L
         for (scene in scenes) {
             if (loaded.containsKey(scene)) continue
             val bitmaps = withContext(Dispatchers.IO) { decode(scene) } ?: continue
             loaded[scene] = bitmaps
+            if (decoded == 0) firstMillis = SystemClock.elapsedRealtime() - begin
+            decoded++
+        }
+        if (decoded > 0) {
+            val timing = LoadTiming(decoded, firstMillis, SystemClock.elapsedRealtime() - begin)
+            lastLoad = timing
+            Log.i(TAG, "Картины загружены: ${timing.scenes} шт., первая за ${timing.firstMillis} мс, все за ${timing.totalMillis} мс")
         }
     }
 

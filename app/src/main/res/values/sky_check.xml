@@ -32,6 +32,7 @@
     <string name="check_info_sun" translatable="false">Солнце: высота %1$s°</string>
     <string name="check_info_scenes" translatable="false">Картины: %1$s</string>
     <string name="check_info_clouds" translatable="false">Облака: положение %1$s из 1</string>
+    <string name="check_info_load" translatable="false">Загрузка картин: %1$d шт., первая за %2$d мс, все за %3$d мс</string>
     <string name="check_info_ink_dark" translatable="false">Текст тёмный</string>
     <string name="check_info_ink_light" translatable="false">Текст светлый</string>
     <string name="check_info_contrast" translatable="false">%1$s. Контраст: цифры %2$s, карточки %3$s, кнопки %4$s</string>

@@ -257,6 +257,9 @@ private fun ExpandedPanel(
             Info(stringResource(R.string.check_info_sun, snapshot.elevation.format(1)) + " · " + clockText(snapshot.solarHour))
             Info(stringResource(R.string.check_info_scenes, scenesText))
             Info(stringResource(R.string.check_info_clouds, snapshot.cloudPosition.format(2)))
+            snapshot.load?.let { load ->
+                Info(stringResource(R.string.check_info_load, load.scenes, load.firstMillis, load.totalMillis))
+            }
             Info(
                 stringResource(
                     R.string.check_info_contrast,
