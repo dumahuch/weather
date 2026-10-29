@@ -436,7 +436,7 @@ shot "3г-прогноз-14-дней-en"
 if tap_text '^Today'; then
   if wait_for_text "Daylight" 15; then
     expect_text "UV index" "en подробности дня"
-    expect_text "Wind" "en подробности дня"
+    expect_text "Wind, max." "en подробности дня"
     shot "3г-подробности-дня-en"
     adb shell input keyevent KEYCODE_BACK
     wait_for_text "Next 24 hours" 15 || fail "[en подробности дня] после «назад» нет списка прогноза"

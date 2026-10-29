@@ -188,7 +188,7 @@ private fun DayTiles(day: DayForecast, zone: ZoneId, modifier: Modifier = Modifi
             )
             DayTile(
                 title = stringResource(R.string.tile_wind),
-                value = stringResource(R.string.wind_up_to, day.windMaxKmh.roundToInt(), kmh),
+                value = "${day.windMaxKmh.roundToInt()} $kmh",
                 sub = stringResource(R.string.gusts_up_to, day.gustMaxKmh.roundToInt(), kmh),
                 modifier = Modifier
                     .weight(1f)

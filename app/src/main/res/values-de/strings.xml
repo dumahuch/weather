@@ -76,11 +76,10 @@
     <string name="mm_unit">mm</string>
     <string name="kmh_unit">km/h</string>
     <string name="tile_precipitation">Niederschlag</string>
-    <string name="tile_wind">Wind</string>
+    <string name="tile_wind">Wind, max.</string>
     <string name="tile_uv">UV-Index</string>
     <string name="tile_daylight">Tageslicht</string>
     <string name="precip_chance">Wahrscheinlichkeit %1$s</string>
-    <string name="wind_up_to">bis %1$d %2$s</string>
     <string name="gusts_up_to">Böen bis %1$d %2$s</string>
     <string name="uv_low">Niedrig</string>
     <string name="uv_moderate">Mäßig</string>
