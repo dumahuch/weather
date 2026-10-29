@@ -35,6 +35,7 @@ import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import io.github.dumahuch.pogodaapp.ui.PogodaPalette
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -204,21 +205,25 @@ private fun Modifier.outerShadow(shape: Shape, layers: List<ShadowLayer>, color:
 private fun Modifier.insetShadow(shape: Shape, layers: List<ShadowLayer>, color: Color): Modifier = drawWithCache {
     val outline = shape.createOutline(size, layoutDirection, this)
     val inside = outline.toPath()
-    val margin = 8.dp.toPx() + layers.maxOf { it.blur + kotlin.math.abs(it.dx) + kotlin.math.abs(it.dy) + kotlin.math.abs(it.spread) }.dp.toPx() * 2f
-    val paths = layers.map { layer ->
+    // Слой, у которого полоса тени целиком вне формы (сдвиг меньше расширения), даёт не больше 2 % и не рисуется:
+    // у блика макета это первые два слоя. Размытие CSS радиуса B это сигма B / 2, значит хвост размытия 2 · сигма = B.
+    val visible = layers.filter { it.spread + maxOf(abs(it.dx), abs(it.dy)) + it.blur > 0f }
+    val margins = visible.map { (it.blur * 1.5f + abs(it.spread) + maxOf(abs(it.dx), abs(it.dy)) + 2f).dp.toPx() }
+    val paths = visible.mapIndexed { index, layer ->
         val hole = outline.grown(-layer.spread.dp.toPx()).shifted(layer.dx.dp.toPx(), layer.dy.dp.toPx())
+        val margin = margins[index]
         Path().apply {
             fillType = PathFillType.EvenOdd
             addRect(Rect(-margin, -margin, size.width + margin, size.height + margin))
             addPath(hole)
         }
     }
-    val paints = layers.map { layer -> shadowPaint(color.copy(alpha = color.alpha * layer.alpha), layer.blur.dp.toPx() / 2f) }
+    val paints = visible.map { layer -> shadowPaint(color.copy(alpha = color.alpha * layer.alpha), layer.blur.dp.toPx() / 2f) }
     onDrawWithContent {
         drawContent()
         clipPath(inside) {
             drawIntoCanvas { canvas ->
-                for (index in layers.indices) canvas.nativeCanvas.drawPath(paths[index].asAndroidPath(), paints[index])
+                for (index in visible.indices) canvas.nativeCanvas.drawPath(paths[index].asAndroidPath(), paints[index])
             }
         }
     }
