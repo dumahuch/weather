@@ -282,7 +282,7 @@ start_app
 wait_for_text "Allow" 20 || fail "[en с сетью] после сброса нет кнопки «Allow»"
 tap_text '^Allow$' || fail "[en с сетью] не удалось нажать «Allow»"
 tap_dialog "^While using" || fail "[en с сетью] системное окно с кнопкой «While using the app» не появилось или не закрылось"
-if wait_for_text "precipitation, mm" 90; then
+if wait_for_text "Precipitation, mm" 90; then
   expect_text "Hourly" "en с сетью"
   expect_text "Now" "en с сетью"
   expect_text "Weather data by Open-Meteo.com" "en с сетью"
