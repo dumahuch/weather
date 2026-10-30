@@ -99,6 +99,45 @@ object LineIcons {
         ),
     )
 
+    /** Стрелка вниз у плашки места (Lucide chevron-down): плашка открывает список мест. */
+    val ChevronDown = LineIcon(
+        listOf(
+            "m6 9 6 6 6-6",
+        ),
+    )
+
+    /** Лупа (Lucide search); круг записан как контур. */
+    val Search = LineIcon(
+        listOf(
+            "m21 21-4.34-4.34",
+            "M3 11a8 8 0 1 0 16 0a8 8 0 1 0 -16 0z",
+        ),
+    )
+
+    /** Крестик (Lucide x). */
+    val Close = LineIcon(
+        listOf(
+            "M18 6 6 18",
+            "m6 6 12 12",
+        ),
+    )
+
+    /** Галочка (Lucide check). */
+    val Check = LineIcon(
+        listOf(
+            "M20 6 9 17l-5-5",
+        ),
+    )
+
+    /** Прицел (Lucide locate-fixed): «определить место»; круги записаны как контуры. */
+    val Locate = LineIcon(
+        listOf(
+            "M2 12h3M19 12h3M12 2v3M12 19v3",
+            "M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0z",
+            "M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0z",
+        ),
+    )
+
     val Home = LineIcon(
         listOf(
             "M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z",

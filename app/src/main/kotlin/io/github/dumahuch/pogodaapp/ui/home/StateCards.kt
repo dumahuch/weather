@@ -32,7 +32,7 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 
 /**
  * Карточка для состояний без данных: нет доступа к месту, место не определилось, нет сети и данных.
- * Одна кнопка действия, как в макете (кнопка «Найти город» появится вместе с поиском города).
+ * Основная кнопка действия и, если задана, вторая рядом: «Найти город» (места можно выбрать и без геолокации).
  */
 @Composable
 fun StateCard(
@@ -42,6 +42,8 @@ fun StateCard(
     buttonLabel: String,
     onButton: () -> Unit,
     modifier: Modifier = Modifier,
+    secondaryLabel: String? = null,
+    onSecondary: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(24.dp)
     val palette = LocalPogodaPalette.current
@@ -56,7 +58,10 @@ fun StateCard(
         LineIconView(icon, 30.dp, palette.accent)
         Text(title, style = pogodaText(18f, 600, lineHeight = 1.3f))
         Text(text, style = pogodaText(14f, 500, color = palette.ink2, lineHeight = 1.45f))
-        ActionButton(buttonLabel, onButton, Modifier.padding(top = 4.dp))
+        Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionButton(buttonLabel, onButton)
+            if (secondaryLabel != null && onSecondary != null) ActionButton(secondaryLabel, onSecondary)
+        }
     }
 }
 

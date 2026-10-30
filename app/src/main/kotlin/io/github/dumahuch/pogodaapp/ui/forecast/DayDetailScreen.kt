@@ -145,7 +145,7 @@ fun DayDetailScreen(
 
 /** Круглая кнопка «назад» из материала кнопок. */
 @Composable
-private fun BackButton(onClick: () -> Unit) {
+internal fun BackButton(onClick: () -> Unit) {
     val palette = LocalPogodaPalette.current
     val label = stringResource(R.string.back)
     Box(

@@ -45,4 +45,17 @@
     <string name="check_frames_total" translatable="false">Нарисовано кадров: %1$d, дольше нормы: %2$d</string>
     <string name="check_frames_times" translatable="false">Время кадра, мс: обычно %1$s, 95 %% быстрее %2$s, самый долгий %3$s</string>
     <string name="check_frames_rate" translatable="false">Кадров в секунду: %1$s (экран %2$s Гц)</string>
+
+    <string name="check_pollen_title" translatable="false">Пыльца (DWD)</string>
+    <string name="check_pollen_no_place" translatable="false">Нет прогноза: пыльца не запрашивается.</string>
+    <string name="check_pollen_status" translatable="false">Загрузка: %1$s</string>
+    <string name="check_pollen_pending" translatable="false">ещё не запрашивалась или идёт запрос</string>
+    <string name="check_pollen_outside" translatable="false">место вне 27 районов DWD (не Германия)</string>
+    <string name="check_pollen_unavailable" translatable="false">не вышло: район не определился или файл DWD не скачался</string>
+    <string name="check_pollen_loaded" translatable="false">файл получен</string>
+    <string name="check_pollen_region" translatable="false">Район DWD: %1$d, выпуск файла: %2$s</string>
+    <string name="check_pollen_values" translatable="false">Значения на сегодня: %1$s</string>
+    <string name="check_pollen_no_day" translatable="false">в файле нет сегодняшнего дня</string>
+    <string name="check_pollen_sample_on" translatable="false">Подставить пыльцу</string>
+    <string name="check_pollen_sample_off" translatable="false">Убрать пример пыльцы</string>
 </resources>

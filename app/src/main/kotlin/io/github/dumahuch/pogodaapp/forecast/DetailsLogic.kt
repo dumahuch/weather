@@ -5,6 +5,7 @@ import io.github.dumahuch.pogodaapp.weather.HourDetails
 import java.time.Duration
 import java.time.Instant
 import java.util.Locale
+import kotlin.math.ceil
 import kotlin.math.floor
 
 /** Куда идёт давление ближайшие три часа (плитка «Давление»). */
@@ -25,6 +26,32 @@ enum class PressureTrend {
     }
 }
 
+/** Точка графика давления: час и давление на уровне моря, гПа. */
+data class PressurePoint(val time: Instant, val hpa: Double)
+
+/**
+ * Ось графика давления: границы [min] и [max] и шаг линий сетки [step] (целые гПа). Линий не больше трёх (два промежутка),
+ * чтобы подписи не слипались на плитке в половину ширины экрана. Весь ряд лежит между границами.
+ */
+data class PressureAxis(val min: Int, val max: Int, val step: Int) {
+    val ticks: List<Int> get() = (min..max step step).toList()
+}
+
+private val AXIS_STEPS = intArrayOf(1, 2, 5, 10, 20, 50, 100)
+
+fun pressureAxis(values: List<Double>): PressureAxis {
+    if (values.isEmpty()) return PressureAxis(0, 1, 1)
+    val low = values.min()
+    val high = values.max()
+    fun axisFor(step: Int): PressureAxis {
+        val min = floor(low / step).toInt() * step
+        var max = ceil(high / step).toInt() * step
+        if (max == min) max = min + step
+        return PressureAxis(min, max, step)
+    }
+    return AXIS_STEPS.map(::axisFor).firstOrNull { (it.max - it.min) / it.step <= 2 } ?: axisFor(AXIS_STEPS.last())
+}
+
 /** Давление: ряд для графика и тенденция. [details] идут по часам. */
 object PressureOutlook {
     /** Сколько часов до «сейчас» и после него идут по графику. */
@@ -35,14 +62,24 @@ object PressureOutlook {
     private fun indexOf(details: List<HourDetails>, now: Instant): Int =
         details.indexOfLast { !it.time.isAfter(now) }.coerceAtLeast(0)
 
-    /** Давление за шесть часов до часа «сейчас» (сколько есть в данных: прогноз начинается с полуночи) и за двенадцать после. */
-    fun series(details: List<HourDetails>, now: Instant): List<Double> {
+    /**
+     * Точки графика: давление за шесть часов до часа «сейчас» (сколько есть в данных: прогноз начинается с полуночи) и за
+     * двенадцать после. Часы без значения пропускаются.
+     */
+    fun points(details: List<HourDetails>, now: Instant): List<PressurePoint> {
         if (details.isEmpty()) return emptyList()
         val index = indexOf(details, now)
         val from = (index - HOURS_BEFORE).coerceAtLeast(0)
         val to = (index + HOURS_AFTER + 1).coerceAtMost(details.size)
-        return details.subList(from, to).mapNotNull { it.pressureHpa }
+        return details.subList(from, to).mapNotNull { hour -> hour.pressureHpa?.let { PressurePoint(hour.time, it) } }
     }
+
+    /** То же, только значения. */
+    fun series(details: List<HourDetails>, now: Instant): List<Double> = points(details, now).map { it.hpa }
+
+    /** Номер точки «сейчас» среди [points]: последняя, что не позже [now]; первая, если все позже. */
+    fun nowIndex(points: List<PressurePoint>, now: Instant): Int =
+        points.indexOfLast { !it.time.isAfter(now) }.coerceAtLeast(0)
 
     /** Тенденция: давление через три часа минус давление сейчас; пусто, если одного из значений нет. */
     fun trend(details: List<HourDetails>, now: Instant): PressureTrend? {
@@ -108,6 +145,21 @@ private fun share(from: Instant, to: Instant, now: Instant): Double {
  * 75, 89, 103, 118 км/ч; ниже 1 км/ч штиль.
  */
 fun beaufortOf(kmh: Int): Int = BEAUFORT_LOWER_KMH.count { kmh >= it }
+
+/** С этой ступени Бофорта (умеренный ветер, от 20 км/ч) порыв стоит пояснять словом. */
+private const val GUST_WORD_FROM_STEP = 4
+
+/**
+ * Ступень Бофорта порыва, если под числом порывов нужна пояснительная строка, иначе null. Строка нужна, когда порыв дошёл
+ * до умеренного ветра (от 20 км/ч) и его ступень выше ступени среднего ветра [meanKmh] (решение Димы 30.10.2026);
+ * без среднего ветра сравнивать не с чем, тогда достаточно первого условия.
+ */
+fun gustBeaufort(meanKmh: Int?, gustKmh: Int): Int? {
+    val step = beaufortOf(gustKmh)
+    if (step < GUST_WORD_FROM_STEP) return null
+    if (meanKmh != null && step <= beaufortOf(meanKmh)) return null
+    return step
+}
 
 private val BEAUFORT_LOWER_KMH = intArrayOf(1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118)
 

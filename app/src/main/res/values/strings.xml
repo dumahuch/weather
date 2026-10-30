@@ -18,7 +18,7 @@
     <string name="temp_high">High</string>
     <string name="temp_low">Low</string>
     <string name="hourly_title">Hourly</string>
-    <string name="hourly_caption">precipitation, mm</string>
+    <string name="hourly_caption">Precipitation, mm</string>
 
     <string name="offline_title">Offline</string>
     <string name="data_age_under_hour">data from under 1 h ago</string>
@@ -84,7 +84,9 @@
     <string name="tile_uv">UV index</string>
     <string name="tile_daylight">Daylight</string>
     <string name="precip_chance">%1$s chance</string>
-    <string name="gusts_up_to">gusts up to %1$d %2$s</string>
+    <string name="gusts_up_to">Gusts up to %1$d %2$s</string>
+    <!-- Gusts with the Beaufort word of the gust (shown only from 20 km/h and above the mean wind step) -->
+    <string name="gusts_with_word">Gusts up to %1$d %2$s: %3$s</string>
     <string name="uv_low">Low</string>
     <string name="uv_moderate">Moderate</string>
     <string name="uv_high">High</string>
@@ -119,24 +121,24 @@
         <item>Ragweed</item>
     </string-array>
     <string-array name="pollen_levels">
-        <item>none</item>
-        <item>none to low</item>
-        <item>low</item>
-        <item>low to moderate</item>
-        <item>moderate</item>
-        <item>moderate to high</item>
-        <item>high</item>
+        <item>None</item>
+        <item>None to low</item>
+        <item>Low</item>
+        <item>Low to moderate</item>
+        <item>Moderate</item>
+        <item>Moderate to high</item>
+        <item>High</item>
     </string-array>
     <string name="tile_wind_now">Wind</string>
     <string-array name="wind_directions">
-        <item>northerly</item>
-        <item>north-easterly</item>
-        <item>easterly</item>
-        <item>south-easterly</item>
-        <item>southerly</item>
-        <item>south-westerly</item>
-        <item>westerly</item>
-        <item>north-westerly</item>
+        <item>Northerly</item>
+        <item>North-easterly</item>
+        <item>Easterly</item>
+        <item>South-easterly</item>
+        <item>Southerly</item>
+        <item>South-westerly</item>
+        <item>Westerly</item>
+        <item>North-westerly</item>
     </string-array>
     <!-- Сила ветра по шкале Бофорта, ступени 0-12 по средней скорости (км/ч): 0, 1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118. -->
     <string-array name="beaufort_names">
@@ -163,10 +165,10 @@
     </string-array>
     <string name="tile_pressure">Pressure</string>
     <string name="hpa_unit">hPa</string>
-    <string name="trend_rising">rising</string>
-    <string name="trend_steady">steady</string>
-    <string name="trend_falling">falling</string>
-    <string name="trend_falling_fast">falling fast</string>
+    <string name="trend_rising">Rising</string>
+    <string name="trend_steady">Steady</string>
+    <string name="trend_falling">Falling</string>
+    <string name="trend_falling_fast">Falling fast</string>
     <string name="tile_humidity">Humidity</string>
     <string name="visibility_line">Visibility: %1$s km</string>
     <string name="tile_sun_moon">Sun &amp; Moon</string>
@@ -185,4 +187,23 @@
         <item>Last quarter</item>
         <item>Waning crescent</item>
     </string-array>
+
+    <!-- Places: pinned list and city search (0.5.0) -->
+    <string name="places_title">Places</string>
+    <string name="places_open">Choose a place</string>
+    <string name="places_current_sub">By your phone’s location</string>
+    <string name="places_count">Pinned: %1$d of %2$d</string>
+    <string name="places_full">The list is full. Unpin a place to add another.</string>
+    <string name="places_find">Find a city</string>
+    <string name="places_locate">Detect my location</string>
+    <string name="places_locate_failed">Couldn’t detect your location. Check that location is on and try again.</string>
+    <string name="places_unpin">Unpin %1$s</string>
+    <string name="places_selected">Selected</string>
+    <string name="places_clear">Clear</string>
+    <string name="places_search_hint">City or postal code</string>
+    <string name="places_search_idle">Type a city name or a postal code.</string>
+    <string name="places_search_loading">Searching…</string>
+    <string name="places_search_empty">Nothing found. Check the spelling or try a postal code.</string>
+    <string name="places_search_failed">No connection. Check your network and try again.</string>
+    <string name="places_geonames">Search: Open-Meteo, place data: GeoNames (CC BY 4.0)</string>
 </resources>

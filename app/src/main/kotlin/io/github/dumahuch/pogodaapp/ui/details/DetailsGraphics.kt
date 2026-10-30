@@ -20,10 +20,14 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import io.github.dumahuch.pogodaapp.forecast.PressurePoint
 import io.github.dumahuch.pogodaapp.forecast.monotoneTangents
+import io.github.dumahuch.pogodaapp.forecast.pressureAxis
 import io.github.dumahuch.pogodaapp.forecast.smoothSeries
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /** Цвета шкалы качества воздуха: пять ступеней, от хорошего к плохому (как в макете). */
 internal val AirScale = listOf(
@@ -139,25 +143,44 @@ private val COMPASS_SIZE = 60.dp
 private const val GAP_DEGREES = 13.9f
 
 /**
- * Линия давления за ближайшие часы цветом акцента, как в макете; точка отмечает «сейчас» ([nowIndex] считается от начала ряда).
- * Ряд слегка сглаживается ([smoothSeries]) и проводится плавной кривой без выбросов ([monotoneTangents]).
+ * График давления на плитке (вариант Б, решение Димы 30.10.2026): линия цветом акцента с заливкой под ней, горизонтальные
+ * линии сетки с подписями давления слева (гПа, целые), внизу время начала, «сейчас» и конца ряда. Точка и тонкая линия
+ * отмечают «сейчас» ([nowIndex] считается от начала [points]). Ряд слегка сглаживается ([smoothSeries]) и проводится
+ * плавной кривой без выбросов ([monotoneTangents]); ось и линии сетки считает [pressureAxis].
  */
 @Composable
-internal fun Sparkline(values: List<Double>, nowIndex: Int, modifier: Modifier = Modifier) {
+internal fun PressureChart(points: List<PressurePoint>, nowIndex: Int, zone: ZoneId, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
-    val smooth = remember(values) { smoothSeries(values) }
-    Canvas(modifier.fillMaxWidth().height(28.dp)) {
-        if (smooth.size < 2) return@Canvas
+    val measurer = rememberTextMeasurer()
+    val labelStyle = remember(palette.ink2) { pogodaText(9.5f, 500, color = palette.ink2, lineHeight = 1f) }
+    val smooth = remember(points) { smoothSeries(points.map { it.hpa }) }
+    val axis = remember(smooth) { pressureAxis(smooth) }
+    val timeFormat = remember { DateTimeFormatter.ofPattern("HH:mm") }
+    Canvas(modifier.fillMaxWidth().height(CHART_HEIGHT)) {
         val count = smooth.size
-        val pad = 4.dp.toPx()
-        // Размах не меньше 2 гПа: ровное давление остаётся ровной линией, а не растягивается на всю высоту.
-        val low = smooth.min()
-        val high = smooth.max()
-        val middle = (low + high) / 2
-        val range = maxOf(high - low, MIN_SPAN_HPA)
-        val step = (size.width - 2 * pad) / (count - 1)
-        val xs = FloatArray(count) { pad + it * step }
-        val ys = DoubleArray(count) { size.height / 2 - ((smooth[it] - middle) / range) * (size.height - 2 * pad) }
+        if (count < 2) return@Canvas
+        val labelHeight = measurer.measure("0", labelStyle).size.height.toFloat()
+        val yLabels = axis.ticks.map { measurer.measure(it.toString(), labelStyle) }
+        val gutter = (yLabels.maxOf { it.size.width }) + 5.dp.toPx()
+        val rightPad = 3.dp.toPx()
+        val top = labelHeight / 2 + 1.dp.toPx()
+        val bottom = size.height - labelHeight - 4.dp.toPx()
+        val left = gutter
+        val width = size.width - left - rightPad
+        val step = width / (count - 1)
+        val xs = FloatArray(count) { left + it * step }
+        val span = (axis.max - axis.min).toDouble()
+        fun yOf(value: Double): Double = bottom - ((value - axis.min) / span) * (bottom - top)
+
+        // Сетка и подписи по оси давления.
+        axis.ticks.forEachIndexed { index, tick ->
+            val y = yOf(tick.toDouble()).toFloat()
+            drawLine(palette.glassLine, Offset(left, y), Offset(size.width - rightPad, y), strokeWidth = 0.8.dp.toPx())
+            val label = yLabels[index]
+            drawText(label, topLeft = Offset(gutter - 5.dp.toPx() - label.size.width, y - label.size.height / 2f))
+        }
+
+        val ys = DoubleArray(count) { yOf(smooth[it]) }
         val slopes = monotoneTangents(ys)
         val line = Path().apply {
             moveTo(xs[0], ys[0].toFloat())
@@ -169,13 +192,47 @@ internal fun Sparkline(values: List<Double>, nowIndex: Int, modifier: Modifier =
                 )
             }
         }
+        val fill = Path().apply {
+            addPath(line)
+            lineTo(xs[count - 1], bottom)
+            lineTo(xs[0], bottom)
+            close()
+        }
+        drawPath(
+            fill,
+            Brush.verticalGradient(
+                listOf(palette.accent.copy(alpha = 0.30f), palette.accent.copy(alpha = 0.02f)),
+                startY = top,
+                endY = bottom,
+            ),
+        )
         drawPath(
             line,
             palette.accent,
             style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
-        if (nowIndex in 0 until count) drawCircle(palette.accent, 3.dp.toPx(), Offset(xs[nowIndex], ys[nowIndex].toFloat()))
+
+        // Время под графиком: начало ряда, «сейчас» (если не вплотную к краям) и конец.
+        fun timeLabel(index: Int) = measurer.measure(points[index].time.atZone(zone).format(timeFormat), labelStyle)
+        val labelY = size.height - labelHeight
+        val first = timeLabel(0)
+        drawText(first, topLeft = Offset(xs[0], labelY))
+        val last = timeLabel(count - 1)
+        drawText(last, topLeft = Offset(xs[count - 1] - last.size.width, labelY))
+        if (nowIndex in 0 until count) {
+            val x = xs[nowIndex]
+            drawLine(palette.accent.copy(alpha = 0.35f), Offset(x, ys[nowIndex].toFloat()), Offset(x, bottom), strokeWidth = 0.8.dp.toPx())
+            drawCircle(palette.accent, 3.dp.toPx(), Offset(x, ys[nowIndex].toFloat()))
+            if (nowIndex >= NOW_LABEL_MARGIN && nowIndex <= count - 1 - NOW_LABEL_MARGIN) {
+                val mid = timeLabel(nowIndex)
+                drawText(mid, topLeft = Offset(x - mid.size.width / 2f, labelY))
+            }
+        }
     }
 }
 
-private const val MIN_SPAN_HPA = 2.0
+/** Высота графика: прежняя полоса была 28 dp, с осями и подписями нужно на 24 dp больше (дуга солнца ниже уступает). */
+private val CHART_HEIGHT = 52.dp
+
+/** Подпись «сейчас» не ставится, если до края ряда меньше стольких точек: иначе налезает на первую или последнюю подпись. */
+private const val NOW_LABEL_MARGIN = 4

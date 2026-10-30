@@ -14,6 +14,13 @@ import kotlin.coroutines.resume
 class AndroidPlaceNamer(private val context: Context) : PlaceNamer {
 
     override suspend fun nameOf(point: GeoPoint): String? {
+        val address = addressOf(point) ?: return null
+        return address.locality ?: address.subAdminArea ?: address.adminArea
+    }
+
+    override suspend fun countryCodeOf(point: GeoPoint): String? = addressOf(point)?.countryCode
+
+    private suspend fun addressOf(point: GeoPoint): Address? {
         if (!Geocoder.isPresent()) return null
         val geocoder = Geocoder(context, context.resources.configuration.locales[0])
         val addresses = withTimeoutOrNull(TIMEOUT_MS) {
@@ -34,8 +41,7 @@ class AndroidPlaceNamer(private val context: Context) : PlaceNamer {
                 )
             }
         }
-        val address = addresses?.firstOrNull() ?: return null
-        return address.locality ?: address.subAdminArea ?: address.adminArea
+        return addresses?.firstOrNull()
     }
 
     private companion object {

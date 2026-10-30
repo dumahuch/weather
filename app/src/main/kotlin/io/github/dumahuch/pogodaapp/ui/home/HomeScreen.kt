@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,12 +47,18 @@ import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Condition
 
-/** Действия экрана: что делать по нажатиям кнопок и по протягиванию вниз. */
-class HomeActions(
+/**
+ * Действия экрана: что делать по нажатиям кнопок и по протягиванию вниз. [onOpenPlaces] открывает список мест (плашка
+ * места), [onFindCity] открывает сразу поиск города (вторая кнопка карточек «нет доступа» и «место не определено»).
+ * Оба задаёт [io.github.dumahuch.pogodaapp.ui.PogodaApp], потому что экран мест живёт в нём.
+ */
+data class HomeActions(
     val onAllow: () -> Unit,
     val onOpenSettings: () -> Unit,
     val onRetry: () -> Unit,
     val onRefresh: () -> Unit,
+    val onOpenPlaces: () -> Unit = {},
+    val onFindCity: () -> Unit = {},
 )
 
 /**
@@ -66,6 +74,7 @@ fun HomeScreen(
     permanentlyDenied: Boolean,
     actions: HomeActions,
     modifier: Modifier = Modifier,
+    pinnedName: String? = null,
 ) {
     val pull = rememberPullRefreshState(
         refreshing = refreshing,
@@ -94,7 +103,9 @@ fun HomeScreen(
                         .graphicsLayer { translationY = pull.offset },
                 ) {
                     TopRow(
-                        name = placeName(state),
+                        name = placeName(state, pinnedName),
+                        pinned = pinnedName != null,
+                        onClick = actions.onOpenPlaces,
                         modifier = Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
                     )
                     when (state) {
@@ -107,6 +118,8 @@ fun HomeScreen(
                             text = stringResource(R.string.locfail_text),
                             buttonLabel = stringResource(R.string.retry),
                             onButton = actions.onRetry,
+                            secondaryLabel = stringResource(R.string.places_find),
+                            onSecondary = actions.onFindCity,
                         )
                         HomeUiState.NoData -> StateTop(
                             icon = LineIcons.CloudOff,
@@ -146,26 +159,30 @@ fun HomeScreen(
 }
 
 @Composable
-internal fun placeName(state: HomeUiState): String = when (state) {
-    HomeUiState.Loading -> stringResource(R.string.place_locating)
+internal fun placeName(state: HomeUiState, pinnedName: String? = null): String = when (state) {
+    // У закреплённого места название известно сразу, ждать определения не нужно.
+    HomeUiState.Loading -> pinnedName ?: stringResource(R.string.place_locating)
     is HomeUiState.Content -> state.place.name ?: stringResource(R.string.place_current)
-    HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData -> stringResource(R.string.place_none)
+    HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData ->
+        pinnedName ?: stringResource(R.string.place_none)
 }
 
-/** Плашка с названием места. Поиска города пока нет, поэтому она не нажимается. */
+/** Плашка с названием места. Нажатие открывает список мест; у закреплённого места вместо стрелки навигации значок метки. */
 @Composable
-private fun TopRow(name: String, modifier: Modifier = Modifier) {
+private fun TopRow(name: String, pinned: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
+    val label = stringResource(R.string.places_open)
     Row(
         modifier
             .height(44.dp)
             .glassButton(RoundedCornerShape(22.dp), glass)
-            .padding(start = 15.dp, end = 15.dp),
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+            .padding(start = 15.dp, end = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        LineIconView(LineIcons.Navigation, 18.dp, palette.ink)
+        LineIconView(if (pinned) LineIcons.Pin else LineIcons.Navigation, 18.dp, palette.ink)
         Text(
             name,
             style = pogodaText(15f, 600),
@@ -173,6 +190,7 @@ private fun TopRow(name: String, modifier: Modifier = Modifier) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
+        LineIconView(LineIcons.ChevronDown, 18.dp, palette.ink2)
     }
 }
 
@@ -242,6 +260,8 @@ internal fun NoPermissionTop(permanentlyDenied: Boolean, actions: HomeActions) {
         text = stringResource(R.string.noloc_text),
         buttonLabel = stringResource(if (permanentlyDenied) R.string.noloc_settings else R.string.noloc_allow),
         onButton = if (permanentlyDenied) actions.onOpenSettings else actions.onAllow,
+        secondaryLabel = stringResource(R.string.places_find),
+        onSecondary = actions.onFindCity,
     )
 }
 
@@ -252,6 +272,8 @@ internal fun StateTop(
     text: String,
     buttonLabel: String,
     onButton: () -> Unit,
+    secondaryLabel: String? = null,
+    onSecondary: (() -> Unit)? = null,
 ) {
     StateCard(
         icon = icon,
@@ -260,5 +282,7 @@ internal fun StateTop(
         buttonLabel = buttonLabel,
         onButton = onButton,
         modifier = Modifier.padding(start = 24.dp, top = 38.dp, end = 24.dp),
+        secondaryLabel = secondaryLabel,
+        onSecondary = onSecondary,
     )
 }

@@ -148,6 +148,8 @@ fun ForecastScreen(
                 text = stringResource(R.string.locfail_text),
                 buttonLabel = stringResource(R.string.retry),
                 onButton = actions.onRetry,
+                secondaryLabel = stringResource(R.string.places_find),
+                onSecondary = actions.onFindCity,
             )
             HomeUiState.NoData -> StateTop(
                 icon = LineIcons.CloudOff,

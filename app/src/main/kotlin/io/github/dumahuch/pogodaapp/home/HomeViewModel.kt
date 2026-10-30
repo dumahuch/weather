@@ -6,6 +6,7 @@ import io.github.dumahuch.pogodaapp.data.AirQualityParser
 import io.github.dumahuch.pogodaapp.data.AirQualitySource
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.ForecastSource
+import io.github.dumahuch.pogodaapp.data.GeocodingSource
 import io.github.dumahuch.pogodaapp.data.OpenMeteoParser
 import io.github.dumahuch.pogodaapp.data.PollenParser
 import io.github.dumahuch.pogodaapp.data.PollenSource
@@ -14,6 +15,16 @@ import io.github.dumahuch.pogodaapp.location.LocationSource
 import io.github.dumahuch.pogodaapp.location.PlaceNamer
 import io.github.dumahuch.pogodaapp.location.PollenRegionLocator
 import io.github.dumahuch.pogodaapp.location.distanceKm
+import io.github.dumahuch.pogodaapp.places.MemoryPinnedPlacesStorage
+import io.github.dumahuch.pogodaapp.places.PinResult
+import io.github.dumahuch.pogodaapp.places.PinnedForecastCaches
+import io.github.dumahuch.pogodaapp.places.PinnedPlace
+import io.github.dumahuch.pogodaapp.places.PinnedPlacesStorage
+import io.github.dumahuch.pogodaapp.places.PlaceChoice
+import io.github.dumahuch.pogodaapp.places.PlaceSearchModel
+import io.github.dumahuch.pogodaapp.places.PlaceSuggestion
+import io.github.dumahuch.pogodaapp.places.PlacesLogic
+import io.github.dumahuch.pogodaapp.places.PlacesMessage
 import io.github.dumahuch.pogodaapp.weather.AirQuality
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
@@ -35,6 +46,7 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Locale
 
 /**
  * Логика вкладки «Главная»: место → прогноз → сохранение → состояние для экрана.
@@ -42,7 +54,7 @@ import java.time.ZoneId
  *  1. нет разрешения: карточка «Разрешить»;
  *  2. сохранённые данные показываются сразу, пока идёт обновление;
  *  3. прогноз запрашивается сразу по последнему известному месту, не дожидаясь свежего; свежее место определяется
- *     параллельно, и если оно дальше [SAME_PLACE_KM] от первого, прогноз запрашивается ещё раз;
+ *     параллельно, и если оно дальше [PlacesLogic.SAME_PLACE_KM] от первого, прогноз запрашивается ещё раз;
  *  4. название места ищется параллельно с запросом прогноза и появляется, когда готово, прогноз его не ждёт;
  *  5. место неизвестно совсем: карточка «Не удалось определить место»;
  *  6. обновление удалось: свежие данные; не удалось: сохранённые с пометкой «нет сети», а если их нет, «нет данных».
@@ -52,6 +64,11 @@ import java.time.ZoneId
  * DWD для всей Германии; вне Германии, без сети и без файла границ плитка показывает «Нет данных».
  * Обновление протягиванием ([refresh]) делает то же самое сразу, без оглядки на 15 минут, и поднимает флаг [refreshing],
  * по которому экран показывает индикатор.
+ *
+ * С версии 0.5.0 приложение показывает либо текущее место ([PlaceChoice.Current], всё описанное выше), либо одно из
+ * закреплённых ([PlaceChoice.Pinned], до [PlacesLogic.MAX_PINNED]). Для закреплённого места не нужны ни разрешение,
+ * ни определение места, ни название от службы адресов: координаты и название уже известны, прогноз и его сохранённая
+ * копия свои у каждого места. При запуске всегда выбрано текущее место; выбор живёт, пока жив процесс.
  */
 class HomeViewModel(
     private val locations: LocationSource,
@@ -62,10 +79,32 @@ class HomeViewModel(
     private val air: AirQualitySource? = null,
     private val pollenSource: PollenSource? = null,
     private val pollenRegions: PollenRegionLocator? = null,
+    private val pinnedStorage: PinnedPlacesStorage = MemoryPinnedPlacesStorage(),
+    private val pinnedCaches: PinnedForecastCaches? = null,
+    geocoding: GeocodingSource? = null,
+    language: () -> String = { "en" },
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = mutableState.asStateFlow()
+
+    private val mutableSelection = MutableStateFlow<PlaceChoice>(PlaceChoice.Current)
+
+    /** Какое место сейчас показано. */
+    val selection: StateFlow<PlaceChoice> = mutableSelection.asStateFlow()
+
+    private val mutablePinned = MutableStateFlow(pinnedStorage.load().take(PlacesLogic.MAX_PINNED))
+
+    /** Закреплённые места по порядку добавления. */
+    val pinned: StateFlow<List<PinnedPlace>> = mutablePinned.asStateFlow()
+
+    private val mutableMessage = MutableStateFlow<PlacesMessage?>(null)
+
+    /** Сообщение экрана мест (список полон, место определяется, не удалось определить). */
+    val message: StateFlow<PlacesMessage?> = mutableMessage.asStateFlow()
+
+    /** Поиск города с подсказками. */
+    val search = PlaceSearchModel(viewModelScope, geocoding, language, { homeCountry() })
 
     private val mutableRefreshing = MutableStateFlow(false)
 
@@ -73,6 +112,7 @@ class HomeViewModel(
     val refreshing: StateFlow<Boolean> = mutableRefreshing.asStateFlow()
 
     private var job: Job? = null
+    private var locateJob: Job? = null
     private var lastSuccess: Instant? = null
 
     /** То, что сейчас показано свежим: нужно, чтобы дописать название места. */
@@ -90,14 +130,14 @@ class HomeViewModel(
 
     private var pollenEntry: PollenEntry? = null
 
+    /** Чем кончилась последняя попытка получить пыльцу и для какой точки: по этому экран проверки объясняет пустую плитку. */
+    private class PollenOutcome(val point: GeoPoint, val status: PollenStatus)
+
+    private var pollenOutcome: PollenOutcome? = null
+
     /** Вызывается при каждом открытии экрана. Обновляет, если данные не свежие или были ошибки. */
     fun onResumed(permissionGranted: Boolean) {
-        if (!permissionGranted) {
-            job?.cancel()
-            mutableRefreshing.value = false
-            mutableState.value = HomeUiState.NoPermission
-            return
-        }
+        if (blockedByPermission(permissionGranted)) return
         val current = mutableState.value
         val fresh = lastSuccess?.let { Duration.between(it, clock.instant()) < REFRESH_AFTER } == true
         if (current is HomeUiState.Content && !current.offline && fresh) return
@@ -107,12 +147,7 @@ class HomeViewModel(
 
     /** Кнопка «Повторить». */
     fun retry(permissionGranted: Boolean) {
-        if (!permissionGranted) {
-            job?.cancel()
-            mutableRefreshing.value = false
-            mutableState.value = HomeUiState.NoPermission
-            return
-        }
+        if (blockedByPermission(permissionGranted)) return
         job?.cancel()
         start(manual = false)
     }
@@ -122,18 +157,109 @@ class HomeViewModel(
      * Пока уже идёт такое обновление, повторное протягивание ничего не делает.
      */
     fun refresh(permissionGranted: Boolean) {
-        if (!permissionGranted) {
-            job?.cancel()
-            mutableRefreshing.value = false
-            mutableState.value = HomeUiState.NoPermission
-            return
-        }
+        if (blockedByPermission(permissionGranted)) return
         if (mutableRefreshing.value) return
         job?.cancel()
         start(manual = true)
     }
 
+    /**
+     * Переключает приложение на другое место. То же место: ведёт себя как обычное возвращение на экран.
+     * Другое: прежняя загрузка отменяется, показывается сохранённый прогноз нового места (если есть), идёт обновление.
+     * Разрешение нужно только для текущего места.
+     */
+    fun select(choice: PlaceChoice, permissionGranted: Boolean) {
+        if (choice == mutableSelection.value) {
+            onResumed(permissionGranted)
+            return
+        }
+        mutableSelection.value = choice
+        job?.cancel()
+        mutableRefreshing.value = false
+        snapshot = null
+        lastSuccess = null
+        if (blockedByPermission(permissionGranted)) return
+        mutableState.value = HomeUiState.Loading
+        start()
+    }
+
+    /**
+     * Закрепляет найденное поиском место и открывает его. Если такое место (в пределах [PlacesLogic.SAME_PLACE_KM])
+     * уже есть, открывается оно; если список полон, ничего не меняется и появляется сообщение.
+     */
+    fun pin(suggestion: PlaceSuggestion): PinResult = pinPlace(PinnedPlace.of(suggestion))
+
+    /**
+     * Кнопка «Определить место»: телефон сам определяет, где он, и закрепляет это место, поиск вводить не нужно.
+     * Если службе адресов название неизвестно, место подписывается координатами. [onDone] вызывается, когда место
+     * закреплено (или оказалось уже закреплённым, или список полон); при неудаче появляется сообщение, [onDone] не вызывается.
+     */
+    fun pinCurrentLocation(onDone: (PinResult) -> Unit) {
+        if (locateJob?.isActive == true) return
+        mutableMessage.value = PlacesMessage.Locating
+        locateJob = viewModelScope.launch {
+            val point = freshOrNull() ?: lastKnownOrNull()
+            if (point == null) {
+                mutableMessage.value = PlacesMessage.LocateFailed
+                return@launch
+            }
+            val name = nameOrNull(point) ?: coordinatesLabel(point)
+            onDone(pinPlace(PinnedPlace.ofPoint(point, name)))
+        }
+    }
+
+    /** Убирает место из списка вместе с его сохранённым прогнозом. Если оно было открыто, открывается текущее место. */
+    fun unpin(id: String, permissionGranted: Boolean) {
+        val updated = mutablePinned.value.filterNot { it.id == id }
+        if (updated.size == mutablePinned.value.size) return
+        mutablePinned.value = updated
+        pinnedStorage.save(updated)
+        pinnedCaches?.delete(id)
+        mutableMessage.value = null
+        if ((mutableSelection.value as? PlaceChoice.Pinned)?.id == id) {
+            select(PlaceChoice.Current, permissionGranted)
+        }
+    }
+
+    /** Закрыть сообщение экрана мест (при выходе с экрана или новом поиске). */
+    fun dismissMessage() {
+        if (locateJob?.isActive == true) return
+        mutableMessage.value = null
+    }
+
+    private fun pinPlace(place: PinnedPlace): PinResult {
+        val list = mutablePinned.value
+        val same = PlacesLogic.findSame(list, place.latitude, place.longitude)
+        if (same != null) {
+            mutableMessage.value = null
+            search.clear()
+            select(PlaceChoice.Pinned(same.id), permissionGranted = true)
+            return PinResult.AlreadyPinned
+        }
+        if (list.size >= PlacesLogic.MAX_PINNED) {
+            mutableMessage.value = PlacesMessage.ListFull
+            return PinResult.ListFull
+        }
+        val updated = list + place
+        mutablePinned.value = updated
+        pinnedStorage.save(updated)
+        mutableMessage.value = null
+        search.clear()
+        select(PlaceChoice.Pinned(place.id), permissionGranted = true)
+        return PinResult.Added
+    }
+
+    /** Для текущего места без разрешения показывается карточка «Разрешить»; у закреплённых разрешения не требуется. */
+    private fun blockedByPermission(permissionGranted: Boolean): Boolean {
+        if (permissionGranted || mutableSelection.value !is PlaceChoice.Current) return false
+        job?.cancel()
+        mutableRefreshing.value = false
+        mutableState.value = HomeUiState.NoPermission
+        return true
+    }
+
     private fun start(manual: Boolean = false) {
+        val choice = mutableSelection.value
         // Запуск отложен: нужно сначала записать задачу в [job], чтобы в `finally` отличить её от более новой.
         val started = viewModelScope.launch(start = CoroutineStart.LAZY) {
             try {
@@ -141,11 +267,11 @@ class HomeViewModel(
                     // Индикатор виден не меньше [MIN_REFRESH_SHOWN_MS]: иначе при быстром ответе он лишь мигнёт.
                     coroutineScope {
                         val minimum = launch { delay(MIN_REFRESH_SHOWN_MS) }
-                        load()
+                        load(choice)
                         minimum.join()
                     }
                 } else {
-                    load()
+                    load(choice)
                 }
             } finally {
                 if (job === coroutineContext[Job]) mutableRefreshing.value = false
@@ -156,7 +282,48 @@ class HomeViewModel(
         started.start()
     }
 
-    private suspend fun load() = coroutineScope {
+    private suspend fun load(choice: PlaceChoice) {
+        when (choice) {
+            PlaceChoice.Current -> loadCurrent()
+            is PlaceChoice.Pinned -> {
+                val place = mutablePinned.value.firstOrNull { it.id == choice.id }
+                if (place == null) mutableState.value = HomeUiState.NoData else loadPinned(place)
+            }
+        }
+    }
+
+    private suspend fun loadPinned(place: PinnedPlace) = coroutineScope {
+        val store = pinnedCaches?.cacheFor(place.id)
+        val cached = store?.load()
+        val cachedForecast = cached?.let { parseOrNull(it.raw) }
+        if (mutableState.value !is HomeUiState.Content) {
+            mutableState.value = if (cached != null && cachedForecast != null) {
+                content(cached.place, cachedForecast, cached.savedAt, offline = false)
+            } else {
+                HomeUiState.Loading
+            }
+        }
+        val fetched = try {
+            val raw = source.fetchRaw(place.latitude, place.longitude)
+            raw to OpenMeteoParser.parse(raw)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        if (fetched == null) {
+            showStaleOrNoData(cached, cachedForecast)
+            return@coroutineScope
+        }
+        val (raw, forecast) = fetched
+        val now = clock.instant()
+        lastSuccess = now
+        publish(Place(place.latitude, place.longitude, place.name), forecast, raw, now, store)
+        fetchAirQuality(place.point)
+        fetchPollen(place.point)
+    }
+
+    private suspend fun loadCurrent() = coroutineScope {
         val cached = cache.load()
         val cachedForecast = cached?.let { parseOrNull(it.raw) }
         if (mutableState.value !is HomeUiState.Content) {
@@ -212,7 +379,7 @@ class HomeViewModel(
         val now = clock.instant()
         lastSuccess = now
         val place = Place(point.latitude, point.longitude, knownName)
-        publish(place, forecast, raw, now)
+        publish(place, forecast, raw, now, cache)
         fetchAirQuality(point)
         fetchPollen(point)
         if (lookup != null) {
@@ -244,17 +411,39 @@ class HomeViewModel(
         null
     }
 
+    /**
+     * Страна телефона для упорядочивания подсказок: по последнему известному месту, а если его нет или служба адресов
+     * молчит, по региону, выбранному в настройках телефона.
+     */
+    private suspend fun homeCountry(): String? {
+        val byPlace = lastKnownOrNull()?.let {
+            try {
+                namer.countryCodeOf(it)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+        }
+        return byPlace ?: Locale.getDefault().country.takeIf { it.isNotBlank() }
+    }
+
+    /** Подпись места, у которого службе адресов название неизвестно: «52.37, 9.74». */
+    private fun coordinatesLabel(point: GeoPoint): String =
+        String.format(Locale.ROOT, "%.2f, %.2f", point.latitude, point.longitude)
+
     /** Добавляет название, только если на экране всё ещё этот прогноз для этого места и названия у него нет. */
     private fun applyName(place: Place, name: String) {
         val shown = snapshot ?: return
         val same = shown.place.latitude == place.latitude && shown.place.longitude == place.longitude
         if (!same || shown.place.name != null) return
-        publish(shown.place.copy(name = name), shown.forecast, shown.raw, shown.savedAt)
+        publish(shown.place.copy(name = name), shown.forecast, shown.raw, shown.savedAt, cache)
     }
 
-    private fun publish(place: Place, forecast: Forecast, raw: String, savedAt: Instant) {
+    /** [store] куда сохранять копию прогноза; null, если сохранять некуда (закреплённые места в тестах без папки). */
+    private fun publish(place: Place, forecast: Forecast, raw: String, savedAt: Instant, store: ForecastCache?) {
         snapshot = Snapshot(place, forecast, raw, savedAt)
-        cache.save(ForecastCache.Entry(savedAt, place, raw))
+        store?.save(ForecastCache.Entry(savedAt, place, raw))
         mutableState.value = content(place, forecast, savedAt, offline = false)
     }
 
@@ -289,6 +478,7 @@ class HomeViewModel(
     /**
      * Запрашивает пыльцу вне области задач загрузки. Если для этого места данные ещё свежие, повторно не качает
      * (файл DWD выходит раз в сутки). Район в файле находится по границам, без них или вне Германии пыльцы нет.
+     * Чем кончилась попытка, записывается в [PollenStatus] (для экрана проверки).
      */
     private fun fetchPollen(point: GeoPoint) {
         val source = pollenSource ?: return
@@ -300,9 +490,13 @@ class HomeViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                null
+                reportPollen(point, PollenStatus.Unavailable, null)
+                return@launch
             }
-            if (key == null) return@launch
+            if (key == null) {
+                reportPollen(point, PollenStatus.OutsideGermany, null)
+                return@launch
+            }
             val now = clock.instant()
             val forecast: PollenForecast? = try {
                 PollenParser.parse(source.fetchRaw(), key, now.atZone(PollenZone).toLocalDate())
@@ -311,12 +505,20 @@ class HomeViewModel(
             } catch (e: Exception) {
                 null
             }
-            if (forecast == null) return@launch
-            pollenEntry = PollenEntry(point, now, forecast)
-            val shown = mutableState.value
-            if (shown is HomeUiState.Content && nearby(shown.place, point)) {
-                mutableState.value = shown.copy(pollen = forecast)
+            if (forecast == null) {
+                reportPollen(point, PollenStatus.Unavailable, null)
+                return@launch
             }
+            pollenEntry = PollenEntry(point, now, forecast)
+            reportPollen(point, PollenStatus.Loaded, forecast)
+        }
+    }
+
+    private fun reportPollen(point: GeoPoint, status: PollenStatus, forecast: PollenForecast?) {
+        pollenOutcome = PollenOutcome(point, status)
+        val shown = mutableState.value
+        if (shown is HomeUiState.Content && nearby(shown.place, point)) {
+            mutableState.value = shown.copy(pollen = forecast ?: shown.pollen, pollenStatus = status)
         }
     }
 
@@ -324,6 +526,12 @@ class HomeViewModel(
         val entry = pollenEntry ?: return null
         val fresh = Duration.between(entry.at, clock.instant()) < POLLEN_VALID_FOR
         return if (fresh && nearby(place, entry.point)) entry.forecast else null
+    }
+
+    private fun pollenStatusFor(place: Place): PollenStatus {
+        if (pollenFor(place) != null) return PollenStatus.Loaded
+        val outcome = pollenOutcome ?: return PollenStatus.Pending
+        return if (outcome.status != PollenStatus.Loaded && nearby(place, outcome.point)) outcome.status else PollenStatus.Pending
     }
 
     private fun airFor(place: Place): AirQuality? {
@@ -342,6 +550,7 @@ class HomeViewModel(
             staleHours = Duration.between(savedAt, now).toHours().toInt().coerceAtLeast(0),
             airQuality = airFor(place),
             pollen = pollenFor(place),
+            pollenStatus = pollenStatusFor(place),
         )
     }
 
@@ -353,7 +562,7 @@ class HomeViewModel(
 
     private fun nearby(place: Place, point: GeoPoint): Boolean = nearby(GeoPoint(place.latitude, place.longitude), point)
 
-    private fun nearby(a: GeoPoint, b: GeoPoint): Boolean = distanceKm(a, b) < SAME_PLACE_KM
+    private fun nearby(a: GeoPoint, b: GeoPoint): Boolean = distanceKm(a, b) < PlacesLogic.SAME_PLACE_KM
 
     private companion object {
         /** Не дёргать сеть при каждом возвращении на экран. */
@@ -361,9 +570,6 @@ class HomeViewModel(
 
         /** Сколько миллисекунд индикатор обновления остаётся на экране минимум. */
         const val MIN_REFRESH_SHOWN_MS = 700L
-
-        /** В пределах этого расстояния название места берётся из сохранённого, без запроса к службе адресов. */
-        const val SAME_PLACE_KM = 2.0
 
         /** Качество воздуха старше этого срока не показывается: индекс меняется по часам. */
         val AIR_VALID_FOR: Duration = Duration.ofHours(3)
