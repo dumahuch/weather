@@ -78,7 +78,10 @@ class PlacesActions(
     val onSelect: (PlaceChoice) -> Unit,
     val onUnpin: (String) -> Unit,
     val onQuery: (String) -> Unit,
-    val onPick: (PlaceSuggestion) -> PinResult,
+    /** Нажатие на найденный город: он открывается для просмотра и нигде не сохраняется. */
+    val onPick: (PlaceSuggestion) -> Unit,
+    /** Кнопка «Закрепить» у города, открытого для просмотра; null, если открыт не просмотр. */
+    val onPinPreview: () -> PinResult?,
     /** Определить место по геолокации и закрепить; переданное действие вызывается, когда место закреплено. */
     val onLocate: (onDone: () -> Unit) -> Unit,
     /** Выход из поиска или с экрана: очищает поле и закрывает сообщение. */
@@ -135,6 +138,23 @@ private fun ListPage(
                 selected = ui.selection == PlaceChoice.Current,
                 onClick = { actions.onSelect(PlaceChoice.Current); onClose() },
             )
+            val preview = (ui.selection as? PlaceChoice.Preview)?.place
+            if (preview != null) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(palette.glassLine))
+                PlaceRow(
+                    icon = LineIcons.Search,
+                    title = preview.name,
+                    subtitle = listOf(
+                        stringResource(R.string.places_preview),
+                        placeRegionLine(preview.name, preview.admin1, preview.country),
+                    ).filter { it.isNotEmpty() }.joinToString(" · "),
+                    selected = true,
+                    onClick = onClose,
+                    onPin = { actions.onPinPreview() },
+                    pinEnabled = ui.pinned.size < PlacesLogic.MAX_PINNED,
+                    pinLabel = stringResource(R.string.places_pin_named, preview.name),
+                )
+            }
             for (place in ui.pinned) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(palette.glassLine))
                 PlaceRow(
@@ -220,7 +240,8 @@ private fun SearchPage(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ResultsCard(ui.results) { suggestion ->
-                if (actions.onPick(suggestion) != PinResult.ListFull) onDone()
+                actions.onPick(suggestion)
+                onDone()
             }
         }
         Text(
@@ -293,7 +314,8 @@ private fun Header(title: String, onBack: () -> Unit) {
 
 /**
  * Строка списка мест. Нажатие по основной части выбирает место, отдельная кнопка с крестиком (область нажатия 48 dp)
- * открепляет закреплённое. У выбранного места стоит галочка.
+ * открепляет закреплённое, а у города, открытого для просмотра, вместо неё кнопка с меткой закрепляет его ([onPin]).
+ * У выбранного места стоит галочка.
  */
 @Composable
 private fun PlaceRow(
@@ -304,6 +326,9 @@ private fun PlaceRow(
     onClick: () -> Unit,
     onRemove: (() -> Unit)? = null,
     removeLabel: String = "",
+    onPin: (() -> Unit)? = null,
+    pinEnabled: Boolean = true,
+    pinLabel: String = "",
 ) {
     val palette = LocalPogodaPalette.current
     val selectedLabel = stringResource(R.string.places_selected)
@@ -332,7 +357,17 @@ private fun PlaceRow(
             }
             if (selected) LineIconView(LineIcons.Check, 20.dp, palette.accent)
         }
-        if (onRemove != null) {
+        if (onPin != null) {
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clickable(enabled = pinEnabled, role = Role.Button, onClick = onPin)
+                    .semantics { contentDescription = pinLabel },
+                contentAlignment = Alignment.Center,
+            ) {
+                LineIconView(LineIcons.Pin, 20.dp, if (pinEnabled) palette.ink else palette.ink2.copy(alpha = 0.5f))
+            }
+        } else if (onRemove != null) {
             Box(
                 Modifier
                     .size(48.dp)

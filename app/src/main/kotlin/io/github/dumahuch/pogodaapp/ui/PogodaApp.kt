@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.places.PlaceChoice
+import io.github.dumahuch.pogodaapp.places.PlacesLogic
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
 import io.github.dumahuch.pogodaapp.ui.details.DetailsScreen
@@ -72,12 +73,25 @@ fun PogodaApp(
     BackHandler(enabled = !placesOpen && openDay != null) { openDay = null }
     BackHandler(enabled = !placesOpen && openDay == null && tab != AppTab.Home) { tab = AppTab.Home }
 
-    val pinnedName = (places.selection as? PlaceChoice.Pinned)?.let { choice ->
-        places.pinned.firstOrNull { it.id == choice.id }?.name
+    // Название выбранного не текущего места (закреплённого или открытого для просмотра) и признак просмотра.
+    val chosenName = when (val choice = places.selection) {
+        PlaceChoice.Current -> null
+        is PlaceChoice.Pinned -> places.pinned.firstOrNull { it.id == choice.id }?.name
+        is PlaceChoice.Preview -> choice.place.name
     }
-    val linked = remember(actions) {
+    val previewing = places.selection is PlaceChoice.Preview
+    val listFull = places.pinned.size >= PlacesLogic.MAX_PINNED
+    val linked = remember(actions, listFull) {
         actions.copy(
             onOpenPlaces = { placesOpen = true },
+            // Список полон: «Закрепить» ведёт в список, где видно сообщение и можно открепить одно из мест.
+            onPinPreview = {
+                if (listFull) {
+                    placesOpen = true
+                } else {
+                    placesActions.onPinPreview()
+                }
+            },
             onFindCity = {
                 placesOpen = true
                 searching = true
@@ -107,7 +121,8 @@ fun PogodaApp(
                 refreshing = refreshing,
                 permanentlyDenied = permanentlyDenied,
                 actions = linked,
-                pinnedName = pinnedName,
+                pinnedName = chosenName,
+                preview = previewing,
             )
 
             AppTab.Forecast -> {

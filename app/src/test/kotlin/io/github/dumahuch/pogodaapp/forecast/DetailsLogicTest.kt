@@ -302,4 +302,23 @@ class DetailsLogicTest {
         assertEquals(0, PressureOutlook.nowIndex(points, start.minusSeconds(3600)))
         assertEquals(0, PressureOutlook.nowIndex(emptyList(), now))
     }
+
+    @Test
+    fun pressureLevelBoundaries() {
+        assertEquals(PressureLevel.Low, PressureLevel.ofHpa(999))
+        assertEquals(PressureLevel.Normal, PressureLevel.ofHpa(1000))
+        assertEquals(PressureLevel.Normal, PressureLevel.ofHpa(1013))
+        assertEquals(PressureLevel.Normal, PressureLevel.ofHpa(1025))
+        assertEquals(PressureLevel.High, PressureLevel.ofHpa(1026))
+        assertEquals(PressureLevel.High, PressureLevel.ofHpa(1033))
+        assertEquals(PressureLevel.Low, PressureLevel.ofHpa(970))
+    }
+
+    @Test
+    fun pressureLevelAsContinuationOfTheTrendLine() {
+        // «Стабильно · повышенное», «Steady · high», «Stabil · hoher Druck»: продолжение строчное, в немецком из двух слов
+        assertEquals("повышенное", continuationCase("Повышенное", Locale.forLanguageTag("ru")))
+        assertEquals("high", continuationCase("High", Locale.ENGLISH))
+        assertEquals("hoher Druck", continuationCase("Hoher Druck", Locale.GERMAN))
+    }
 }

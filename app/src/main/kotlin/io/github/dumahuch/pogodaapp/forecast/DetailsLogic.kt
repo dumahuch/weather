@@ -26,6 +26,27 @@ enum class PressureTrend {
     }
 }
 
+/**
+ * Где давление на уровне моря среди обычных значений (решение Димы 30.10.2026): ниже 1000 гПа пониженное, от 1000 до 1025
+ * включительно нормальное, выше 1025 повышенное. Опора: стандартная атмосфера 1013,25 гПа; единых официальных границ
+ * «высокое» и «низкое» нет, у разных источников они немного разные, эти выбраны для приложения.
+ */
+enum class PressureLevel {
+    Low, Normal, High;
+
+    companion object {
+        const val NORMAL_FROM_HPA = 1000
+        const val NORMAL_TO_HPA = 1025
+
+        /** [hpa] целое, как на плитке: число и слово не расходятся. */
+        fun ofHpa(hpa: Int): PressureLevel = when {
+            hpa < NORMAL_FROM_HPA -> Low
+            hpa > NORMAL_TO_HPA -> High
+            else -> Normal
+        }
+    }
+}
+
 /** Точка графика давления: час и давление на уровне моря, гПа. */
 data class PressurePoint(val time: Instant, val hpa: Double)
 

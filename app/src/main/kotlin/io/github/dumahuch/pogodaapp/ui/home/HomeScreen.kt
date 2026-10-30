@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +61,8 @@ data class HomeActions(
     val onRefresh: () -> Unit,
     val onOpenPlaces: () -> Unit = {},
     val onFindCity: () -> Unit = {},
+    /** Кнопка «Закрепить» рядом с названием города, открытого для просмотра. */
+    val onPinPreview: () -> Unit = {},
 )
 
 /**
@@ -75,6 +79,7 @@ fun HomeScreen(
     actions: HomeActions,
     modifier: Modifier = Modifier,
     pinnedName: String? = null,
+    preview: Boolean = false,
 ) {
     val pull = rememberPullRefreshState(
         refreshing = refreshing,
@@ -105,7 +110,9 @@ fun HomeScreen(
                     TopRow(
                         name = placeName(state, pinnedName),
                         pinned = pinnedName != null,
+                        preview = preview,
                         onClick = actions.onOpenPlaces,
+                        onPin = actions.onPinPreview,
                         modifier = Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
                     )
                     when (state) {
@@ -167,30 +174,64 @@ internal fun placeName(state: HomeUiState, pinnedName: String? = null): String =
         pinnedName ?: stringResource(R.string.place_none)
 }
 
-/** Плашка с названием места. Нажатие открывает список мест; у закреплённого места вместо стрелки навигации значок метки. */
+/**
+ * Плашка с названием места. Нажатие открывает список мест; у закреплённого места вместо стрелки навигации значок метки,
+ * у города, открытого для просмотра, значок поиска и рядом кнопка «Закрепить» ([onPin]).
+ */
 @Composable
-private fun TopRow(name: String, pinned: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun TopRow(
+    name: String,
+    pinned: Boolean,
+    preview: Boolean,
+    onClick: () -> Unit,
+    onPin: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
     val label = stringResource(R.string.places_open)
-    Row(
-        modifier
-            .height(44.dp)
-            .glassButton(RoundedCornerShape(22.dp), glass)
-            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
-            .padding(start = 15.dp, end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        LineIconView(if (pinned) LineIcons.Pin else LineIcons.Navigation, 18.dp, palette.ink)
-        Text(
-            name,
-            style = pogodaText(15f, 600),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
-        )
-        LineIconView(LineIcons.ChevronDown, 18.dp, palette.ink2)
+    val previewLabel = stringResource(R.string.places_preview)
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .height(44.dp)
+                .weight(1f, fill = false)
+                .glassButton(RoundedCornerShape(22.dp), glass)
+                .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+                .semantics { if (preview) stateDescription = previewLabel }
+                .padding(start = 15.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            val icon = when {
+                preview -> LineIcons.Search
+                pinned -> LineIcons.Pin
+                else -> LineIcons.Navigation
+            }
+            LineIconView(icon, 18.dp, palette.ink)
+            Text(
+                name,
+                style = pogodaText(15f, 600),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            LineIconView(LineIcons.ChevronDown, 18.dp, palette.ink2)
+        }
+        if (preview) {
+            Row(
+                Modifier
+                    .height(44.dp)
+                    .glassButton(RoundedCornerShape(22.dp), glass)
+                    .clickable(role = Role.Button, onClick = onPin)
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                LineIconView(LineIcons.Pin, 18.dp, palette.ink)
+                Text(stringResource(R.string.places_pin), style = pogodaText(15f, 600), maxLines = 1)
+            }
+        }
     }
 }
 

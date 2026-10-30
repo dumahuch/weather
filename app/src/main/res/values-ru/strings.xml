@@ -167,6 +167,10 @@
     <string name="trend_steady">Стабильно</string>
     <string name="trend_falling">Падает</string>
     <string name="trend_falling_fast">Быстро падает</string>
+    <string name="pressure_level_low">Пониженное</string>
+    <string name="pressure_level_normal">Нормальное</string>
+    <string name="pressure_level_high">Повышенное</string>
+    <string name="pressure_trend_level">%1$s · %2$s</string>
     <string name="tile_humidity">Влажность</string>
     <string name="visibility_line">Видимость: %1$s км</string>
     <string name="tile_sun_moon">Солнце и Луна</string>
@@ -197,6 +201,9 @@
     <string name="places_locate_failed">Не удалось определить место. Проверьте, что геолокация включена, и попробуйте снова.</string>
     <string name="places_unpin">Открепить место: %1$s</string>
     <string name="places_selected">Выбрано</string>
+    <string name="places_preview">Просмотр</string>
+    <string name="places_pin">Закрепить</string>
+    <string name="places_pin_named">Закрепить место: %1$s</string>
     <string name="places_clear">Очистить</string>
     <string name="places_search_hint">Город или индекс</string>
     <string name="places_search_idle">Введите название города или почтовый индекс.</string>

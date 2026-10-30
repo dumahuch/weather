@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.CompassPoint
+import io.github.dumahuch.pogodaapp.forecast.PressureLevel
 import io.github.dumahuch.pogodaapp.forecast.PressureOutlook
 import io.github.dumahuch.pogodaapp.forecast.PressurePoint
 import io.github.dumahuch.pogodaapp.forecast.PressureTrend
@@ -359,12 +360,28 @@ private fun PressureTile(
 ) {
     DetailTile(stringResource(R.string.tile_pressure), modifier) {
         BigValue(details?.pressureHpa?.roundToInt()?.toString() ?: "–", stringResource(R.string.hpa_unit))
-        trend?.let { SubText(stringResource(trendLabel(it))) }
+        val locale = LocalLocale.current.platformLocale
+        val level = details?.pressureHpa?.roundToInt()?.let { PressureLevel.ofHpa(it) }
+        val levelText = level?.let { stringResource(pressureLevelLabel(it)) }
+        val trendText = trend?.let { stringResource(trendLabel(it)) }
+        when {
+            // Тенденция и уровень в одной строке: «Стабильно · повышенное»; длинная строка сама переносится.
+            trendText != null && levelText != null ->
+                SubText(stringResource(R.string.pressure_trend_level, trendText, continuationCase(levelText, locale)))
+            trendText != null -> SubText(trendText)
+            levelText != null -> SubText(levelText)
+        }
         if (points.size >= 2) {
             Spacer(Modifier.weight(1f).heightIn(min = 6.dp))
             PressureChart(points, nowIndex, zone)
         }
     }
+}
+
+private fun pressureLevelLabel(level: PressureLevel): Int = when (level) {
+    PressureLevel.Low -> R.string.pressure_level_low
+    PressureLevel.Normal -> R.string.pressure_level_normal
+    PressureLevel.High -> R.string.pressure_level_high
 }
 
 private fun trendLabel(trend: PressureTrend): Int = when (trend) {
