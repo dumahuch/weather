@@ -203,7 +203,7 @@ class DetailsLogicTest {
         assertEquals(1000.0, smooth.first(), 1e-9)
         assertEquals(1000.0, smooth.last(), 1e-9)
         assertTrue(smooth[1] < raw[1] && smooth[2] > raw[2])
-        assertEquals(raw, smoothSeries(raw.take(2)))
+        assertEquals(raw.take(2), smoothSeries(raw.take(2)))
     }
 
     @Test
