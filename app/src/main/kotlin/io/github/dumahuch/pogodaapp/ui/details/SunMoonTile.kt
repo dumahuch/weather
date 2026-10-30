@@ -162,15 +162,55 @@ internal class ArcFit {
 }
 
 /**
- * Дуга пути солнца: пунктир целиком, пройденная часть сплошной линией, метка на текущем месте. По ширине рисунок как в
- * макете, по высоте сжимается, когда страница не помещается на экран ([ArcFit]); метка и толщина линий остаются прежними.
+ * Форма дуги в единицах макета (320 по ширине, [ARC_UNITS] по высоте): где лежит линия горизонта ([baseY]), куда тянется
+ * управляющая точка кривой ([controlY]) и с какого конца идёт путь. Днём дуга над горизонтом, солнце идёт слева направо
+ * (от восхода к закату). Ночью горизонт поднят, дуга зеркально под ним, луна идёт справа налево (от заката к восходу):
+ * подписи «Восход» слева и «Закат» справа остаются верными в любое время суток.
+ */
+internal data class SunArcShape(val baseY: Float, val controlY: Float, val startsAtRight: Boolean) {
+    /** Самая дальняя от горизонта точка дуги (вершина днём, низ ночью). */
+    val apexY: Float get() = (baseY + controlY) / 2f
+
+    companion object {
+        const val LEFT_X = 24f
+        const val RIGHT_X = 296f
+
+        /** Дневная дуга: основание на нижнем краю, вершина на 48 единиц выше (как до 0.5.1). */
+        val Day = SunArcShape(baseY = ARC_UNITS, controlY = -26f - ARC_TOP, startsAtRight = false)
+
+        /** Ночная: горизонт на 14 единиц от верха (место для метки), низ дуги на 38 единиц ниже горизонта. */
+        val Night = SunArcShape(baseY = 14f, controlY = 14f + 2f * 38f, startsAtRight = true)
+
+        fun of(daytime: Boolean): SunArcShape = if (daytime) Day else Night
+    }
+}
+
+/** Цвета меток дуги (RGB): солнце жёлтое с тёмной пиктограммой, луна синяя с белой. Читаемость сверяет `SunMoonShapeTest`. */
+internal object SunMoonColors {
+    const val SUN_FILL = 0xF2B01E
+    const val SUN_ICON = 0x3B2A00
+    const val SUN_LINE = 0xE09A0A
+    const val MOON_FILL = 0x2F5FB3
+    const val MOON_ICON = 0xFFFFFF
+    const val MOON_LINE = 0x7FA6EE
+}
+
+private fun rgb(value: Int) = Color(0xFF000000.toInt() or value)
+
+/**
+ * Дуга пути солнца или луны: пунктир целиком, пройденная часть сплошной линией, метка на текущем месте. По ширине рисунок
+ * как в макете, по высоте сжимается, когда страница не помещается на экран ([ArcFit]); метка и толщина линий остаются прежними.
  */
 @Composable
 private fun SunArc(position: ArcPosition, fit: ArcFit, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val density = LocalDensity.current
-    val color = if (position.daytime) palette.warning else palette.accent
-    val moon = remember { PathParser().parsePathString(LineIcons.Moon.paths[0]).toPath() }
+    val shape = SunArcShape.of(position.daytime)
+    val lineColor = rgb(if (position.daytime) SunMoonColors.SUN_LINE else SunMoonColors.MOON_LINE)
+    val icon = remember(position.daytime) {
+        val source = if (position.daytime) LineIcons.Sun else LineIcons.Moon
+        source.paths.map { PathParser().parsePathString(it).toPath() }
+    }
     val sizing = if (fit.forcedPx >= 0) {
         Modifier.fillMaxWidth().height(with(density) { fit.forcedPx.toDp() })
     } else {
@@ -184,12 +224,13 @@ private fun SunArc(position: ArcPosition, fit: ArcFit, modifier: Modifier = Modi
     ) {
         val sx = size.width / ARC_WIDTH
         val sy = size.height / ARC_UNITS
-        // Верхние ARC_TOP единиц макета пусты (дуга ниже), их срезаем; основание дуги лежит на нижнем краю.
-        val baseY = size.height
+        val baseY = shape.baseY * sy
         drawLine(palette.ink2.copy(alpha = 0.4f), Offset(8f * sx, baseY), Offset(312f * sx, baseY), strokeWidth = 1.dp.toPx())
+        val fromX = (if (shape.startsAtRight) SunArcShape.RIGHT_X else SunArcShape.LEFT_X) * sx
+        val toX = (if (shape.startsAtRight) SunArcShape.LEFT_X else SunArcShape.RIGHT_X) * sx
         val arc = Path().apply {
-            moveTo(24f * sx, baseY)
-            quadraticTo(160f * sx, (-26f - ARC_TOP) * sy, 296f * sx, baseY)
+            moveTo(fromX, baseY)
+            quadraticTo(160f * sx, shape.controlY * sy, toX, baseY)
         }
         drawPath(
             arc,
@@ -200,26 +241,24 @@ private fun SunArc(position: ArcPosition, fit: ArcFit, modifier: Modifier = Modi
         val passed = measure.length * position.fraction.toFloat()
         val done = Path()
         measure.getSegment(0f, passed, done, true)
-        drawPath(done, color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-        val at = measure.getPosition(passed)
-        drawMarker(at, color, position.daytime, moon)
+        drawPath(done, lineColor, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawMarker(measure.getPosition(passed), position.daytime, icon)
     }
 }
 
-private fun DrawScope.drawMarker(at: Offset, color: Color, daytime: Boolean, moon: Path) {
-    val radius = 9.dp.toPx()
-    drawCircle(Color.White.copy(alpha = 0.92f), radius, at)
-    drawCircle(color, radius, at, style = Stroke(width = 1.5.dp.toPx()))
-    if (daytime) {
-        drawCircle(color, 3.2.dp.toPx(), at)
-    } else {
-        val side = 12.dp.toPx()
-        withTransform({
-            translate(at.x - side / 2, at.y - side / 2)
-            scale(side / MOON_VIEWPORT, side / MOON_VIEWPORT, pivot = Offset.Zero)
-        }) {
-            drawPath(moon, color, style = Stroke(width = 2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        }
+/** Метка: залитый круг (жёлтый с солнцем днём, синий с месяцем ночью) в светлом ободке, чтобы читалась на любом небе. */
+private fun DrawScope.drawMarker(at: Offset, daytime: Boolean, icon: List<Path>) {
+    val radius = 10.dp.toPx()
+    val fill = rgb(if (daytime) SunMoonColors.SUN_FILL else SunMoonColors.MOON_FILL)
+    val ink = rgb(if (daytime) SunMoonColors.SUN_ICON else SunMoonColors.MOON_ICON)
+    drawCircle(Color.White.copy(alpha = 0.92f), radius + 1.5.dp.toPx(), at)
+    drawCircle(fill, radius, at)
+    val side = 14.dp.toPx()
+    withTransform({
+        translate(at.x - side / 2, at.y - side / 2)
+        scale(side / MOON_VIEWPORT, side / MOON_VIEWPORT, pivot = Offset.Zero)
+    }) {
+        icon.forEach { drawPath(it, ink, style = Stroke(width = 2f, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
     }
 }
 

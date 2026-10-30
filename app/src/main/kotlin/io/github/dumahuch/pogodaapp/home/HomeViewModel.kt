@@ -69,6 +69,8 @@ import java.util.Locale
  * закреплённых ([PlaceChoice.Pinned], до [PlacesLogic.MAX_PINNED]). Для закреплённого места не нужны ни разрешение,
  * ни определение места, ни название от службы адресов: координаты и название уже известны, прогноз и его сохранённая
  * копия свои у каждого места. При запуске всегда выбрано текущее место; выбор живёт, пока жив процесс.
+ * Найденный поиском город открывается для просмотра ([PlaceChoice.Preview]) и нигде не сохраняется, пока его не закрепят
+ * ([pinPreview]).
  */
 class HomeViewModel(
     private val locations: LocationSource,
@@ -184,10 +186,48 @@ class HomeViewModel(
     }
 
     /**
-     * Закрепляет найденное поиском место и открывает его. Если такое место (в пределах [PlacesLogic.SAME_PLACE_KM])
-     * уже есть, открывается оно; если список полон, ничего не меняется и появляется сообщение.
+     * Открывает найденное поиском место для просмотра: в список оно не попадает и нигде не сохраняется (в том числе его
+     * прогноз). Если такое место (в пределах [PlacesLogic.SAME_PLACE_KM]) уже закреплено, открывается закреплённое.
      */
-    fun pin(suggestion: PlaceSuggestion): PinResult = pinPlace(PinnedPlace.of(suggestion))
+    fun preview(suggestion: PlaceSuggestion) {
+        val place = PinnedPlace.of(suggestion)
+        mutableMessage.value = null
+        search.clear()
+        val same = PlacesLogic.findSame(mutablePinned.value, place.latitude, place.longitude)
+        select(if (same != null) PlaceChoice.Pinned(same.id) else PlaceChoice.Preview(place), permissionGranted = true)
+    }
+
+    /**
+     * Кнопка «Закрепить» при просмотре: место попадает в список (если в нём меньше [PlacesLogic.MAX_PINNED] мест) и остаётся
+     * открытым без повторной загрузки; уже показанный прогноз сохраняется как прогноз закреплённого места. Список полон:
+     * ничего не меняется, появляется сообщение. Если сейчас открыт не просмотр, возвращает null.
+     */
+    fun pinPreview(): PinResult? {
+        val preview = mutableSelection.value as? PlaceChoice.Preview ?: return null
+        val place = preview.place
+        val same = PlacesLogic.findSame(mutablePinned.value, place.latitude, place.longitude)
+        if (same != null) {
+            select(PlaceChoice.Pinned(same.id), permissionGranted = true)
+            return PinResult.AlreadyPinned
+        }
+        if (mutablePinned.value.size >= PlacesLogic.MAX_PINNED) {
+            mutableMessage.value = PlacesMessage.ListFull
+            return PinResult.ListFull
+        }
+        val updated = mutablePinned.value + place
+        mutablePinned.value = updated
+        pinnedStorage.save(updated)
+        mutableMessage.value = null
+        val shown = snapshot
+        if (shown != null && mutableState.value is HomeUiState.Content && job?.isActive != true) {
+            // Прогноз уже на экране: просто переименовываем выбор и сохраняем его копию, ничего не загружая заново.
+            mutableSelection.value = PlaceChoice.Pinned(place.id)
+            pinnedCaches?.cacheFor(place.id)?.save(ForecastCache.Entry(shown.savedAt, shown.place, shown.raw))
+        } else {
+            select(PlaceChoice.Pinned(place.id), permissionGranted = true)
+        }
+        return PinResult.Added
+    }
 
     /**
      * Кнопка «Определить место»: телефон сам определяет, где он, и закрепляет это место, поиск вводить не нужно.
@@ -287,13 +327,15 @@ class HomeViewModel(
             PlaceChoice.Current -> loadCurrent()
             is PlaceChoice.Pinned -> {
                 val place = mutablePinned.value.firstOrNull { it.id == choice.id }
-                if (place == null) mutableState.value = HomeUiState.NoData else loadPinned(place)
+                if (place == null) mutableState.value = HomeUiState.NoData else loadPinned(place, persist = true)
             }
+            is PlaceChoice.Preview -> loadPinned(choice.place, persist = false)
         }
     }
 
-    private suspend fun loadPinned(place: PinnedPlace) = coroutineScope {
-        val store = pinnedCaches?.cacheFor(place.id)
+    /** [persist] false у просмотра: ни сохранённой копии прогноза, ни чтения её, место ещё не закреплено. */
+    private suspend fun loadPinned(place: PinnedPlace, persist: Boolean) = coroutineScope {
+        val store = if (persist) pinnedCaches?.cacheFor(place.id) else null
         val cached = store?.load()
         val cachedForecast = cached?.let { parseOrNull(it.raw) }
         if (mutableState.value !is HomeUiState.Content) {

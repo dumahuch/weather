@@ -147,6 +147,12 @@ class HomeViewModelPlacesTest {
 
     private val munich get() = suggestion("München", munichPoint)
 
+    /** Найденный город закрепляется за два шага: просмотр, затем «Закрепить» (так делает и экран). */
+    private fun HomeViewModel.pin(suggestion: PlaceSuggestion): PinResult {
+        preview(suggestion)
+        return pinPreview() ?: PinResult.AlreadyPinned
+    }
+
     private fun HomeViewModel.content(): HomeUiState.Content {
         val current = state.value
         assertTrue("ожидалось содержимое, а есть $current", current is HomeUiState.Content)
@@ -223,15 +229,104 @@ class HomeViewModelPlacesTest {
         points.take(5).forEachIndexed { index, point ->
             assertEquals(PinResult.Added, model.pin(suggestion("Ort $index", point)))
         }
-        val before = model.selection.value
 
         assertEquals(PinResult.ListFull, model.pin(suggestion("Ort 5", points[5])))
 
+        // шестой город остаётся открытым для просмотра, но в список не попадает
         assertEquals(5, model.pinned.value.size)
-        assertEquals(before, model.selection.value)
+        assertTrue(model.selection.value is PlaceChoice.Preview)
         assertEquals(PlacesMessage.ListFull, model.message.value)
         model.dismissMessage()
         assertNull(model.message.value)
+    }
+
+    // --- Просмотр без сохранения (версия 0.5.1) ---
+
+    @Test
+    fun previewOpensTheCityWithoutSavingAnything() {
+        val storage = MemoryPinnedPlacesStorage()
+        val model = viewModel(storage)
+        model.onResumed(permissionGranted = true)
+
+        model.preview(munich)
+
+        assertEquals(PlaceChoice.Preview(PinnedPlace.of(munich)), model.selection.value)
+        assertEquals("München", model.content().place.name)
+        assertEquals(munichPoint.latitude to munichPoint.longitude, source.requests.last())
+        assertTrue(model.pinned.value.isEmpty())
+        assertTrue(storage.load().isEmpty())
+        assertFalse(File(cachesDir, "forecast_cache_$munichId.json").exists())
+    }
+
+    @Test
+    fun previewNeedsNeitherThePermissionNorTheLocationService() {
+        val model = viewModel()
+        model.select(PlaceChoice.Current, permissionGranted = false)
+        model.preview(munich)
+        assertEquals("München", model.content().place.name)
+        assertEquals(0, locations.calls)
+    }
+
+    @Test
+    fun previewWithoutNetworkShowsNoDataAndStillSavesNothing() {
+        source.raw = null
+        val model = viewModel()
+        model.preview(munich)
+        assertEquals(HomeUiState.NoData, model.state.value)
+        assertFalse(File(cachesDir, "forecast_cache_$munichId.json").exists())
+    }
+
+    @Test
+    fun previewOfAnAlreadyPinnedPlaceOpensThePinnedOne() {
+        val model = viewModel(MemoryPinnedPlacesStorage(listOf(PinnedPlace.of(munich))))
+        model.preview(suggestion("München Mitte", GeoPoint(48.1400, 11.5800)))
+        assertEquals(PlaceChoice.Pinned(munichId), model.selection.value)
+        assertNull(model.pinPreview())
+    }
+
+    @Test
+    fun returningToTheCurrentPlaceDropsThePreview() {
+        val storage = MemoryPinnedPlacesStorage()
+        val model = viewModel(storage)
+        model.preview(munich)
+        model.select(PlaceChoice.Current, permissionGranted = true)
+        assertEquals(PlaceChoice.Current, model.selection.value)
+        assertTrue(model.pinned.value.isEmpty())
+        assertTrue(storage.load().isEmpty())
+        assertEquals("Hannover", model.content().place.name)
+    }
+
+    @Test
+    fun anotherPreviewReplacesThePreviousOne() {
+        val model = viewModel()
+        model.preview(munich)
+        model.preview(suggestion("Berlin", GeoPoint(52.52, 13.41)))
+        assertEquals("Berlin", (model.selection.value as PlaceChoice.Preview).place.name)
+        assertTrue(model.pinned.value.isEmpty())
+    }
+
+    @Test
+    fun pinningThePreviewKeepsTheShownForecastWithoutLoadingAgain() {
+        val storage = MemoryPinnedPlacesStorage()
+        val model = viewModel(storage)
+        model.preview(munich)
+        val requests = source.requests.size
+
+        assertEquals(PinResult.Added, model.pinPreview())
+
+        assertEquals(requests, source.requests.size)
+        assertEquals(PlaceChoice.Pinned(munichId), model.selection.value)
+        assertEquals(listOf(munichId), storage.load().map { it.id })
+        assertEquals("München", model.content().place.name)
+        // показанный прогноз сохранён как прогноз закреплённого места
+        assertTrue(File(cachesDir, "forecast_cache_$munichId.json").isFile)
+    }
+
+    @Test
+    fun pinningWithoutAPreviewDoesNothing() {
+        val model = viewModel()
+        assertNull(model.pinPreview())
+        assertTrue(model.pinned.value.isEmpty())
     }
 
     @Test

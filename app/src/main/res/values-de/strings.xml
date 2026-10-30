@@ -165,6 +165,10 @@
     <string name="trend_steady">Stabil</string>
     <string name="trend_falling">Fallend</string>
     <string name="trend_falling_fast">Stark fallend</string>
+    <string name="pressure_level_low">Niedriger Druck</string>
+    <string name="pressure_level_normal">Normaler Druck</string>
+    <string name="pressure_level_high">Hoher Druck</string>
+    <string name="pressure_trend_level">%1$s · %2$s</string>
     <string name="tile_humidity">Luftfeuchte</string>
     <string name="visibility_line">Sicht: %1$s km</string>
     <string name="tile_sun_moon">Sonne &amp; Mond</string>
@@ -195,6 +199,9 @@
     <string name="places_locate_failed">Standort nicht gefunden. Prüfe, ob die Standortbestimmung eingeschaltet ist, und versuche es erneut.</string>
     <string name="places_unpin">%1$s lösen</string>
     <string name="places_selected">Ausgewählt</string>
+    <string name="places_preview">Vorschau</string>
+    <string name="places_pin">Anheften</string>
+    <string name="places_pin_named">%1$s anheften</string>
     <string name="places_clear">Löschen</string>
     <string name="places_search_hint">Stadt oder Postleitzahl</string>
     <string name="places_search_idle">Gib einen Städtenamen oder eine Postleitzahl ein.</string>

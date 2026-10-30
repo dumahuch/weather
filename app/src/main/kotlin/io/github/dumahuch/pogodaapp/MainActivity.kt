@@ -124,7 +124,8 @@ class MainActivity : ComponentActivity() {
             onSelect = { choice -> viewModel.select(choice, permissionGranted = hasLocationPermission()) },
             onUnpin = { id -> viewModel.unpin(id, permissionGranted = hasLocationPermission()) },
             onQuery = viewModel.search::onQuery,
-            onPick = viewModel::pin,
+            onPick = viewModel::preview,
+            onPinPreview = viewModel::pinPreview,
             onLocate = { done ->
                 if (hasLocationPermission()) {
                     pinCurrentLocation(done)

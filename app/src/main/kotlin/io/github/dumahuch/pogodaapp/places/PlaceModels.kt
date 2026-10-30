@@ -50,10 +50,14 @@ data class PinnedPlace(
     }
 }
 
-/** Какое место показывает приложение: то, где телефон сейчас, или одно из закреплённых. */
+/**
+ * Какое место показывает приложение: то, где телефон сейчас, одно из закреплённых или найденный поиском город,
+ * открытый для просмотра ([Preview]): он нигде не сохраняется, пока его не закрепят (решение Димы 30.10.2026).
+ */
 sealed interface PlaceChoice {
     data object Current : PlaceChoice
     data class Pinned(val id: String) : PlaceChoice
+    data class Preview(val place: PinnedPlace) : PlaceChoice
 }
 
 /** Чем кончилась попытка закрепить место. */

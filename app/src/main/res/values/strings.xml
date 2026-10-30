@@ -169,6 +169,10 @@
     <string name="trend_steady">Steady</string>
     <string name="trend_falling">Falling</string>
     <string name="trend_falling_fast">Falling fast</string>
+    <string name="pressure_level_low">Low</string>
+    <string name="pressure_level_normal">Normal</string>
+    <string name="pressure_level_high">High</string>
+    <string name="pressure_trend_level">%1$s · %2$s</string>
     <string name="tile_humidity">Humidity</string>
     <string name="visibility_line">Visibility: %1$s km</string>
     <string name="tile_sun_moon">Sun &amp; Moon</string>
@@ -199,6 +203,9 @@
     <string name="places_locate_failed">Couldn’t detect your location. Check that location is on and try again.</string>
     <string name="places_unpin">Unpin %1$s</string>
     <string name="places_selected">Selected</string>
+    <string name="places_preview">Preview</string>
+    <string name="places_pin">Pin</string>
+    <string name="places_pin_named">Pin %1$s</string>
     <string name="places_clear">Clear</string>
     <string name="places_search_hint">City or postal code</string>
     <string name="places_search_idle">Type a city name or a postal code.</string>
