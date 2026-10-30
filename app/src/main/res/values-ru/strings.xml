@@ -183,4 +183,23 @@
         <item>Последняя четверть</item>
         <item>Убывающий серп</item>
     </string-array>
+
+    <!-- Места: список закреплённых и поиск города (0.5.0) -->
+    <string name="places_title">Места</string>
+    <string name="places_open">Выбрать место</string>
+    <string name="places_current_sub">По геолокации телефона</string>
+    <string name="places_count">Закреплено: %1$d из %2$d</string>
+    <string name="places_full">Список полон. Чтобы добавить место, открепите одно из списка.</string>
+    <string name="places_find">Найти город</string>
+    <string name="places_locate">Определить место</string>
+    <string name="places_locate_failed">Не удалось определить место. Проверьте, что геолокация включена, и попробуйте снова.</string>
+    <string name="places_unpin">Открепить место: %1$s</string>
+    <string name="places_selected">Выбрано</string>
+    <string name="places_clear">Очистить</string>
+    <string name="places_search_hint">Город или индекс</string>
+    <string name="places_search_idle">Введите название города или почтовый индекс.</string>
+    <string name="places_search_loading">Ищем…</string>
+    <string name="places_search_empty">Ничего не найдено. Проверьте написание или введите индекс.</string>
+    <string name="places_search_failed">Нет связи. Проверьте сеть и попробуйте снова.</string>
+    <string name="places_geonames">Поиск: Open-Meteo, данные о местах: GeoNames (CC BY 4.0)</string>
 </resources>

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -12,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import io.github.dumahuch.pogodaapp.home.HomeUiState
+import io.github.dumahuch.pogodaapp.places.PlaceChoice
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
 import io.github.dumahuch.pogodaapp.ui.details.DetailsScreen
@@ -19,6 +21,9 @@ import io.github.dumahuch.pogodaapp.ui.forecast.DayDetailScreen
 import io.github.dumahuch.pogodaapp.ui.forecast.ForecastScreen
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
+import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
+import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
+import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import java.time.LocalDate
 
 /** Сколько суток показывает список «Прогноза» сразу после запуска. */
@@ -27,7 +32,11 @@ private const val DEFAULT_DAY_COUNT = 7
 /**
  * Приложение целиком: страница выбранной вкладки и внизу окна панель вкладок с строкой источника данных.
  * Небо рисует хозяин неба под этим экраном. Выбранная вкладка, открытый день и число дней в списке
- * переживают поворот и пересоздание окна. Кнопка «назад»: из подробностей дня в список, с другой вкладки на «Главную».
+ * переживают поворот и пересоздание окна. Кнопка «назад»: из поиска города в список мест, из списка мест на вкладку,
+ * из подробностей дня в список, с другой вкладки на «Главную».
+ *
+ * Экран мест ([PlacesScreen]) открывается плашкой места на «Главной» и занимает окно целиком (панель вкладок скрыта).
+ * Кнопка «Найти город» на карточках без места открывает его сразу в режиме поиска.
  */
 @Composable
 fun PogodaApp(
@@ -36,6 +45,8 @@ fun PogodaApp(
     permanentlyDenied: Boolean,
     versionLabel: String,
     actions: HomeActions,
+    places: PlacesUiState,
+    placesActions: PlacesActions,
     onVersionTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -44,8 +55,50 @@ fun PogodaApp(
     var openDay by rememberSaveable { mutableStateOf<Long?>(null) }
     var dayCount by rememberSaveable { mutableIntStateOf(DEFAULT_DAY_COUNT) }
 
-    BackHandler(enabled = openDay != null) { openDay = null }
-    BackHandler(enabled = openDay == null && tab != AppTab.Home) { tab = AppTab.Home }
+    var placesOpen by rememberSaveable { mutableStateOf(false) }
+    var searching by rememberSaveable { mutableStateOf(false) }
+
+    fun closePlaces() {
+        placesOpen = false
+        searching = false
+        placesActions.onLeave()
+    }
+
+    BackHandler(enabled = placesOpen && searching) {
+        searching = false
+        placesActions.onLeave()
+    }
+    BackHandler(enabled = placesOpen && !searching) { closePlaces() }
+    BackHandler(enabled = !placesOpen && openDay != null) { openDay = null }
+    BackHandler(enabled = !placesOpen && openDay == null && tab != AppTab.Home) { tab = AppTab.Home }
+
+    val pinnedName = (places.selection as? PlaceChoice.Pinned)?.let { choice ->
+        places.pinned.firstOrNull { it.id == choice.id }?.name
+    }
+    val linked = remember(actions) {
+        actions.copy(
+            onOpenPlaces = { placesOpen = true },
+            onFindCity = {
+                placesOpen = true
+                searching = true
+            },
+        )
+    }
+
+    if (placesOpen) {
+        PlacesScreen(
+            ui = places,
+            actions = placesActions,
+            searching = searching,
+            onSearching = {
+                searching = it
+                if (!it) placesActions.onLeave()
+            },
+            onClose = ::closePlaces,
+            modifier = modifier,
+        )
+        return
+    }
 
     Box(modifier.fillMaxSize()) {
         when (tab) {
@@ -53,7 +106,8 @@ fun PogodaApp(
                 state = state,
                 refreshing = refreshing,
                 permanentlyDenied = permanentlyDenied,
-                actions = actions,
+                actions = linked,
+                pinnedName = pinnedName,
             )
 
             AppTab.Forecast -> {
@@ -69,7 +123,7 @@ fun PogodaApp(
                         state = state,
                         permanentlyDenied = permanentlyDenied,
                         dayCount = dayCount,
-                        actions = actions,
+                        actions = linked,
                         onDayCount = { dayCount = it },
                         onOpenDay = { openDay = it.toEpochDay() },
                     )
@@ -79,7 +133,7 @@ fun PogodaApp(
             AppTab.Details -> DetailsScreen(
                 state = state,
                 permanentlyDenied = permanentlyDenied,
-                actions = actions,
+                actions = linked,
             )
 
             // Эта вкладка ещё не сделана: кнопка в панели недоступна, сюда попасть нельзя.

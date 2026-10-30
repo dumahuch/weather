@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -29,15 +30,21 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.dumahuch.pogodaapp.data.DwdPollenClient
 import io.github.dumahuch.pogodaapp.data.ForecastCache
+import io.github.dumahuch.pogodaapp.data.OpenMeteoGeocodingClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoAirQualityClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
 import io.github.dumahuch.pogodaapp.location.Locations
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
+import io.github.dumahuch.pogodaapp.places.FilePinnedPlacesStorage
+import io.github.dumahuch.pogodaapp.places.PinResult
+import io.github.dumahuch.pogodaapp.places.PinnedForecastCaches
 import io.github.dumahuch.pogodaapp.ui.PogodaApp
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
+import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
+import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckModel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckPanel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyDiagnostics
@@ -60,6 +67,10 @@ class MainActivity : ComponentActivity() {
                     air = OpenMeteoAirQualityClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     pollenSource = DwdPollenClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     pollenRegions = AssetPollenRegionLocator(context),
+                    pinnedStorage = FilePinnedPlacesStorage(File(context.filesDir, "pinned_places.json")),
+                    pinnedCaches = PinnedForecastCaches(context.filesDir),
+                    geocoding = OpenMeteoGeocodingClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
+                    language = { searchLanguage(context) },
                 )
             }
         }
@@ -70,6 +81,16 @@ class MainActivity : ComponentActivity() {
 
     /** Истина, если система больше не покажет окно запроса (отказ с «не спрашивать»). */
     private var permanentlyDenied by mutableStateOf(false)
+
+    /** Что сделать, когда место закреплено после запроса доступа из экрана мест (кнопка «Определить место»). */
+    private var afterLocatePermission: (() -> Unit)? = null
+
+    private val locatePermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        // Отказ тоже идёт дальше: определение места тогда не удастся и экран покажет сообщение об этом.
+        val done = afterLocatePermission
+        afterLocatePermission = null
+        if (done != null) pinCurrentLocation(done)
+    }
 
     private val permissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permanentlyDenied = !granted && !shouldShowRequestPermissionRationale(LOCATION_PERMISSION)
@@ -94,9 +115,33 @@ class MainActivity : ComponentActivity() {
                 viewModel.refresh(permissionGranted = hasLocationPermission())
             },
         )
+        val placesActions = PlacesActions(
+            onSelect = { choice -> viewModel.select(choice, permissionGranted = hasLocationPermission()) },
+            onUnpin = { id -> viewModel.unpin(id, permissionGranted = hasLocationPermission()) },
+            onQuery = viewModel.search::onQuery,
+            onPick = viewModel::pin,
+            onLocate = { done ->
+                if (hasLocationPermission()) {
+                    pinCurrentLocation(done)
+                } else {
+                    afterLocatePermission = done
+                    locatePermissionRequest.launch(LOCATION_PERMISSION)
+                }
+            },
+            onLeave = {
+                viewModel.search.clear()
+                viewModel.dismissMessage()
+            },
+        )
         setContent {
             PogodaTheme {
                 val state by viewModel.state.collectAsStateWithLifecycle()
+                val selection by viewModel.selection.collectAsStateWithLifecycle()
+                val pinned by viewModel.pinned.collectAsStateWithLifecycle()
+                val message by viewModel.message.collectAsStateWithLifecycle()
+                val query by viewModel.search.query.collectAsStateWithLifecycle()
+                val results by viewModel.search.results.collectAsStateWithLifecycle()
+                val places = PlacesUiState(selection, pinned, message, results, query)
                 val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
                 val checkOpen by skyCheck.open.collectAsStateWithLifecycle()
                 val override by skyCheck.override.collectAsStateWithLifecycle()
@@ -119,6 +164,8 @@ class MainActivity : ComponentActivity() {
                             permanentlyDenied = permanentlyDenied,
                             versionLabel = versionLabel,
                             actions = actions,
+                            places = places,
+                            placesActions = placesActions,
                             onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
                         )
                         if (checkOpen) {
@@ -144,6 +191,10 @@ class MainActivity : ComponentActivity() {
         viewModel.onResumed(permissionGranted = hasLocationPermission())
     }
 
+    private fun pinCurrentLocation(done: () -> Unit) {
+        viewModel.pinCurrentLocation { result -> if (result != PinResult.ListFull) done() }
+    }
+
     /** Значки системных панелей: тёмные на светлом небе, светлые на тёмном. */
     private fun setDarkBarIcons(dark: Boolean) {
         val controller = window.insetsController ?: return
@@ -163,5 +214,12 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val LOCATION_PERMISSION = Manifest.permission.ACCESS_COARSE_LOCATION
         const val REFRESH_LOG_TAG = "PogodaRefresh"
+        val SEARCH_LANGUAGES = setOf("ru", "de", "en")
+
+        /** Язык подсказок поиска: язык интерфейса, если приложение на нём есть, иначе английский. */
+        fun searchLanguage(context: Context): String {
+            val language = context.resources.configuration.locales[0].language
+            return if (language in SEARCH_LANGUAGES) language else "en"
+        }
     }
 }

@@ -6,6 +6,24 @@ import io.github.dumahuch.pogodaapp.weather.HourPoint
 import io.github.dumahuch.pogodaapp.weather.Place
 import io.github.dumahuch.pogodaapp.weather.PollenForecast
 
+/**
+ * Как обстоит дело с пыльцой DWD для места на экране. Нужно экрану проверки: по нему видно, почему плитка пуста
+ * (вне сезона все значения нулевые, но загрузка при этом может работать).
+ */
+enum class PollenStatus {
+    /** Файл ещё не запрашивался или запрос идёт. */
+    Pending,
+
+    /** Место вне границ 27 районов DWD (за пределами Германии). */
+    OutsideGermany,
+
+    /** Район найден, но файл не скачался или не разобрался. */
+    Unavailable,
+
+    /** Пыльца загружена. */
+    Loaded,
+}
+
 /** Всё, что может показывать вкладка «Главная». */
 sealed interface HomeUiState {
 
@@ -35,5 +53,6 @@ sealed interface HomeUiState {
         val staleHours: Int,
         val airQuality: AirQuality? = null,
         val pollen: PollenForecast? = null,
+        val pollenStatus: PollenStatus = PollenStatus.Pending,
     ) : HomeUiState
 }

@@ -21,6 +21,9 @@ interface LocationSource {
 /** Находит название населённого пункта по координатам (null, если не вышло). */
 interface PlaceNamer {
     suspend fun nameOf(point: GeoPoint): String?
+
+    /** Двухбуквенный код страны точки (например «DE»); по нему подсказки поиска упорядочиваются по стране телефона. */
+    suspend fun countryCodeOf(point: GeoPoint): String? = null
 }
 
 /** Расстояние между точками по поверхности Земли, км (формула гаверсинусов). */
