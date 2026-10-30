@@ -81,6 +81,8 @@
     <string name="tile_daylight">Tageslicht</string>
     <string name="precip_chance">Wahrscheinlichkeit %1$s</string>
     <string name="gusts_up_to">Böen bis %1$d %2$s</string>
+    <!-- Böen mit dem Beaufort-Wort der Böe (Zeile nur ab 20 km/h und über der Stufe des mittleren Winds) -->
+    <string name="gusts_with_word">Böen bis %1$d %2$s: %3$s</string>
     <string name="uv_low">Niedrig</string>
     <string name="uv_moderate">Mäßig</string>
     <string name="uv_high">Hoch</string>
@@ -115,13 +117,13 @@
         <item>Ambrosia</item>
     </string-array>
     <string-array name="pollen_levels">
-        <item>keine</item>
-        <item>keine bis geringe</item>
-        <item>geringe</item>
-        <item>geringe bis mittlere</item>
-        <item>mittlere</item>
-        <item>mittlere bis hohe</item>
-        <item>hohe</item>
+        <item>Keine</item>
+        <item>Keine bis geringe</item>
+        <item>Geringe</item>
+        <item>Geringe bis mittlere</item>
+        <item>Mittlere</item>
+        <item>Mittlere bis hohe</item>
+        <item>Hohe</item>
     </string-array>
     <string name="tile_wind_now">Wind</string>
     <string-array name="wind_directions">
@@ -159,10 +161,10 @@
     </string-array>
     <string name="tile_pressure">Luftdruck</string>
     <string name="hpa_unit">hPa</string>
-    <string name="trend_rising">steigend</string>
-    <string name="trend_steady">stabil</string>
-    <string name="trend_falling">fallend</string>
-    <string name="trend_falling_fast">stark fallend</string>
+    <string name="trend_rising">Steigend</string>
+    <string name="trend_steady">Stabil</string>
+    <string name="trend_falling">Fallend</string>
+    <string name="trend_falling_fast">Stark fallend</string>
     <string name="tile_humidity">Luftfeuchte</string>
     <string name="visibility_line">Sicht: %1$s km</string>
     <string name="tile_sun_moon">Sonne &amp; Mond</string>

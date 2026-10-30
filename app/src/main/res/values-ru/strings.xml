@@ -14,7 +14,7 @@
     <string name="temp_high">Макс</string>
     <string name="temp_low">Мин</string>
     <string name="hourly_title">По часам</string>
-    <string name="hourly_caption">осадки, мм</string>
+    <string name="hourly_caption">Осадки, мм</string>
 
     <string name="offline_title">Нет сети</string>
     <string name="data_age_under_hour">данные менее часа назад</string>
@@ -81,8 +81,10 @@
     <string name="tile_wind">Ветер, макс.</string>
     <string name="tile_uv">УФ-индекс</string>
     <string name="tile_daylight">Световой день</string>
-    <string name="precip_chance">вероятность %1$s</string>
-    <string name="gusts_up_to">порывы до %1$d %2$s</string>
+    <string name="precip_chance">Вероятность %1$s</string>
+    <string name="gusts_up_to">Порывы до %1$d %2$s</string>
+    <!-- Порывы со словом по шкале Бофорта (строка только от 20 км/ч и выше ступени среднего ветра) -->
+    <string name="gusts_with_word">Порывы до %1$d %2$s: %3$s</string>
     <string name="uv_low">Низкий</string>
     <string name="uv_moderate">Умеренный</string>
     <string name="uv_high">Высокий</string>
@@ -117,24 +119,24 @@
         <item>Амброзия</item>
     </string-array>
     <string-array name="pollen_levels">
-        <item>нет</item>
-        <item>от нуля до слабой</item>
-        <item>слабая</item>
-        <item>от слабой до средней</item>
-        <item>средняя</item>
-        <item>от средней до высокой</item>
-        <item>высокая</item>
+        <item>Нет</item>
+        <item>От нуля до слабой</item>
+        <item>Слабая</item>
+        <item>От слабой до средней</item>
+        <item>Средняя</item>
+        <item>От средней до высокой</item>
+        <item>Высокая</item>
     </string-array>
     <string name="tile_wind_now">Ветер</string>
     <string-array name="wind_directions">
-        <item>северный</item>
-        <item>северо-восточный</item>
-        <item>восточный</item>
-        <item>юго-восточный</item>
-        <item>южный</item>
-        <item>юго-западный</item>
-        <item>западный</item>
-        <item>северо-западный</item>
+        <item>Северный</item>
+        <item>Северо-восточный</item>
+        <item>Восточный</item>
+        <item>Юго-восточный</item>
+        <item>Южный</item>
+        <item>Юго-западный</item>
+        <item>Западный</item>
+        <item>Северо-западный</item>
     </string-array>
     <!-- Сила ветра по шкале Бофорта, ступени 0-12 по средней скорости (км/ч): 0, 1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118. -->
     <string-array name="beaufort_names">
@@ -161,10 +163,10 @@
     </string-array>
     <string name="tile_pressure">Давление</string>
     <string name="hpa_unit">гПа</string>
-    <string name="trend_rising">растёт</string>
-    <string name="trend_steady">стабильно</string>
-    <string name="trend_falling">падает</string>
-    <string name="trend_falling_fast">быстро падает</string>
+    <string name="trend_rising">Растёт</string>
+    <string name="trend_steady">Стабильно</string>
+    <string name="trend_falling">Падает</string>
+    <string name="trend_falling_fast">Быстро падает</string>
     <string name="tile_humidity">Влажность</string>
     <string name="visibility_line">Видимость: %1$s км</string>
     <string name="tile_sun_moon">Солнце и Луна</string>

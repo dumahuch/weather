@@ -31,12 +31,14 @@ import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.ArcPosition
 import io.github.dumahuch.pogodaapp.forecast.arcPosition
 import io.github.dumahuch.pogodaapp.forecast.daylight
+import io.github.dumahuch.pogodaapp.forecast.sentenceCase
 import io.github.dumahuch.pogodaapp.sky.Moon
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
@@ -119,7 +121,11 @@ private fun MoonRow(place: Place, forecast: Forecast, now: Instant) {
     val times = listOfNotNull(
         events.rise?.let { it to stringResource(R.string.moonrise_at, clockText(it, zone)) },
         events.set?.let { it to stringResource(R.string.moonset_at, clockText(it, zone)) },
-    ).sortedBy { it.first }.joinToString(" · ") { it.second }
+    ).sortedBy { it.first }.map { it.second }.let { parts ->
+        // Строка начинается с заглавной, продолжение после « · » остаётся строчным (единое правило регистра).
+        val locale = LocalLocale.current.platformLocale
+        parts.mapIndexed { index, part -> if (index == 0) sentenceCase(part, locale) else part }.joinToString(" · ")
+    }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         LineIconView(LineIcons.Moon, 20.dp, palette.ink)
         Column {

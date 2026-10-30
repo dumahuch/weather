@@ -38,21 +38,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import io.github.dumahuch.pogodaapp.R
+import io.github.dumahuch.pogodaapp.home.PollenStatus
 import io.github.dumahuch.pogodaapp.sky.SkyOverride
 import io.github.dumahuch.pogodaapp.sky.SkyScene
 import io.github.dumahuch.pogodaapp.sky.SkyState
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Condition
+import io.github.dumahuch.pogodaapp.weather.PollenForecast
+import io.github.dumahuch.pogodaapp.weather.PollenKind
+import io.github.dumahuch.pogodaapp.weather.PollenLevel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.time.Instant
+import java.time.LocalDate
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -69,15 +75,25 @@ internal class SkyCheckModel : ViewModel() {
     /** Размытие под стеклом включено. Выключатель нужен, чтобы сравнить кадры на телефоне с размытием и без. */
     val glassBlur: StateFlow<Boolean> = mutableGlassBlur.asStateFlow()
 
+    private val mutablePollenSample = MutableStateFlow(false)
+
+    /** Вместо настоящей пыльцы на плитке «Пыльца» подставлен пример: вне сезона видно, как плитка выглядит с данными. */
+    val pollenSample: StateFlow<Boolean> = mutablePollenSample.asStateFlow()
+
     fun show() {
         mutableOpen.value = true
     }
 
-    /** При закрытии небо возвращается к настоящему времени и погоде, размытие включается. */
+    /** При закрытии небо возвращается к настоящему времени и погоде, размытие включается, пример пыльцы убирается. */
     fun close() {
         mutableOpen.value = false
         mutableOverride.value = SkyOverride()
         mutableGlassBlur.value = true
+        mutablePollenSample.value = false
+    }
+
+    fun setPollenSample(on: Boolean) {
+        mutablePollenSample.value = on
     }
 
     fun setGlassBlur(on: Boolean) {
@@ -88,6 +104,30 @@ internal class SkyCheckModel : ViewModel() {
         mutableOverride.value = value
     }
 }
+
+/**
+ * Сведения о пыльце для экрана проверки: чем кончилась загрузка ([status]), что получено ([forecast], пусто, если
+ * ничего) и какой день считать сегодняшним ([today], по часовому поясу места).
+ */
+internal class PollenCheck(val status: PollenStatus, val forecast: PollenForecast?, val today: LocalDate)
+
+/** Пример для кнопки «Подставить пыльцу»: четыре вида на разных ступенях, выпуск сегодняшний. Не настоящие данные. */
+internal fun samplePollen(today: LocalDate): PollenForecast = PollenForecast(
+    regionKey = SAMPLE_REGION_KEY,
+    issued = today,
+    levels = mapOf(
+        PollenKind.Birch to listOf(PollenLevel(5), PollenLevel(4), PollenLevel(2)),
+        PollenKind.Grass to listOf(PollenLevel(3), PollenLevel(3), PollenLevel(2)),
+        PollenKind.Mugwort to listOf(PollenLevel(1), PollenLevel(2), PollenLevel(2)),
+        PollenKind.Hazel to listOf(PollenLevel(6), PollenLevel(5), PollenLevel(4)),
+    ),
+)
+
+private const val SAMPLE_REGION_KEY = 0
+
+/** Ступень пыльцы так, как её пишет DWD: «0», «0-1», «1», «1-2», «2», «2-3», «3». */
+internal fun pollenLevelText(level: PollenLevel): String =
+    if (level.isBetween) "${level.whole}-${level.whole + 1}" else level.whole.toString()
 
 private val PanelBackground = Color(0xF5101722)
 private val PanelText = Color(0xFFF4F7FB)
@@ -133,8 +173,11 @@ internal fun SkyCheckPanel(
     override: SkyOverride,
     diagnostics: SkyDiagnostics,
     glassBlur: Boolean,
+    pollen: PollenCheck?,
+    pollenSample: Boolean,
     onOverride: (SkyOverride) -> Unit,
     onGlassBlur: (Boolean) -> Unit,
+    onPollenSample: (Boolean) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -147,8 +190,11 @@ internal fun SkyCheckPanel(
             override = override,
             diagnostics = diagnostics,
             glassBlur = glassBlur,
+            pollen = pollen,
+            pollenSample = pollenSample,
             onOverride = onOverride,
             onGlassBlur = onGlassBlur,
+            onPollenSample = onPollenSample,
             onCollapse = { collapsed = true },
             onClose = onClose,
             modifier = modifier,
@@ -186,8 +232,11 @@ private fun ExpandedPanel(
     override: SkyOverride,
     diagnostics: SkyDiagnostics,
     glassBlur: Boolean,
+    pollen: PollenCheck?,
+    pollenSample: Boolean,
     onOverride: (SkyOverride) -> Unit,
     onGlassBlur: (Boolean) -> Unit,
+    onPollenSample: (Boolean) -> Unit,
     onCollapse: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -286,7 +335,54 @@ private fun ExpandedPanel(
                 ),
             )
         }
+        PollenSection(pollen = pollen, sample = pollenSample, onSample = onPollenSample)
         FrameSection(glassBlur = glassBlur, onGlassBlur = onGlassBlur)
+    }
+}
+
+/**
+ * Пыльца DWD: чем кончилась загрузка (вне сезона все значения нулевые, и по пустой плитке не понять, работает ли загрузка),
+ * район, день выпуска и значения на сегодня. Кнопка подставляет пример, чтобы увидеть плитку с данными.
+ */
+@Composable
+private fun PollenSection(pollen: PollenCheck?, sample: Boolean, onSample: (Boolean) -> Unit) {
+    Caption(stringResource(R.string.check_pollen_title))
+    if (pollen == null) {
+        Info(stringResource(R.string.check_pollen_no_place))
+    } else {
+        Info(
+            stringResource(
+                R.string.check_pollen_status,
+                stringResource(
+                    when (pollen.status) {
+                        PollenStatus.Pending -> R.string.check_pollen_pending
+                        PollenStatus.OutsideGermany -> R.string.check_pollen_outside
+                        PollenStatus.Unavailable -> R.string.check_pollen_unavailable
+                        PollenStatus.Loaded -> R.string.check_pollen_loaded
+                    },
+                ),
+            ),
+        )
+        val forecast = pollen.forecast
+        if (forecast != null) {
+            Info(stringResource(R.string.check_pollen_region, forecast.regionKey, forecast.issued.toString()))
+            val kinds = stringArrayResource(R.array.pollen_kinds)
+            val today = forecast.on(pollen.today)
+            val text = if (today == null) {
+                stringResource(R.string.check_pollen_no_day)
+            } else {
+                today.entries.joinToString(", ") { (kind, level) -> "${kinds[kind.ordinal]} ${pollenLevelText(level)}" }
+            }
+            Info(stringResource(R.string.check_pollen_values, text))
+        }
+    }
+    Row(Modifier.fillMaxWidth()) {
+        CheckButton(
+            stringResource(if (sample) R.string.check_pollen_sample_off else R.string.check_pollen_sample_on),
+            selected = sample,
+            onClick = { onSample(!sample) },
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

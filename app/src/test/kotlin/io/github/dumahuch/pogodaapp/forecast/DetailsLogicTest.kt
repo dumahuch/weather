@@ -221,4 +221,85 @@ class DetailsLogicTest {
         val line = monotoneTangents(doubleArrayOf(0.0, 1.0, 2.0, 3.0))
         line.forEach { assertEquals(1.0, it, 1e-9) }
     }
+
+    // --- Строка порывов с пояснением (0.5.0, вариант А) ---
+
+    @Test
+    fun gustWordAppearsFromTwentyKmhOnly() {
+        assertNull(gustBeaufort(meanKmh = 5, gustKmh = 19))
+        assertEquals(4, gustBeaufort(meanKmh = 5, gustKmh = 20))
+        assertEquals(5, gustBeaufort(meanKmh = 5, gustKmh = 29))
+    }
+
+    @Test
+    fun gustWordIsSkippedWhenTheStepIsNotAboveTheMeanWind() {
+        // средний ветер 22 км/ч это тоже ступень 4, порыв 25 км/ч не выше
+        assertNull(gustBeaufort(meanKmh = 22, gustKmh = 25))
+        // порыв 30 км/ч уже ступень 5 против четвёртой
+        assertEquals(5, gustBeaufort(meanKmh = 22, gustKmh = 30))
+    }
+
+    @Test
+    fun gustWordIsSkippedWhenTheGustIsWeakerThanTheMeanWind() {
+        assertNull(gustBeaufort(meanKmh = 40, gustKmh = 21))
+    }
+
+    @Test
+    fun withoutMeanWindOnlyTheTwentyKmhConditionApplies() {
+        assertEquals(4, gustBeaufort(meanKmh = null, gustKmh = 20))
+        assertNull(gustBeaufort(meanKmh = null, gustKmh = 19))
+    }
+
+    // --- График давления (вариант Б) ---
+
+    @Test
+    fun axisCoversTheSeriesWithAtMostTwoIntervals() {
+        val axis = pressureAxis(listOf(1012.1, 1013.0, 1016.0))
+        assertEquals(PressureAxis(min = 1012, max = 1016, step = 2), axis)
+        assertEquals(listOf(1012, 1014, 1016), axis.ticks)
+    }
+
+    @Test
+    fun flatSeriesStillGetsTwoGridLines() {
+        val axis = pressureAxis(listOf(1015.2, 1015.2, 1015.4))
+        assertEquals(PressureAxis(min = 1015, max = 1016, step = 1), axis)
+    }
+
+    @Test
+    fun seriesOnAWholeNumberDoesNotCollapseTheAxis() {
+        assertEquals(PressureAxis(min = 1015, max = 1016, step = 1), pressureAxis(listOf(1015.0, 1015.0)))
+    }
+
+    @Test
+    fun widerSeriesGetsAWiderStepAndStaysInside() {
+        val values = listOf(998.4, 1004.0, 1011.7)
+        val axis = pressureAxis(values)
+        assertTrue(axis.min <= values.min())
+        assertTrue(axis.max >= values.max())
+        assertTrue((axis.max - axis.min) / axis.step <= 2)
+        assertEquals(20, axis.step)
+    }
+
+    @Test
+    fun axisOfAnEmptySeriesIsHarmless() {
+        assertEquals(listOf(0, 1), pressureAxis(emptyList()).ticks)
+    }
+
+    @Test
+    fun pointsCarryTheirTimeAndSkipHoursWithoutPressure() {
+        val details = hours(listOf(1000.0, null, 1002.0, 1003.0))
+        val points = PressureOutlook.points(details, start.plusSeconds(3600))
+        assertEquals(listOf(start, start.plusSeconds(7200), start.plusSeconds(10800)), points.map { it.time })
+        assertEquals(listOf(1000.0, 1002.0, 1003.0), points.map { it.hpa })
+    }
+
+    @Test
+    fun nowIndexPointsAtTheLastPointNotAfterNow() {
+        val details = hours(List(48) { 1000.0 + it })
+        val now = start.plusSeconds(20 * 3600L + 1200)
+        val points = PressureOutlook.points(details, now)
+        assertEquals(6, PressureOutlook.nowIndex(points, now))
+        assertEquals(0, PressureOutlook.nowIndex(points, start.minusSeconds(3600)))
+        assertEquals(0, PressureOutlook.nowIndex(emptyList(), now))
+    }
 }

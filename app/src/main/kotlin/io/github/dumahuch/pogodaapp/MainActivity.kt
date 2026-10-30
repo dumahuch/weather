@@ -33,7 +33,9 @@ import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.OpenMeteoGeocodingClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoAirQualityClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
+import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
+import io.github.dumahuch.pogodaapp.home.PollenStatus
 import io.github.dumahuch.pogodaapp.location.Locations
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
@@ -45,13 +47,16 @@ import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
+import io.github.dumahuch.pogodaapp.ui.sky.PollenCheck
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckModel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckPanel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyDiagnostics
 import io.github.dumahuch.pogodaapp.ui.sky.SkyHost
 import io.github.dumahuch.pogodaapp.ui.sky.TapSequence
+import io.github.dumahuch.pogodaapp.ui.sky.samplePollen
 import io.github.dumahuch.pogodaapp.ui.sky.skyInput
 import java.io.File
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
 
@@ -135,7 +140,21 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             PogodaTheme {
-                val state by viewModel.state.collectAsStateWithLifecycle()
+                val realState by viewModel.state.collectAsStateWithLifecycle()
+                val pollenSample by skyCheck.pollenSample.collectAsStateWithLifecycle()
+                // Экран проверки может подставить пример пыльцы; всё остальное приложение видит это как настоящие данные.
+                val state = if (pollenSample && realState is HomeUiState.Content) {
+                    val content = realState as HomeUiState.Content
+                    content.copy(
+                        pollen = samplePollen(LocalDate.now(content.forecast.zone)),
+                        pollenStatus = PollenStatus.Loaded,
+                    )
+                } else {
+                    realState
+                }
+                val pollenCheck = (realState as? HomeUiState.Content)?.let {
+                    PollenCheck(it.pollenStatus, it.pollen, LocalDate.now(it.forecast.zone))
+                }
                 val selection by viewModel.selection.collectAsStateWithLifecycle()
                 val pinned by viewModel.pinned.collectAsStateWithLifecycle()
                 val message by viewModel.message.collectAsStateWithLifecycle()
@@ -174,8 +193,11 @@ class MainActivity : ComponentActivity() {
                                 override = override,
                                 diagnostics = diagnostics,
                                 glassBlur = glassBlur,
+                                pollen = pollenCheck,
+                                pollenSample = pollenSample,
                                 onOverride = skyCheck::set,
                                 onGlassBlur = skyCheck::setGlassBlur,
+                                onPollenSample = skyCheck::setPollenSample,
                                 onClose = skyCheck::close,
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             )

@@ -44,7 +44,10 @@ import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.CompassPoint
 import io.github.dumahuch.pogodaapp.forecast.PressureOutlook
+import io.github.dumahuch.pogodaapp.forecast.PressurePoint
 import io.github.dumahuch.pogodaapp.forecast.PressureTrend
+import io.github.dumahuch.pogodaapp.forecast.continuationCase
+import io.github.dumahuch.pogodaapp.forecast.gustBeaufort
 import io.github.dumahuch.pogodaapp.forecast.UvLevel
 import io.github.dumahuch.pogodaapp.forecast.beaufortOf
 import io.github.dumahuch.pogodaapp.forecast.fitArcHeight
@@ -72,6 +75,7 @@ import io.github.dumahuch.pogodaapp.weather.Place
 import io.github.dumahuch.pogodaapp.weather.PollenForecast
 import io.github.dumahuch.pogodaapp.weather.PollenLevel
 import java.time.Instant
+import java.time.ZoneId
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -176,12 +180,10 @@ private fun DetailsContent(
     val now = remember(forecast) { Instant.now() }
     val today = remember(forecast, now) { now.atZone(forecast.zone).toLocalDate() }
     val details = remember(forecast, now) { forecast.detailsAt(now) }
-    val series = remember(forecast, now) { PressureOutlook.series(forecast.hourDetails, now) }
+    val pressurePoints = remember(forecast, now) { PressureOutlook.points(forecast.hourDetails, now) }
     val trend = remember(forecast, now) { PressureOutlook.trend(forecast.hourDetails, now) }
     // Место «сейчас» на графике давления: до него в ряду не больше шести часов.
-    val nowIndex = remember(forecast, now) {
-        forecast.hourDetails.indexOfLast { !it.time.isAfter(now) }.coerceAtLeast(0).coerceAtMost(PressureOutlook.HOURS_BEFORE)
-    }
+    val nowIndex = remember(pressurePoints, now) { PressureOutlook.nowIndex(pressurePoints, now) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(TileSpacing)) {
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
             AirTile(air, Modifier.weight(1f).fillMaxHeight())
@@ -189,7 +191,7 @@ private fun DetailsContent(
         }
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
             WindTile(details, Modifier.weight(1f).fillMaxHeight())
-            PressureTile(details, series, nowIndex, trend, Modifier.weight(1f).fillMaxHeight())
+            PressureTile(details, pressurePoints, nowIndex, forecast.zone, trend, Modifier.weight(1f).fillMaxHeight())
         }
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
             UvTile(details, Modifier.weight(1f).fillMaxHeight())
@@ -324,6 +326,7 @@ private fun WindTile(details: HourDetails?, modifier: Modifier = Modifier) {
     val strength = stringArrayResource(R.array.beaufort_names)
     val letters = stringArrayResource(R.array.compass_letters).toList()
     val speed = details?.windKmh?.roundToInt()
+    val locale = LocalLocale.current.platformLocale
     DetailTile(stringResource(R.string.tile_wind_now), modifier) {
         // Компас справа от числа и слова силы ветра; подписи ниже занимают всю ширину плитки.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -334,7 +337,13 @@ private fun WindTile(details: HourDetails?, modifier: Modifier = Modifier) {
             }
             details?.windDirection?.let { Compass(blowsTowardDegrees = it + 180f, letters = letters) }
         }
-        details?.gustKmh?.let { SubText(stringResource(R.string.gusts_up_to, it.roundToInt(), kmh)) }
+        details?.gustKmh?.let { gust ->
+            val gustRounded = gust.roundToInt()
+            // Порывы пишутся, только когда есть что сказать: слово по шкале Бофорта выше слова среднего ветра.
+            gustBeaufort(speed, gustRounded)?.let { step ->
+                SubText(stringResource(R.string.gusts_with_word, gustRounded, kmh, continuationCase(strength[step], locale)))
+            }
+        }
         details?.windDirection?.let { SubText(directions[CompassPoint.of(it).ordinal]) }
     }
 }
@@ -342,17 +351,18 @@ private fun WindTile(details: HourDetails?, modifier: Modifier = Modifier) {
 @Composable
 private fun PressureTile(
     details: HourDetails?,
-    series: List<Double>,
+    points: List<PressurePoint>,
     nowIndex: Int,
+    zone: ZoneId,
     trend: PressureTrend?,
     modifier: Modifier = Modifier,
 ) {
     DetailTile(stringResource(R.string.tile_pressure), modifier) {
         BigValue(details?.pressureHpa?.roundToInt()?.toString() ?: "–", stringResource(R.string.hpa_unit))
         trend?.let { SubText(stringResource(trendLabel(it))) }
-        if (series.size >= 2) {
+        if (points.size >= 2) {
             Spacer(Modifier.weight(1f).heightIn(min = 6.dp))
-            Sparkline(series, nowIndex)
+            PressureChart(points, nowIndex, zone)
         }
     }
 }
