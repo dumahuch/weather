@@ -5,7 +5,7 @@ import io.github.dumahuch.pogodaapp.weather.ForecastException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -28,6 +28,15 @@ class PlaceSearchModelTest {
         }
     }
 
+    /**
+     * Дать поиску отработать: пауза набора и всё, что за ней. Задачи `backgroundScope` `advanceUntilIdle` не ждёт
+     * (он останавливается, когда остались только фоновые задачи), поэтому время двигается явно.
+     */
+    private fun TestScope.settle() {
+        advanceTimeBy(PlaceSearchModel.DEBOUNCE_MILLIS + 1)
+        runCurrent()
+    }
+
     private companion object {
         const val ANSWER = """{"results":[
             {"name":"Hanover","latitude":43.7,"longitude":-72.3,"country_code":"US","country":"United States"},
@@ -46,7 +55,7 @@ class PlaceSearchModelTest {
         val source = FakeGeocoding()
         val model = PlaceSearchModel(backgroundScope, source, { "de" }, { "DE" })
         model.onQuery("H")
-        advanceUntilIdle()
+        settle()
         assertEquals(SearchResults.Idle, model.results.value)
         assertTrue(source.queries.isEmpty())
         assertEquals("H", model.query.value)
@@ -61,7 +70,7 @@ class PlaceSearchModelTest {
         model.onQuery("Hann")
         advanceTimeBy(200)
         assertTrue(source.queries.isEmpty())
-        advanceUntilIdle()
+        settle()
         assertEquals(listOf("Hann"), source.queries)
     }
 
@@ -70,7 +79,7 @@ class PlaceSearchModelTest {
         val source = FakeGeocoding()
         val model = PlaceSearchModel(backgroundScope, source, { "ru" }, { "DE" })
         model.onQuery("  Ханновер ")
-        advanceUntilIdle()
+        settle()
         assertEquals(listOf("Ханновер"), source.queries)
         assertEquals(listOf("ru"), source.languages)
     }
@@ -85,7 +94,7 @@ class PlaceSearchModelTest {
         assertEquals(SearchResults.Loading, model.results.value)
 
         source.gate?.complete(Unit)
-        advanceUntilIdle()
+        settle()
         val found = model.results.value as SearchResults.Found
         // страна телефона (DE) впереди, хотя служба вернула Hanover (US) первым
         assertEquals(listOf("Hannover", "Hanover"), found.items.map { it.name })
@@ -95,7 +104,7 @@ class PlaceSearchModelTest {
     fun nothingFoundIsEmpty() = runTest {
         val model = PlaceSearchModel(backgroundScope, FakeGeocoding("""{"generationtime_ms":0.1}"""), { "de" }, { null })
         model.onQuery("Xyzzy")
-        advanceUntilIdle()
+        settle()
         assertEquals(SearchResults.Empty, model.results.value)
     }
 
@@ -103,7 +112,7 @@ class PlaceSearchModelTest {
     fun noNetworkIsFailed() = runTest {
         val model = PlaceSearchModel(backgroundScope, FakeGeocoding(null), { "de" }, { null })
         model.onQuery("Han")
-        advanceUntilIdle()
+        settle()
         assertEquals(SearchResults.Failed, model.results.value)
     }
 
@@ -111,7 +120,7 @@ class PlaceSearchModelTest {
     fun unreadableAnswerIsFailed() = runTest {
         val model = PlaceSearchModel(backgroundScope, FakeGeocoding("<html>"), { "de" }, { null })
         model.onQuery("Han")
-        advanceUntilIdle()
+        settle()
         assertEquals(SearchResults.Failed, model.results.value)
     }
 
@@ -119,7 +128,7 @@ class PlaceSearchModelTest {
     fun withoutSourceItIsFailed() = runTest {
         val model = PlaceSearchModel(backgroundScope, null, { "de" }, { null })
         model.onQuery("Han")
-        advanceUntilIdle()
+        settle()
         assertEquals(SearchResults.Failed, model.results.value)
     }
 
@@ -127,7 +136,7 @@ class PlaceSearchModelTest {
     fun silentAddressServiceKeepsTheServiceOrder() = runTest {
         val model = PlaceSearchModel(backgroundScope, FakeGeocoding(), { "de" }, { throw IllegalStateException("служба молчит") })
         model.onQuery("Han")
-        advanceUntilIdle()
+        settle()
         val found = model.results.value as SearchResults.Found
         assertEquals(listOf("Hanover", "Hannover"), found.items.map { it.name })
     }
@@ -138,7 +147,7 @@ class PlaceSearchModelTest {
         val model = PlaceSearchModel(backgroundScope, source, { "de" }, { "DE" })
         model.onQuery("Han")
         model.clear()
-        advanceUntilIdle()
+        settle()
         assertEquals("", model.query.value)
         assertEquals(SearchResults.Idle, model.results.value)
         assertTrue(source.queries.isEmpty())
@@ -148,7 +157,7 @@ class PlaceSearchModelTest {
     fun shorteningTheQueryBackToOneLetterDropsOldResults() = runTest {
         val model = PlaceSearchModel(backgroundScope, FakeGeocoding(), { "de" }, { "DE" })
         model.onQuery("Han")
-        advanceUntilIdle()
+        settle()
         assertTrue(model.results.value is SearchResults.Found)
         model.onQuery("H")
         assertEquals(SearchResults.Idle, model.results.value)

@@ -335,8 +335,8 @@ private fun ExpandedPanel(
                 ),
             )
         }
-        PollenSection(pollen = pollen, sample = pollenSample, onSample = onPollenSample)
         FrameSection(glassBlur = glassBlur, onGlassBlur = onGlassBlur)
+        PollenSection(pollen = pollen, sample = pollenSample, onSample = onPollenSample)
     }
 }
 
