@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -16,8 +17,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import io.github.dumahuch.pogodaapp.forecast.monotoneTangents
+import io.github.dumahuch.pogodaapp.forecast.smoothSeries
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.pogodaText
 
 /** Цвета шкалы качества воздуха: пять ступеней, от хорошего к плохому (как в макете). */
 internal val AirScale = listOf(
@@ -65,28 +71,44 @@ internal fun ScaleBar(fraction: Float, colors: List<Color>, stepped: Boolean, mo
 }
 
 /**
- * Компас ветра как в макете: тонкое кольцо, четыре короткие засечки и длинная стрелка цветом акцента с открытым
- * наконечником. Стрелка смотрит туда, куда ветер дует ([blowsTowardDegrees], 0 это на север, по часовой стрелке).
- * Размеры заданы в долях стороны (в макете 64 единицы), поэтому рисунок не зависит от размера.
+ * Компас ветра как в макете (с 0.4.4): тонкое кольцо с разрывами, на четырёх сторонах света буквы [letters] (север, восток,
+ * юг, запад; буквы зависят от языка интерфейса) и длинная стрелка цветом акцента с открытым наконечником. Стрелка смотрит туда,
+ * куда ветер дует ([blowsTowardDegrees], 0 это на север, по часовой стрелке). Рисунок в долях стороны (в макете 74 единицы,
+ * кольцо радиусом 29 в середине), поэтому не зависит от размера; размер букв не следует за размером шрифта системы.
  */
 @Composable
-internal fun Compass(blowsTowardDegrees: Float, modifier: Modifier = Modifier) {
+internal fun Compass(blowsTowardDegrees: Float, letters: List<String>, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
-    Canvas(modifier.size(52.dp)) {
-        val unit = size.minDimension / 64f
+    val measurer = rememberTextMeasurer()
+    val letterStyle = remember(palette.ink2) { pogodaText(10f, 500, color = palette.ink2, lineHeight = 1f) }
+    Canvas(modifier.size(COMPASS_SIZE)) {
+        val unit = size.minDimension / 74f
         val center = Offset(size.width / 2, size.height / 2)
-        drawCircle(palette.glassLine, 29f * unit, center, style = Stroke(width = 2f * unit))
-        val tick = palette.ink.copy(alpha = 0.5f)
+        val radius = 29f * unit
+        val ring = palette.ink.copy(alpha = 0.5f)
+        // Кольцо четырьмя дугами: перед каждой буквой разрыв.
         for (quarter in 0..3) {
-            rotate(quarter * 90f, center) {
-                drawLine(
-                    tick,
-                    Offset(center.x, center.y - 29f * unit),
-                    Offset(center.x, center.y - 24f * unit),
-                    strokeWidth = 2f * unit,
-                    cap = StrokeCap.Round,
-                )
-            }
+            drawArc(
+                ring,
+                startAngle = -90f + quarter * 90f + GAP_DEGREES,
+                sweepAngle = 90f - 2 * GAP_DEGREES,
+                useCenter = false,
+                topLeft = Offset(center.x - radius, center.y - radius),
+                size = Size(2 * radius, 2 * radius),
+                style = Stroke(width = 1.3f * unit),
+            )
+        }
+        val style = letterStyle.copy(fontSize = (10f * unit).toSp(), lineHeight = (10f * unit).toSp())
+        val spots = listOf(
+            Offset(center.x, center.y - radius),
+            Offset(center.x + radius, center.y),
+            Offset(center.x, center.y + radius),
+            Offset(center.x - radius, center.y),
+        )
+        spots.forEachIndexed { index, spot ->
+            val letter = letters.getOrNull(index) ?: return@forEachIndexed
+            val layout = measurer.measure(letter, style)
+            drawText(layout, topLeft = Offset(spot.x - layout.size.width / 2f, spot.y - layout.size.height / 2f))
         }
         rotate(blowsTowardDegrees, center) {
             val tip = Offset(center.x, center.y - 20f * unit)
@@ -107,35 +129,52 @@ internal fun Compass(blowsTowardDegrees: Float, modifier: Modifier = Modifier) {
     }
 }
 
-/** Линия давления за ближайшие часы; точка отмечает «сейчас» ([nowIndex] считается от начала ряда). */
+/** Сторона компаса: кольцо радиусом 29 единиц макета помещается с запасом для букв (рисунок 74 единицы). */
+private val COMPASS_SIZE = 60.dp
+
+/**
+ * Половина разрыва кольца вокруг буквы, градусы: в макете разрыв это круг радиусом 7 единиц на кольце радиусом 29,
+ * то есть угол 2·asin(7 / 58) в обе стороны от середины буквы.
+ */
+private const val GAP_DEGREES = 13.9f
+
+/**
+ * Линия давления за ближайшие часы цветом акцента, как в макете; точка отмечает «сейчас» ([nowIndex] считается от начала ряда).
+ * Ряд слегка сглаживается ([smoothSeries]) и проводится плавной кривой без выбросов ([monotoneTangents]).
+ */
 @Composable
 internal fun Sparkline(values: List<Double>, nowIndex: Int, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
+    val smooth = remember(values) { smoothSeries(values) }
     Canvas(modifier.fillMaxWidth().height(28.dp)) {
-        if (values.size < 2) return@Canvas
+        if (smooth.size < 2) return@Canvas
+        val count = smooth.size
         val pad = 4.dp.toPx()
         // Размах не меньше 2 гПа: ровное давление остаётся ровной линией, а не растягивается на всю высоту.
-        val low = values.min()
-        val high = values.max()
+        val low = smooth.min()
+        val high = smooth.max()
         val middle = (low + high) / 2
         val range = maxOf(high - low, MIN_SPAN_HPA)
-        fun point(index: Int): Offset {
-            val x = pad + index * (size.width - 2 * pad) / (values.size - 1)
-            val y = size.height / 2 - ((values[index] - middle) / range).toFloat() * (size.height - 2 * pad)
-            return Offset(x, y)
-        }
+        val step = (size.width - 2 * pad) / (count - 1)
+        val xs = FloatArray(count) { pad + it * step }
+        val ys = DoubleArray(count) { size.height / 2 - ((smooth[it] - middle) / range) * (size.height - 2 * pad) }
+        val slopes = monotoneTangents(ys)
         val line = Path().apply {
-            values.indices.forEach { index ->
-                val p = point(index)
-                if (index == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+            moveTo(xs[0], ys[0].toFloat())
+            for (k in 0 until count - 1) {
+                cubicTo(
+                    xs[k] + step / 3, (ys[k] + slopes[k] / 3).toFloat(),
+                    xs[k + 1] - step / 3, (ys[k + 1] - slopes[k + 1] / 3).toFloat(),
+                    xs[k + 1], ys[k + 1].toFloat(),
+                )
             }
         }
         drawPath(
             line,
-            palette.ink2,
-            style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+            palette.accent,
+            style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
         )
-        if (nowIndex in values.indices) drawCircle(palette.ink, 3.dp.toPx(), point(nowIndex))
+        if (nowIndex in 0 until count) drawCircle(palette.accent, 3.dp.toPx(), Offset(xs[nowIndex], ys[nowIndex].toFloat()))
     }
 }
 

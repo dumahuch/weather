@@ -165,4 +165,60 @@ class DetailsLogicTest {
         )
         assertNotNull(arcPosition(Instant.parse("2026-10-29T11:00:00Z"), today, null))
     }
+
+    @Test
+    fun beaufortBoundaries() {
+        val expected = mapOf(
+            0 to 0, 1 to 1, 5 to 1, 6 to 2, 11 to 2, 12 to 3, 19 to 3, 20 to 4, 28 to 4, 29 to 5, 38 to 5,
+            39 to 6, 49 to 6, 50 to 7, 61 to 7, 62 to 8, 74 to 8, 75 to 9, 88 to 9, 89 to 10, 102 to 10,
+            103 to 11, 117 to 11, 118 to 12, 200 to 12,
+        )
+        expected.forEach { (kmh, bft) -> assertEquals("$kmh км/ч", bft, beaufortOf(kmh)) }
+    }
+
+    @Test
+    fun arcShrinksByTheOverflowPlusGap() {
+        // текущая высота 100, не хватает 30 (slack −30), зазор 6: целимся в 100 − 30 − 6 = 64
+        assertEquals(64, fitArcHeight(currentPx = 100, slackPx = -30, gapPx = 6, minPx = 40, naturalPx = 120))
+    }
+
+    @Test
+    fun arcGrowsBackButNeverAboveNatural() {
+        assertEquals(120, fitArcHeight(currentPx = 64, slackPx = 200, gapPx = 6, minPx = 40, naturalPx = 120))
+        assertEquals(90, fitArcHeight(currentPx = 64, slackPx = 32, gapPx = 6, minPx = 40, naturalPx = 120))
+    }
+
+    @Test
+    fun arcNeverShrinksBelowMinimum() {
+        assertEquals(40, fitArcHeight(currentPx = 100, slackPx = -500, gapPx = 6, minPx = 40, naturalPx = 120))
+        // если естественная высота меньше минимума, берём её
+        assertEquals(30, fitArcHeight(currentPx = 30, slackPx = -500, gapPx = 6, minPx = 40, naturalPx = 30))
+    }
+
+    @Test
+    fun smoothingKeepsEndsAndFlattensNoise() {
+        val raw = listOf(1000.0, 1004.0, 1000.0, 1004.0, 1000.0)
+        val smooth = smoothSeries(raw)
+        assertEquals(raw.size, smooth.size)
+        assertEquals(1000.0, smooth.first(), 1e-9)
+        assertEquals(1000.0, smooth.last(), 1e-9)
+        assertTrue(smooth[1] < raw[1] && smooth[2] > raw[2])
+        assertEquals(raw, smoothSeries(raw.take(2)))
+    }
+
+    @Test
+    fun smoothingKeepsAStraightLine() {
+        val line = List(6) { 1000.0 + it }
+        smoothSeries(line).forEachIndexed { i, v -> assertEquals(line[i], v, 1e-9) }
+    }
+
+    @Test
+    fun tangentsAreZeroAtExtremaAndKeepSlopeOnLines() {
+        val m = monotoneTangents(doubleArrayOf(0.0, 2.0, 1.0, 1.0, 3.0))
+        assertEquals(0.0, m[1], 0.0)   // максимум
+        assertEquals(0.0, m[2], 0.0)   // начало плато
+        assertEquals(0.0, m[3], 0.0)
+        val line = monotoneTangents(doubleArrayOf(0.0, 1.0, 2.0, 3.0))
+        line.forEach { assertEquals(1.0, it, 1e-9) }
+    }
 }

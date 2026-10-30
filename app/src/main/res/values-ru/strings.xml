@@ -136,6 +136,29 @@
         <item>западный</item>
         <item>северо-западный</item>
     </string-array>
+    <!-- Сила ветра по шкале Бофорта, ступени 0-12 по средней скорости (км/ч): 0, 1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118. -->
+    <string-array name="beaufort_names">
+        <item>Штиль</item>
+        <item>Тихий ветер</item>
+        <item>Лёгкий ветер</item>
+        <item>Слабый ветер</item>
+        <item>Умеренный ветер</item>
+        <item>Свежий ветер</item>
+        <item>Сильный ветер</item>
+        <item>Крепкий ветер</item>
+        <item>Очень крепкий ветер</item>
+        <item>Шторм</item>
+        <item>Сильный шторм</item>
+        <item>Жестокий шторм</item>
+        <item>Ураган</item>
+    </string-array>
+    <!-- Буквы сторон света на компасе: север, восток, юг, запад. -->
+    <string-array name="compass_letters">
+        <item>С</item>
+        <item>В</item>
+        <item>Ю</item>
+        <item>З</item>
+    </string-array>
     <string name="tile_pressure">Давление</string>
     <string name="hpa_unit">гПа</string>
     <string name="trend_rising">растёт</string>

@@ -101,3 +101,53 @@ private fun share(from: Instant, to: Instant, now: Instant): Double {
     if (total <= 0.0) return 0.0
     return (Duration.between(from, now).toMillis() / total).coerceIn(0.0, 1.0)
 }
+
+/**
+ * Ступень шкалы Бофорта (0–12) по средней скорости ветра в км/ч. [kmh] целое, как на плитке: число и слово не расходятся.
+ * Нижние границы ступеней 1–12 по таблице MeteoSchweiz (https://www.meteoschweiz.admin.ch): 1, 6, 12, 20, 29, 39, 50, 62,
+ * 75, 89, 103, 118 км/ч; ниже 1 км/ч штиль.
+ */
+fun beaufortOf(kmh: Int): Int = BEAUFORT_LOWER_KMH.count { kmh >= it }
+
+private val BEAUFORT_LOWER_KMH = intArrayOf(1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118)
+
+/**
+ * Высота дуги солнца, при которой страница «Подробно» как раз помещается на экран. [currentPx] нынешняя высота дуги,
+ * [slackPx] запас экрана (высота окна минус высота содержимого, отрицательный при нехватке), [gapPx] зазор, который
+ * нужно оставить. Результат не ниже [minPx] (тогда страница прокручивается) и не выше [naturalPx] (дуга не растягивается).
+ */
+fun fitArcHeight(currentPx: Int, slackPx: Int, gapPx: Int, minPx: Int, naturalPx: Int): Int =
+    (currentPx + slackPx - gapPx).coerceIn(minOf(minPx, naturalPx), naturalPx)
+
+/**
+ * Лёгкое сглаживание ряда давления для графика: два прохода с весами 1-2-1, края остаются на месте. Часовые значения
+ * меняются ступеньками по 0,1 гПа, на графике размахом в пару гПа они выглядели бы зубцами.
+ */
+fun smoothSeries(values: List<Double>): List<Double> {
+    var current = values
+    repeat(2) {
+        if (current.size < 3) return current
+        val previous = current
+        current = previous.indices.map { i ->
+            if (i == 0 || i == previous.lastIndex) previous[i] else 0.25 * previous[i - 1] + 0.5 * previous[i] + 0.25 * previous[i + 1]
+        }
+    }
+    return current
+}
+
+/**
+ * Наклоны кривой через точки с равным шагом по x, которые не дают выбросов выше и ниже самих точек (монотонная кубическая
+ * интерполяция Фритча и Карлсона). [y] значения в точках; результат наклон в единицах y на один шаг. В экстремуме наклон нулевой.
+ */
+fun monotoneTangents(y: DoubleArray): DoubleArray {
+    val n = y.size
+    val m = DoubleArray(n)
+    if (n < 2) return m
+    val d = DoubleArray(n - 1) { y[it + 1] - y[it] }
+    m[0] = d[0]
+    m[n - 1] = d[n - 2]
+    for (k in 1 until n - 1) {
+        m[k] = if (d[k - 1] * d[k] <= 0.0) 0.0 else 2.0 * d[k - 1] * d[k] / (d[k - 1] + d[k])
+    }
+    return m
+}

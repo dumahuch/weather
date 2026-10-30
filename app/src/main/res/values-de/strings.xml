@@ -134,6 +134,29 @@
         <item>West</item>
         <item>Nordwest</item>
     </string-array>
+    <!-- Сила ветра по шкале Бофорта, ступени 0-12 по средней скорости (км/ч): 0, 1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118. -->
+    <string-array name="beaufort_names">
+        <item>Windstill</item>
+        <item>Leiser Zug</item>
+        <item>Leichte Brise</item>
+        <item>Schwache Brise</item>
+        <item>Mäßige Brise</item>
+        <item>Frische Brise</item>
+        <item>Starker Wind</item>
+        <item>Steifer Wind</item>
+        <item>Stürmischer Wind</item>
+        <item>Sturm</item>
+        <item>Schwerer Sturm</item>
+        <item>Orkanartiger Sturm</item>
+        <item>Orkan</item>
+    </string-array>
+    <!-- Буквы сторон света на компасе: север, восток, юг, запад. -->
+    <string-array name="compass_letters">
+        <item>N</item>
+        <item>O</item>
+        <item>S</item>
+        <item>W</item>
+    </string-array>
     <string name="tile_pressure">Luftdruck</string>
     <string name="hpa_unit">hPa</string>
     <string name="trend_rising">steigend</string>

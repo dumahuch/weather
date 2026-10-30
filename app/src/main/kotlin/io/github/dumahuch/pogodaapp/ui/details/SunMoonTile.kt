@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -22,9 +26,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -43,6 +48,7 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.Place
 import java.time.Instant
+import kotlin.math.roundToInt
 
 /**
  * Плитка «Солнце и Луна»: дуга дня с меткой («сейчас»), время восхода, длина дня и время заката, ниже фаза и время
@@ -50,7 +56,7 @@ import java.time.Instant
  * Если солнце в эти сутки не встаёт или не садится (полярная ночь и день), дуги нет, а время показывается прочерком.
  */
 @Composable
-internal fun SunMoonTile(place: Place, forecast: Forecast, now: Instant, modifier: Modifier = Modifier) {
+internal fun SunMoonTile(place: Place, forecast: Forecast, now: Instant, fit: ArcFit, modifier: Modifier = Modifier) {
     val zone = forecast.zone
     val today = remember(forecast, now) {
         val date = now.atZone(zone).toLocalDate()
@@ -61,7 +67,7 @@ internal fun SunMoonTile(place: Place, forecast: Forecast, now: Instant, modifie
     val dash = "–"
     DetailTile(stringResource(R.string.tile_sun_moon), modifier) {
         if (position != null) {
-            SunArc(position, Modifier.fillMaxWidth().aspectRatio(ARC_WIDTH / ARC_HEIGHT))
+            SunArc(position, fit)
         } else {
             Spacer(Modifier.height(6.dp))
         }
@@ -131,35 +137,66 @@ private const val ARC_HEIGHT = 70f
 /** Сколько единиц макета сверху срезано: до верха метки на вершине дуги остаётся запас. */
 private const val ARC_TOP = 8f
 
-/** Дуга пути солнца: пунктир целиком, пройденная часть сплошной линией, метка на текущем месте. */
+/** Высота дуги в единицах макета после среза верха: так же высока естественная дуга, и основание лежит на нижнем краю. */
+private const val ARC_UNITS = ARC_HEIGHT - ARC_TOP
+
+/**
+ * Высота дуги, которую плитка «Подробно» подгоняет под остаток экрана (с 0.4.4). Дуга сообщает сюда свою нынешнюю и
+ * естественную (по ширине) высоту, а страница по запасу высоты окна задаёт [forcedPx]: пока он не задан, дуга естественная.
+ */
+@Stable
+internal class ArcFit {
+    var natural by mutableIntStateOf(0)
+    var current by mutableIntStateOf(0)
+    var forcedPx by mutableIntStateOf(NOT_FORCED)
+
+    companion object {
+        const val NOT_FORCED = -1
+    }
+}
+
+/**
+ * Дуга пути солнца: пунктир целиком, пройденная часть сплошной линией, метка на текущем месте. По ширине рисунок как в
+ * макете, по высоте сжимается, когда страница не помещается на экран ([ArcFit]); метка и толщина линий остаются прежними.
+ */
 @Composable
-private fun SunArc(position: ArcPosition, modifier: Modifier = Modifier) {
+private fun SunArc(position: ArcPosition, fit: ArcFit, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
+    val density = LocalDensity.current
     val color = if (position.daytime) palette.warning else palette.accent
     val moon = remember { PathParser().parsePathString(LineIcons.Moon.paths[0]).toPath() }
-    Canvas(modifier) {
-        val scale = size.width / ARC_WIDTH
-        // Верхние ARC_TOP единиц макета пусты (дуга ниже), их срезаем: плитка ниже, все плитки помещаются на экран.
-        translate(top = -ARC_TOP * scale) {
-            val baseY = 70f * scale
-            drawLine(palette.ink2.copy(alpha = 0.4f), Offset(8f * scale, baseY), Offset(312f * scale, baseY), strokeWidth = 1.dp.toPx())
-            val arc = Path().apply {
-                moveTo(24f * scale, baseY)
-                quadraticTo(160f * scale, -26f * scale, 296f * scale, baseY)
-            }
-            drawPath(
-                arc,
-                palette.ink2.copy(alpha = 0.7f),
-                style = Stroke(width = 1.4.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))),
-            )
-            val measure = PathMeasure().apply { setPath(arc, false) }
-            val passed = measure.length * position.fraction.toFloat()
-            val done = Path()
-            measure.getSegment(0f, passed, done, true)
-            drawPath(done, color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-            val at = measure.getPosition(passed)
-            drawMarker(at, color, position.daytime, moon)
+    val sizing = if (fit.forcedPx >= 0) {
+        Modifier.fillMaxWidth().height(with(density) { fit.forcedPx.toDp() })
+    } else {
+        Modifier.fillMaxWidth().aspectRatio(ARC_WIDTH / ARC_UNITS)
+    }
+    Canvas(
+        modifier.then(sizing).onSizeChanged {
+            fit.current = it.height
+            fit.natural = (it.width * ARC_UNITS / ARC_WIDTH).roundToInt()
+        },
+    ) {
+        val sx = size.width / ARC_WIDTH
+        val sy = size.height / ARC_UNITS
+        // Верхние ARC_TOP единиц макета пусты (дуга ниже), их срезаем; основание дуги лежит на нижнем краю.
+        val baseY = size.height
+        drawLine(palette.ink2.copy(alpha = 0.4f), Offset(8f * sx, baseY), Offset(312f * sx, baseY), strokeWidth = 1.dp.toPx())
+        val arc = Path().apply {
+            moveTo(24f * sx, baseY)
+            quadraticTo(160f * sx, (-26f - ARC_TOP) * sy, 296f * sx, baseY)
         }
+        drawPath(
+            arc,
+            palette.ink2.copy(alpha = 0.7f),
+            style = Stroke(width = 1.4.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))),
+        )
+        val measure = PathMeasure().apply { setPath(arc, false) }
+        val passed = measure.length * position.fraction.toFloat()
+        val done = Path()
+        measure.getSegment(0f, passed, done, true)
+        drawPath(done, color, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        val at = measure.getPosition(passed)
+        drawMarker(at, color, position.daytime, moon)
     }
 }
 
