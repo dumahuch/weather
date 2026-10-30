@@ -2,6 +2,7 @@ package io.github.dumahuch.pogodaapp.ui
 
 import io.github.dumahuch.pogodaapp.sky.Rgb
 import io.github.dumahuch.pogodaapp.sky.contrast
+import io.github.dumahuch.pogodaapp.ui.details.ARC_WIDTH
 import io.github.dumahuch.pogodaapp.ui.details.SunArcShape
 import io.github.dumahuch.pogodaapp.ui.details.SunMoonColors
 import org.junit.Assert.assertEquals
@@ -52,5 +53,13 @@ class SunMoonShapeTest {
         // метка в белом ободке: сама метка должна отличаться от него не меньше 1,5 : 1 (жёлтый самый светлый)
         assertTrue(contrast(Rgb.hex(SunMoonColors.SUN_FILL), Rgb.White) >= 1.5)
         assertTrue(contrast(Rgb.hex(SunMoonColors.MOON_FILL), Rgb.White) >= 3.0)
+    }
+
+    @Test
+    fun arcEndsStandOnTheFullyVisibleHorizon() {
+        // Горизонт гаснет у краёв на HORIZON_FADE единиц; точки на концах дуги должны стоять там, где линия видна целиком.
+        assertTrue("левый конец", SunArcShape.LEFT_X >= SunArcShape.HORIZON_FADE)
+        assertTrue("правый конец", SunArcShape.RIGHT_X <= ARC_WIDTH - SunArcShape.HORIZON_FADE)
+        assertTrue("затухание не съедает всю линию", SunArcShape.HORIZON_FADE * 2 < ARC_WIDTH / 2)
     }
 }

@@ -63,7 +63,8 @@ private fun Block(width: Dp, height: Dp, shape: Shape, alpha: Float, modifier: M
 @Composable
 fun HeroSkeleton(modifier: Modifier = Modifier) {
     val alpha = skeletonAlpha()
-    Column(modifier.padding(horizontal = 24.dp)) {
+    Column(modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Block(96.dp, 96.dp, CircleShape, alpha)
         Block(150.dp, 104.dp, RoundedCornerShape(20.dp), alpha, Modifier.padding(top = 6.dp))
         Block(210.dp, 20.dp, RoundedCornerShape(10.dp), alpha, Modifier.padding(top = 18.dp))
         Block(250.dp, 14.dp, RoundedCornerShape(10.dp), alpha, Modifier.padding(top = 10.dp))

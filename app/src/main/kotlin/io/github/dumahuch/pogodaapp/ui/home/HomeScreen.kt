@@ -1,39 +1,50 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
+import io.github.dumahuch.pogodaapp.forecast.precipitationExpectedToday
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.heroDigitsSize
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
+import io.github.dumahuch.pogodaapp.ui.ExtremeTints
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.HeroSkeleton
 import io.github.dumahuch.pogodaapp.ui.components.HourlySkeleton
@@ -46,8 +57,11 @@ import io.github.dumahuch.pogodaapp.ui.components.PullRefreshIndicator
 import io.github.dumahuch.pogodaapp.ui.components.rememberPullRefreshState
 import io.github.dumahuch.pogodaapp.ui.components.glassButton
 import io.github.dumahuch.pogodaapp.ui.components.iconFor
+import io.github.dumahuch.pogodaapp.ui.forecast.percentText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Condition
+import java.time.Instant
+import kotlin.math.roundToInt
 
 /**
  * Действия экрана: что делать по нажатиям кнопок и по протягиванию вниз. [onOpenPlaces] открывает список мест (плашка
@@ -191,7 +205,11 @@ private fun TopRow(
     val glass = LocalGlass.current
     val label = stringResource(R.string.places_open)
     val previewLabel = stringResource(R.string.places_preview)
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Row(
             Modifier
                 .height(44.dp)
@@ -237,34 +255,56 @@ private fun TopRow(
 
 @Composable
 private fun LoadingTop() {
-    HeroSkeleton(Modifier.padding(top = 26.dp))
+    HeroSkeleton(Modifier.padding(top = 6.dp))
 }
 
-/** Верхняя часть «Главной» с данными: текущая погода. Лента «По часам» стоит ниже и не сдвигается. */
+/**
+ * Верхняя часть «Главной» с данными (вариант «В», всё по центру): крупный значок, огромная тонкая температура, состояние,
+ * максимум и минимум календарного дня, «Ощущается как» и одна тонкая строка подписей (влажность, ветер, осадки до конца
+ * дня). Лента «По часам» стоит ниже и не сдвигается.
+ */
 @Composable
 private fun ContentTop(state: HomeUiState.Content) {
     val palette = LocalPogodaPalette.current
-    val current = state.forecast.current
-    Spacer(Modifier.height(26.dp))
-    HeroRow(
+    val forecast = state.forecast
+    val current = forecast.current
+    val now = remember(forecast) { Instant.now() }
+    val details = remember(forecast, now) { forecast.detailsAt(now) }
+    val rainExpected = remember(forecast, now) { precipitationExpectedToday(forecast, now) }
+    val dash = "–"
+    val kmh = stringResource(R.string.kmh_unit)
+    val captions = listOf(
+        "${stringResource(R.string.tile_humidity)} ${details?.humidity?.let(::percentText) ?: dash}",
+        "${stringResource(R.string.tile_wind_now)} ${details?.windKmh?.let { "${it.roundToInt()} $kmh" } ?: dash}",
+        stringResource(if (rainExpected) R.string.precip_today_expected else R.string.precip_today_none),
+    )
+    Spacer(Modifier.height(6.dp))
+    HeroBlock(
         digits = temperatureDigits(current.temperature),
         digitsSize = heroDigitsSize(current.temperature),
         description = temperatureText(current.temperature),
         icon = iconFor(current.condition, current.isDay),
     )
-    Column(Modifier.padding(horizontal = 24.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(
             conditionName(current.condition),
             style = pogodaText(21f, 600),
-            modifier = Modifier.padding(top = 14.dp),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 10.dp),
         )
+        HighLowRow(forecast.today.max, forecast.today.min, Modifier.padding(top = 6.dp))
         Text(
-            text = "${stringResource(R.string.feels_like)} ${temperatureText(current.feelsLike)} · " +
-                "${stringResource(R.string.temp_high)} ${temperatureText(state.forecast.today.max)}, " +
-                "${stringResource(R.string.temp_low)} ${temperatureText(state.forecast.today.min)}",
+            text = "${stringResource(R.string.feels_like)} ${temperatureText(current.feelsLike)}",
             style = pogodaText(14f, 500, color = palette.ink2, lineHeight = 1.4f),
-            modifier = Modifier.padding(top = 5.dp),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 4.dp),
         )
+        CaptionRow(captions, Modifier.padding(top = 14.dp))
         if (state.offline) {
             OfflinePill(
                 title = stringResource(R.string.offline_title),
@@ -274,6 +314,55 @@ private fun ContentTop(state: HomeUiState.Content) {
                     pluralStringResource(R.plurals.data_age_hours, state.staleHours, state.staleHours)
                 },
                 modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Максимум и минимум календарного дня: тёплый оттенок со стрелкой вверх и холодный со стрелкой вниз (правила надписей,
+ * раздел 4). Слов «Макс» и «Мин» на экране нет, они в описании для чтения экрана.
+ */
+@Composable
+private fun HighLowRow(max: Double, min: Double, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    val description = "${stringResource(R.string.temp_high)} ${temperatureText(max)}, " +
+        "${stringResource(R.string.temp_low)} ${temperatureText(min)}"
+    Row(
+        modifier.clearAndSetSemantics { contentDescription = description },
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ExtremeValue(LineIcons.ArrowUp, temperatureText(max), palette.ink, palette.smoke, warm = true)
+        ExtremeValue(LineIcons.ArrowDown, temperatureText(min), palette.ink, palette.smoke, warm = false)
+    }
+}
+
+@Composable
+private fun ExtremeValue(icon: LineIcon, text: String, ink: Color, smoke: Float, warm: Boolean) {
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+        LineIconView(icon, 16.dp, ExtremeTints.arrow(ink, smoke, warm), strokeWidth = 2f)
+        Text(text, style = pogodaText(17f, 600, color = ExtremeTints.text(ink, smoke, warm), tabular = true), maxLines = 1)
+    }
+}
+
+/**
+ * Одна тонкая строка подписей: подписи разделены тонкой вертикальной чертой, число подписей всегда три. Подписи делят
+ * ширину поровну; длинная (в немецком) переносится на вторую строку, ширину блока не ломает.
+ */
+@Composable
+private fun CaptionRow(items: List<String>, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
+        items.forEachIndexed { index, text ->
+            if (index > 0) {
+                Box(Modifier.fillMaxHeight().width(1.dp).background(palette.ink.copy(alpha = 0.25f)))
+            }
+            Text(
+                text,
+                style = pogodaText(13f, 400, color = palette.ink2, lineHeight = 1.3f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f).padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
     }

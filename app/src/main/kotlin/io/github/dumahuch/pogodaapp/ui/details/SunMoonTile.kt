@@ -18,9 +18,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -137,7 +137,8 @@ private fun MoonRow(place: Place, forecast: Forecast, now: Instant) {
     }
 }
 
-private const val ARC_WIDTH = 320f
+/** Ширина рисунка дуги в единицах макета. */
+internal const val ARC_WIDTH = 320f
 private const val ARC_HEIGHT = 70f
 
 /** Сколько единиц макета сверху срезано: до верха метки на вершине дуги остаётся запас. */
@@ -175,6 +176,12 @@ internal data class SunArcShape(val baseY: Float, val controlY: Float, val start
         const val LEFT_X = 24f
         const val RIGHT_X = 296f
 
+        /**
+         * Длина затухания линии горизонта у каждого края (единицы макета). Концы дуги лежат внутри полной яркости
+         * линии, не в затухающей части, поэтому точки на концах всегда стоят на видимой линии.
+         */
+        const val HORIZON_FADE = 20f
+
         /** Дневная дуга: основание на нижнем краю, вершина на 48 единиц выше (как до 0.5.1). */
         val Day = SunArcShape(baseY = ARC_UNITS, controlY = -26f - ARC_TOP, startsAtRight = false)
 
@@ -197,9 +204,15 @@ internal object SunMoonColors {
 
 private fun rgb(value: Int) = Color(0xFF000000.toInt() or value)
 
+private const val HORIZON_ALPHA = 0.28f
+private const val REST_ALPHA = 0.8f
+private const val REST_WIDTH_DP = 1.3f
+private const val PASSED_WIDTH_DP = 2f
+private const val END_DOT_DP = 2.6f
+
 /**
- * Дуга пути солнца или луны: пунктир целиком, пройденная часть сплошной линией, метка на текущем месте. По ширине рисунок
- * как в макете, по высоте сжимается, когда страница не помещается на экран ([ArcFit]); метка и толщина линий остаются прежними.
+ * Дуга пути солнца или луны (по образцу Димы): тонкая сплошная линия, точки на концах, бледный горизонт с затуханием
+ * у краёв, пройденная часть цветом (жёлтая днём, синяя ночью), метка на текущем месте. По ширине рисунок как в макете, по высоте сжимается, когда страница не помещается на экран ([ArcFit]); метка и толщина линий остаются прежними.
  */
 @Composable
 private fun SunArc(position: ArcPosition, fit: ArcFit, modifier: Modifier = Modifier) {
@@ -225,23 +238,38 @@ private fun SunArc(position: ArcPosition, fit: ArcFit, modifier: Modifier = Modi
         val sx = size.width / ARC_WIDTH
         val sy = size.height / ARC_UNITS
         val baseY = shape.baseY * sy
-        drawLine(palette.ink2.copy(alpha = 0.4f), Offset(8f * sx, baseY), Offset(312f * sx, baseY), strokeWidth = 1.dp.toPx())
+        // Горизонт: бледная линия на всю ширину, у краёв плавно гаснет (образец Димы).
+        val fade = SunArcShape.HORIZON_FADE / ARC_WIDTH
+        val horizon = palette.ink.copy(alpha = HORIZON_ALPHA)
+        drawLine(
+            Brush.horizontalGradient(
+                0f to horizon.copy(alpha = 0f),
+                fade to horizon,
+                1f - fade to horizon,
+                1f to horizon.copy(alpha = 0f),
+                startX = 0f,
+                endX = size.width,
+            ),
+            Offset(0f, baseY),
+            Offset(size.width, baseY),
+            strokeWidth = 1.dp.toPx(),
+        )
         val fromX = (if (shape.startsAtRight) SunArcShape.RIGHT_X else SunArcShape.LEFT_X) * sx
         val toX = (if (shape.startsAtRight) SunArcShape.LEFT_X else SunArcShape.RIGHT_X) * sx
         val arc = Path().apply {
             moveTo(fromX, baseY)
             quadraticTo(160f * sx, shape.controlY * sy, toX, baseY)
         }
-        drawPath(
-            arc,
-            palette.ink2.copy(alpha = 0.7f),
-            style = Stroke(width = 1.4.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 4.dp.toPx()))),
-        )
+        // Остаток пути: тонкая сплошная линия без утолщений на концах, на концах маленькие точки.
+        val rest = palette.ink.copy(alpha = REST_ALPHA)
+        drawPath(arc, rest, style = Stroke(width = REST_WIDTH_DP.dp.toPx()))
         val measure = PathMeasure().apply { setPath(arc, false) }
         val passed = measure.length * position.fraction.toFloat()
         val done = Path()
         measure.getSegment(0f, passed, done, true)
-        drawPath(done, lineColor, style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawPath(done, lineColor, style = Stroke(width = PASSED_WIDTH_DP.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawCircle(rest, END_DOT_DP.dp.toPx(), Offset(fromX, baseY))
+        drawCircle(rest, END_DOT_DP.dp.toPx(), Offset(toX, baseY))
         drawMarker(measure.getPosition(passed), position.daytime, icon)
     }
 }
