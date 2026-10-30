@@ -275,7 +275,7 @@ private fun ContentTop(state: HomeUiState.Content) {
     val kmh = stringResource(R.string.kmh_unit)
     val captions = listOf(
         "${stringResource(R.string.tile_humidity)} ${details?.humidity?.let(::percentText) ?: dash}",
-        "${stringResource(R.string.tile_wind_now)} ${details?.windKmh?.let { "${it.roundToInt()} $kmh" } ?: dash}",
+        "${stringResource(R.string.tile_wind_now)} ${details?.windKmh?.let { "${it.roundToInt()}\u00A0$kmh" } ?: dash}",
         stringResource(if (rainExpected) R.string.precip_today_expected else R.string.precip_today_none),
     )
     Spacer(Modifier.height(6.dp))
