@@ -64,6 +64,8 @@
     <string name="next24_title">Nächste 24 Stunden</string>
     <string name="next24_total">%1$s mm in 24 Std.</string>
     <string name="next24_none">Kein Niederschlag erwartet</string>
+    <string name="precip_today_expected">Niederschlag erwartet</string>
+    <string name="precip_today_none">Kein Niederschlag</string>
     <string name="outlook_until">%1$s bis %2$s</string>
     <string name="outlook_from">%1$s ab %2$s</string>
     <string name="outlook_all_day">%1$s den ganzen Tag</string>

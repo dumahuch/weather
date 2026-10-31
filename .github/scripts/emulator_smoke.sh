@@ -30,7 +30,34 @@ mkdir -p "$OUT"
 # Весь вывод сценария дублируется в файл, а при любом выходе (в том числе при сбое) сохраняется журнал телефона:
 # CI выкладывает их в ветку ci-screenshots, потому что журналы самого GitHub из сессии Claude недоступны.
 exec > >(tee -a "$OUT/smoke.log") 2>&1
+
+# Любая команда телефона ограничена по времени: зависшая команда без предела держала проверку до отмены через 40 минут
+# и не оставляла следа. Теперь она завершается с кодом 124 и записью в журнале, а проверка падает с понятной причиной.
+adb() {
+  local code=0
+  timeout 150 adb "$@" || code=$?
+  if [ "$code" -eq 124 ]; then
+    echo "[зависание] команда телефона не ответила за 150 с: adb $*" >&2
+  fi
+  return "$code"
+}
+
+# Отметка хода раз в минуту: по ней видно, на каком месте сценарий остановился.
+START_SECONDS=$SECONDS
+# В отметке также занятая память сервера и число процессов эмулятора: если эмулятор исчезнет, будет видно, когда и почему.
+(while sleep 60; do
+  echo "[ход] прошло $((SECONDS - START_SECONDS)) с; память сервера, МБ (всего/занято/свободно): $(free -m | awk '/^Mem:/ {print $2 "/" $3 "/" $4}'); процессов эмулятора: $(pgrep -fc 'qemu-system' || true)"
+done) &
+HEARTBEAT=$!
+
+# Журнал телефона пишется непрерывно: если эмулятор упадёт, последние строки до падения сохранятся (обычный сброс в конце к тому времени пуст).
+LIVE_LOGCAT="${TMPDIR:-/tmp}/live-logcat.txt"
+command adb logcat -b all -v threadtime >"$LIVE_LOGCAT" 2>&1 &
+LOGCAT_PID=$!
+
 save_logcat() {
+  kill "$HEARTBEAT" "$LOGCAT_PID" 2>/dev/null || true
+  tail -n 4000 "$LIVE_LOGCAT" >"$OUT/logcat-live.txt" 2>/dev/null || true
   adb logcat -d -v time -t 8000 >"$OUT/logcat.txt" 2>/dev/null || true
   sleep 1
 }
@@ -282,11 +309,15 @@ start_app
 wait_for_text "Allow" 20 || fail "[en с сетью] после сброса нет кнопки «Allow»"
 tap_text '^Allow$' || fail "[en с сетью] не удалось нажать «Allow»"
 tap_dialog "^While using" || fail "[en с сетью] системное окно с кнопкой «While using the app» не появилось или не закрылось"
-if wait_for_text "precipitation, mm" 90; then
+if wait_for_text "Precipitation, mm" 90; then
   expect_text "Hourly" "en с сетью"
   expect_text "Now" "en с сетью"
   expect_text "Weather data by Open-Meteo.com" "en с сетью"
-  expect_pattern '^Feels like −?[0-9]+° · High −?[0-9]+°, Low −?[0-9]+°$' "en с сетью" "Feels like 11° · High 14°, Low 8°"
+  expect_pattern '^Feels like −?[0-9]+°$' "en с сетью" "Feels like 11°"
+  expect_pattern '^High −?[0-9]+°, Low −?[0-9]+°$' "en с сетью" "High 14°, Low 8° (максимум и минимум дня, описание для чтения экрана)"
+  expect_pattern '^Humidity ([0-9]+.{1,2}%|–)$' "en с сетью" "Humidity 60 % (строка подписей; между числом и знаком неразрывный пробел)"
+  expect_pattern '^Wind ([0-9]+.{1,2}km/h|–)$' "en с сетью" "Wind 10 km/h (строка подписей; между числом и единицей неразрывный пробел)"
+  expect_pattern '^(Precipitation expected|No precipitation)$' "en с сетью" "Precipitation expected / No precipitation (строка подписей)"
   expect_pattern '^−?[0-9]+°$' "en с сетью" "температура 13°"
   shot "2-с-сетью-en"
   annotate notice "Эмулятор" "С сетью: настоящий прогноз Open-Meteo показан. Название места: $(grep -vE '^(Hourly|Now|Home)$' <<<"$TEXTS" | head -3 | tr '\n' '|')"

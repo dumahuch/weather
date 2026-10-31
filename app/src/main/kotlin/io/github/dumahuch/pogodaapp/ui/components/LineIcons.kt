@@ -106,6 +106,22 @@ object LineIcons {
         ),
     )
 
+    /** Стрелка вверх (Lucide arrow-up): максимум температуры дня. */
+    val ArrowUp = LineIcon(
+        listOf(
+            "m5 12 7-7 7 7",
+            "M12 19V5",
+        ),
+    )
+
+    /** Стрелка вниз (Lucide arrow-down): минимум температуры дня. */
+    val ArrowDown = LineIcon(
+        listOf(
+            "M12 5v14",
+            "m19 12-7 7-7-7",
+        ),
+    )
+
     /** Лупа (Lucide search); круг записан как контур. */
     val Search = LineIcon(
         listOf(

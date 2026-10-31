@@ -3,6 +3,7 @@ package io.github.dumahuch.pogodaapp.forecast
 import io.github.dumahuch.pogodaapp.home.roundTemperature
 import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.DayForecast
+import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import java.time.Duration
 import java.time.Instant
@@ -79,9 +80,27 @@ object PrecipitationOutlooks {
     fun totalMm(points: List<HourPoint>): Double = points.sumOf { it.precipitationMm }
 }
 
+/** Осадки меньше этого за остаток дня не в счёт: тот же порог, что у строки дня (ниже округляются до «0,0»). */
+const val MIN_NOTICEABLE_MM = 0.05
+
+/**
+ * Сумма осадков (мм) от начала часа «сейчас» до конца календарных суток места. Час «сейчас» входит целиком: осадки
+ * часа лежат в записи его начала, а какая часть уже выпала, неизвестно. Сутки считаются по часовому поясу места.
+ */
+fun precipitationLeftToday(forecast: Forecast, now: Instant): Double {
+    val today = now.atZone(forecast.zone).toLocalDate()
+    return forecast.hoursOf(today)
+        .filter { it.time.plus(Duration.ofHours(1)).isAfter(now) }
+        .sumOf { it.precipitationMm }
+}
+
+/** Ожидаются ли осадки до конца календарных суток (подпись на главном экране: «Ожидаются осадки» или «Без осадков»). */
+fun precipitationExpectedToday(forecast: Forecast, now: Instant): Boolean =
+    precipitationLeftToday(forecast, now) >= MIN_NOTICEABLE_MM
+
 /** Сколько миллиметров показывать в строке дня: пусто при нуле и при значениях, которые округлятся до «0,0». */
 fun dayPrecipitationText(mm: Double, locale: Locale): String =
-    if (mm < 0.05) "" else String.format(locale, "%.1f", mm)
+    if (mm < MIN_NOTICEABLE_MM) "" else String.format(locale, "%.1f", mm)
 
 /** Ступени УФ-индекса по шкале ВОЗ: 0–2, 3–5, 6–7, 8–10, 11 и выше. */
 enum class UvLevel {

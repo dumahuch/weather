@@ -66,6 +66,8 @@
     <string name="next24_title">Ближайшие 24 часа</string>
     <string name="next24_total">%1$s мм за сутки</string>
     <string name="next24_none">Осадков не ожидается</string>
+    <string name="precip_today_expected">Ожидаются осадки</string>
+    <string name="precip_today_none">Без осадков</string>
     <string name="outlook_until">%1$s до %2$s</string>
     <string name="outlook_from">%1$s с %2$s</string>
     <string name="outlook_all_day">%1$s весь день</string>

@@ -23,15 +23,17 @@ import kotlin.math.roundToInt
 private const val DEGREE_SCALE = 0.44f
 private const val DEGREE_GAP_EM = 0.04f
 private const val DEGREE_TOP_EM = 0.08f
-private const val DIGIT_HALF_HEIGHT = 0.36f
 
 /**
  * Базовая линия строки высотой 0,9 em у Manrope (верх 1,066 em, низ 0,3 em):
  * (0,9 − 1,366) / 2 + 1,066 = 0,833 em от верха строки.
  */
 private const val BASELINE_EM = 0.833f
-private const val ICON_SIZE_DP = 112
-private const val ROW_MIN_HEIGHT_DP = 112
+private const val ICON_SIZE_DP = 96
+private const val ICON_GAP_DP = 2
+
+/** Наибольший размер цифры (sp): высота блока считается по нему, чтобы строки ниже не прыгали при смене числа. */
+private const val MAX_DIGITS_SP = 124
 
 private fun Placeable.baselineOrDefault(): Int {
     val measured = this[FirstBaseline]
@@ -39,13 +41,12 @@ private fun Placeable.baselineOrDefault(): Int {
 }
 
 /**
- * Крупная температура и значок погоды (как в макете):
- * число с градусом по центру левой половины экрана, значок по центру правой,
- * центр значка на уровне середины цифр (без градуса). Высота блока не меньше 112 dp,
- * чтобы строка ниже не прыгала при смене размера цифр.
+ * Текущая погода по центру (вариант «В»): сверху крупный значок погоды, под ним огромная тонкая температура с градусом.
+ * Число с градусом стоит по центру экрана (блок «цифры + градус» центрируется целиком, как в макете). Высота блока
+ * всегда считается по самому крупному размеру цифр ([MAX_DIGITS_SP]).
  */
 @Composable
-fun HeroRow(
+fun HeroBlock(
     digits: String,
     digitsSize: Int,
     description: String,
@@ -91,26 +92,27 @@ fun HeroRow(
         val iconPlaceable = measurables[2].measure(loose)
 
         val width = constraints.maxWidth
-        val half = width / 2
         val gap = (degreeSize * DEGREE_GAP_EM).sp.roundToPx()
         val blockWidth = digitsPlaceable.width + gap + degreePlaceable.width
-        val blockX = (half - blockWidth) / 2
+        val blockX = (width - blockWidth) / 2
+        val iconX = (width - iconPlaceable.width) / 2
+        val lineTop = iconPlaceable.height + ICON_GAP_DP.dp.roundToPx()
 
-        // Положение считается от базовой линии, как в макете (строка высотой 0,9 em), а не от верха надписи:
+        // Положение цифр считается от базовой линии, как в макете (строка высотой 0,9 em), а не от верха надписи:
         // так результат не зависит от того, как Compose распределяет межстрочный интервал.
         val digitsBaseline = digitsPlaceable.baselineOrDefault()
         val degreeBaseline = degreePlaceable.baselineOrDefault()
         val digitsBaselineWanted = (digitsSize * BASELINE_EM).sp.toPx()
-        val digitsY = (digitsBaselineWanted - digitsBaseline).roundToInt()
-        val degreeY = ((degreeSize * (DEGREE_TOP_EM + BASELINE_EM)).sp.toPx() - degreeBaseline).roundToInt()
-        val digitsMiddle = digitsBaselineWanted - (digitsSize * DIGIT_HALF_HEIGHT).sp.toPx()
-        val iconY = (digitsMiddle - iconPlaceable.height / 2f).roundToInt()
+        val digitsY = lineTop + (digitsBaselineWanted - digitsBaseline).roundToInt()
+        val degreeY = lineTop + ((degreeSize * (DEGREE_TOP_EM + BASELINE_EM)).sp.toPx() - degreeBaseline).roundToInt()
 
-        val height = maxOf(ROW_MIN_HEIGHT_DP.dp.roundToPx(), iconY + iconPlaceable.height)
+        val height = lineTop + (MAX_DIGITS_SP * LINE_HEIGHT_EM).sp.roundToPx()
         layout(width, height) {
+            iconPlaceable.placeRelative(iconX, 0)
             digitsPlaceable.placeRelative(blockX, digitsY)
             degreePlaceable.placeRelative(blockX + digitsPlaceable.width + gap, degreeY)
-            iconPlaceable.placeRelative(half + (half - iconPlaceable.width) / 2, iconY)
         }
     }
 }
+
+private const val LINE_HEIGHT_EM = 0.9f
