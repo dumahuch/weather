@@ -42,6 +42,8 @@ import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
 import io.github.dumahuch.pogodaapp.places.FilePinnedPlacesStorage
 import io.github.dumahuch.pogodaapp.places.PinResult
 import io.github.dumahuch.pogodaapp.places.PinnedForecastCaches
+import io.github.dumahuch.pogodaapp.settings.AppSettings
+import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import io.github.dumahuch.pogodaapp.ui.PogodaApp
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
@@ -83,6 +85,9 @@ class MainActivity : ComponentActivity() {
 
     /** Экран проверки неба: открыт ли и что подставлено вместо настоящих времени и погоды. */
     private val skyCheck: SkyCheckModel by viewModels()
+
+    /** Настройки приложения (тень карточек); выбор хранится в папке приложения. */
+    private val settings: AppSettings by lazy { AppSettings(PreferencesSettingsStorage(applicationContext)) }
 
     /** Истина, если система больше не покажет окно запроса (отказ с «не спрашивать»). */
     private var permanentlyDenied by mutableStateOf(false)
@@ -166,6 +171,7 @@ class MainActivity : ComponentActivity() {
                 val checkOpen by skyCheck.open.collectAsStateWithLifecycle()
                 val override by skyCheck.override.collectAsStateWithLifecycle()
                 val glassBlur by skyCheck.glassBlur.collectAsStateWithLifecycle()
+                val cardShadow by settings.cardShadow.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
                 val input = remember(state) { state.skyInput() }
@@ -173,6 +179,7 @@ class MainActivity : ComponentActivity() {
                     input = input,
                     override = override,
                     glassBlur = glassBlur,
+                    cardShadow = cardShadow,
                     diagnostics = if (checkOpen) diagnostics else null,
                     onDarkIcons = ::setDarkBarIcons,
                     modifier = Modifier.fillMaxSize(),
@@ -187,6 +194,8 @@ class MainActivity : ComponentActivity() {
                             places = places,
                             placesActions = placesActions,
                             onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
+                            cardShadow = cardShadow,
+                            onCardShadow = settings::setCardShadow,
                         )
                         if (checkOpen) {
                             SkyCheckPanel(

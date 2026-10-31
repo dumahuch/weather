@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import io.github.dumahuch.pogodaapp.home.HomeUiState
+import io.github.dumahuch.pogodaapp.settings.CardShadow
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
 import io.github.dumahuch.pogodaapp.sky.SkyMaps
 import io.github.dumahuch.pogodaapp.sky.SkyOverride
@@ -143,6 +144,7 @@ internal fun SkyHost(
     onDarkIcons: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     glassBlur: Boolean = true,
+    cardShadow: CardShadow = CardShadow.Soft,
     content: @Composable () -> Unit,
 ) {
     val appContext = LocalContext.current.applicationContext
@@ -261,7 +263,7 @@ internal fun SkyHost(
     // Стекло размывает то, что нарисовано на небе (вместе с нейтральным фоном, пока неба ещё нет).
     val hazeState = rememberHazeState()
     // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
-    val glass = rememberGlass(palette, if (glassBlur) hazeState else null)
+    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong)
 
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,

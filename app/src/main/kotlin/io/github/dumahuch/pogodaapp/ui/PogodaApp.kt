@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.places.PlaceChoice
 import io.github.dumahuch.pogodaapp.places.PlacesLogic
+import io.github.dumahuch.pogodaapp.settings.CardShadow
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
 import io.github.dumahuch.pogodaapp.ui.details.DetailsScreen
@@ -25,6 +26,7 @@ import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
+import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
 import java.time.LocalDate
 
 /** Сколько суток показывает список «Прогноза» сразу после запуска. */
@@ -36,6 +38,7 @@ private const val DEFAULT_DAY_COUNT = 7
  * переживают поворот и пересоздание окна. Кнопка «назад»: из поиска города в список мест, из списка мест на вкладку,
  * из подробностей дня в список, с другой вкладки на «Главную».
  *
+ * Экран настроек ([SettingsScreen]) открывается шестерёнкой на «Главной», тоже на всё окно; «назад» возвращает на «Главную».
  * Экран мест ([PlacesScreen]) открывается плашкой места на «Главной» и занимает окно целиком (панель вкладок скрыта).
  * Кнопка «Найти город» на карточках без места открывает его сразу в режиме поиска.
  */
@@ -49,6 +52,8 @@ fun PogodaApp(
     places: PlacesUiState,
     placesActions: PlacesActions,
     onVersionTap: () -> Unit,
+    cardShadow: CardShadow,
+    onCardShadow: (CardShadow) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(AppTab.Home) }
@@ -58,6 +63,8 @@ fun PogodaApp(
 
     var placesOpen by rememberSaveable { mutableStateOf(false) }
     var searching by rememberSaveable { mutableStateOf(false) }
+    // Экран настроек (шестерёнка на «Главной») занимает окно целиком, как экран мест.
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
 
     fun closePlaces() {
         placesOpen = false
@@ -65,6 +72,7 @@ fun PogodaApp(
         placesActions.onLeave()
     }
 
+    BackHandler(enabled = settingsOpen) { settingsOpen = false }
     BackHandler(enabled = placesOpen && searching) {
         searching = false
         placesActions.onLeave()
@@ -84,6 +92,7 @@ fun PogodaApp(
     val linked = remember(actions, listFull) {
         actions.copy(
             onOpenPlaces = { placesOpen = true },
+            onOpenPreferences = { settingsOpen = true },
             // Список полон: «Закрепить» ведёт в список, где видно сообщение и можно открепить одно из мест.
             onPinPreview = {
                 if (listFull) {
@@ -97,6 +106,16 @@ fun PogodaApp(
                 searching = true
             },
         )
+    }
+
+    if (settingsOpen) {
+        SettingsScreen(
+            cardShadow = cardShadow,
+            onCardShadow = onCardShadow,
+            onClose = { settingsOpen = false },
+            modifier = modifier,
+        )
+        return
     }
 
     if (placesOpen) {

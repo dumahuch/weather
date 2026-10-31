@@ -214,7 +214,7 @@ internal fun DetailTile(
     val palette = LocalPogodaPalette.current
     Column(
         modifier
-            .glassCard(RoundedCornerShape(22.dp), LocalGlass.current, lifted = true)
+            .glassCard(RoundedCornerShape(22.dp), LocalGlass.current)
             .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 13.dp)
             .semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(4.dp),

@@ -42,6 +42,7 @@
 
     <string name="check_frames_title" translatable="false">Кадры</string>
     <string name="check_frames_reset" translatable="false">Сбросить</string>
+    <string name="check_frames_short" translatable="false">Кадр %1$s мс · %2$s к/с</string>
     <string name="check_frames_total" translatable="false">Нарисовано кадров: %1$d, дольше нормы: %2$d</string>
     <string name="check_frames_times" translatable="false">Время кадра, мс: обычно %1$s, 95 %% быстрее %2$s, самый долгий %3$s</string>
     <string name="check_frames_rate" translatable="false">Кадров в секунду: %1$s (экран %2$s Гц)</string>

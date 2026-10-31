@@ -20,13 +20,15 @@ internal object ScrimShape {
     private const val HERO_FULL_TO = HERO_TOP + 0.72 * (HERO_BOTTOM - HERO_TOP)
 
     /**
-     * Под строками под температурой (на экране 412×892 они лежат между 320 и 460 dp): с запасом по краям на разные
-     * высоты экрана и на перенос подписей в две строки.
+     * Под строками под температурой. С версии 0.5.4 верхний блок «Главной» стоит посередине свободного места между
+     * плашкой места и лентой «По часам», то есть примерно на 54 dp ниже прежнего (на экране 412×892 строки лежат между
+     * 375 и 495 dp, при плашке «нет сети» до 515 dp). Подложка с запасом по краям: на разные высоты экрана, на перенос
+     * подписей в две строки и на крупный шрифт системы, когда свободного места нет и блок остаётся выше.
      */
-    private const val INFO_TOP = 285.0
-    private const val INFO_FULL_FROM = 315.0
-    private const val INFO_FULL_TO = 470.0
-    private const val INFO_BOTTOM = 515.0
+    private const val INFO_TOP = 300.0
+    private const val INFO_FULL_FROM = 335.0
+    private const val INFO_FULL_TO = 530.0
+    private const val INFO_BOTTOM = 575.0
 
     /** Шаг, с которым снимается итоговая форма (кроме углов обеих форм, они берутся точно). */
     private const val SAMPLE_STEP = 20.0

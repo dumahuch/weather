@@ -78,7 +78,8 @@ class SkyReadabilityTest {
         }
         println("Подложка под строками под температурой: в $withScrim из $total состояний, самая плотная $densest")
         assertTrue("потолок подложки: $densest", densest <= SkyTheme.INFO_SCRIM_MAX + 1e-9)
-        assertTrue("подложка нужна не везде, а только на части небес ($withScrim из $total)", withScrim < total * 0.6)
+        // С версии 0.5.4 цель выше (5,5) и подписи без тени букв, подложка нужна чаще (до 0.5.3 было меньше 60 %).
+        assertTrue("подложка нужна не везде, а только на части небес ($withScrim из $total)", withScrim < total * 0.75)
     }
 
     @Test

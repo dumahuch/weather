@@ -21,18 +21,19 @@ class ScrimShapeTest {
 
     @Test
     fun infoShapeCoversTheLinesUnderTheTemperature() {
-        // Строки лежат на экране 412×892 dp между 320 и 460 dp: там подложка полная.
-        for (y in listOf(320.0, 360.0, 400.0, 440.0, 460.0)) {
+        // С версии 0.5.4 строки лежат на экране 412×892 dp между 375 и 495 dp (до 515 dp при плашке «нет сети»):
+        // там подложка полная; без сдвига блока (крупный шрифт) они были между 320 и 460 dp, и верх этих строк тоже в полосе.
+        for (y in listOf(340.0, 375.0, 400.0, 440.0, 495.0, 515.0, 530.0)) {
             assertEquals("y=$y", 0.3, ScrimShape.alphaAt(y, 0.0, 0.3), 1e-9)
         }
-        assertEquals(0.0, ScrimShape.alphaAt(285.0, 0.0, 0.3), 1e-9)
-        assertEquals(0.0, ScrimShape.alphaAt(515.0, 0.0, 0.3), 1e-9)
+        assertEquals(0.0, ScrimShape.alphaAt(300.0, 0.0, 0.3), 1e-9)
+        assertEquals(0.0, ScrimShape.alphaAt(575.0, 0.0, 0.3), 1e-9)
         assertEquals(0.0, ScrimShape.alphaAt(700.0, 0.0, 0.3), 1e-9)
     }
 
     @Test
     fun overlapTakesTheLargerDensityInsteadOfAdding() {
-        for (y in 280..520 step 5) {
+        for (y in 280..600 step 5) {
             val both = ScrimShape.alphaAt(y.toDouble(), 0.36, 0.30)
             val hero = ScrimShape.alphaAt(y.toDouble(), 0.36, 0.0)
             val info = ScrimShape.alphaAt(y.toDouble(), 0.0, 0.30)

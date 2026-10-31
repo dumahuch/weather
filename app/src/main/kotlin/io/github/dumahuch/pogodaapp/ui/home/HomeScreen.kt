@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -71,6 +73,9 @@ import io.github.dumahuch.pogodaapp.weather.Condition
 import java.time.Instant
 import kotlin.math.roundToInt
 
+/** Наименьший промежуток над и под текущей погодой, когда свободного места почти нет (крупный шрифт системы). */
+private val CENTER_EDGE = 12.dp
+
 /**
  * Действия экрана: что делать по нажатиям кнопок и по протягиванию вниз. [onOpenPlaces] открывает список мест (плашка
  * места), [onFindCity] открывает сразу поиск города (вторая кнопка карточек «нет доступа» и «место не определено»).
@@ -85,6 +90,8 @@ data class HomeActions(
     val onFindCity: () -> Unit = {},
     /** Кнопка «Закрепить» рядом с названием города, открытого для просмотра. */
     val onPinPreview: () -> Unit = {},
+    /** Шестерёнка вверху справа: открывает экран настроек приложения (не системные настройки доступа, их открывает [onOpenSettings]). */
+    val onOpenPreferences: () -> Unit = {},
 )
 
 /**
@@ -124,43 +131,57 @@ fun HomeScreen(
                     .verticalScroll(rememberScrollState())
                     .heightIn(min = maxHeight),
             ) {
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { translationY = pull.offset },
-                ) {
+                val pulled = Modifier.graphicsLayer { translationY = pull.offset }
+                Column(Modifier.fillMaxWidth().then(pulled)) {
                     TopRow(
                         name = placeName(state, pinnedName),
                         pinned = pinnedName != null,
                         preview = preview,
                         onClick = actions.onOpenPlaces,
                         onPin = actions.onPinPreview,
+                        onPreferences = actions.onOpenPreferences,
                         modifier = Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
                     )
-                    when (state) {
-                        HomeUiState.Loading -> LoadingTop()
-                        is HomeUiState.Content -> ContentTop(state)
-                        HomeUiState.NoPermission -> NoPermissionTop(permanentlyDenied, actions)
-                        HomeUiState.LocationUnavailable -> StateTop(
-                            icon = LineIcons.NavigationOff,
-                            title = stringResource(R.string.locfail_title),
-                            text = stringResource(R.string.locfail_text),
-                            buttonLabel = stringResource(R.string.retry),
-                            onButton = actions.onRetry,
-                            secondaryLabel = stringResource(R.string.places_find),
-                            onSecondary = actions.onFindCity,
-                        )
-                        HomeUiState.NoData -> StateTop(
-                            icon = LineIcons.CloudOff,
-                            title = stringResource(R.string.nodata_title),
-                            text = stringResource(R.string.nodata_text),
-                            buttonLabel = stringResource(R.string.retry),
-                            onButton = actions.onRetry,
-                        )
+                }
+                when (state) {
+                    // Текущая погода (и её заглушка) стоит посередине свободного места между плашкой места и лентой
+                    // «По часам»: свободное место делится поровну над блоком и под ним (ограничение снизу и сверху 12 dp).
+                    HomeUiState.Loading, is HomeUiState.Content -> {
+                        Spacer(Modifier.height(CENTER_EDGE))
+                        Spacer(Modifier.weight(1f))
+                        Column(Modifier.fillMaxWidth().then(pulled)) {
+                            if (state is HomeUiState.Content) ContentTop(state) else LoadingTop()
+                        }
+                        Spacer(Modifier.weight(1f))
+                        Spacer(Modifier.height(CENTER_EDGE))
+                    }
+                    // Карточки состояний остаются наверху, как были.
+                    else -> {
+                        Column(Modifier.fillMaxWidth().then(pulled)) {
+                            when (state) {
+                                HomeUiState.NoPermission -> NoPermissionTop(permanentlyDenied, actions)
+                                HomeUiState.LocationUnavailable -> StateTop(
+                                    icon = LineIcons.NavigationOff,
+                                    title = stringResource(R.string.locfail_title),
+                                    text = stringResource(R.string.locfail_text),
+                                    buttonLabel = stringResource(R.string.retry),
+                                    onButton = actions.onRetry,
+                                    secondaryLabel = stringResource(R.string.places_find),
+                                    onSecondary = actions.onFindCity,
+                                )
+                                else -> StateTop(
+                                    icon = LineIcons.CloudOff,
+                                    title = stringResource(R.string.nodata_title),
+                                    text = stringResource(R.string.nodata_text),
+                                    buttonLabel = stringResource(R.string.retry),
+                                    onButton = actions.onRetry,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.weight(1f))
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                Spacer(Modifier.weight(1f))
                 when (state) {
                     HomeUiState.Loading -> HourlyFrame(
                         caption = "",
@@ -207,52 +228,71 @@ private fun TopRow(
     preview: Boolean,
     onClick: () -> Unit,
     onPin: () -> Unit,
+    onPreferences: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
     val label = stringResource(R.string.places_open)
     val previewLabel = stringResource(R.string.places_preview)
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    val settingsLabel = stringResource(R.string.settings_title)
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Слева плашка места (и «Закрепить»), справа шестерёнка; длинное название обрезается раньше, чем шестерёнка уйдёт.
         Row(
-            Modifier
-                .height(44.dp)
-                .weight(1f, fill = false)
-                .glassButton(RoundedCornerShape(22.dp), glass)
-                .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
-                .semantics { if (preview) stateDescription = previewLabel }
-                .padding(start = 15.dp, end = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            val icon = when {
-                preview -> LineIcons.Search
-                pinned -> LineIcons.Pin
-                else -> LineIcons.Navigation
-            }
-            LineIconView(icon, 18.dp, palette.ink)
-            Text(
-                name,
-                style = pogodaText(15f, 600),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            LineIconView(LineIcons.ChevronDown, 18.dp, palette.ink2)
-        }
-        if (preview) {
             Row(
                 Modifier
                     .height(44.dp)
+                    .weight(1f, fill = false)
                     .glassButton(RoundedCornerShape(22.dp), glass)
-                    .clickable(role = Role.Button, onClick = onPin)
-                    .padding(horizontal = 14.dp),
+                    .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+                    .semantics { if (preview) stateDescription = previewLabel }
+                    .padding(start = 15.dp, end = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                LineIconView(LineIcons.Pin, 18.dp, palette.ink)
-                Text(stringResource(R.string.places_pin), style = pogodaText(15f, 600), maxLines = 1)
+                val icon = when {
+                    preview -> LineIcons.Search
+                    pinned -> LineIcons.Pin
+                    else -> LineIcons.Navigation
+                }
+                LineIconView(icon, 18.dp, palette.ink)
+                Text(
+                    name,
+                    style = pogodaText(15f, 600),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                LineIconView(LineIcons.ChevronDown, 18.dp, palette.ink2)
             }
+            if (preview) {
+                Row(
+                    Modifier
+                        .height(44.dp)
+                        .glassButton(RoundedCornerShape(22.dp), glass)
+                        .clickable(role = Role.Button, onClick = onPin)
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    LineIconView(LineIcons.Pin, 18.dp, palette.ink)
+                    Text(stringResource(R.string.places_pin), style = pogodaText(15f, 600), maxLines = 1)
+                }
+            }
+        }
+        Box(
+            Modifier
+                .size(44.dp)
+                .glassButton(CircleShape, glass)
+                .clickable(role = Role.Button, onClick = onPreferences)
+                .semantics { contentDescription = settingsLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            LineIconView(LineIcons.Sliders, 20.dp, palette.ink)
         }
     }
 }
@@ -297,7 +337,6 @@ private fun ContentTop(state: HomeUiState.Content) {
         "${stringResource(R.string.tile_wind_now)} ${details?.windKmh?.let { "${it.roundToInt()}\u00A0$kmh" } ?: dash}",
         precipitationText(rain),
     )
-    Spacer(Modifier.height(6.dp))
     HeroBlock(
         digits = temperatureDigits(current.temperature),
         digitsSize = heroDigitsSize(current.temperature),
@@ -319,7 +358,7 @@ private fun ContentTop(state: HomeUiState.Content) {
         HighLowRow(forecast.today.max, forecast.today.min, Modifier.padding(top = 6.dp))
         Text(
             text = "${stringResource(R.string.feels_like)} ${temperatureText(current.feelsLike)}",
-            style = pogodaText(14f, 500, color = palette.ink, lineHeight = 1.4f).withGlow(),
+            style = pogodaText(13f, 400, color = palette.ink, lineHeight = 1.4f),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp),
         )
@@ -339,9 +378,10 @@ private fun ContentTop(state: HomeUiState.Content) {
 }
 
 /**
- * Слабый ореол вокруг строк под температурой: они лежат на небе без стекла. Ореол светлый у тёмного текста и тёмный у
- * светлого, радиус 3 dp, непрозрачность около трети: он помогает на пестрых облаках и не виден как рамка. Основную работу
- * делает подложка по расчёту темы ([io.github.dumahuch.pogodaapp.ui.PogodaPalette.infoScrim]).
+ * Слабый ореол вокруг названия погоды и максимума с минимумом: они лежат на небе без стекла. Ореол светлый у тёмного
+ * текста и тёмный у светлого, радиус 3 dp, непрозрачность около трети: он помогает на пестрых облаках и не виден как
+ * рамка. Второстепенные подписи («Ощущается как» и строка из трёх подписей) с версии 0.5.4 набраны без ореола (Дима:
+ * «мыльная кайма»): им хватает подложки по расчёту темы ([io.github.dumahuch.pogodaapp.ui.PogodaPalette.infoScrim]).
  */
 @Composable
 private fun TextStyle.withGlow(): TextStyle {
@@ -396,7 +436,7 @@ private fun CaptionRow(items: List<String>, modifier: Modifier = Modifier) {
             }
             Text(
                 text,
-                style = pogodaText(13f, 500, color = palette.ink, lineHeight = 1.3f).withGlow(),
+                style = pogodaText(12f, 400, color = palette.ink, lineHeight = 1.3f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f).padding(horizontal = 6.dp, vertical = 2.dp),
             )

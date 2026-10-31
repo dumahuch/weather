@@ -224,4 +224,12 @@
     <string name="places_search_empty">Nothing found. Check the spelling or try a postal code.</string>
     <string name="places_search_failed">No connection. Check your network and try again.</string>
     <string name="places_geonames">Search: Open-Meteo, place data: GeoNames (CC BY 4.0)</string>
+
+    <!-- Settings (0.5.4) -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_card_shadow">Card shadow</string>
+    <string name="settings_shadow_soft">Soft</string>
+    <string name="settings_shadow_soft_hint">A light shadow: cards blend into the sky more gently.</string>
+    <string name="settings_shadow_strong">Strong</string>
+    <string name="settings_shadow_strong_hint">A stronger shadow and a light edge: cards stand out on a grey sky.</string>
 </resources>

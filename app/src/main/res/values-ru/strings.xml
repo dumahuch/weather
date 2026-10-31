@@ -222,4 +222,12 @@
     <string name="places_search_empty">Ничего не найдено. Проверьте написание или введите индекс.</string>
     <string name="places_search_failed">Нет связи. Проверьте сеть и попробуйте снова.</string>
     <string name="places_geonames">Поиск: Open-Meteo, данные о местах: GeoNames (CC BY 4.0)</string>
+
+    <!-- Настройки (0.5.4) -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_card_shadow">Тень карточек</string>
+    <string name="settings_shadow_soft">Мягкая</string>
+    <string name="settings_shadow_soft_hint">Лёгкая тень: карточки мягче вписываются в небо.</string>
+    <string name="settings_shadow_strong">Выраженная</string>
+    <string name="settings_shadow_strong_hint">Тень сильнее и светлая кромка: карточки заметнее на сером небе.</string>
 </resources>
