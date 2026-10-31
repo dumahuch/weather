@@ -44,11 +44,20 @@ adb() {
 
 # Отметка хода раз в минуту: по ней видно, на каком месте сценарий остановился.
 START_SECONDS=$SECONDS
-(while sleep 60; do echo "[ход] прошло $((SECONDS - START_SECONDS)) с"; done) &
+# В отметке также занятая память сервера и число процессов эмулятора: если эмулятор исчезнет, будет видно, когда и почему.
+(while sleep 60; do
+  echo "[ход] прошло $((SECONDS - START_SECONDS)) с; память сервера, МБ (всего/занято/свободно): $(free -m | awk '/^Mem:/ {print $2 "/" $3 "/" $4}'); процессов эмулятора: $(pgrep -fc 'qemu-system' || true)"
+done) &
 HEARTBEAT=$!
 
+# Журнал телефона пишется непрерывно: если эмулятор упадёт, последние строки до падения сохранятся (обычный сброс в конце к тому времени пуст).
+LIVE_LOGCAT="${TMPDIR:-/tmp}/live-logcat.txt"
+command adb logcat -b all -v threadtime >"$LIVE_LOGCAT" 2>&1 &
+LOGCAT_PID=$!
+
 save_logcat() {
-  kill "$HEARTBEAT" 2>/dev/null || true
+  kill "$HEARTBEAT" "$LOGCAT_PID" 2>/dev/null || true
+  tail -n 4000 "$LIVE_LOGCAT" >"$OUT/logcat-live.txt" 2>/dev/null || true
   adb logcat -d -v time -t 8000 >"$OUT/logcat.txt" 2>/dev/null || true
   sleep 1
 }
