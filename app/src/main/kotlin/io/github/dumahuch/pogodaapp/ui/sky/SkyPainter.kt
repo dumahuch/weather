@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
+import io.github.dumahuch.pogodaapp.sky.ScrimShape
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkySampler
 import io.github.dumahuch.pogodaapp.sky.SkyScene
@@ -138,21 +139,18 @@ internal class SkyPainter {
     }
 
     /**
-     * Полоса под большими цифрами: плотность 0 → [color] на 20 %, до 72 %, затем снова 0. Координаты как в макете (96…440 из 892).
+     * Подложки на небе: под большими цифрами ([scrim], координаты как в макете, 96…440 из 892) и под строками под
+     * температурой ([infoScrim], около 285…515 dp). Форма и правило «берётся наибольшая плотность» в [ScrimShape].
      * Градиент идёт на весь экран, а не на отдельном прямоугольнике: у прямоугольника был край в середине экрана,
      * и на эмуляторе по этому краю проходила линия в 1 пиксель. Все цвета градиента одного оттенка (меняется только прозрачность),
      * как у CSS-градиента в макете, поэтому тёмной каймы «прозрачный чёрный» нет.
      */
-    fun drawScrim(scope: DrawScope, color: Color) {
-        if (color.alpha <= 0f) return
-        val clear = color.copy(alpha = 0f)
+    fun drawScrim(scope: DrawScope, scrim: Color, infoScrim: Color) {
+        if (scrim.alpha <= 0f && infoScrim.alpha <= 0f) return
+        val base = if (scrim.alpha > 0f) scrim else infoScrim
+        val stops = ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble())
         val brush = Brush.verticalGradient(
-            0f to clear,
-            SCRIM_TOP to clear,
-            SCRIM_FULL_FROM to color,
-            SCRIM_FULL_TO to color,
-            SCRIM_BOTTOM to clear,
-            1f to clear,
+            *Array(stops.size) { stops[it].first to base.copy(alpha = stops[it].second) },
             startY = 0f,
             endY = scope.size.height,
         )
@@ -162,10 +160,6 @@ internal class SkyPainter {
     private companion object {
         const val MIN_EFFECT = 0.01
         const val VEIL_MIDDLE = 0.55f
-        const val SCRIM_TOP = 96f / 892f
-        const val SCRIM_BOTTOM = 440f / 892f
-        const val SCRIM_FULL_FROM = SCRIM_TOP + 0.2f * (SCRIM_BOTTOM - SCRIM_TOP)
-        const val SCRIM_FULL_TO = SCRIM_TOP + 0.72f * (SCRIM_BOTTOM - SCRIM_TOP)
         val DARK_COLOR = Color(10, 16, 32)
         val NIGHT_COLOR = Color(8, 12, 26)
     }

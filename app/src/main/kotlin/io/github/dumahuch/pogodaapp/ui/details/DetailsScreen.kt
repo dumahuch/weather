@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -213,7 +214,7 @@ internal fun DetailTile(
     val palette = LocalPogodaPalette.current
     Column(
         modifier
-            .glassCard(RoundedCornerShape(22.dp), LocalGlass.current)
+            .glassCard(RoundedCornerShape(22.dp), LocalGlass.current, lifted = true)
             .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 13.dp)
             .semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -308,7 +309,7 @@ private fun PollenDots(level: PollenLevel, description: String, modifier: Modifi
         for (step in 1..3) {
             val cx = (step - 1) * (diameter + gap) + radius
             val center = Offset(cx, radius)
-            drawCircle(palette.glassLine, radius, center)
+            drawCircle(palette.ink.copy(alpha = 0.20f), radius, center)
             when {
                 level.halves >= 2 * step -> drawCircle(palette.warning, radius, center)
                 level.halves == 2 * step - 1 ->
@@ -316,6 +317,8 @@ private fun PollenDots(level: PollenLevel, description: String, modifier: Modifi
                         drawCircle(palette.warning, radius, center)
                     }
             }
+            // Тонкий контур у каждой точки: пустая точка видна на любом небе.
+            drawCircle(palette.ink.copy(alpha = 0.55f), radius - 0.5.dp.toPx(), center, style = Stroke(width = 1.dp.toPx()))
         }
     }
 }

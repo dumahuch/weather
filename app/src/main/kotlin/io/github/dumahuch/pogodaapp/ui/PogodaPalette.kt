@@ -32,6 +32,13 @@ data class PogodaPalette(
     val warning: Color,
     /** Подложка под большими цифрами на небе; прозрачная, когда не нужна. */
     val scrim: Color,
+    /**
+     * Подложка под строками под температурой (состояние, максимум и минимум, «Ощущается», подписи): полная прозрачность
+     * в этой полосе; прозрачная, когда небо там и так читаемо (см. `SkyPalette.infoScrim`).
+     */
+    val infoScrim: Color,
+    /** Худший цвет неба под этими строками с учётом подложки; по нему подбираются оттенки максимума и минимума. */
+    val infoBackdrop: Color,
     /** Истина, если текст тёмный: значки системных панелей тогда тоже тёмные. */
     val darkInk: Boolean,
     /** Насколько стекло дымчатое: 0 при тёмном тексте, 1 при светлом (см. `SkyPalette.smoke`). */
@@ -55,6 +62,8 @@ data class PogodaPalette(
             bar = PogodaColors.Bar,
             warning = PogodaColors.Warning,
             scrim = Color.Transparent,
+            infoScrim = Color.Transparent,
+            infoBackdrop = PogodaColors.SkyMiddle,
             darkInk = true,
             smoke = 0f,
         )
@@ -84,6 +93,8 @@ fun PogodaPalette.mixWith(other: PogodaPalette, fraction: Float): PogodaPalette 
         bar = lerp(bar, other.bar, fraction),
         warning = lerp(warning, other.warning, fraction),
         scrim = lerp(scrim, other.scrim, fraction),
+        infoScrim = lerp(infoScrim, other.infoScrim, fraction),
+        infoBackdrop = lerp(infoBackdrop, other.infoBackdrop, fraction),
         darkInk = if (fraction < 0.5f) darkInk else other.darkInk,
         smoke = smoke + (other.smoke - smoke) * fraction,
     )
