@@ -33,6 +33,8 @@ internal fun SkyPalette.toUi(): PogodaPalette = PogodaPalette(
     bar = bar.toColor(),
     warning = warning.toColor(),
     scrim = scrim.toColor(),
+    infoScrim = infoScrim.toColor(),
+    infoBackdrop = infoBackdrop.toColor(),
     darkInk = darkInk,
     smoke = smoke.toFloat(),
 )

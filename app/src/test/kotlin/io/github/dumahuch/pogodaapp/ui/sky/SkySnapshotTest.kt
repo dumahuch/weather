@@ -13,6 +13,8 @@ class SkySnapshotTest {
         ink = Color(0xFFEEF3F9.toInt()),
         accent = Color(0xFFA9C5DD.toInt()),
         scrim = Color(0x66102030),
+        infoScrim = Color(0x40102030),
+        infoBackdrop = Color(0xFF2A3446.toInt()),
         darkInk = false,
         smoke = 0.75f,
     )
@@ -28,6 +30,22 @@ class SkySnapshotTest {
         assertEquals(original.smoke, restored?.smoke)
         assertEquals(original.ink.toArgb(), restored?.ink?.toArgb())
         assertEquals(original.scrim.toArgb(), restored?.scrim?.toArgb())
+        assertEquals(original.infoScrim.toArgb(), restored?.infoScrim?.toArgb())
+        assertEquals(original.infoBackdrop.toArgb(), restored?.infoBackdrop?.toArgb())
+    }
+
+    @Test
+    fun oldSnapshotWithSixteenColorsStillLoads() {
+        // Снимок, записанный версиями до 0.5.3: шестнадцать цветов, подложки под строками нет.
+        val v2 = SkySnapshotStorage.encodePalette(palette()).split(';')
+        val sixteen = v2[1].split(',').take(16).joinToString(",")
+        val restored = SkySnapshotStorage.decodePalette("1;$sixteen;${v2[2]};${v2[3]}")
+        assertEquals(palette().ink.toArgb(), restored?.ink?.toArgb())
+        assertEquals(Color.Transparent, restored?.infoScrim)
+        assertEquals(PogodaPalette.Neutral.infoBackdrop, restored?.infoBackdrop)
+        // Версия 2 с шестнадцатью цветами и версия 1 с восемнадцатью записаны неверно.
+        assertNull(SkySnapshotStorage.decodePalette("2;$sixteen;${v2[2]};${v2[3]}"))
+        assertNull(SkySnapshotStorage.decodePalette("1;${v2[1]};${v2[2]};${v2[3]}"))
     }
 
     @Test

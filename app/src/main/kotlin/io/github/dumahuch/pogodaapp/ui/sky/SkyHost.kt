@@ -277,6 +277,7 @@ internal fun SkyHost(
                 phase = { phase },
                 reveal = { reveal },
                 scrim = palette.scrim,
+                infoScrim = palette.infoScrim,
                 modifier = Modifier.matchParentSize().then(if (glassBlur) Modifier.hazeSource(hazeState) else Modifier),
             )
             content()
@@ -294,6 +295,7 @@ private fun SkyBackground(
     phase: () -> Double,
     reveal: () -> Float,
     scrim: Color,
+    infoScrim: Color,
     modifier: Modifier = Modifier,
 ) {
     val painter = remember { SkyPainter() }
@@ -319,7 +321,7 @@ private fun SkyBackground(
                     .graphicsLayer { alpha = reveal() }
                     .drawBehind {
                         painter.draw(this, sky.look(SkyDrift.position(sky.pan, phase())), store)
-                        painter.drawScrim(this, scrim)
+                        painter.drawScrim(this, scrim, infoScrim)
                     },
             )
         }
@@ -355,7 +357,7 @@ private suspend fun captureSnapshot(
         val height = (SNAPSHOT_WIDTH * host.height.toFloat() / host.width).roundToInt().coerceAtLeast(1)
         layer.record(density, layoutDirection, IntSize(SNAPSHOT_WIDTH, height)) {
             painter.draw(this, sky.look(cloudPosition), store)
-            painter.drawScrim(this, colors.scrim)
+            painter.drawScrim(this, colors.scrim, colors.infoScrim)
         }
         val image = layer.toImageBitmap().asAndroidBitmap()
         withContext(Dispatchers.IO) {

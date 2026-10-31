@@ -83,20 +83,56 @@ object PrecipitationOutlooks {
 /** Осадки меньше этого за остаток дня не в счёт: тот же порог, что у строки дня (ниже округляются до «0,0»). */
 const val MIN_NOTICEABLE_MM = 0.05
 
-/**
- * Сумма осадков (мм) от начала часа «сейчас» до конца календарных суток места. Час «сейчас» входит целиком: осадки
- * часа лежат в записи его начала, а какая часть уже выпала, неизвестно. Сутки считаются по часовому поясу места.
- */
-fun precipitationLeftToday(forecast: Forecast, now: Instant): Double {
-    val today = now.atZone(forecast.zone).toLocalDate()
-    return forecast.hoursOf(today)
-        .filter { it.time.plus(Duration.ofHours(1)).isAfter(now) }
-        .sumOf { it.precipitationMm }
+/** Часть суток для подписи осадков: границы по местному времени места, час начала входит, час конца нет. */
+enum class DayPart(val from: Int, val until: Int) {
+    Night(0, 6), Morning(6, 11), Day(11, 15), Afternoon(15, 18), Evening(18, 24);
+
+    companion object {
+        fun of(hour: Int): DayPart = entries.first { hour >= it.from && hour < it.until }
+    }
 }
 
-/** Ожидаются ли осадки до конца календарных суток (подпись на главном экране: «Ожидаются осадки» или «Без осадков»). */
-fun precipitationExpectedToday(forecast: Forecast, now: Instant): Boolean =
-    precipitationLeftToday(forecast, now) >= MIN_NOTICEABLE_MM
+/** Часть суток считается дождливой, только если осадков в ней не меньше этого (мм); меньше игнорируется. */
+const val DAY_PART_MIN_MM = 0.3
+
+/** Если дождливых частей суток столько или больше, подпись говорит «весь день», а не перечисляет их. */
+const val ALL_DAY_PARTS = 4
+
+/** Что написать про осадки на главном экране. */
+sealed interface PrecipitationCaption {
+    /** Осадков до конца суток нет и завтра утром тоже. */
+    data object None : PrecipitationCaption
+
+    /** Дождливые части оставшегося дня по порядку; не пусто. */
+    data class Today(val parts: List<DayPart>) : PrecipitationCaption {
+        val allDay: Boolean get() = parts.size >= ALL_DAY_PARTS
+    }
+
+    /** Сегодня сухо до конца суток, но завтра утром ожидаются осадки. */
+    data object TomorrowMorning : PrecipitationCaption
+}
+
+/**
+ * Подпись осадков: какие части суток от часа «сейчас» до конца календарных суток места дождливы. Час «сейчас» входит
+ * целиком: осадки часа лежат в записи его начала, а какая часть уже выпала, неизвестно. Часть суток дождлива, если
+ * сумма осадков её оставшихся часов не меньше [DAY_PART_MIN_MM]. Если сегодня сухо, а завтра утром (6–11) дождливо,
+ * это [PrecipitationCaption.TomorrowMorning].
+ */
+fun precipitationCaption(forecast: Forecast, now: Instant): PrecipitationCaption {
+    val today = now.atZone(forecast.zone).toLocalDate()
+    val rainyToday = rainyParts(forecast, today) { it.time.plus(Duration.ofHours(1)).isAfter(now) }
+    if (rainyToday.isNotEmpty()) return PrecipitationCaption.Today(rainyToday)
+    val tomorrow = rainyParts(forecast, today.plusDays(1)) { true }
+    return if (DayPart.Morning in tomorrow) PrecipitationCaption.TomorrowMorning else PrecipitationCaption.None
+}
+
+private fun rainyParts(forecast: Forecast, date: java.time.LocalDate, counts: (HourPoint) -> Boolean): List<DayPart> {
+    val sums = DoubleArray(DayPart.entries.size)
+    for (hour in forecast.hoursOf(date)) {
+        if (counts(hour)) sums[DayPart.of(hour.time.atZone(forecast.zone).hour).ordinal] += hour.precipitationMm
+    }
+    return DayPart.entries.filter { sums[it.ordinal] >= DAY_PART_MIN_MM - 1e-9 }
+}
 
 /** Сколько миллиметров показывать в строке дня: пусто при нуле и при значениях, которые округлятся до «0,0». */
 fun dayPrecipitationText(mm: Double, locale: Locale): String =

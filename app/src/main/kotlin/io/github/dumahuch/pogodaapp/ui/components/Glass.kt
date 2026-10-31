@@ -150,17 +150,44 @@ internal val CardRim = listOf(
 )
 internal val CardRimColor = Color(224, 230, 235)
 
+/**
+ * Добавка для карточек, которые должны отделяться от серого неба сильнее обычных (вкладка «Подробно», 0.5.3):
+ * вторая тень под обычной, тонкая светлая кромка и лёгкая вуаль, отодвигающая заливку от цвета неба.
+ * Обычная тень и блик остаются как в макете, добавка лежит поверх них.
+ */
+internal object CardLift {
+    val Shadow = listOf(
+        ShadowLayer(0f, 1f, 2.5f, 0f, 0.30f),
+        ShadowLayer(0f, 4f, 10f, -1f, 0.30f),
+        ShadowLayer(0f, 10f, 22f, -4f, 0.30f),
+    )
+
+    /** Прозрачность светлой кромки: заметна на любом небе, но не превращается в рамку. */
+    const val RIM_ALPHA = 0.30f
+
+    /** Вуаль над заливкой: у светлого стекла белая, у дымчатого чёрная, между ними плавно; она всегда повышает контраст текста. */
+    const val VEIL_LIGHT = 0.10f
+    const val VEIL_SMOKY = 0.08f
+
+    fun veil(smoke: Float): Color {
+        val k = smoke.coerceIn(0f, 1f)
+        val gray = 1f - k
+        return Color(gray, gray, gray, VEIL_LIGHT + (VEIL_SMOKY - VEIL_LIGHT) * k)
+    }
+}
+
 /** Тень кнопок и нижней панели: `0 8px 20px -10px`. */
 internal val ButtonShadow = listOf(ShadowLayer(0f, 8f, 20f, -10f, 1f))
 
 /**
  * Стекло карточек: размытый фон, заливка цвета неба, блик по верхней левой кромке, тонкая линия, семислойная
  * тень снаружи и блик по кромке внутри. Всё по макету (`.glass`). Без размытия ([Glass.flat]) рисуется
- * то же самое, кроме самого размытия.
+ * то же самое, кроме самого размытия. [lifted] добавляет вторую тень, светлую кромку и вуаль ([CardLift]).
  */
-fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier {
+fun Modifier.glassCard(shape: Shape, glass: Glass, lifted: Boolean = false): Modifier {
     val palette = glass.palette
     return this
+        .then(if (lifted) Modifier.rasterShadow(shape, CardLift.Shadow, inset = false, color = CardShadowColor) else Modifier)
         .rasterShadow(shape, CardShadow, inset = false, color = CardShadowColor)
         .clip(shape)
         .rasterShadow(shape, CardRim, inset = true, color = CardRimColor)
@@ -168,10 +195,12 @@ fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier {
         .border(1.dp, palette.glassLine, shape)
         .hazeGlass(glass, glass.cardBlur)
         .background(palette.glass, shape)
+        .then(if (lifted) Modifier.background(CardLift.veil(palette.smoke), shape) else Modifier)
         .background(
             Brush.linearGradient(0f to palette.sheen, 0.55f to Color.Transparent),
             shape,
         )
+        .then(if (lifted) Modifier.border(1.dp, Color.White.copy(alpha = CardLift.RIM_ALPHA), shape) else Modifier)
 }
 
 /** Подложка кнопок и нижней панели: молочнее карточек, своя тень, размытие с насыщением 1,6. */

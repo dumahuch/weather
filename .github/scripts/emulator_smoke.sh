@@ -317,7 +317,7 @@ if wait_for_text "Precipitation, mm" 90; then
   expect_pattern '^High −?[0-9]+°, Low −?[0-9]+°$' "en с сетью" "High 14°, Low 8° (максимум и минимум дня, описание для чтения экрана)"
   expect_pattern '^Humidity ([0-9]+.{1,2}%|–)$' "en с сетью" "Humidity 60 % (строка подписей; между числом и знаком неразрывный пробел)"
   expect_pattern '^Wind ([0-9]+.{1,2}km/h|–)$' "en с сетью" "Wind 10 km/h (строка подписей; между числом и единицей неразрывный пробел)"
-  expect_pattern '^(Precipitation expected|No precipitation)$' "en с сетью" "Precipitation expected / No precipitation (строка подписей)"
+  expect_pattern '^(Precipitation (at night|in the (morning|afternoon|evening)|during the day).*|Precipitation all day|Tomorrow morning|No precipitation)$' "en с сетью" "Precipitation in the evening / Precipitation all day / Tomorrow morning / No precipitation (строка подписей)"
   expect_pattern '^−?[0-9]+°$' "en с сетью" "температура 13°"
   shot "2-с-сетью-en"
   annotate notice "Эмулятор" "С сетью: настоящий прогноз Open-Meteo показан. Название места: $(grep -vE '^(Hourly|Now|Home)$' <<<"$TEXTS" | head -3 | tr '\n' '|')"

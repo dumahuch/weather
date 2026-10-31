@@ -12,9 +12,16 @@ internal class Rgba(val rgb: Rgb, val alpha: Double)
 
 /**
  * Контраст текста в худших местах фона. Для мелкого текста нужно не меньше [SkyTheme.TARGET],
- * для больших цифр достаточно 3.
+ * для больших цифр достаточно 3. [info] это контраст основного цвета текста строк под температурой
+ * (состояние, максимум и минимум, «Ощущается как», подписи) на небе с подложкой [SkyPalette.infoScrim].
  */
-internal class ContrastReport(val hero: Double, val cards: Double, val alerts: Double, val buttons: Double)
+internal class ContrastReport(
+    val hero: Double,
+    val cards: Double,
+    val alerts: Double,
+    val buttons: Double,
+    val info: Double = 0.0,
+)
 
 /** Цвета интерфейса, посчитанные под текущее небо. */
 internal class SkyPalette(
@@ -39,6 +46,14 @@ internal class SkyPalette(
     val warning: Rgb,
     /** Подложка под большими цифрами: стекла там нет, поэтому добавляется едва заметная вуаль. */
     val scrim: Rgba,
+    /**
+     * Подложка под строками под температурой (состояние, максимум и минимум, «Ощущается», подписи): стекла и там нет.
+     * Прозрачность это полная прозрачность подложки в этой полосе (она не складывается с [scrim], а берётся наибольшая).
+     * Нулевая, если небо там и так даёт читаемый текст.
+     */
+    val infoScrim: Rgba,
+    /** Худший цвет неба под этими строками с учётом подложки: по нему подбираются оттенки максимума и минимума. */
+    val infoBackdrop: Rgb,
     /** Истина, пока текст тёмный (на светлом небе). */
     val darkInk: Boolean,
     /**
@@ -64,6 +79,10 @@ internal class InkSide(
     val needButtons: Double,
     /** Общая оценка варианта: чем выше, тем лучше. */
     val score: Double,
+    /** Плотность подложки под строками под температурой, при которой основной цвет текста держит [SkyTheme.INFO_TARGET]. */
+    val infoScrim: Double,
+    /** Худший цвет неба под этими строками с этой подложкой. */
+    val infoBackdrop: Rgb,
 )
 
 /** Оценка двух вариантов текста на текущем небе. */
@@ -108,6 +127,14 @@ internal object SkyTheme {
     /** Потолок вуали под цифрами. */
     const val SCRIM_MAX = 0.36
 
+    /**
+     * Строки под температурой лежат прямо на небе, без стекла, и набраны основным цветом текста (не вторичным).
+     * Подложка добавляется только там, где небо само не даёт [INFO_TARGET] (с запасом над 4,5: поверх основного цвета
+     * подмешивается оттенок максимума и минимума, он забирает часть контраста); потолок как у вуали под цифрами.
+     */
+    const val INFO_TARGET = 5.0
+    const val INFO_SCRIM_MAX = 0.36
+
     /** Прозрачность карточек по умолчанию: 80 % прозрачности по шкале макета (0,94 − 0,009 × 80). */
     const val CARDS_MIN_OPACITY = 0.22
 
@@ -123,6 +150,16 @@ internal object SkyTheme {
             a += 0.02
         }
         return to
+    }
+
+    /** Наименьшая непрозрачность подложки [tint] от нуля до [cap], при которой цвет [ink] держит контраст [target] на фоне [bg]. */
+    fun needInkAlpha(bg: Rgb, tint: Rgb, ink: Rgb, target: Double, cap: Double): Double {
+        var a = 0.0
+        while (a < cap) {
+            if (contrast(mix(bg, tint, a), ink) >= target) return a
+            a += 0.02
+        }
+        return cap
     }
 
     fun scores(b: Backdrops): InkScores {
@@ -149,6 +186,8 @@ internal object SkyTheme {
         val heroContrast = contrast(heroBg, effectiveInk(heroBg, ink))
         val glass = max(needAlpha(alertBg, tint, ink, ga, 0.76), needAlpha(cardBg, tint, ink, ga, 0.76))
         val buttons = max(needAlpha(dockBg, button, ink, gb, 0.8), needAlpha(hero, button, ink, gb, 0.8))
+        val infoBg = under(b.info)
+        val infoScrim = needInkAlpha(infoBg, tint, ink, INFO_TARGET, INFO_SCRIM_MAX)
         return InkSide(
             scrim = scrim,
             hero = heroContrast,
@@ -158,6 +197,8 @@ internal object SkyTheme {
             needAlerts = needAlpha(alertBg, tint, ink, 0.0, 0.95),
             needButtons = max(needAlpha(dockBg, button, ink, 0.0, 0.95), needAlpha(hero, button, ink, 0.0, 0.95)),
             score = min(heroContrast, 6.0) - 6 * (glass - ga) - 5 * scrim,
+            infoScrim = infoScrim,
+            infoBackdrop = mix(infoBg, tint, infoScrim),
         )
     }
 
@@ -182,6 +223,7 @@ internal object SkyTheme {
             return contrast(glass, effectiveInk(glass, ink))
         }
         val accent = mix(Rgb(28.0, 86.0, 160.0), Rgb(170.0, 208.0, 250.0), k)
+        val infoBackdrop = mix(d.infoBackdrop, l.infoBackdrop, k)
         return SkyPalette(
             ink = ink,
             ink2 = Rgba(ink, INK2_ALPHA),
@@ -200,6 +242,8 @@ internal object SkyTheme {
             bar = mix(Rgb(46.0, 98.0, 142.0), Rgb(152.0, 202.0, 250.0), k),
             warning = mix(Rgb(192.0, 105.0, 45.0), Rgb(242.0, 186.0, 98.0), k),
             scrim = Rgba(tint, lerp(d.scrim, l.scrim, k)),
+            infoScrim = Rgba(tint, lerp(d.infoScrim, l.infoScrim, k)),
+            infoBackdrop = infoBackdrop,
             darkInk = k < 0.5,
             smoke = k,
             contrast = ContrastReport(
@@ -207,6 +251,7 @@ internal object SkyTheme {
                 cards = readable(under(b.card), tint, cards),
                 alerts = readable(under(b.alert), tint, alertsAuto),
                 buttons = min(readable(under(b.dock), buttonTint, buttonsAuto), readable(b.hero.mean, buttonTint, buttonsAuto)),
+                info = contrast(infoBackdrop, ink),
             ),
         )
     }

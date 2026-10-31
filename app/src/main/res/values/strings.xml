@@ -68,7 +68,16 @@
     <string name="next24_title">Next 24 hours</string>
     <string name="next24_total">%1$s mm in 24 h</string>
     <string name="next24_none">No precipitation expected</string>
-    <string name="precip_today_expected">Precipitation expected</string>
+    <string name="precip_today_parts">Precipitation %1$s</string>
+    <string-array name="precip_day_parts">
+        <item>at night</item>
+        <item>in the morning</item>
+        <item>during the day</item>
+        <item>in the afternoon</item>
+        <item>in the evening</item>
+    </string-array>
+    <string name="precip_today_all_day">Precipitation all day</string>
+    <string name="precip_tomorrow_morning">Tomorrow morning</string>
     <string name="precip_today_none">No precipitation</string>
     <string name="outlook_until">%1$s until %2$s</string>
     <string name="outlook_from">%1$s from %2$s</string>

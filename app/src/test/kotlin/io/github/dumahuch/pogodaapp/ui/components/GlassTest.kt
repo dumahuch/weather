@@ -129,6 +129,39 @@ class GlassTest {
         assertSameColour(hsl(205f, 0.20f, 0.90f), CardRimColor)
     }
 
+    @Test
+    fun liftedCardsGetTheirOwnStrongerShadowOnTopOfTheMockupOne() {
+        val mockupAlpha = CardShadow.sumOf { it.alpha.toDouble() }
+        val liftAlpha = CardLift.Shadow.sumOf { it.alpha.toDouble() }
+        assertTrue("добавка слабее тени макета: $liftAlpha против $mockupAlpha", liftAlpha >= 0.8)
+        // Тень падает вниз и вширь не раздувается: расширение отрицательное или нулевое.
+        for (layer in CardLift.Shadow) {
+            assertTrue(layer.dy >= 0f)
+            assertTrue(layer.spread <= 0f)
+        }
+    }
+
+    @Test
+    fun veilLightensLightGlassAndDarkensSmokyGlass() {
+        val light = CardLift.veil(0f)
+        val smoky = CardLift.veil(1f)
+        assertEquals(1f, light.red, 1e-6f)
+        assertEquals(CardLift.VEIL_LIGHT, light.alpha, 1e-6f)
+        assertEquals(0f, smoky.red, 1e-6f)
+        assertEquals(CardLift.VEIL_SMOKY, smoky.alpha, 1e-6f)
+        val half = CardLift.veil(0.5f)
+        assertTrue(half.red in 0.4f..0.6f)
+        assertTrue(half.alpha in CardLift.VEIL_SMOKY..CardLift.VEIL_LIGHT)
+        // Вне диапазона значение прижимается к краю.
+        assertEquals(light, CardLift.veil(-3f))
+        assertEquals(smoky, CardLift.veil(7f))
+    }
+
+    @Test
+    fun liftedRimIsThinAndFaint() {
+        assertTrue(CardLift.RIM_ALPHA in 0.2f..0.4f)
+    }
+
     private fun hsl(h: Float, s: Float, l: Float): Color {
         val c = (1 - abs(2 * l - 1)) * s
         val x = c * (1 - abs((h / 60f) % 2 - 1))

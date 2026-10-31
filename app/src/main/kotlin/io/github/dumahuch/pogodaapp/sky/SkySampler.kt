@@ -51,10 +51,16 @@ internal class Backdrops(
     val alert: RegionColors,
     val card: RegionColors,
     val dock: RegionColors,
+    /**
+     * Полоса со строками под температурой: состояние, максимум и минимум, «Ощущается», подписи (на экране 412×892 dp это
+     * примерно от 320 до 470 dp от верха). Макет такого снимка не делал, поэтому у значений макета по умолчанию берётся [alert].
+     */
+    val info: RegionColors = alert,
 ) {
     fun blend(other: Backdrops, t: Double) = Backdrops(
         mix(top, other.top, t), mix(mid, other.mid, t), mix(hor, other.hor, t),
         hero.blend(other.hero, t), alert.blend(other.alert, t), card.blend(other.card, t), dock.blend(other.dock, t),
+        info.blend(other.info, t),
     )
 }
 
@@ -80,6 +86,7 @@ internal class SkySampler(private val maps: SkyMaps) {
             alert = cooked(region(2, 35, 39, 46), 0.7),
             card = cooked(region(2, 60, 39, 80), 0.7),
             dock = cooked(region(6, 81, 35, 86), 0.7),
+            info = cooked(region(2, 32, 39, 47), 0.7),
         )
     }
 

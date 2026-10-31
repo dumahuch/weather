@@ -40,6 +40,8 @@ class SkyReadabilityTest {
         var worstHero = Double.MAX_VALUE
         var worstAlerts = Double.MAX_VALUE
         var worstButtons = Double.MAX_VALUE
+        var worstInfo = Double.MAX_VALUE
+        var infoWhere = ""
         var where = ""
         for (m in moments) for (c in Condition.entries) for (phase in phases) {
             val p = palette(m, c, phase)
@@ -48,12 +50,35 @@ class SkyReadabilityTest {
             worstHero = minOf(worstHero, p.contrast.hero)
             worstAlerts = minOf(worstAlerts, p.contrast.alerts)
             worstButtons = minOf(worstButtons, p.contrast.buttons)
+            if (p.contrast.info < worstInfo) { worstInfo = p.contrast.info; infoWhere = name }
         }
-        println("Худшие контрасты: цифры $worstHero, карточки $worstCards ($where), оповещения $worstAlerts, кнопки $worstButtons")
+        println("Худшие контрасты: цифры $worstHero, карточки $worstCards ($where), оповещения $worstAlerts, кнопки $worstButtons, строки под температурой $worstInfo ($infoWhere)")
         assertTrue("цифры $worstHero", worstHero >= 3.0)
         assertTrue("карточки $worstCards ($where)", worstCards >= 4.0)
         assertTrue("оповещения $worstAlerts", worstAlerts >= 4.0)
         assertTrue("кнопки $worstButtons", worstButtons >= 4.0)
+        // Строки под температурой лежат на небе без стекла: основной цвет текста должен держать 4,5 : 1 (WCAG AA) за счёт подложки.
+        assertTrue("строки под температурой $worstInfo ($infoWhere)", worstInfo >= 4.5)
+    }
+
+    @Test
+    fun infoScrimIsNeededOnlyWhereTheSkyDoesNotGiveReadableTextAndStaysWithinTheCap() {
+        var withScrim = 0
+        var total = 0
+        var densest = 0.0
+        for (m in moments) for (c in Condition.entries) for (phase in phases) {
+            val p = palette(m, c, phase)
+            total++
+            if (p.infoScrim.alpha > 0.0) withScrim++
+            densest = maxOf(densest, p.infoScrim.alpha)
+            // Там, где подложки нет, небо само держит контраст.
+            if (p.infoScrim.alpha == 0.0) {
+                assertTrue("без подложки контраст ${p.contrast.info} (${m.name} / $c)", p.contrast.info >= SkyTheme.INFO_TARGET)
+            }
+        }
+        println("Подложка под строками под температурой: в $withScrim из $total состояний, самая плотная $densest")
+        assertTrue("потолок подложки: $densest", densest <= SkyTheme.INFO_SCRIM_MAX + 1e-9)
+        assertTrue("подложка нужна не везде, а только на части небес ($withScrim из $total)", withScrim < total * 0.6)
     }
 
     @Test

@@ -25,7 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.Role
@@ -34,18 +36,24 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
-import io.github.dumahuch.pogodaapp.forecast.precipitationExpectedToday
+import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
+import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.heroDigitsSize
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
 import io.github.dumahuch.pogodaapp.ui.ExtremeTints
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.PogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.HeroSkeleton
 import io.github.dumahuch.pogodaapp.ui.components.HourlySkeleton
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
@@ -205,11 +213,7 @@ private fun TopRow(
     val glass = LocalGlass.current
     val label = stringResource(R.string.places_open)
     val previewLabel = stringResource(R.string.places_preview)
-    Row(
-        modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier
                 .height(44.dp)
@@ -258,6 +262,21 @@ private fun LoadingTop() {
     HeroSkeleton(Modifier.padding(top = 6.dp))
 }
 
+/** Подпись осадков: части суток через запятую и «и» по правилам языка («Осадки утром и вечером»), «Осадки весь день», «Завтра утром» или «Без осадков». */
+@Composable
+private fun precipitationText(caption: PrecipitationCaption): String = when (caption) {
+    PrecipitationCaption.None -> stringResource(R.string.precip_today_none)
+    PrecipitationCaption.TomorrowMorning -> stringResource(R.string.precip_tomorrow_morning)
+    is PrecipitationCaption.Today -> if (caption.allDay) {
+        stringResource(R.string.precip_today_all_day)
+    } else {
+        val names = stringArrayResource(R.array.precip_day_parts)
+        val locale = LocalLocale.current.platformLocale
+        val list = android.icu.text.ListFormatter.getInstance(locale).format(caption.parts.map { names[it.ordinal] })
+        stringResource(R.string.precip_today_parts, list)
+    }
+}
+
 /**
  * Верхняя часть «Главной» с данными (вариант «В», всё по центру): крупный значок, огромная тонкая температура, состояние,
  * максимум и минимум календарного дня, «Ощущается как» и одна тонкая строка подписей (влажность, ветер, осадки до конца
@@ -270,13 +289,13 @@ private fun ContentTop(state: HomeUiState.Content) {
     val current = forecast.current
     val now = remember(forecast) { Instant.now() }
     val details = remember(forecast, now) { forecast.detailsAt(now) }
-    val rainExpected = remember(forecast, now) { precipitationExpectedToday(forecast, now) }
+    val rain = remember(forecast, now) { precipitationCaption(forecast, now) }
     val dash = "–"
     val kmh = stringResource(R.string.kmh_unit)
     val captions = listOf(
         "${stringResource(R.string.tile_humidity)} ${details?.humidity?.let(::percentText) ?: dash}",
         "${stringResource(R.string.tile_wind_now)} ${details?.windKmh?.let { "${it.roundToInt()}\u00A0$kmh" } ?: dash}",
-        stringResource(if (rainExpected) R.string.precip_today_expected else R.string.precip_today_none),
+        precipitationText(rain),
     )
     Spacer(Modifier.height(6.dp))
     HeroBlock(
@@ -293,14 +312,14 @@ private fun ContentTop(state: HomeUiState.Content) {
     ) {
         Text(
             conditionName(current.condition),
-            style = pogodaText(21f, 600),
+            style = pogodaText(21f, 600).withGlow(),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 10.dp),
         )
         HighLowRow(forecast.today.max, forecast.today.min, Modifier.padding(top = 6.dp))
         Text(
             text = "${stringResource(R.string.feels_like)} ${temperatureText(current.feelsLike)}",
-            style = pogodaText(14f, 500, color = palette.ink2, lineHeight = 1.4f),
+            style = pogodaText(14f, 500, color = palette.ink, lineHeight = 1.4f).withGlow(),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp),
         )
@@ -320,8 +339,22 @@ private fun ContentTop(state: HomeUiState.Content) {
 }
 
 /**
+ * Слабый ореол вокруг строк под температурой: они лежат на небе без стекла. Ореол светлый у тёмного текста и тёмный у
+ * светлого, радиус 3 dp, непрозрачность около трети: он помогает на пестрых облаках и не виден как рамка. Основную работу
+ * делает подложка по расчёту темы ([io.github.dumahuch.pogodaapp.ui.PogodaPalette.infoScrim]).
+ */
+@Composable
+private fun TextStyle.withGlow(): TextStyle {
+    val palette = LocalPogodaPalette.current
+    val radius = with(LocalDensity.current) { 3.dp.toPx() }
+    val color = if (palette.darkInk) Color.White.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.35f)
+    return copy(shadow = Shadow(color = color, offset = Offset.Zero, blurRadius = radius))
+}
+
+/**
  * Максимум и минимум календарного дня: тёплый оттенок со стрелкой вверх и холодный со стрелкой вниз (правила надписей,
- * раздел 4). Слов «Макс» и «Мин» на экране нет, они в описании для чтения экрана.
+ * раздел 4). Слов «Макс» и «Мин» на экране нет, они в описании для чтения экрана. Оттенок ослабляется там, где небо под
+ * строкой не оставляет запаса контраста ([ExtremeTints]).
  */
 @Composable
 private fun HighLowRow(max: Double, min: Double, modifier: Modifier = Modifier) {
@@ -333,22 +366,25 @@ private fun HighLowRow(max: Double, min: Double, modifier: Modifier = Modifier) 
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ExtremeValue(LineIcons.ArrowUp, temperatureText(max), palette.ink, palette.smoke, warm = true)
-        ExtremeValue(LineIcons.ArrowDown, temperatureText(min), palette.ink, palette.smoke, warm = false)
+        ExtremeValue(LineIcons.ArrowUp, temperatureText(max), palette, warm = true)
+        ExtremeValue(LineIcons.ArrowDown, temperatureText(min), palette, warm = false)
     }
 }
 
 @Composable
-private fun ExtremeValue(icon: LineIcon, text: String, ink: Color, smoke: Float, warm: Boolean) {
+private fun ExtremeValue(icon: LineIcon, text: String, palette: PogodaPalette, warm: Boolean) {
+    val arrow = ExtremeTints.arrow(palette.ink, palette.smoke, warm, palette.infoBackdrop)
+    val number = ExtremeTints.text(palette.ink, palette.smoke, warm, palette.infoBackdrop)
     Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-        LineIconView(icon, 16.dp, ExtremeTints.arrow(ink, smoke, warm), strokeWidth = 2f)
-        Text(text, style = pogodaText(17f, 600, color = ExtremeTints.text(ink, smoke, warm), tabular = true), maxLines = 1)
+        LineIconView(icon, 16.dp, arrow, strokeWidth = 2f)
+        Text(text, style = pogodaText(17f, 600, color = number, tabular = true).withGlow(), maxLines = 1)
     }
 }
 
 /**
- * Одна тонкая строка подписей: подписи разделены тонкой вертикальной чертой, число подписей всегда три. Подписи делят
- * ширину поровну; длинная (в немецком) переносится на вторую строку, ширину блока не ломает.
+ * Одна строка подписей: подписи разделены тонкой вертикальной чертой, число подписей всегда три. Подписи делят
+ * ширину поровну; длинная (в немецком) переносится на вторую строку, ширину блока не ломает. Набраны основным цветом
+ * текста, не вторичным: на небе без стекла вторичный (84 %) не держит контраст на средних по яркости небесах.
  */
 @Composable
 private fun CaptionRow(items: List<String>, modifier: Modifier = Modifier) {
@@ -360,7 +396,7 @@ private fun CaptionRow(items: List<String>, modifier: Modifier = Modifier) {
             }
             Text(
                 text,
-                style = pogodaText(13f, 400, color = palette.ink2, lineHeight = 1.3f),
+                style = pogodaText(13f, 500, color = palette.ink, lineHeight = 1.3f).withGlow(),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f).padding(horizontal = 6.dp, vertical = 2.dp),
             )
