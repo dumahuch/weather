@@ -145,10 +145,11 @@ class GlassTest {
     fun veilLightensLightGlassAndDarkensSmokyGlass() {
         val light = CardLift.veil(0f)
         val smoky = CardLift.veil(1f)
-        assertEquals(1f, light.red, 1e-6f)
-        assertEquals(CardLift.VEIL_LIGHT, light.alpha, 1e-6f)
-        assertEquals(0f, smoky.red, 1e-6f)
-        assertEquals(CardLift.VEIL_SMOKY, smoky.alpha, 1e-6f)
+        // Цвет хранит каналы в 8 битах, поэтому допуск в половину ступени (1/255).
+        assertEquals(1f, light.red, 0.005f)
+        assertEquals(CardLift.VEIL_LIGHT, light.alpha, 0.005f)
+        assertEquals(0f, smoky.red, 0.005f)
+        assertEquals(CardLift.VEIL_SMOKY, smoky.alpha, 0.005f)
         val half = CardLift.veil(0.5f)
         assertTrue(half.red in 0.4f..0.6f)
         assertTrue(half.alpha in CardLift.VEIL_SMOKY..CardLift.VEIL_LIGHT)
