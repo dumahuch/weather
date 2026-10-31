@@ -62,6 +62,8 @@ class Glass internal constructor(
     val palette: PogodaPalette,
     internal val haze: HazeState?,
     internal val cardBlur: HazeBlurStyle,
+    /** Тень карточек «Выраженная» (настройка): вторая тень, светлая кромка и вуаль у всех стеклянных карточек, см. [CardLift]. */
+    internal val lifted: Boolean = false,
 ) {
     companion object {
         /** Стекло без размытия: пока неба нет и в проверках. */
@@ -76,10 +78,10 @@ private const val SMOKE_STEPS = 20
 
 /** Стекло для палитры [palette] и состояния размытия [haze] (пустое, пока размывать нечего). */
 @Composable
-fun rememberGlass(palette: PogodaPalette, haze: HazeState?): Glass {
+fun rememberGlass(palette: PogodaPalette, haze: HazeState?, lifted: Boolean = false): Glass {
     val step = (palette.smoke.coerceIn(0f, 1f) * SMOKE_STEPS).roundToInt()
     val cardBlur = remember(step) { GlassBlur.card(step / SMOKE_STEPS.toFloat()) }
-    return remember(palette, haze, cardBlur) { Glass(palette, haze, cardBlur) }
+    return remember(palette, haze, cardBlur, lifted) { Glass(palette, haze, cardBlur, lifted) }
 }
 
 /**
@@ -151,8 +153,9 @@ internal val CardRim = listOf(
 internal val CardRimColor = Color(224, 230, 235)
 
 /**
- * Добавка для карточек, которые должны отделяться от серого неба сильнее обычных (вкладка «Подробно», 0.5.3):
- * вторая тень под обычной, тонкая светлая кромка и лёгкая вуаль, отодвигающая заливку от цвета неба.
+ * Добавка, которая отделяет карточки от серого неба сильнее обычного: вторая тень под обычной, тонкая светлая кромка и
+ * лёгкая вуаль, отодвигающая заливку от цвета неба. С 0.5.3 она была только у плиток «Подробно», с 0.5.4 это ступень
+ * «Выраженная» настройки «Тень карточек» и действует на все стеклянные карточки ([Glass.lifted]).
  * Обычная тень и блик остаются как в макете, добавка лежит поверх них.
  */
 internal object CardLift {
@@ -182,10 +185,12 @@ internal val ButtonShadow = listOf(ShadowLayer(0f, 8f, 20f, -10f, 1f))
 /**
  * Стекло карточек: размытый фон, заливка цвета неба, блик по верхней левой кромке, тонкая линия, семислойная
  * тень снаружи и блик по кромке внутри. Всё по макету (`.glass`). Без размытия ([Glass.flat]) рисуется
- * то же самое, кроме самого размытия. [lifted] добавляет вторую тень, светлую кромку и вуаль ([CardLift]).
+ * то же самое, кроме самого размытия. Если у стекла включена ступень «Выраженная» ([Glass.lifted]), добавляются вторая
+ * тень, светлая кромка и вуаль ([CardLift]).
  */
-fun Modifier.glassCard(shape: Shape, glass: Glass, lifted: Boolean = false): Modifier {
+fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier {
     val palette = glass.palette
+    val lifted = glass.lifted
     return this
         .then(if (lifted) Modifier.rasterShadow(shape, CardLift.Shadow, inset = false, color = CardShadowColor) else Modifier)
         .rasterShadow(shape, CardShadow, inset = false, color = CardShadowColor)

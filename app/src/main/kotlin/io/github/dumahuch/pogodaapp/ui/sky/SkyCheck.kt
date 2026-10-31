@@ -182,13 +182,16 @@ internal fun SkyCheckPanel(
     modifier: Modifier = Modifier,
 ) {
     var collapsed by rememberSaveable { mutableStateOf(false) }
+    // Счётчик кадров один на свёрнутую и развёрнутую панель: он считает и пока панель свёрнута.
+    val meter = rememberFrameMeter()
     if (collapsed) {
-        CollapsedBar(onExpand = { collapsed = false }, onClose = onClose, modifier = modifier)
+        CollapsedBar(meter = meter, onExpand = { collapsed = false }, onClose = onClose, modifier = modifier)
     } else {
         ExpandedPanel(
             input = input,
             override = override,
             diagnostics = diagnostics,
+            meter = meter,
             glassBlur = glassBlur,
             pollen = pollen,
             pollenSample = pollenSample,
@@ -202,9 +205,12 @@ internal fun SkyCheckPanel(
     }
 }
 
-/** Свёрнутая панель оставляет на виду весь экран: видно, как текст и стекло лежат на небе. */
+/**
+ * Свёрнутая панель оставляет на виду весь экран: видно, как текст и стекло лежат на небе. В полосе одна строка со
+ * счётчиком кадров (обычное время кадра и кадры в секунду), чтобы снимать цифры на любом экране приложения.
+ */
 @Composable
-private fun CollapsedBar(onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
+private fun CollapsedBar(meter: FrameMeter, onExpand: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier
             .navigationBarsPadding()
@@ -216,11 +222,18 @@ private fun CollapsedBar(onExpand: () -> Unit, onClose: () -> Unit, modifier: Mo
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            stringResource(R.string.check_title),
-            style = pogodaText(14f, 700, color = PanelText),
-            modifier = Modifier.weight(1f),
-        )
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.check_title), style = pogodaText(14f, 700, color = PanelText))
+            Text(
+                stringResource(
+                    R.string.check_frames_short,
+                    meter.summary.median.format(1),
+                    meter.summary.perSecond.format(1),
+                ),
+                style = pogodaText(12f, 500, color = PanelTextDim, tabular = true),
+                maxLines = 1,
+            )
+        }
         CheckButton(stringResource(R.string.check_expand), selected = false, onClick = onExpand)
         CheckButton(stringResource(R.string.check_close), selected = false, onClick = onClose)
     }
@@ -231,6 +244,7 @@ private fun ExpandedPanel(
     input: SkyInput?,
     override: SkyOverride,
     diagnostics: SkyDiagnostics,
+    meter: FrameMeter,
     glassBlur: Boolean,
     pollen: PollenCheck?,
     pollenSample: Boolean,
@@ -335,7 +349,7 @@ private fun ExpandedPanel(
                 ),
             )
         }
-        FrameSection(glassBlur = glassBlur, onGlassBlur = onGlassBlur)
+        FrameSection(meter = meter, glassBlur = glassBlur, onGlassBlur = onGlassBlur)
         PollenSection(pollen = pollen, sample = pollenSample, onSample = onPollenSample)
     }
 }
@@ -386,16 +400,33 @@ private fun PollenSection(pollen: PollenCheck?, sample: Boolean, onSample: (Bool
     }
 }
 
+/**
+ * Счётчик кадров окна: считает кадры по `FrameMetrics`, пока он в композиции, и раз в секунду обновляет сводку
+ * ([summary]). Один на свёрнутую и развёрнутую панель.
+ */
+internal class FrameMeter(val stats: FrameStats, val refreshRate: Float) {
+    var summary by mutableStateOf(stats.summary(SystemClock.elapsedRealtimeNanos()))
+        private set
+
+    fun refresh() {
+        summary = stats.summary(SystemClock.elapsedRealtimeNanos())
+    }
+
+    fun reset() {
+        stats.reset()
+        refresh()
+    }
+}
+
 @Composable
-private fun FrameSection(glassBlur: Boolean, onGlassBlur: (Boolean) -> Unit) {
+private fun rememberFrameMeter(): FrameMeter {
     val view = LocalView.current
     val refreshRate = view.display?.refreshRate ?: DEFAULT_REFRESH_RATE
-    val stats = remember(refreshRate) { FrameStats(budgetMillis = 1000.0 / refreshRate) }
-    var summary by remember(stats) { mutableStateOf(stats.summary(SystemClock.elapsedRealtimeNanos())) }
-    DisposableEffect(view, stats) {
+    val meter = remember(refreshRate) { FrameMeter(FrameStats(budgetMillis = 1000.0 / refreshRate), refreshRate) }
+    DisposableEffect(view, meter) {
         val window = view.context.findActivity()?.window
         val listener = Window.OnFrameMetricsAvailableListener { _, metrics, _ ->
-            stats.add(
+            meter.stats.add(
                 SystemClock.elapsedRealtimeNanos(),
                 metrics.getMetric(FrameMetrics.TOTAL_DURATION) / NANOS_PER_MILLI,
             )
@@ -403,12 +434,18 @@ private fun FrameSection(glassBlur: Boolean, onGlassBlur: (Boolean) -> Unit) {
         window?.addOnFrameMetricsAvailableListener(listener, Handler(Looper.getMainLooper()))
         onDispose { window?.removeOnFrameMetricsAvailableListener(listener) }
     }
-    LaunchedEffect(stats) {
+    LaunchedEffect(meter) {
         while (true) {
             delay(1000)
-            summary = stats.summary(SystemClock.elapsedRealtimeNanos())
+            meter.refresh()
         }
     }
+    return meter
+}
+
+@Composable
+private fun FrameSection(meter: FrameMeter, glassBlur: Boolean, onGlassBlur: (Boolean) -> Unit) {
+    val summary = meter.summary
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -422,17 +459,13 @@ private fun FrameSection(glassBlur: Boolean, onGlassBlur: (Boolean) -> Unit) {
             selected = glassBlur,
             onClick = {
                 onGlassBlur(!glassBlur)
-                stats.reset()
-                summary = stats.summary(SystemClock.elapsedRealtimeNanos())
+                meter.reset()
             },
         )
         CheckButton(
             stringResource(R.string.check_frames_reset),
             selected = false,
-            onClick = {
-                stats.reset()
-                summary = stats.summary(SystemClock.elapsedRealtimeNanos())
-            },
+            onClick = { meter.reset() },
         )
     }
     Info(stringResource(R.string.check_frames_total, summary.frames, summary.slow))
@@ -444,7 +477,7 @@ private fun FrameSection(glassBlur: Boolean, onGlassBlur: (Boolean) -> Unit) {
             summary.longest.format(1),
         ),
     )
-    Info(stringResource(R.string.check_frames_rate, summary.perSecond.format(1), refreshRate.toDouble().format(0)))
+    Info(stringResource(R.string.check_frames_rate, summary.perSecond.format(1), meter.refreshRate.toDouble().format(0)))
 }
 
 private const val NANOS_PER_MILLI = 1e6

@@ -220,4 +220,12 @@
     <string name="places_search_empty">Nichts gefunden. Prüfe die Schreibweise oder gib eine Postleitzahl ein.</string>
     <string name="places_search_failed">Keine Verbindung. Prüfe dein Netz und versuche es erneut.</string>
     <string name="places_geonames">Suche: Open-Meteo, Ortsdaten: GeoNames (CC BY 4.0)</string>
+
+    <!-- Einstellungen (0.5.4) -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_card_shadow">Kartenschatten</string>
+    <string name="settings_shadow_soft">Weich</string>
+    <string name="settings_shadow_soft_hint">Leichter Schatten: Die Karten fügen sich sanfter in den Himmel ein.</string>
+    <string name="settings_shadow_strong">Kräftig</string>
+    <string name="settings_shadow_strong_hint">Stärkerer Schatten und heller Rand: Die Karten heben sich auch vor grauem Himmel ab.</string>
 </resources>
