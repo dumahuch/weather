@@ -45,7 +45,7 @@ object PollenParser {
      * загрузки: он считается днём выпуска, если в файле нет даты `last_update`. Пусто, если файл не разобран
      * или такого района в нём нет: плитка тогда показывает «Нет данных», остальное не страдает.
      */
-    fun parse(json: String, regionKey: Int, fetchedOn: LocalDate): PollenForecast? = try {
+    fun parse(json: String, regionKey: Int, fetchedOn: LocalDate): PollenForecast? = if (JsonGuard.tooDeep(json)) null else try {
         val root = JSONObject(json)
         val issued = root.optString("last_update").let { text ->
             DATE.find(text)?.destructured?.let { (y, m, d) -> LocalDate.of(y.toInt(), m.toInt(), d.toInt()) }

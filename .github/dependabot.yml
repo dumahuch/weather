@@ -1,0 +1,17 @@
+# Слежение за зависимостями: раз в неделю проверяет известные уязвимости и новые версии.
+# Предложения приходят запросами на слияние; сборка и проверки в GitHub решают, подходят ли они.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      androidx-and-compose:
+        patterns: ["androidx.*", "org.jetbrains.compose*"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3

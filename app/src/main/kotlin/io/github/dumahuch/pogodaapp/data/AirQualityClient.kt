@@ -44,7 +44,7 @@ object AirQualityParser {
      * Индекс часа, в который попадает [now]. Пусто, если в ответе нет индекса (за пределами Европы сервис отдаёт
      * пустые значения) или ответ не разобран: плитка тогда показывает прочерк, остальное не страдает.
      */
-    fun parse(json: String, now: Instant): AirQuality? = try {
+    fun parse(json: String, now: Instant): AirQuality? = if (JsonGuard.tooDeep(json)) null else try {
         val hourly = JSONObject(json).getJSONObject("hourly")
         val times = hourly.getJSONArray("time")
         val values = hourly.getJSONArray("european_aqi")
