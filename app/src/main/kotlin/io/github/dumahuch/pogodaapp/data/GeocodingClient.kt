@@ -48,6 +48,7 @@ object GeocodingParser {
      * Записи без названия или координат пропускаются. Неразборчивый ответ даёт [ForecastException].
      */
     fun parse(raw: String): List<PlaceSuggestion> {
+        if (JsonGuard.tooDeep(raw)) throw ForecastException("Ответ поиска устроен слишком сложно")
         val root = try {
             JSONObject(raw)
         } catch (e: JSONException) {

@@ -24,6 +24,7 @@ import java.time.format.DateTimeParseException
 object OpenMeteoParser {
 
     fun parse(json: String): Forecast {
+        if (JsonGuard.tooDeep(json)) throw ForecastException("Ответ Open-Meteo устроен слишком сложно")
         try {
             val root = JSONObject(json)
             if (root.optBoolean("error", false)) {

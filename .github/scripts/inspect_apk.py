@@ -14,6 +14,7 @@ import os
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 # Разрешение, которое AndroidX добавляет сам (защита приёмников от чужих приложений).
@@ -46,6 +47,13 @@ def find(pattern: str, text: str, what: str) -> re.Match:
     return match
 
 
+def dex_strings_found(apk: str, needles: list[str]) -> list[str]:
+    """Какие из строк лежат в коде APK (classes*.dex). Нужна, чтобы отладочное не попало в выпуск."""
+    with zipfile.ZipFile(apk) as archive:
+        blobs = [archive.read(n) for n in archive.namelist() if re.fullmatch(r"classes\d*\.dex", n)]
+    return [needle for needle in needles if any(needle.encode("utf-8") in blob for blob in blobs)]
+
+
 def icon_has_monochrome(aapt2: Path, apk: str, badging: str) -> bool:
     icon = find(r"^application: label='[^']*' icon='([^']+)'", badging, "иконка приложения").group(1)
     tree = run([str(aapt2), "dump", "xmltree", "--file", icon, apk])
@@ -61,6 +69,10 @@ def main() -> int:
     parser.add_argument("--min-sdk", required=True, type=int)
     parser.add_argument("--target-sdk", required=True, type=int)
     parser.add_argument("--allow-permission", action="append", default=[])
+    parser.add_argument(
+        "--forbid-dex-string", action="append", default=[],
+        help="строка, которой не должно быть в коде (метки и тексты отладочного журнала в выпуске)",
+    )
     parser.add_argument("--require-signature", action="store_true", help="APK подписан схемой v2 или v3")
     parser.add_argument("--require-v3", action="store_true", help="дополнительно нужна схема v3 (для смены ключа)")
     args = parser.parse_args()
@@ -113,6 +125,11 @@ def main() -> int:
         problems.append(f"лишние разрешения: {extra}")
     if not monochrome:
         problems.append("в иконке нет слоя monochrome")
+    leaked = dex_strings_found(args.apk, args.forbid_dex_string)
+    if leaked:
+        problems.append(f"в коде остались отладочные строки: {leaked}")
+    if args.forbid_dex_string:
+        lines.append(f"отладочных строк в коде: {len(leaked)} из {len(args.forbid_dex_string)} проверенных")
 
     cert_sha256 = ""
     if args.require_signature:

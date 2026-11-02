@@ -36,6 +36,9 @@ jobs:
       - name: Тесты скриптов выпуска
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
+      - name: Чистота кода
+        run: python3 .github/scripts/code_hygiene.py .
+
       - name: Линт, тесты, сборка debug
         run: |
           set -o pipefail
@@ -90,6 +93,8 @@ jobs:
             --package io.github.dumahuch.pogodaapp \
             --version-name 0.0.2 --version-code 2 \
             --min-sdk 36 --target-sdk 36 --require-signature --require-v3 \
+            --forbid-dex-string PogodaRefresh \
+            --forbid-dex-string "обновление протягиванием" \
             --allow-permission android.permission.INTERNET \
             --allow-permission android.permission.ACCESS_COARSE_LOCATION
 
