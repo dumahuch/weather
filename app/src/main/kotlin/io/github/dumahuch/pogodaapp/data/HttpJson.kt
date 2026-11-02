@@ -24,9 +24,13 @@ internal object HttpJson {
     private const val CHUNK_BYTES = 8 * 1024
 
     fun get(url: String, userAgent: String, source: String = "Open-Meteo"): String {
-        if (!url.startsWith("https://")) throw ForecastException("$source: адрес без защищённого соединения отклонён")
+        val address = URI(url)
+        // Только https. Исключение одно: адрес самого устройства (127.0.0.1), на нём в тестах работает пробный сервер.
+        if (address.scheme != "https" && !(address.scheme == "http" && address.host == LOOPBACK)) {
+            throw ForecastException("$source: адрес без защищённого соединения отклонён")
+        }
         val deadline = System.nanoTime() + TOTAL_TIMEOUT_MS * NANOS_PER_MILLI
-        val connection = URI(url).toURL().openConnection() as HttpURLConnection
+        val connection = address.toURL().openConnection() as HttpURLConnection
         try {
             connection.connectTimeout = CONNECT_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS
@@ -64,6 +68,7 @@ internal object HttpJson {
     }
 
     private const val NANOS_PER_MILLI = 1_000_000L
+    private const val LOOPBACK = "127.0.0.1"
 
     private fun reasonOf(body: String): String = try {
         JSONObject(body).optString("reason", body.take(120))

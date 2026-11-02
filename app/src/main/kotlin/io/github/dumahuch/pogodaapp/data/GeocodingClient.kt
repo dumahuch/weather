@@ -45,7 +45,7 @@ object GeocodingParser {
 
     /**
      * Разбор ответа поиска. Если ничего не найдено, ключа `results` в ответе нет: это пустой список, а не ошибка.
-     * Записи без названия или координат пропускаются. Неразборчивый ответ даёт [ForecastException].
+     * Записи без названия или с неверными координатами пропускаются. Неразборчивый ответ даёт [ForecastException].
      */
     fun parse(raw: String): List<PlaceSuggestion> {
         if (JsonGuard.tooDeep(raw)) throw ForecastException("Ответ поиска устроен слишком сложно")
@@ -59,14 +59,16 @@ object GeocodingParser {
         for (index in 0 until results.length()) {
             val item = results.optJSONObject(index) ?: continue
             val name = item.optString("name").trim()
-            if (name.isEmpty() || !item.has("latitude") || !item.has("longitude")) continue
+            val latitude = item.optDouble("latitude", Double.NaN)
+            val longitude = item.optDouble("longitude", Double.NaN)
+            if (name.isEmpty() || latitude !in -90.0..90.0 || longitude !in -180.0..180.0) continue
             list += PlaceSuggestion(
                 name = name,
                 admin1 = item.optString("admin1").trim().ifEmpty { null },
                 country = item.optString("country").trim().ifEmpty { null },
                 countryCode = item.optString("country_code").trim().ifEmpty { null },
-                latitude = item.getDouble("latitude"),
-                longitude = item.getDouble("longitude"),
+                latitude = latitude,
+                longitude = longitude,
             )
         }
         return list
