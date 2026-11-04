@@ -219,6 +219,8 @@ private fun ExpandedPanel(
         if (input == null) {
             Text(stringResource(R.string.check_no_forecast), style = pogodaText(13f, 500, color = PanelTextDim))
         }
+        // Сразу под шапкой: так ряд виден без прокрутки панели (на медленном эмуляторе прокрутка ненадёжна).
+        AlertSection(count = alertSample, onCount = onAlertSample)
 
         Caption(stringResource(R.string.check_scene_title))
         val strongest = snapshot?.weights?.maxByOrNull { it.second }?.first
@@ -287,7 +289,6 @@ private fun ExpandedPanel(
         }
         FrameSection(meter = meter, glassBlur = glassBlur, onGlassBlur = onGlassBlur)
         PollenSection(pollen = pollen, sample = pollenSample, onSample = onPollenSample)
-        AlertSection(count = alertSample, onCount = onAlertSample)
     }
 }
 
@@ -298,7 +299,7 @@ private fun AlertSection(count: Int, onCount: (Int) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         AlertSampleCounts.forEach { option ->
             CheckButton(
-                if (option == 0) stringResource(R.string.check_alerts_none) else option.toString(),
+                if (option == 0) stringResource(R.string.check_alerts_none) else stringResource(R.string.check_alerts_count, option),
                 selected = option == count,
                 onClick = { onCount(option) },
                 modifier = Modifier.weight(1f),

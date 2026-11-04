@@ -90,9 +90,8 @@ data class HomeActions(
     val onPinPreview: () -> Unit = {},
     /** Шестерёнка вверху справа: открывает экран настроек приложения (не системные настройки доступа, их открывает [onOpenSettings]). */
     val onOpenPreferences: () -> Unit = {},
-    /** Плашка предупреждения: открывает его подробности (по идентификатору предупреждения). */
+    /** Плашка предупреждения (по идентификатору) открывает его подробности, строка «Ещё N» весь список. */
     val onOpenAlert: (String) -> Unit = {},
-    /** Строка «Ещё N предупреждений»: открывает весь список. */
     val onOpenAlerts: () -> Unit = {},
 )
 
@@ -128,8 +127,7 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .nestedScroll(pull.connection),
         ) {
-            // Высота окна нужна середине «Главной» внутри колонки, где область BoxWithConstraints уже не видна.
-            val viewport = maxHeight
+            val viewport = maxHeight // внутри колонки область BoxWithConstraints уже не видна
             Column(
                 Modifier
                     .fillMaxWidth()
