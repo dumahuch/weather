@@ -11,6 +11,7 @@ import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.ui.HeroLetterSpacing
@@ -44,6 +45,9 @@ private fun Placeable.baselineOrDefault(): Int {
  * Текущая погода по центру (вариант «В»): сверху крупный значок погоды, под ним огромная тонкая температура с градусом.
  * Число с градусом стоит по центру экрана (блок «цифры + градус» центрируется целиком, как в макете). Высота блока
  * всегда считается по самому крупному размеру цифр ([MAX_DIGITS_SP]).
+ *
+ * [scale] увеличивает значок и цифры вместе (с версии 0.6.0 блок растёт на свободное место, см.
+ * [io.github.dumahuch.pogodaapp.home.HeroFit]); высота блока ровно [scale] × [heroBaseHeight].
  */
 @Composable
 fun HeroBlock(
@@ -52,14 +56,16 @@ fun HeroBlock(
     description: String,
     icon: LineIcon,
     modifier: Modifier = Modifier,
+    scale: Float = 1f,
 ) {
-    val degreeSize = digitsSize * DEGREE_SCALE
+    val numberSize = digitsSize * scale
+    val degreeSize = numberSize * DEGREE_SCALE
     Layout(
         content = {
             Text(
                 text = digits,
                 style = pogodaText(
-                    size = digitsSize.toFloat(),
+                    size = numberSize,
                     weight = 200,
                     lineHeight = 0.9f,
                     letterSpacing = HeroLetterSpacing,
@@ -78,7 +84,7 @@ fun HeroBlock(
             )
             LineIconView(
                 icon = icon,
-                size = ICON_SIZE_DP.dp,
+                size = (ICON_SIZE_DP * scale).dp,
                 color = LocalPogodaPalette.current.ink2,
                 strokeWidth = 0.85f,
                 modifier = Modifier.clearAndSetSemantics { },
@@ -96,17 +102,17 @@ fun HeroBlock(
         val blockWidth = digitsPlaceable.width + gap + degreePlaceable.width
         val blockX = (width - blockWidth) / 2
         val iconX = (width - iconPlaceable.width) / 2
-        val lineTop = iconPlaceable.height + ICON_GAP_DP.dp.roundToPx()
+        val lineTop = iconPlaceable.height + (ICON_GAP_DP * scale).dp.roundToPx()
 
         // Положение цифр считается от базовой линии, как в макете (строка высотой 0,9 em), а не от верха надписи:
         // так результат не зависит от того, как Compose распределяет межстрочный интервал.
         val digitsBaseline = digitsPlaceable.baselineOrDefault()
         val degreeBaseline = degreePlaceable.baselineOrDefault()
-        val digitsBaselineWanted = (digitsSize * BASELINE_EM).sp.toPx()
+        val digitsBaselineWanted = (numberSize * BASELINE_EM).sp.toPx()
         val digitsY = lineTop + (digitsBaselineWanted - digitsBaseline).roundToInt()
         val degreeY = lineTop + ((degreeSize * (DEGREE_TOP_EM + BASELINE_EM)).sp.toPx() - degreeBaseline).roundToInt()
 
-        val height = lineTop + (MAX_DIGITS_SP * LINE_HEIGHT_EM).sp.roundToPx()
+        val height = lineTop + (MAX_DIGITS_SP * scale * LINE_HEIGHT_EM).sp.roundToPx()
         layout(width, height) {
             iconPlaceable.placeRelative(iconX, 0)
             digitsPlaceable.placeRelative(blockX, digitsY)
@@ -116,3 +122,7 @@ fun HeroBlock(
 }
 
 private const val LINE_HEIGHT_EM = 0.9f
+
+/** Высота блока при обычном размере (значок, промежуток и строка цифр): от неё считается рост ([HeroBlock], scale). */
+internal fun Density.heroBaseHeight(): Float =
+    (ICON_SIZE_DP + ICON_GAP_DP).dp.toPx() + (MAX_DIGITS_SP * LINE_HEIGHT_EM).sp.toPx()

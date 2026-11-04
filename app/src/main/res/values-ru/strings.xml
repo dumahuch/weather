@@ -230,4 +230,52 @@
     <string name="settings_shadow_soft_hint">Лёгкая тень: карточки мягче вписываются в небо.</string>
     <string name="settings_shadow_strong">Выраженная</string>
     <string name="settings_shadow_strong_hint">Тень сильнее и светлая кромка: карточки заметнее на сером небе.</string>
+
+    <!-- Официальные предупреждения (0.6.0) -->
+    <string-array name="alert_kinds">
+        <item>Гроза</item>
+        <item>Порывы ветра</item>
+        <item>Дождь</item>
+        <item>Снегопад</item>
+        <item>Заморозки</item>
+        <item>Гололедица</item>
+        <item>Туман</item>
+        <item>Жара</item>
+        <item>УФ-излучение</item>
+        <item>Оттепель</item>
+        <item>Предупреждение о погоде</item>
+    </string-array>
+    <string-array name="alert_levels">
+        <item>Предупреждение</item>
+        <item>Выраженная погода</item>
+        <item>Непогода</item>
+        <item>Экстремальная непогода</item>
+    </string-array>
+    <string name="alert_level_line">Уровень %1$d · %2$s</string>
+    <string name="alert_level_of">Уровень %1$d из 4 · %2$s</string>
+    <string name="alert_starts_in">через %1$d мин</string>
+    <string name="alert_from">с %1$s</string>
+    <string name="alert_from_tomorrow">завтра с %1$s</string>
+    <string name="alert_from_day">%2$s с %1$s</string>
+    <string name="alert_until">до %1$s</string>
+    <string name="alert_until_tomorrow">до завтра %1$s</string>
+    <string name="alert_until_day">до %2$s %1$s</string>
+    <plurals name="alerts_more">
+        <item quantity="one">Ещё %d предупреждение</item>
+        <item quantity="few">Ещё %d предупреждения</item>
+        <item quantity="many">Ещё %d предупреждений</item>
+        <item quantity="other">Ещё %d предупреждения</item>
+    </plurals>
+    <string name="alerts_all">Все предупреждения</string>
+    <string name="alert_valid">Действует</string>
+    <string name="alert_area">Район</string>
+    <string name="alert_original">Текст DWD</string>
+    <string name="alert_issued">Deutscher Wetterdienst · выпущено %1$s</string>
+    <string name="alert_day_tomorrow">Завтра</string>
+    <string name="alert_day_today_mid">сегодня</string>
+    <string name="alert_day_tomorrow_mid">завтра</string>
+    <string name="alert_period_day">%1$s, %2$s–%3$s</string>
+    <string name="alert_period_span">%1$s %2$s – %3$s %4$s</string>
+    <string name="alert_period_open">%1$s, с %2$s</string>
+    <string name="alert_close">Закрыть</string>
 </resources>

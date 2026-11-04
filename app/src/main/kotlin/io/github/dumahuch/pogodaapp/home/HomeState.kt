@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.home
 
 import io.github.dumahuch.pogodaapp.weather.AirQuality
+import io.github.dumahuch.pogodaapp.weather.AlertSet
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import io.github.dumahuch.pogodaapp.weather.Place
@@ -44,6 +45,8 @@ sealed interface HomeUiState {
      * [staleHours] сколько полных часов им, 0 если меньше часа. [airQuality] приходит отдельным запросом позже прогноза
      * (и совсем не приходит без сети или за пределами Европы); пусто, пока его нет. [pollen] приходит так же отдельно:
      * индекс пыльцы DWD для района места (только Германия), пусто вне Германии, без сети и пока он не пришёл.
+     * [alerts] официальные предупреждения DWD для места (только Германия): пусто, пока они не пришли; вне Германии
+     * пустой набор. Истёкшие из набора не удаляются, их отсеивает экран ([AlertSet.shownAt]).
      */
     data class Content(
         val place: Place,
@@ -54,5 +57,6 @@ sealed interface HomeUiState {
         val airQuality: AirQuality? = null,
         val pollen: PollenForecast? = null,
         val pollenStatus: PollenStatus = PollenStatus.Pending,
+        val alerts: AlertSet? = null,
     ) : HomeUiState
 }

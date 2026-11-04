@@ -228,4 +228,50 @@
     <string name="settings_shadow_soft_hint">Leichter Schatten: Die Karten fügen sich sanfter in den Himmel ein.</string>
     <string name="settings_shadow_strong">Kräftig</string>
     <string name="settings_shadow_strong_hint">Stärkerer Schatten und heller Rand: Die Karten heben sich auch vor grauem Himmel ab.</string>
+
+    <!-- Официальные предупреждения (0.6.0) -->
+    <string-array name="alert_kinds">
+        <item>Gewitter</item>
+        <item>Böen</item>
+        <item>Regen</item>
+        <item>Schneefall</item>
+        <item>Frost</item>
+        <item>Glätte</item>
+        <item>Nebel</item>
+        <item>Hitze</item>
+        <item>UV-Strahlung</item>
+        <item>Tauwetter</item>
+        <item>Wetterwarnung</item>
+    </string-array>
+    <string-array name="alert_levels">
+        <item>Wetterwarnung</item>
+        <item>Markantes Wetter</item>
+        <item>Unwetter</item>
+        <item>Extremes Unwetter</item>
+    </string-array>
+    <string name="alert_level_line">Stufe %1$d · %2$s</string>
+    <string name="alert_level_of">Stufe %1$d von 4 · %2$s</string>
+    <string name="alert_starts_in">in %1$d Min.</string>
+    <string name="alert_from">ab %1$s</string>
+    <string name="alert_from_tomorrow">morgen ab %1$s</string>
+    <string name="alert_from_day">%2$s ab %1$s</string>
+    <string name="alert_until">bis %1$s</string>
+    <string name="alert_until_tomorrow">bis morgen %1$s</string>
+    <string name="alert_until_day">bis %2$s %1$s</string>
+    <plurals name="alerts_more">
+        <item quantity="one">%d weitere Warnung</item>
+        <item quantity="other">%d weitere Warnungen</item>
+    </plurals>
+    <string name="alerts_all">Alle Warnungen</string>
+    <string name="alert_valid">Gültig</string>
+    <string name="alert_area">Gebiet</string>
+    <string name="alert_original">Text des DWD</string>
+    <string name="alert_issued">Deutscher Wetterdienst · ausgegeben %1$s</string>
+    <string name="alert_day_tomorrow">Morgen</string>
+    <string name="alert_day_today_mid">heute</string>
+    <string name="alert_day_tomorrow_mid">morgen</string>
+    <string name="alert_period_day">%1$s, %2$s–%3$s</string>
+    <string name="alert_period_span">%1$s %2$s – %3$s %4$s</string>
+    <string name="alert_period_open">%1$s, ab %2$s</string>
+    <string name="alert_close">Schließen</string>
 </resources>

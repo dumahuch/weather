@@ -220,6 +220,9 @@ fun Modifier.glassButton(shape: Shape, glass: Glass): Modifier {
         .background(palette.buttonBackground, shape)
 }
 
+/** Только размытый фон карточек, без заливки, тени и кромки: у плоского стекла плашек предупреждений. */
+fun Modifier.hazeCardBlur(glass: Glass): Modifier = hazeGlass(glass, glass.cardBlur)
+
 private fun Modifier.hazeGlass(glass: Glass, style: HazeBlurStyle): Modifier {
     val haze = glass.haze ?: return this
     return hazeBlur(input = HazeInput.Sources(haze), style = style)

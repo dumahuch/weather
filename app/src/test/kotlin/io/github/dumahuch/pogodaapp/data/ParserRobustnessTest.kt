@@ -79,6 +79,23 @@ class ParserRobustnessTest {
     }
 
     @Test
+    fun alertsParserNeverThrows() {
+        val alertsGarbage = garbage + listOf(
+            """{"alerts":null}""",
+            """{"alerts":[{"alert_id":5,"severity":7,"onset":[],"headline_de":{}}],"location":"x"}""",
+            """{"alerts":[{"id":1e999,"severity":"minor","onset":"2026-13-45T99:00:00+00:00","headline_de":"X"}]}""",
+            """{"alerts":[{"alert_id":"a","severity":"minor","onset":"2026-10-28T10:00:00+00:00","expires":"bald","headline_en":"X"}]}""",
+        )
+        alertsGarbage.forEach { text ->
+            try {
+                AlertsParser.parse(text)
+            } catch (e: Throwable) {
+                fail("предупреждения «${text.take(20)}»: ${e::class.simpleName}: ${e.message}")
+            }
+        }
+    }
+
+    @Test
     fun garbageGivesNoPollenAndNoAir() {
         assertNull(PollenParser.parse("{}", 32, LocalDate.of(2026, 11, 2)))
         assertNull(AirQualityParser.parse("{}", Instant.parse("2026-11-02T12:00:00Z")))

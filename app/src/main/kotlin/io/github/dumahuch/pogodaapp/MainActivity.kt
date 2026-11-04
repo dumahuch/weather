@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import io.github.dumahuch.pogodaapp.data.BrightSkyAlertsClient
 import io.github.dumahuch.pogodaapp.data.DwdPollenClient
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.OpenMeteoGeocodingClient
@@ -55,9 +56,11 @@ import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckPanel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyDiagnostics
 import io.github.dumahuch.pogodaapp.ui.sky.SkyHost
 import io.github.dumahuch.pogodaapp.ui.sky.TapSequence
+import io.github.dumahuch.pogodaapp.ui.sky.sampleAlerts
 import io.github.dumahuch.pogodaapp.ui.sky.samplePollen
 import io.github.dumahuch.pogodaapp.ui.sky.skyInput
 import java.io.File
+import java.time.Instant
 import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
@@ -74,6 +77,7 @@ class MainActivity : ComponentActivity() {
                     air = OpenMeteoAirQualityClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     pollenSource = DwdPollenClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     pollenRegions = AssetPollenRegionLocator(context),
+                    alerts = BrightSkyAlertsClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     pinnedStorage = FilePinnedPlacesStorage(File(context.filesDir, "pinned_places.json")),
                     pinnedCaches = PinnedForecastCaches(context.filesDir),
                     geocoding = OpenMeteoGeocodingClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
@@ -148,12 +152,16 @@ class MainActivity : ComponentActivity() {
             PogodaTheme {
                 val realState by viewModel.state.collectAsStateWithLifecycle()
                 val pollenSample by skyCheck.pollenSample.collectAsStateWithLifecycle()
-                // Экран проверки может подставить пример пыльцы; всё остальное приложение видит это как настоящие данные.
-                val state = if (pollenSample && realState is HomeUiState.Content) {
-                    val content = realState as HomeUiState.Content
+                val alertSample by skyCheck.alertSample.collectAsStateWithLifecycle()
+                // Экран проверки может подставить пример пыльцы и учебные предупреждения; всё остальное приложение видит
+                // это как настоящие данные.
+                val alertsSample = remember(alertSample) { if (alertSample > 0) sampleAlerts(alertSample, Instant.now()) else null }
+                val content = realState as? HomeUiState.Content
+                val state = if (content != null && (pollenSample || alertsSample != null)) {
                     content.copy(
-                        pollen = samplePollen(LocalDate.now(content.forecast.zone)),
-                        pollenStatus = PollenStatus.Loaded,
+                        pollen = if (pollenSample) samplePollen(LocalDate.now(content.forecast.zone)) else content.pollen,
+                        pollenStatus = if (pollenSample) PollenStatus.Loaded else content.pollenStatus,
+                        alerts = alertsSample ?: content.alerts,
                     )
                 } else {
                     realState
@@ -205,9 +213,11 @@ class MainActivity : ComponentActivity() {
                                 glassBlur = glassBlur,
                                 pollen = pollenCheck,
                                 pollenSample = pollenSample,
+                                alertSample = alertSample,
                                 onOverride = skyCheck::set,
                                 onGlassBlur = skyCheck::setGlassBlur,
                                 onPollenSample = skyCheck::setPollenSample,
+                                onAlertSample = skyCheck::setAlertSample,
                                 onClose = skyCheck::close,
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             )

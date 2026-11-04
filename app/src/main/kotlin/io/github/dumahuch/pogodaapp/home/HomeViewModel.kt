@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.dumahuch.pogodaapp.data.AirQualityParser
 import io.github.dumahuch.pogodaapp.data.AirQualitySource
+import io.github.dumahuch.pogodaapp.data.AlertsSource
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.ForecastSource
 import io.github.dumahuch.pogodaapp.data.GeocodingSource
@@ -62,6 +63,7 @@ import java.util.Locale
  * отсутствие (нет сети, не Европа) ничего не ломает, плитка показывает прочерк. Так же отдельно и без ожидания
  * загружается пыльца DWD: сначала по месту определяется район ([PollenRegionLocator]), потом берётся его строка из файла
  * DWD для всей Германии; вне Германии, без сети и без файла границ плитка показывает «Нет данных».
+ * Официальные предупреждения DWD (с версии 0.6.0) приходят тем же путём, отдельно от прогноза и без ожидания ([AlertFeed]).
  * Обновление протягиванием ([refresh]) делает то же самое сразу, без оглядки на 15 минут, и поднимает флаг [refreshing],
  * по которому экран показывает индикатор.
  *
@@ -85,6 +87,7 @@ class HomeViewModel(
     private val pinnedCaches: PinnedForecastCaches? = null,
     geocoding: GeocodingSource? = null,
     language: () -> String = { "en" },
+    alerts: AlertsSource? = null,
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -136,6 +139,8 @@ class HomeViewModel(
     private class PollenOutcome(val point: GeoPoint, val status: PollenStatus)
 
     private var pollenOutcome: PollenOutcome? = null
+
+    private val alertFeed = AlertFeed(alerts, pollenRegions)
 
     /** Вызывается при каждом открытии экрана. Обновляет, если данные не свежие или были ошибки. */
     fun onResumed(permissionGranted: Boolean) {
@@ -363,6 +368,7 @@ class HomeViewModel(
         publish(Place(place.latitude, place.longitude, place.name), forecast, raw, now, store)
         fetchAirQuality(place.point)
         fetchPollen(place.point)
+        fetchAlerts(place.point)
     }
 
     private suspend fun loadCurrent() = coroutineScope {
@@ -424,6 +430,7 @@ class HomeViewModel(
         publish(place, forecast, raw, now, cache)
         fetchAirQuality(point)
         fetchPollen(point)
+        fetchAlerts(point)
         if (lookup != null) {
             launch { lookup.await()?.let { applyName(place, it) } }
         }
@@ -556,6 +563,15 @@ class HomeViewModel(
         }
     }
 
+    /** Запрашивает предупреждения вне области задач загрузки, как пыльцу: индикатор обновления их не ждёт. */
+    private fun fetchAlerts(point: GeoPoint) {
+        viewModelScope.launch {
+            val set = alertFeed.fetch(point) ?: return@launch
+            val shown = mutableState.value
+            if (shown is HomeUiState.Content && nearby(shown.place, point)) mutableState.value = shown.copy(alerts = set)
+        }
+    }
+
     private fun reportPollen(point: GeoPoint, status: PollenStatus, forecast: PollenForecast?) {
         pollenOutcome = PollenOutcome(point, status)
         val shown = mutableState.value
@@ -593,6 +609,7 @@ class HomeViewModel(
             airQuality = airFor(place),
             pollen = pollenFor(place),
             pollenStatus = pollenStatusFor(place),
+            alerts = alertFeed.setFor(GeoPoint(place.latitude, place.longitude)),
         )
     }
 
