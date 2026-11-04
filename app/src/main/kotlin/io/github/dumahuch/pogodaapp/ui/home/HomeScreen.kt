@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -73,9 +74,6 @@ import io.github.dumahuch.pogodaapp.weather.Condition
 import java.time.Instant
 import kotlin.math.roundToInt
 
-/** Наименьший промежуток над и под текущей погодой, когда свободного места почти нет (крупный шрифт системы). */
-private val CENTER_EDGE = 12.dp
-
 /**
  * Действия экрана: что делать по нажатиям кнопок и по протягиванию вниз. [onOpenPlaces] открывает список мест (плашка
  * места), [onFindCity] открывает сразу поиск города (вторая кнопка карточек «нет доступа» и «место не определено»).
@@ -92,6 +90,10 @@ data class HomeActions(
     val onPinPreview: () -> Unit = {},
     /** Шестерёнка вверху справа: открывает экран настроек приложения (не системные настройки доступа, их открывает [onOpenSettings]). */
     val onOpenPreferences: () -> Unit = {},
+    /** Плашка предупреждения: открывает его подробности (по идентификатору предупреждения). */
+    val onOpenAlert: (String) -> Unit = {},
+    /** Строка «Ещё N предупреждений»: открывает весь список. */
+    val onOpenAlerts: () -> Unit = {},
 )
 
 /**
@@ -118,6 +120,7 @@ fun HomeScreen(
             state == HomeUiState.LocationUnavailable,
         onRefresh = actions.onRefresh,
     )
+    val layout = remember { HomeLayout() }
     Box(modifier.fillMaxSize()) {
         BoxWithConstraints(
             Modifier
@@ -129,7 +132,8 @@ fun HomeScreen(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .heightIn(min = maxHeight),
+                    .heightIn(min = maxHeight)
+                    .onSizeChanged { layout.column = it.height },
             ) {
                 val pulled = Modifier.graphicsLayer { translationY = pull.offset }
                 Column(Modifier.fillMaxWidth().then(pulled)) {
@@ -144,17 +148,17 @@ fun HomeScreen(
                     )
                 }
                 when (state) {
-                    // Текущая погода (и её заглушка) стоит посередине свободного места между плашкой места и лентой
-                    // «По часам»: свободное место делится поровну над блоком и под ним (ограничение снизу и сверху 12 dp).
-                    HomeUiState.Loading, is HomeUiState.Content -> {
+                    // Заглушка стоит посередине свободного места между плашкой места и лентой «По часам»: свободное место
+                    // делится поровну над блоком и под ним (ограничение снизу и сверху 12 dp).
+                    HomeUiState.Loading -> {
                         Spacer(Modifier.height(CENTER_EDGE))
                         Spacer(Modifier.weight(1f))
-                        Column(Modifier.fillMaxWidth().then(pulled)) {
-                            if (state is HomeUiState.Content) ContentTop(state) else LoadingTop()
-                        }
+                        Column(Modifier.fillMaxWidth().then(pulled)) { LoadingTop() }
                         Spacer(Modifier.weight(1f))
                         Spacer(Modifier.height(CENTER_EDGE))
                     }
+                    // С данными: блок погоды, под ним предупреждения; как делится свободное место, решает [HeroFit].
+                    is HomeUiState.Content -> ContentMiddle(state, layout, maxHeight, pulled, actions)
                     // Карточки состояний остаются наверху, как были.
                     else -> {
                         Column(Modifier.fillMaxWidth().then(pulled)) {
@@ -323,7 +327,7 @@ private fun precipitationText(caption: PrecipitationCaption): String = when (cap
  * дня). Лента «По часам» стоит ниже и не сдвигается.
  */
 @Composable
-private fun ContentTop(state: HomeUiState.Content) {
+internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifier: Modifier) {
     val palette = LocalPogodaPalette.current
     val forecast = state.forecast
     val current = forecast.current
@@ -342,6 +346,8 @@ private fun ContentTop(state: HomeUiState.Content) {
         digitsSize = heroDigitsSize(current.temperature),
         description = temperatureText(current.temperature),
         icon = iconFor(current.condition, current.isDay),
+        modifier = heroModifier,
+        scale = heroScale,
     )
     Column(
         Modifier

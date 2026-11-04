@@ -22,9 +22,11 @@ internal fun SkyCheckPanel(
     glassBlur: Boolean,
     pollen: PollenCheck?,
     pollenSample: Boolean,
+    alertSample: Int,
     onOverride: (SkyOverride) -> Unit,
     onGlassBlur: (Boolean) -> Unit,
     onPollenSample: (Boolean) -> Unit,
+    onAlertSample: (Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) = Unit

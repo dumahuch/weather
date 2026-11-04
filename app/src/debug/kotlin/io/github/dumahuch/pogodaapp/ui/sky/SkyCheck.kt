@@ -105,9 +105,11 @@ internal fun SkyCheckPanel(
     glassBlur: Boolean,
     pollen: PollenCheck?,
     pollenSample: Boolean,
+    alertSample: Int,
     onOverride: (SkyOverride) -> Unit,
     onGlassBlur: (Boolean) -> Unit,
     onPollenSample: (Boolean) -> Unit,
+    onAlertSample: (Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -125,9 +127,11 @@ internal fun SkyCheckPanel(
             glassBlur = glassBlur,
             pollen = pollen,
             pollenSample = pollenSample,
+            alertSample = alertSample,
             onOverride = onOverride,
             onGlassBlur = onGlassBlur,
             onPollenSample = onPollenSample,
+            onAlertSample = onAlertSample,
             onCollapse = { collapsed = true },
             onClose = onClose,
             modifier = modifier,
@@ -178,9 +182,11 @@ private fun ExpandedPanel(
     glassBlur: Boolean,
     pollen: PollenCheck?,
     pollenSample: Boolean,
+    alertSample: Int,
     onOverride: (SkyOverride) -> Unit,
     onGlassBlur: (Boolean) -> Unit,
     onPollenSample: (Boolean) -> Unit,
+    onAlertSample: (Int) -> Unit,
     onCollapse: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -281,8 +287,28 @@ private fun ExpandedPanel(
         }
         FrameSection(meter = meter, glassBlur = glassBlur, onGlassBlur = onGlassBlur)
         PollenSection(pollen = pollen, sample = pollenSample, onSample = onPollenSample)
+        AlertSection(count = alertSample, onCount = onAlertSample)
     }
 }
+
+/** Учебные предупреждения: сколько подставить на «Главную» вместо настоящих (0: настоящие). */
+@Composable
+private fun AlertSection(count: Int, onCount: (Int) -> Unit) {
+    Caption(stringResource(R.string.check_alerts_title))
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        AlertSampleCounts.forEach { option ->
+            CheckButton(
+                if (option == 0) stringResource(R.string.check_alerts_none) else option.toString(),
+                selected = option == count,
+                onClick = { onCount(option) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** Варианты числа учебных предупреждений: ни одного, одно, три (обычно помещаются) и все (не помещаются, строка «Ещё N»). */
+private val AlertSampleCounts = listOf(0, 1, 3, SAMPLE_ALERTS)
 
 /**
  * Пыльца DWD: чем кончилась загрузка (вне сезона все значения нулевые, и по пустой плитке не понять, работает ли загрузка),

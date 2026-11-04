@@ -20,6 +20,7 @@ internal fun SkyPalette.toUi(): PogodaPalette = PogodaPalette(
     ink = ink.toColor(),
     ink2 = ink2.toColor(),
     glass = glass.toColor(),
+    glassAlert = glassAlert.toColor(),
     glassLine = glassLine.toColor(),
     glassHighlight = glassHighlight.toColor(),
     buttonHighlight = buttonHighlight.toColor(),

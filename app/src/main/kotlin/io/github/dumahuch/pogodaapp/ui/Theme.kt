@@ -37,6 +37,12 @@ object PogodaColors {
     val Bar = Color(0xFF2E628E)
     val Warning = Color(0xFFC0692D)
 
+    /**
+     * Уровни предупреждений DWD (1 жёлтый, 2 оранжевый, 3 красный, 4 фиолетовый), приглушённые под стиль приложения:
+     * значения `--lv1`…`--lv4` макета (решение Димы 27.10).
+     */
+    val AlertLevels = listOf(Color(0xFFB38B2C), Color(0xFFC0692D), Color(0xFFA6433B), Color(0xFF7C4A94))
+
     val SkyTop = Color(0xFF6F9CC8)
     val SkyMiddle = Color(0xFF9DBFDD)
     val SkyHorizon = Color(0xFFC9DCEA)

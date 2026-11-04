@@ -15,6 +15,8 @@ data class PogodaPalette(
     val ink: Color,
     val ink2: Color,
     val glass: Color,
+    /** Заливка плашек предупреждений: плотность подобрана под полосу неба, где они лежат (`SkyPalette.glassAlert`). */
+    val glassAlert: Color,
     val glassLine: Color,
     /** Светлая линия по верхней кромке карточки. */
     val glassHighlight: Color,
@@ -49,6 +51,7 @@ data class PogodaPalette(
             ink = PogodaColors.Ink,
             ink2 = PogodaColors.Ink2,
             glass = PogodaColors.Glass,
+            glassAlert = PogodaColors.Glass,
             glassLine = PogodaColors.GlassLine,
             glassHighlight = PogodaColors.GlassHighlight,
             buttonHighlight = PogodaColors.ButtonHighlight,
@@ -80,6 +83,7 @@ fun PogodaPalette.mixWith(other: PogodaPalette, fraction: Float): PogodaPalette 
         ink = lerp(ink, other.ink, fraction),
         ink2 = lerp(ink2, other.ink2, fraction),
         glass = lerp(glass, other.glass, fraction),
+        glassAlert = lerp(glassAlert, other.glassAlert, fraction),
         glassLine = lerp(glassLine, other.glassLine, fraction),
         glassHighlight = lerp(glassHighlight, other.glassHighlight, fraction),
         buttonHighlight = lerp(buttonHighlight, other.buttonHighlight, fraction),

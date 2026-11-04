@@ -75,6 +75,8 @@ internal object SkySnapshotStorage {
             ink = colors[0],
             ink2 = colors[1],
             glass = colors[2],
+            // Заливка предупреждений в снимок не пишется: снимок живёт до первого расчёта по небу (доли секунды).
+            glassAlert = colors[2],
             glassLine = colors[3],
             glassHighlight = colors[4],
             buttonHighlight = colors[5],
