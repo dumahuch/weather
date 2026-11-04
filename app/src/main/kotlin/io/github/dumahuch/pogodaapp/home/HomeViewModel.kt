@@ -86,8 +86,8 @@ class HomeViewModel(
     private val pinnedStorage: PinnedPlacesStorage = MemoryPinnedPlacesStorage(),
     private val pinnedCaches: PinnedForecastCaches? = null,
     geocoding: GeocodingSource? = null,
-    alerts: AlertsSource? = null,
     language: () -> String = { "en" },
+    alerts: AlertsSource? = null,
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
