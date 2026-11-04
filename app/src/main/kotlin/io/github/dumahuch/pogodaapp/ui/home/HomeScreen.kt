@@ -128,6 +128,8 @@ fun HomeScreen(
                 .statusBarsPadding()
                 .nestedScroll(pull.connection),
         ) {
+            // Высота окна нужна середине «Главной» внутри колонки, где область BoxWithConstraints уже не видна.
+            val viewport = maxHeight
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -158,7 +160,7 @@ fun HomeScreen(
                         Spacer(Modifier.height(CENTER_EDGE))
                     }
                     // С данными: блок погоды, под ним предупреждения; как делится свободное место, решает [HeroFit].
-                    is HomeUiState.Content -> ContentMiddle(state, layout, maxHeight, pulled, actions)
+                    is HomeUiState.Content -> ContentMiddle(state, layout, viewport, pulled, actions)
                     // Карточки состояний остаются наверху, как были.
                     else -> {
                         Column(Modifier.fillMaxWidth().then(pulled)) {
