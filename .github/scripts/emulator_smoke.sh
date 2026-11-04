@@ -606,6 +606,66 @@ open_sky_check
 echo "[небо] экран проверки открыт"
 shot "5-проверка-неба-открыта"
 
+# --- 3е. Предупреждения (0.6.0): учебные предупреждения с экрана проверки -------------------------------
+# Идёт до проверок неба: проверки движения облаков на эмуляторе без видеокарты бывают нестабильны и не должны
+# мешать проверке предупреждений. Без сети настоящих предупреждений нет, поэтому подставляются учебные: шесть штук, больше чем помещается,
+# значит видны первые и строка «N more warnings». Нажатие на плашку открывает шторку с текстом DWD, «назад» закрывает её.
+panel_size=$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1)
+panel_x=$((${panel_size%x*} / 2))
+panel_h=${panel_size#*x}
+# Прокрутка развёрнутой панели проверки: три движения пальцем от доли высоты $1 до $2 (в процентах).
+scroll_panel() {
+  for _ in 1 2 3; do
+    adb shell input swipe "$panel_x" $((panel_h * $1 / 100)) "$panel_x" $((panel_h * $2 / 100)) 300
+    sleep 1
+  done
+}
+scroll_panel 88 50
+tap_text '^6$' || fail "[предупреждения] на экране проверки нет кнопки «6» учебных предупреждений"
+sleep 2
+# Кнопка «Свернуть» в шапке панели: прокручиваем обратно наверх.
+scroll_panel 50 88
+tap_text '^Свернуть$' || fail "[предупреждения] на экране проверки нет кнопки «Свернуть»"
+sleep 3
+TEXTS=$(screen_texts)
+expect_pattern '^Wind gusts, Level 4 · Extreme weather' "предупреждения" "Wind gusts, Level 4 · Extreme weather…"
+expect_pattern '^[0-9]+ more warnings?$' "предупреждения" "N more warnings"
+grep -qE '^Fog, ' <<<"$TEXTS" && fail "[предупреждения] видны все шесть плашек, строка «Ещё N» не понадобилась бы"
+shot "6-предупреждения-главная"
+
+tap_text '^Wind gusts, Level 4' || fail "[предупреждения] не удалось нажать на плашку «Wind gusts»"
+sleep 2
+TEXTS=$(screen_texts)
+expect_text "DWD text" "шторка предупреждения"
+expect_text "PRACTICE: not a real warning (hurricane-force gusts)" "шторка предупреждения"
+expect_pattern '^Level 4 of 4 · Extreme weather$' "шторка предупреждения" "Level 4 of 4 · Extreme weather"
+shot "6-предупреждения-шторка"
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+TEXTS=$(screen_texts)
+! grep -qxF "DWD text" <<<"$TEXTS" || fail "[предупреждения] «назад» не закрыл шторку"
+
+tap_text '^[0-9]+ more warnings?$' || fail "[предупреждения] не удалось нажать «N more warnings»"
+sleep 2
+TEXTS=$(screen_texts)
+expect_text "All warnings" "список предупреждений"
+expect_pattern '^Fog, ' "список предупреждений" "Fog, … (все шесть в списке)"
+shot "6-предупреждения-список"
+adb shell input keyevent KEYCODE_BACK
+sleep 2
+TEXTS=$(screen_texts)
+! grep -qxF "All warnings" <<<"$TEXTS" || fail "[предупреждения] «назад» не закрыл список"
+[ -n "$(adb shell pidof "$PKG" | tr -d '\r')" ] || fail "[предупреждения] приложение упало"
+echo "[предупреждения] плашки, «Ещё N», шторка и список работают"
+
+tap_text '^Развернуть$' || fail "[предупреждения] нет кнопки «Развернуть» у свёрнутой панели"
+sleep 1
+# Учебные предупреждения убираются: дальше снимки неба и замеры кадров без них.
+scroll_panel 88 50
+tap_text '^Настоящие$' || fail "[предупреждения] на экране проверки нет кнопки «Настоящие»"
+sleep 2
+scroll_panel 50 88
+
 sky_scene "Рассвет" "Рассвет" "5-небо-1-рассвет"
 sky_scene "Утро" "Утро" "5-небо-2-утро"
 sky_scene "День" "День" "5-небо-3-день"
@@ -704,59 +764,6 @@ tap_text '^Сбросить$' || fail "[небо] нет кнопки «Сбро
 sleep 8
 echo "[небо] анимации снова включены, кадров в секунду: $(frame_rate)"
 adb shell settings put global animator_duration_scale 0
-
-# --- 3е. Предупреждения (0.6.0): учебные предупреждения с экрана проверки -------------------------------
-# Без сети настоящих предупреждений нет, поэтому подставляются учебные: шесть штук, больше чем помещается,
-# значит видны первые и строка «N more warnings». Нажатие на плашку открывает шторку с текстом DWD, «назад» закрывает её.
-panel_size=$(adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | tail -1)
-panel_x=$((${panel_size%x*} / 2))
-panel_h=${panel_size#*x}
-for _ in 1 2 3; do
-  adb shell input swipe "$panel_x" $((panel_h * 88 / 100)) "$panel_x" $((panel_h * 50 / 100)) 300
-  sleep 1
-done
-tap_text '^6$' || fail "[предупреждения] на экране проверки нет кнопки «6» учебных предупреждений"
-sleep 2
-# Кнопка «Свернуть» в шапке панели: прокручиваем обратно наверх.
-for _ in 1 2 3; do
-  adb shell input swipe "$panel_x" $((panel_h * 50 / 100)) "$panel_x" $((panel_h * 88 / 100)) 300
-  sleep 1
-done
-tap_text '^Свернуть$' || fail "[предупреждения] на экране проверки нет кнопки «Свернуть»"
-sleep 3
-TEXTS=$(screen_texts)
-expect_pattern '^Wind gusts, Level 4 · Extreme weather' "предупреждения" "Wind gusts, Level 4 · Extreme weather…"
-expect_pattern '^[0-9]+ more warnings?$' "предупреждения" "N more warnings"
-grep -qE '^Fog, ' <<<"$TEXTS" && fail "[предупреждения] видны все шесть плашек, строка «Ещё N» не понадобилась бы"
-shot "6-предупреждения-главная"
-
-tap_text '^Wind gusts, Level 4' || fail "[предупреждения] не удалось нажать на плашку «Wind gusts»"
-sleep 2
-TEXTS=$(screen_texts)
-expect_text "DWD text" "шторка предупреждения"
-expect_text "PRACTICE: not a real warning (hurricane-force gusts)" "шторка предупреждения"
-expect_pattern '^Level 4 of 4 · Extreme weather$' "шторка предупреждения" "Level 4 of 4 · Extreme weather"
-shot "6-предупреждения-шторка"
-adb shell input keyevent KEYCODE_BACK
-sleep 2
-TEXTS=$(screen_texts)
-! grep -qxF "DWD text" <<<"$TEXTS" || fail "[предупреждения] «назад» не закрыл шторку"
-
-tap_text '^[0-9]+ more warnings?$' || fail "[предупреждения] не удалось нажать «N more warnings»"
-sleep 2
-TEXTS=$(screen_texts)
-expect_text "All warnings" "список предупреждений"
-expect_pattern '^Fog, ' "список предупреждений" "Fog, … (все шесть в списке)"
-shot "6-предупреждения-список"
-adb shell input keyevent KEYCODE_BACK
-sleep 2
-TEXTS=$(screen_texts)
-! grep -qxF "All warnings" <<<"$TEXTS" || fail "[предупреждения] «назад» не закрыл список"
-[ -n "$(adb shell pidof "$PKG" | tr -d '\r')" ] || fail "[предупреждения] приложение упало"
-echo "[предупреждения] плашки, «Ещё N», шторка и список работают"
-
-tap_text '^Развернуть$' || fail "[предупреждения] нет кнопки «Развернуть» у свёрнутой панели"
-sleep 1
 
 tap_text '^Закрыть$' || fail "[небо] на экране проверки нет кнопки «Закрыть»"
 sleep 2
