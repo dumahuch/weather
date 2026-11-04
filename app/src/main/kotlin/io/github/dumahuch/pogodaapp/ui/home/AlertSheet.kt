@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -116,11 +117,25 @@ fun AlertSheetHost(
             val shown = remember { SheetMemory() }
             if (sheet != null) shown.last = sheet
             val current = shown.last
-            SheetFrame(title = if (current == AlertSheet.All) stringResource(R.string.alerts_all) else null, onClose = onClose) {
-                when (current) {
-                    AlertSheet.All -> AllAlerts(alerts, now, zone, onOpen = { onOpen(AlertSheet.One(it.id, fromList = true)) })
-                    is AlertSheet.One -> alerts.firstOrNull { it.id == current.id }?.let { AlertDetails(it, area, now, zone) }
-                    null -> Unit
+            val alert = (current as? AlertSheet.One)?.let { one -> alerts.firstOrNull { it.id == one.id } }
+            SheetFrame(
+                header = {
+                    if (alert != null) {
+                        AlertHeader(alert, Modifier.weight(1f))
+                    } else {
+                        Text(
+                            stringResource(R.string.alerts_all),
+                            style = pogodaText(17f, 700, color = LocalPogodaPalette.current.ink),
+                            modifier = Modifier.weight(1f).semantics { heading() },
+                        )
+                    }
+                },
+                onClose = onClose,
+            ) {
+                if (alert != null) {
+                    AlertDetails(alert, area, now, zone)
+                } else if (current == AlertSheet.All) {
+                    AllAlerts(alerts, now, zone, onOpen = { onOpen(AlertSheet.One(it.id, fromList = true)) })
                 }
             }
         }
@@ -132,7 +147,7 @@ private class SheetMemory {
 }
 
 @Composable
-private fun SheetFrame(title: String?, onClose: () -> Unit, content: @Composable () -> Unit) {
+private fun SheetFrame(header: @Composable RowScope.() -> Unit, onClose: () -> Unit, content: @Composable () -> Unit) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
     val base = if (palette.darkInk) Color.White else Color(0xFF0C131F)
@@ -159,11 +174,7 @@ private fun SheetFrame(title: String?, onClose: () -> Unit, content: @Composable
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    title.orEmpty(),
-                    style = pogodaText(17f, 700, color = palette.ink),
-                    modifier = Modifier.weight(1f).semantics { if (title != null) heading() },
-                )
+                header()
                 CloseButton(onClose)
             }
             content()
@@ -204,16 +215,7 @@ private fun AllAlerts(alerts: List<WeatherAlert>, now: Instant, zone: ZoneId, on
 @Composable
 private fun AlertDetails(alert: WeatherAlert, area: String?, now: Instant, zone: ZoneId) {
     val palette = LocalPogodaPalette.current
-    val tint = levelColor(alert.level)
     val english = LocalLocale.current.platformLocale.language == "en"
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        LineIconView(kindIcon(alert.kind), 32.dp, tint)
-        Text(
-            alertTitle(alert.kind),
-            style = pogodaText(19f, 700, color = palette.ink, lineHeight = 1.2f),
-            modifier = Modifier.semantics { heading() },
-        )
-    }
     LevelMeter(alert.level)
     InfoRow(stringResource(R.string.alert_valid), periodText(alert, now, zone))
     if (area != null) InfoRow(stringResource(R.string.alert_area), area)
@@ -236,6 +238,19 @@ private fun AlertDetails(alert: WeatherAlert, area: String?, now: Instant, zone:
         if (issued == null) stringResource(R.string.alert_source) else stringResource(R.string.alert_issued, moment(issued, now, zone)),
         style = pogodaText(12.5f, 500, color = palette.ink2, lineHeight = 1.4f),
     )
+}
+
+/** Шапка предупреждения в одной строке с крестиком: значок явления цвета уровня и название. */
+@Composable
+private fun AlertHeader(alert: WeatherAlert, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        LineIconView(kindIcon(alert.kind), 32.dp, levelColor(alert.level))
+        Text(
+            alertTitle(alert.kind),
+            style = pogodaText(19f, 700, color = LocalPogodaPalette.current.ink, lineHeight = 1.2f),
+            modifier = Modifier.semantics { heading() },
+        )
+    }
 }
 
 /** Шкала уровня: четыре черты, закрашены до уровня его цветом, и подпись «Уровень 2 из 4 · Выраженная погода». */
