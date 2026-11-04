@@ -50,8 +50,8 @@ import java.time.ZoneId
 /** Промежуток между плашками предупреждений, как в макете. */
 internal val AlertGap = 8.dp
 
-/** Наименьшая высота плашки предупреждения и строки «Ещё N» (макет: 46 и 38 px). */
-internal val AlertRowHeight = 46.dp
+/** Наименьшая высота плашки предупреждения и строки «Ещё N» (плашка плотнее макета: 42 вместо 46 dp, «Ещё N» 38 dp). */
+internal val AlertRowHeight = 42.dp
 internal val AlertMoreHeight = 38.dp
 
 private val AlertShape = RoundedCornerShape(16.dp)
@@ -130,7 +130,10 @@ private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color): Modifi
         .background(fill, shape)
 }
 
-/** Одна плашка: значок уровня, название явления, уровень, время справа и стрелка (открывает подробности). */
+/**
+ * Одна плашка: значок уровня, справа от него две строки и стрелка (открывает подробности). Первая строка: название
+ * явления и время справа от него; вторая: уровень на всю ширину текста (не сокращается из-за времени).
+ */
 @Composable
 internal fun AlertRow(alert: WeatherAlert, now: Instant, zone: ZoneId, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
@@ -150,17 +153,25 @@ internal fun AlertRow(alert: WeatherAlert, now: Instant, zone: ZoneId, onClick: 
                 contentDescription = description
                 role = Role.Button
             }
-            .padding(start = 12.dp, top = 7.dp, end = 10.dp, bottom = 7.dp),
+            .padding(start = 12.dp, top = 5.dp, end = 10.dp, bottom = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         LineIconView(levelIcon(alert.level), 20.dp, tint)
         Column(Modifier.weight(1f)) {
-            Text(title, style = pogodaText(13.5f, 500, color = palette.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    title,
+                    style = pogodaText(13.5f, 500, color = palette.ink),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (time.isNotEmpty()) {
+                    Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
+                }
+            }
             Text(level, style = pogodaText(12f, 400, color = palette.ink2), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        if (time.isNotEmpty()) {
-            Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
         }
         LineIconView(LineIcons.ChevronRight, 16.dp, palette.ink2)
     }
