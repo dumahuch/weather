@@ -1,6 +1,5 @@
 package io.github.dumahuch.pogodaapp.sky
 
-import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
@@ -13,6 +12,8 @@ internal class SkyLook(
     val weather: SkyWeather,
     val veil: Veil,
     val cloudPosition: Double,
+    /** Насколько слои «Ди» подняты прокруткой экрана (доля высоты экрана, [DiArt.liftOf]); «Нейтральный» его не замечает. */
+    val lift: Double = 0.0,
 ) {
     /** Насколько погодная вуаль перекрывает небо (0…0,85). */
     val veilStrength: Double get() = clamp01(weather.gray * 0.8 + weather.fog * 0.3).coerceAtMost(0.85)
@@ -66,18 +67,18 @@ internal class Backdrops(
 }
 
 /**
- * Собирает по картам яркости маленький кадр 41×89 (тот же порядок слоёв, что при рисовании на экране)
- * и снимает с него цвета под цифрами, предупреждениями, карточкой и нижней панелью.
- * Порядок слоёв как в макете: небо → погодная вуаль → облака → обесцвечивание → затемнение.
- * Кадр рисуется для экрана 412×892 dp (Pixel 6 Pro); на других экранах те же доли высоты.
+ * Снимает с маленького кадра 41×89 цвета под цифрами, предупреждениями, карточкой и нижней панелью.
+ * Кадр собирает [SkyRaster] по картам яркости выбранного фона тем же порядком слоёв, что на экране
+ * («Нейтральный»: [NeutralRaster], «Ди»: [DiRaster]). Кадр для экрана 412×892 dp (Pixel 6 Pro); на других экранах те же доли высоты.
  */
-internal class SkySampler(private val maps: SkyMaps) {
+internal class SkySampler(private val raster: SkyRaster) {
+
+    constructor(maps: SkyMaps) : this(NeutralRaster(maps))
 
     private val pixels = DoubleArray(GRID_W * GRID_H * 3)
-    private val tmp = DoubleArray(4)
 
     fun backdrops(look: SkyLook): Backdrops {
-        render(look)
+        raster.render(look, pixels)
         val bands = listOf(region(0, 0, GRID_W, 22), region(0, 22, GRID_W, 54), region(0, 54, GRID_W, GRID_H))
         // «Герой» (большие цифры) смотрит на два куска, берётся худший из них.
         val hero = worse(region(2, 13, 39, 30), region(2, 30, 39, 34))
@@ -89,106 +90,6 @@ internal class SkySampler(private val maps: SkyMaps) {
             dock = cooked(region(6, 81, 35, 86), 0.7),
             info = cooked(region(2, 36, 39, 51), 0.7),
         )
-    }
-
-    // ---- сборка кадра ----
-
-    private fun render(look: SkyLook) {
-        val layers = look.weights.visible()
-        val weather = look.weather
-        val veilStrength = look.veilStrength
-        val gray = look.grayAmount
-        val darkAlpha = look.darkAlpha
-        val nightDim = look.nightDim
-        val w = look.weights
-        val cloudAlpha = weather.cloudLayerAlpha
-        val plateWidth = maps.width * SCENE_H / maps.height
-        val plateX0 = -w.pan * (plateWidth - SCENE_W)
-        val cloudScale = CLOUD_SCALE * SCENE_H / maps.height
-        val cloudWidth = maps.width * cloudScale
-        val cloudHeight = maps.height * cloudScale
-        val cloudX0 = -look.cloudPosition * (cloudWidth - SCENE_W)
-        val cloudY0 = SCENE_H - cloudHeight
-
-        for (py in 0 until GRID_H) {
-            val sy = (py + 0.5) / GRID_H * SCENE_H
-            val rowVeil = veilAt(look.veil, sy / SCENE_H)
-            for (px in 0 until GRID_W) {
-                val sx = (px + 0.5) / GRID_W * SCENE_W
-                // 1) небо без облаков: среднее картин с весами
-                var r = 0.0
-                var g = 0.0
-                var b = 0.0
-                var acc = 0.0
-                for (scene in layers) {
-                    val weight = look.weights[scene]
-                    acc += weight
-                    bilinear(maps.layer(scene, false), (sx - plateX0) / plateWidth * maps.width, sy / SCENE_H * maps.height)
-                    val k = weight / acc
-                    r = lerp(r, tmp[0], k); g = lerp(g, tmp[1], k); b = lerp(b, tmp[2], k)
-                }
-                // 2) погодная вуаль
-                if (veilStrength > 0.01) {
-                    r = lerp(r, rowVeil.r, veilStrength); g = lerp(g, rowVeil.g, veilStrength); b = lerp(b, rowVeil.b, veilStrength)
-                }
-                // 3) облака: слои накладываются друг на друга, затем целиком с прозрачностью слоя
-                var cr = 0.0
-                var cg = 0.0
-                var cb = 0.0
-                var ca = 0.0
-                acc = 0.0
-                for (scene in layers) {
-                    val weight = look.weights[scene]
-                    acc += weight
-                    bilinear(maps.layer(scene, true), (sx - cloudX0) / cloudScale, (sy - cloudY0) / cloudScale)
-                    val k = weight / acc
-                    val keep = 1 - k * tmp[3] / 255.0
-                    cr = k * tmp[0] + keep * cr; cg = k * tmp[1] + keep * cg; cb = k * tmp[2] + keep * cb
-                    ca = k * tmp[3] + keep * ca
-                }
-                val under = 1 - cloudAlpha * ca / 255.0
-                r = cloudAlpha * cr + under * r; g = cloudAlpha * cg + under * g; b = cloudAlpha * cb + under * b
-                // 4) серость непогоды
-                if (gray > 0.01) {
-                    val l = r * 0.3 + g * 0.59 + b * 0.11
-                    r = lerp(r, l, gray); g = lerp(g, l, gray); b = lerp(b, l, gray)
-                }
-                // 5) затемнение
-                if (weather.dark > 0.01) {
-                    r = lerp(r, 10.0, darkAlpha); g = lerp(g, 16.0, darkAlpha); b = lerp(b, 32.0, darkAlpha)
-                }
-                // 6) приглушение света облаков ночью, на рассвете и закате
-                if (nightDim > 0.01) {
-                    r = lerp(r, 8.0, nightDim); g = lerp(g, 12.0, nightDim); b = lerp(b, 26.0, nightDim)
-                }
-                val i = (py * GRID_W + px) * 3
-                pixels[i] = r; pixels[i + 1] = g; pixels[i + 2] = b
-            }
-        }
-    }
-
-    private fun veilAt(veil: Veil, t: Double): Rgb =
-        if (t < VEIL_MID) mix(veil.top, veil.mid, t / VEIL_MID) else mix(veil.mid, veil.hor, (t - VEIL_MID) / (1 - VEIL_MID))
-
-    /** Билинейная выборка карты в точке (x, y), заданной в пикселях карты; результат в [tmp] (R, G, B, A). */
-    private fun bilinear(layer: ByteArray, x: Double, y: Double) {
-        val fx = x - 0.5
-        val fy = y - 0.5
-        val x0 = floor(fx).toInt()
-        val y0 = floor(fy).toInt()
-        val ax = fx - x0
-        val ay = fy - y0
-        tmp.fill(0.0)
-        for (dy in 0..1) {
-            val yy = (y0 + dy).coerceIn(0, maps.height - 1)
-            val wy = if (dy == 0) 1 - ay else ay
-            for (dx in 0..1) {
-                val xx = (x0 + dx).coerceIn(0, maps.width - 1)
-                val weight = wy * (if (dx == 0) 1 - ax else ax)
-                val o = (yy * maps.width + xx) * 4
-                for (c in 0..3) tmp[c] += weight * (layer[o + c].toInt() and 0xFF)
-            }
-        }
     }
 
     // ---- снятие цветов ----
@@ -237,6 +138,6 @@ internal class SkySampler(private val maps: SkyMaps) {
 
         /** Слой облаков на 12 % крупнее неба и прижат к нижнему краю. */
         const val CLOUD_SCALE = 1.12
-        private const val VEIL_MID = 0.55
+        const val VEIL_MID = 0.55
     }
 }

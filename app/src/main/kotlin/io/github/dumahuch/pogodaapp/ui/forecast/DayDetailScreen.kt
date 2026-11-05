@@ -54,6 +54,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
+import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 
 /**
  * Подробности одного дня: сводка, почасовой прогноз этого дня, осадки, ветер, УФ-индекс, восход и закат.
@@ -84,11 +85,13 @@ fun DayDetailScreen(
     // Сегодняшняя лента сразу прокручена к текущему часу, но предыдущий час остаётся виден слева.
     val firstColumn = if (isToday) (now.atZone(zone).hour - 1).coerceAtLeast(0) else 0
 
+    val scroll = rememberScrollState()
+    ReportSkyScroll(scroll)
     Column(
         modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scroll),
     ) {
         Row(
             Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),

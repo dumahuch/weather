@@ -14,9 +14,9 @@ internal class SkyThemeDriver(private val sampler: SkySampler) {
     private var previousWeather: SkyWeather? = null
     private var previousHour = 0.0
 
-    /** Цвета фона и оценка текста для неба [state] с облаками в положении [cloudPosition]. */
-    fun measure(state: SkyState, cloudPosition: Double): InkScores {
-        val raw = sampler.backdrops(state.look(cloudPosition))
+    /** Цвета фона и оценка текста для неба [state] с облаками в положении [cloudPosition] и подъёмом гряд «Ди» [lift]. */
+    fun measure(state: SkyState, cloudPosition: Double, lift: Double = 0.0): InkScores {
+        val raw = sampler.backdrops(state.look(cloudPosition, lift))
         val old = previous
         // Небольшое сглаживание, только пока небо то же самое (та же погода, время почти не сдвинулось).
         val smooth = if (old != null && previousWeather == state.weather && abs(previousHour - state.sun.solarHour) < SMOOTH_HOURS) {

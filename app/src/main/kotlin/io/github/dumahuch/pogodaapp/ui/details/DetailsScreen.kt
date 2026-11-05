@@ -80,6 +80,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.LocalDate
 import kotlin.math.roundToInt
+import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 
 /**
  * Вкладка «Подробно»: плитки с воздухом, пыльцой, ветром, давлением, УФ-индексом, влажностью, видимостью, солнцем и луной.
@@ -111,11 +112,13 @@ fun DetailsScreen(
                 if (target != fit.current) fit.forcedPx = target
             }
         }
+        val scroll = rememberScrollState()
+        ReportSkyScroll(scroll)
         Column(
             Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scroll),
         ) {
             Column(Modifier.fillMaxWidth().onSizeChanged { contentPx = it.height }) {
                 val today = (state as? HomeUiState.Content)?.let { Instant.now().atZone(it.forecast.zone).toLocalDate() }

@@ -69,6 +69,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
+import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 
 /** Строк в списке по дням и их плотность: 7 дней просторно, 14 дней плотно. */
 private const val COMPACT_DAYS = 14
@@ -98,11 +99,13 @@ fun ForecastScreen(
 ) {
     val locale = LocalLocale.current.platformLocale
     val dayNames = stringArrayResource(R.array.days_short).toList()
+    val scroll = rememberScrollState()
+    ReportSkyScroll(scroll)
     Column(
         modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scroll),
     ) {
         val today = (state as? HomeUiState.Content)?.let { Instant.now().atZone(it.forecast.zone).toLocalDate() }
         val dateLine = today?.let { "${dayName(it, dayNames)}, ${fullDate(it, locale)}" }

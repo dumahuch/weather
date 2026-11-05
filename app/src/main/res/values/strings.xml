@@ -232,6 +232,11 @@
     <string name="settings_shadow_soft_hint">A light shadow: cards blend into the sky more gently.</string>
     <string name="settings_shadow_strong">Strong</string>
     <string name="settings_shadow_strong_hint">A stronger shadow and a light edge: cards stand out on a grey sky.</string>
+    <string name="settings_background">Background</string>
+    <string name="settings_background_neutral">Neutral</string>
+    <string name="settings_background_neutral_hint">Painted sky with clouds.</string>
+    <string name="settings_background_di">Di</string>
+    <string name="settings_background_di_hint">Layered paper mountains: the layers shift with the time of day and as you scroll.</string>
 
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">

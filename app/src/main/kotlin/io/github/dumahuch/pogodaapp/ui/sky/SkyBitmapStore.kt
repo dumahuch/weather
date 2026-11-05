@@ -17,6 +17,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
+/** Картины выбранного фона в памяти: какие времена суток загружены, загрузка, выгрузка. */
+internal interface SkyArtStore {
+    /** Последняя загрузка, которая что-то декодировала; пусто, пока картины ни разу не загружались. */
+    val lastLoad: SkyBitmapStore.LoadTiming?
+
+    fun has(scene: SkyScene): Boolean
+
+    /** Оставляет в памяти ровно [scenes] и догружает недостающие; пустой набор ничего не меняет. */
+    suspend fun ensure(scenes: Set<SkyScene>)
+
+    fun clear()
+}
+
 /** Картина и облака одного времени суток. */
 internal class SceneBitmaps(val plate: ImageBitmap, val clouds: ImageBitmap)
 
@@ -27,7 +40,7 @@ internal class SceneBitmaps(val plate: ImageBitmap, val clouds: ImageBitmap)
  * Состояние читается при рисовании, поэтому кадр обновляется, как только картина загрузилась.
  */
 @Stable
-internal class SkyBitmapStore(private val context: Context) {
+internal class SkyBitmapStore(private val context: Context) : SkyArtStore {
 
     /**
      * Сколько заняла последняя загрузка картин: сколько времён суток декодировано, через сколько миллисекунд готова
@@ -38,14 +51,15 @@ internal class SkyBitmapStore(private val context: Context) {
 
     private val loaded = mutableStateMapOf<SkyScene, SceneBitmaps>()
 
-    /** Последняя загрузка, которая что-то декодировала; пусто, пока картины ни разу не загружались. */
-    var lastLoad by mutableStateOf<LoadTiming?>(null)
+    final override var lastLoad by mutableStateOf<LoadTiming?>(null)
         private set
 
     fun get(scene: SkyScene): SceneBitmaps? = loaded[scene]
 
+    override fun has(scene: SkyScene): Boolean = loaded[scene] != null
+
     /** Выгружает все картины (например, когда приложение ушло с экрана). */
-    fun clear() {
+    override fun clear() {
         loaded.clear()
     }
 
@@ -53,7 +67,7 @@ internal class SkyBitmapStore(private val context: Context) {
      * Оставляет в памяти ровно [scenes] и догружает недостающие. Пустой набор ничего не меняет:
      * пока места нет, картины остаются, чтобы небо не мигало.
      */
-    suspend fun ensure(scenes: Set<SkyScene>) {
+    override suspend fun ensure(scenes: Set<SkyScene>) {
         if (scenes.isEmpty()) return
         require(scenes.size <= SkyState.MAX_SCENES) { "Нельзя держать больше ${SkyState.MAX_SCENES} времён суток" }
         for (scene in loaded.keys.toList()) {
