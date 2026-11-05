@@ -68,10 +68,12 @@ class DiArtTest {
     }
 
     @Test
-    fun stormSheetIsForGreySkiesOnly() {
+    fun stormSheetIsForDarkSkiesOnly() {
         assertFalse(DiArt.storm(SkyWeather.of(Condition.Clear)))
         assertFalse(DiArt.storm(SkyWeather.of(Condition.Partly)))
-        for (c in listOf(Condition.Cloudy, Condition.Rain, Condition.Storm, Condition.Snow, Condition.Fog)) {
+        assertFalse(DiArt.storm(SkyWeather.of(Condition.Snow)))
+        assertFalse(DiArt.storm(SkyWeather.of(Condition.Fog)))
+        for (c in listOf(Condition.Cloudy, Condition.Rain, Condition.Storm)) {
             assertTrue("$c", DiArt.storm(SkyWeather.of(c)))
         }
     }
