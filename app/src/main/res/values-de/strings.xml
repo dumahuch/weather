@@ -75,6 +75,8 @@
     <string name="precip_today_all_day">Niederschlag den ganzen Tag</string>
     <string name="precip_tomorrow_morning">Morgen früh</string>
     <string name="precip_today_none">Kein Niederschlag</string>
+    <string name="precip_short_all_day">Ganztägig</string>
+    <string name="precip_short_none">Keiner</string>
     <string name="outlook_until">%1$s bis %2$s</string>
     <string name="outlook_from">%1$s ab %2$s</string>
     <string name="outlook_all_day">%1$s den ganzen Tag</string>

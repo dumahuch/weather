@@ -9,17 +9,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
+import io.github.dumahuch.pogodaapp.sky.PlacedCloud
 import io.github.dumahuch.pogodaapp.sky.Placement
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkyScene
 import io.github.dumahuch.pogodaapp.sky.SkyState
+import io.github.dumahuch.pogodaapp.sky.SkyWeather
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -116,7 +123,7 @@ internal class DiBitmapStore(private val context: Context) : SkyArtStore {
 
 /**
  * Рисует фон «Ди» тем же порядком, что и расчёт цветов ([io.github.dumahuch.pogodaapp.sky.DiRaster]):
- * небо → облака (подкрашенные, с прозрачностью слоя) → погодная вуаль → пять гряд сзади вперёд, всё под обесцвечиванием непогоды;
+ * небо → облака (отдельные, число и размер по погоде: [CloudLayout]; подкрашенные) → погодная вуаль → пять гряд сзади вперёд, всё под обесцвечиванием непогоды;
  * затем затемнение и приглушение. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
  */
 internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
@@ -124,6 +131,9 @@ internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
     private val effects = SkyEffects()
     private var tintKey = -1
     private var tintFilter: ColorFilter? = null
+    private var cloudWeather: SkyWeather? = null
+    private var cloudStorm = false
+    private var cloudList: List<PlacedCloud> = emptyList()
 
     override fun draw(scope: DrawScope, look: SkyLook) {
         val loaded = look.weights.visible().filter { store.has(it) }
@@ -143,10 +153,50 @@ internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
                     drawPlaced(image, place, (weight / sum).toFloat())
                 }
                 if (layer == DiArt.Layer.Sky) {
-                    val sheet = if (DiArt.storm(look.weather)) clouds.storm else clouds.light
-                    drawPlaced(sheet, DiArt.placeClouds(w, h, look.cloudPosition), look.weather.cloudLayerAlpha.toFloat(), tint(look))
+                    drawClouds(look, clouds, w, h)
                     effects.drawVeil(this, look)
                 }
+            }
+        }
+    }
+
+    /**
+     * Облака погоды: каждое рисуется своим куском листа (отражённое по горизонтали при [PlacedCloud.mirrored]);
+     * те, что целиком за краем экрана, пропускаются. Раскладка пересчитывается только при смене погоды.
+     */
+    private fun DrawScope.drawClouds(look: SkyLook, clouds: DiClouds, w: Double, h: Double) {
+        val storm = DiArt.storm(look.weather)
+        if (look.weather != cloudWeather || storm != cloudStorm) {
+            cloudList = CloudLayout.of(look.weather, storm)
+            cloudWeather = look.weather
+            cloudStorm = storm
+        }
+        val sheet = if (storm) clouds.storm else clouds.light
+        val place = DiArt.placeClouds(w, h, look.cloudPosition)
+        val filter = tint(look)
+        for (cloud in cloudList) {
+            val left = place.left + cloud.left * place.scale
+            val top = place.top + cloud.top * place.scale
+            val width = cloud.width * place.scale
+            val height = cloud.height * place.scale
+            if (left + width < 0 || left > w || top + height < 0 || top > h) continue
+            val scale = (cloud.scale * place.scale).toFloat()
+            withTransform({
+                if (cloud.mirrored) {
+                    translate((left + width).toFloat(), top.toFloat())
+                    scale(-scale, scale, pivot = Offset.Zero)
+                } else {
+                    translate(left.toFloat(), top.toFloat())
+                    scale(scale, scale, pivot = Offset.Zero)
+                }
+            }) {
+                drawImage(
+                    sheet,
+                    srcOffset = IntOffset(cloud.rect.x, cloud.rect.y),
+                    srcSize = IntSize(cloud.rect.w, cloud.rect.h),
+                    alpha = cloud.alpha.toFloat(),
+                    colorFilter = filter,
+                )
             }
         }
     }

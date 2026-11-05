@@ -74,8 +74,8 @@ import kotlin.math.roundToInt
 import java.time.Instant
 import kotlin.math.PI
 
-/** Что нужно небу от экрана: где мы (для положения солнца) и какая сейчас погода. */
-internal data class SkyInput(val latitude: Double, val longitude: Double, val condition: Condition)
+/** Что нужно небу от экрана: где мы (для положения солнца), какая сейчас погода и сколько осадков в этот час (мм, если известно). */
+internal data class SkyInput(val latitude: Double, val longitude: Double, val condition: Condition, val precipitationMm: Double? = null)
 
 /** Небо показывается только когда есть прогноз; вид погоды берётся из первого часа ленты. */
 internal fun HomeUiState.skyInput(): SkyInput? {
@@ -84,6 +84,7 @@ internal fun HomeUiState.skyInput(): SkyInput? {
         latitude = content.place.latitude,
         longitude = content.place.longitude,
         condition = content.strip.firstOrNull()?.condition ?: content.forecast.current.condition,
+        precipitationMm = content.strip.firstOrNull()?.precipitationMm,
     )
 }
 
@@ -395,7 +396,8 @@ private suspend fun captureSnapshot(
 private fun buildSky(input: SkyInput, override: SkyOverride, now: Instant): SkyState {
     val sun = override.solarHour?.let { SunPosition.atSolarHour(input.latitude, now, it) }
         ?: SunPosition.at(input.latitude, input.longitude, now)
-    return SkyState.of(sun, override.condition ?: input.condition)
+    // Подставленная на экране проверки погода идёт без осадков: берётся средняя сила.
+    return SkyState.of(sun, override.condition ?: input.condition, if (override.condition == null) input.precipitationMm else null)
 }
 
 private fun painterFor(store: SkyArtStore): SkyArtPainter = when (store) {

@@ -5,8 +5,10 @@
   design/sky/di/clouds/cloud_light_NN.webp, cloud_storm_NN.webp  отдельные облака с прозрачностью
 
 Что делает:
-  1) Раскладывает облака на два листа 2048×768 (светлые и грозовые) по постоянной раскладке
-     и пишет app/src/main/assets/sky/di/clouds_light.webp и clouds_storm.webp (WebP q90).
+  1) Укладывает облака на два листа 2048×768 (светлые и грозовые) рядами без перекрытий, с зазором GAP,
+     и пишет app/src/main/assets/sky/di/clouds_light.webp и clouds_storm.webp (WebP q90) и список
+     прямоугольников облаков app/src/main/kotlin/.../sky/CloudSprites.kt: приложение рисует отдельные облака
+     по любому числу и в любом месте, поэтому на листе они не должны задевать друг друга.
   2) Пишет app/src/main/assets/sky/di/maps.bin: уменьшенные копии всех слоёв (блоки 16×16) и листов облаков.
      По ним приложение считает цвет текста и плотность стекла, не читая кадр.
 
@@ -18,7 +20,6 @@
 
 Запуск из корня репозитория: python3 design/sky/di/tools/make_di.py (нужны pillow и numpy).
 """
-import random
 import struct
 import sys
 from pathlib import Path
@@ -49,34 +50,69 @@ def shrink(img: Image.Image) -> np.ndarray:
     return np.clip(np.rint(blocks), 0, 255).astype(np.uint8)
 
 
-def sheet(kind: str, count: int, scale: float, rows: list[float], seed: int) -> Image.Image:
-    """Облака по кругу листа слева направо, по рядам [rows] (доля высоты листа), с постоянным случайным разбросом."""
-    rng = random.Random(seed)
-    canvas = Image.new("RGBA", (SHEET_W, SHEET_H), (0, 0, 0, 0))
+GAP = 32
+SPRITES_KT = ROOT / "app" / "src" / "main" / "kotlin" / "io" / "github" / "dumahuch" / "pogodaapp" / "sky" / "CloudSprites.kt"
+
+
+def sheet(kind: str, count: int, scale: float) -> tuple[Image.Image, list[tuple[int, int, int, int]]]:
+    """Облака рядами сверху вниз, самые высокие первыми; зазор [GAP] между соседями.
+
+    Возвращает лист и прямоугольники (x, y, ширина, высота) в порядке имён файлов (cloud_{kind}_01, 02, …)."""
     files = sorted(CLOUDS.glob(f"cloud_{kind}_*.webp"))
     if len(files) != count:
         sys.exit(f"облаков {kind}: ожидалось {count}, найдено {len(files)}")
-    order = files[:]
-    rng.shuffle(order)
-    step = SHEET_W / len(order)
-    for i, f in enumerate(order):
-        cloud = Image.open(f).convert("RGBA")
-        k = scale * rng.uniform(0.85, 1.1)
-        cloud = cloud.resize((round(cloud.width * k), round(cloud.height * k)), Image.LANCZOS)
-        cx = step * (i + 0.5) + rng.uniform(-0.2, 0.2) * step
-        cy = rows[i % len(rows)] * SHEET_H + rng.uniform(-0.04, 0.04) * SHEET_H
-        x = round(cx - cloud.width / 2)
-        y = round(min(max(cy - cloud.height / 2, 0), SHEET_H - cloud.height))
-        x = min(max(x, 0), SHEET_W - cloud.width)
-        canvas.alpha_composite(cloud, (x, y))
-    return canvas
+    clouds = []
+    for f in files:
+        c = Image.open(f).convert("RGBA")
+        clouds.append(c.resize((round(c.width * scale), round(c.height * scale)), Image.LANCZOS))
+    rects: list[tuple[int, int, int, int] | None] = [None] * count
+    canvas = Image.new("RGBA", (SHEET_W, SHEET_H), (0, 0, 0, 0))
+    x = y = GAP
+    row_height = 0
+    for i in sorted(range(count), key=lambda i: -clouds[i].height):
+        c = clouds[i]
+        if x + c.width + GAP > SHEET_W:
+            x = GAP
+            y += row_height + GAP
+            row_height = 0
+        if y + c.height + GAP > SHEET_H:
+            sys.exit(f"облака {kind} не помещаются на лист {SHEET_W}×{SHEET_H}")
+        canvas.alpha_composite(c, (x, y))
+        rects[i] = (x, y, c.width, c.height)
+        x += c.width + GAP
+        row_height = max(row_height, c.height)
+    return canvas, [r for r in rects if r is not None]
+
+
+def write_sprites(rects: dict[str, list[tuple[int, int, int, int]]]) -> None:
+    lines = [
+        "package io.github.dumahuch.pogodaapp.sky",
+        "",
+        "// Создан design/sky/di/tools/make_di.py вместе с листами облаков: руками не править.",
+        "",
+        "/** Где на листах облаков фона «Ди» лежит каждое облако (пиксели листа 2048×768), порядок как у файлов в design/sky/di/clouds. */",
+        "internal object CloudSprites {",
+        "    class Rect(val x: Int, val y: Int, val w: Int, val h: Int)",
+        "",
+    ]
+    for name, items in rects.items():
+        lines.append(f"    val {name} = listOf(")
+        for x, y, w, h in items:
+            lines.append(f"        Rect({x}, {y}, {w}, {h}),")
+        lines.append("    )")
+        lines.append("")
+    lines[-1] = "}"
+    SPRITES_KT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"{SPRITES_KT.relative_to(ROOT)}: {sum(len(v) for v in rects.values())} облаков")
 
 
 def main() -> None:
-    sheets = {
-        "light": sheet("light", 8, 0.62, [0.18, 0.55, 0.32, 0.72], seed=7),
-        "storm": sheet("storm", 6, 0.95, [0.25, 0.6, 0.4], seed=11),
+    packed = {
+        "light": sheet("light", 8, 0.9),
+        "storm": sheet("storm", 6, 0.95),
     }
+    sheets = {name: img for name, (img, _) in packed.items()}
+    write_sprites({name: rects for name, (_, rects) in packed.items()})
     for name, img in sheets.items():
         out = ASSETS / f"clouds_{name}.webp"
         img.save(out, "WEBP", quality=90, method=6, exact=False)

@@ -70,9 +70,10 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
         val pan = DiArt.pan(w)
         val places = DiArt.Layer.entries.map { DiArt.place(it, sw, sh, pan, look.lift) }
         val cloudPlace = DiArt.placeClouds(sw, sh, look.cloudPosition)
-        val cloudMap = maps.clouds(DiArt.storm(look.weather))
+        val storm = DiArt.storm(look.weather)
+        val cloudMap = maps.clouds(storm)
+        val clouds = CloudLayout.of(look.weather, storm)
         val tint = DiArt.tint(w)
-        val cloudAlpha = look.weather.cloudLayerAlpha
         val veilStrength = look.veilStrength
         // Размер карты в пикселях холста: слой 1024 / 64 = 16.
         val layerK = maps.layerW / DiArt.CANVAS_W
@@ -94,14 +95,20 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                     val a = layerColor[3] / 255.0
                     r = layerColor[0] + (1 - a) * r; g = layerColor[1] + (1 - a) * g; b = layerColor[2] + (1 - a) * b
                     if (layer == DiArt.Layer.Sky) {
-                        RasterKit.bilinearOrClear(
-                            cloudMap, maps.sheetW, maps.sheetH,
-                            (sx - cloudPlace.left) / cloudPlace.scale * sheetK, (sy - cloudPlace.top) / cloudPlace.scale * sheetK, tmp,
-                        )
-                        val ca = cloudAlpha * tmp[3] / 255.0
-                        r = cloudAlpha * tmp[0] * tint.r / 255.0 + (1 - ca) * r
-                        g = cloudAlpha * tmp[1] * tint.g / 255.0 + (1 - ca) * g
-                        b = cloudAlpha * tmp[2] * tint.b / 255.0 + (1 - ca) * b
+                        // Точка в пикселях листа облаков; облака дальние первыми, как при рисовании.
+                        val u = (sx - cloudPlace.left) / cloudPlace.scale
+                        val v = (sy - cloudPlace.top) / cloudPlace.scale
+                        for (cloud in clouds) {
+                            val lx = (u - cloud.left) / cloud.scale
+                            val ly = (v - cloud.top) / cloud.scale
+                            if (lx < 0 || ly < 0 || lx >= cloud.rect.w || ly >= cloud.rect.h) continue
+                            val ix = if (cloud.mirrored) cloud.rect.w - lx else lx
+                            RasterKit.bilinearOrClear(cloudMap, maps.sheetW, maps.sheetH, (cloud.rect.x + ix) * sheetK, (cloud.rect.y + ly) * sheetK, tmp)
+                            val ca = cloud.alpha * tmp[3] / 255.0
+                            r = cloud.alpha * tmp[0] * tint.r / 255.0 + (1 - ca) * r
+                            g = cloud.alpha * tmp[1] * tint.g / 255.0 + (1 - ca) * g
+                            b = cloud.alpha * tmp[2] * tint.b / 255.0 + (1 - ca) * b
+                        }
                         if (veilStrength > 0.01) {
                             r = lerp(r, rowVeil.r, veilStrength); g = lerp(g, rowVeil.g, veilStrength); b = lerp(b, rowVeil.b, veilStrength)
                         }
