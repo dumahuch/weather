@@ -77,6 +77,8 @@
     <string name="precip_today_all_day">Осадки весь день</string>
     <string name="precip_tomorrow_morning">Завтра утром</string>
     <string name="precip_today_none">Без осадков</string>
+    <string name="precip_short_all_day">Весь день</string>
+    <string name="precip_short_none">Нет</string>
     <string name="outlook_until">%1$s до %2$s</string>
     <string name="outlook_from">%1$s с %2$s</string>
     <string name="outlook_all_day">%1$s весь день</string>
