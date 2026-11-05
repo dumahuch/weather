@@ -73,6 +73,7 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Condition
 import java.time.Instant
 import kotlin.math.roundToInt
+import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 
 /**
  * Действия экрана: что делать по нажатиям кнопок и по протягиванию вниз. [onOpenPlaces] открывает список мест (плашка
@@ -120,6 +121,9 @@ fun HomeScreen(
         onRefresh = actions.onRefresh,
     )
     val layout = remember { HomeLayout() }
+    val scroll = rememberScrollState()
+    // Прокрутка и протягивание вниз двигают гряды фона «Ди».
+    ReportSkyScroll(scroll) { pull.offset }
     Box(modifier.fillMaxSize()) {
         BoxWithConstraints(
             Modifier
@@ -131,7 +135,7 @@ fun HomeScreen(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scroll)
                     .heightIn(min = maxHeight)
                     .onSizeChanged { layout.column = it.height },
             ) {

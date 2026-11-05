@@ -230,6 +230,11 @@
     <string name="settings_shadow_soft_hint">Лёгкая тень: карточки мягче вписываются в небо.</string>
     <string name="settings_shadow_strong">Выраженная</string>
     <string name="settings_shadow_strong_hint">Тень сильнее и светлая кромка: карточки заметнее на сером небе.</string>
+    <string name="settings_background">Фон</string>
+    <string name="settings_background_neutral">Нейтральный</string>
+    <string name="settings_background_neutral_hint">Нарисованное небо с облаками.</string>
+    <string name="settings_background_di">Ди</string>
+    <string name="settings_background_di_hint">Бумажные горы слоями: слои сдвигаются по времени суток и при прокрутке.</string>
 
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">

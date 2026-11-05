@@ -228,6 +228,11 @@
     <string name="settings_shadow_soft_hint">Leichter Schatten: Die Karten fügen sich sanfter in den Himmel ein.</string>
     <string name="settings_shadow_strong">Kräftig</string>
     <string name="settings_shadow_strong_hint">Stärkerer Schatten und heller Rand: Die Karten heben sich auch vor grauem Himmel ab.</string>
+    <string name="settings_background">Hintergrund</string>
+    <string name="settings_background_neutral">Neutral</string>
+    <string name="settings_background_neutral_hint">Gemalter Himmel mit Wolken.</string>
+    <string name="settings_background_di">Di</string>
+    <string name="settings_background_di_hint">Berge aus Papier in Schichten: Die Schichten verschieben sich mit der Tageszeit und beim Scrollen.</string>
 
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">

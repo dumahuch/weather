@@ -18,7 +18,8 @@ internal class SkyState(
     /** Куда смотрит кадр на картине (0 слева, 1 справа). */
     val pan: Double get() = weights.pan
 
-    fun look(cloudPosition: Double) = SkyLook(weights, weather, veil, cloudPosition)
+    /** Что видно в кадре при облаках в положении [cloudPosition] и подъёме гряд «Ди» [lift] (доля высоты экрана). */
+    fun look(cloudPosition: Double, lift: Double = 0.0) = SkyLook(weights, weather, veil, cloudPosition, lift)
 
     companion object {
         /** Сколько времён суток держим в памяти и рисуем одновременно. */

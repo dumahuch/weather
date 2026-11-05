@@ -16,6 +16,7 @@ import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.places.PlaceChoice
 import io.github.dumahuch.pogodaapp.places.PlacesLogic
 import io.github.dumahuch.pogodaapp.settings.CardShadow
+import io.github.dumahuch.pogodaapp.settings.SkyBackground
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
 import io.github.dumahuch.pogodaapp.ui.details.DetailsScreen
@@ -60,6 +61,8 @@ fun PogodaApp(
     onVersionTap: () -> Unit,
     cardShadow: CardShadow,
     onCardShadow: (CardShadow) -> Unit,
+    background: SkyBackground,
+    onBackground: (SkyBackground) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(AppTab.Home) }
@@ -138,6 +141,8 @@ fun PogodaApp(
         SettingsScreen(
             cardShadow = cardShadow,
             onCardShadow = onCardShadow,
+            background = background,
+            onBackground = onBackground,
             onClose = { settingsOpen = false },
             modifier = modifier,
         )

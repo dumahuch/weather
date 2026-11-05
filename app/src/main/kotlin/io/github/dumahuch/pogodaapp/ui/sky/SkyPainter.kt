@@ -15,44 +15,33 @@ import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkySampler
 import io.github.dumahuch.pogodaapp.sky.SkyScene
 
+/** Рисует небо выбранного фона (без подложки под цифрами, её рисует [SkyEffects.drawScrim]). */
+internal interface SkyArtPainter {
+    fun draw(scope: DrawScope, look: SkyLook)
+}
+
 /**
- * Рисует небо в том же порядке слоёв, что и макет (и расчёт цветов в пакете sky):
+ * Фон «Нейтральный». Рисует небо в том же порядке слоёв, что и макет (и расчёт цветов в пакете sky):
  * картины со своими долями → погодная вуаль → облака → обесцвечивание → затемнение → приглушение света облаков.
  * Доли картин «каскадом»: каждая следующая ложится с прозрачностью вес / сумма весов до неё, это взвешенное среднее.
  * Объект хранит кисти и не создаёт новых на каждом кадре.
  */
-internal class SkyPainter {
+internal class SkyPainter(private val store: SkyBitmapStore) : SkyArtPainter {
 
-    private val grayPaint = Paint()
+    private val effects = SkyEffects()
     private val cloudPaint = Paint()
-    private var filterAmount = -1.0
-    private var filter: ColorFilter? = null
 
-    fun draw(scope: DrawScope, look: SkyLook, store: SkyBitmapStore) {
+    override fun draw(scope: DrawScope, look: SkyLook) {
         val loaded = look.weights.visible().filter { store.get(it) != null }
         if (loaded.isEmpty()) return
-        scope.drawLayers(look, loaded, store)
-    }
-
-    private fun DrawScope.drawLayers(look: SkyLook, loaded: List<SkyScene>, store: SkyBitmapStore) {
-        val canvas = drawContext.canvas
-        val bounds = Rect(0f, 0f, size.width, size.height)
-        val gray = look.grayAmount
-        val desaturate = gray > MIN_EFFECT
-        if (desaturate) {
-            grayPaint.colorFilter = grayFilter(gray)
-            canvas.saveLayer(bounds, grayPaint)
+        effects.withWeather(scope, look) {
+            drawPlates(look, loaded)
+            effects.drawVeil(this, look)
+            drawClouds(look, loaded)
         }
-        drawPlates(look, loaded, store)
-        drawVeil(look)
-        drawClouds(look, loaded, store)
-        if (desaturate) canvas.restore()
-        if (look.weather.dark > MIN_EFFECT) drawRect(DARK_COLOR, alpha = look.darkAlpha.toFloat())
-        val dim = look.nightDim
-        if (dim > MIN_EFFECT) drawRect(NIGHT_COLOR, alpha = dim.toFloat())
     }
 
-    private fun DrawScope.drawPlates(look: SkyLook, loaded: List<SkyScene>, store: SkyBitmapStore) {
+    private fun DrawScope.drawPlates(look: SkyLook, loaded: List<SkyScene>) {
         var sum = 0.0
         for (scene in loaded) {
             val image = store.get(scene)?.plate ?: continue
@@ -64,21 +53,7 @@ internal class SkyPainter {
         }
     }
 
-    private fun DrawScope.drawVeil(look: SkyLook) {
-        val strength = look.veilStrength
-        if (strength <= MIN_EFFECT) return
-        val veil = look.veil
-        val brush = Brush.verticalGradient(
-            0f to veil.top.toColor(),
-            VEIL_MIDDLE to veil.mid.toColor(),
-            1f to veil.hor.toColor(),
-            startY = 0f,
-            endY = size.height,
-        )
-        drawRect(brush, alpha = strength.toFloat())
-    }
-
-    private fun DrawScope.drawClouds(look: SkyLook, loaded: List<SkyScene>, store: SkyBitmapStore) {
+    private fun DrawScope.drawClouds(look: SkyLook, loaded: List<SkyScene>) {
         val alpha = look.weather.cloudLayerAlpha.toFloat()
         if (loaded.size == 1) {
             val image = store.get(loaded[0])?.clouds ?: return
@@ -105,15 +80,56 @@ internal class SkyPainter {
         val top = size.height - image.height * scale
         drawScaled(image, shift, top, scale, alpha)
     }
+}
 
-    /** Рисует картину целиком: сначала масштаб, потом сдвиг. Сдвиг дробный, поэтому облака плывут плавно. */
-    private fun DrawScope.drawScaled(image: ImageBitmap, left: Float, top: Float, scale: Float, alpha: Float) {
-        withTransform({
-            translate(left, top)
-            scale(scale, scale, pivot = Offset.Zero)
-        }) {
-            drawImage(image, alpha = alpha)
+/** Рисует картину целиком: сначала масштаб, потом сдвиг. Сдвиг дробный, поэтому слои плывут плавно. */
+internal fun DrawScope.drawScaled(image: ImageBitmap, left: Float, top: Float, scale: Float, alpha: Float, filter: ColorFilter? = null) {
+    withTransform({
+        translate(left, top)
+        scale(scale, scale, pivot = Offset.Zero)
+    }) {
+        drawImage(image, alpha = alpha, colorFilter = filter)
+    }
+}
+
+/**
+ * Погода поверх картин, общая для обоих фонов: обесцвечивание (цветовой матрицей на слое), погодная вуаль,
+ * затемнение грозы и приглушение света ночью. Хранит кисть и фильтр, на каждом кадре новых не создаёт.
+ */
+internal class SkyEffects {
+
+    private val grayPaint = Paint()
+    private var filterAmount = -1.0
+    private var filter: ColorFilter? = null
+
+    /** Рисует [body] (картины, вуаль, облака) с обесцвечиванием непогоды, затем затемнение и приглушение. */
+    fun withWeather(scope: DrawScope, look: SkyLook, body: DrawScope.() -> Unit) = with(scope) {
+        val canvas = drawContext.canvas
+        val gray = look.grayAmount
+        val desaturate = gray > MIN_EFFECT
+        if (desaturate) {
+            grayPaint.colorFilter = grayFilter(gray)
+            canvas.saveLayer(Rect(0f, 0f, size.width, size.height), grayPaint)
         }
+        body()
+        if (desaturate) canvas.restore()
+        if (look.weather.dark > MIN_EFFECT) drawRect(DARK_COLOR, alpha = look.darkAlpha.toFloat())
+        val dim = look.nightDim
+        if (dim > MIN_EFFECT) drawRect(NIGHT_COLOR, alpha = dim.toFloat())
+    }
+
+    fun drawVeil(scope: DrawScope, look: SkyLook) {
+        val strength = look.veilStrength
+        if (strength <= MIN_EFFECT) return
+        val veil = look.veil
+        val brush = Brush.verticalGradient(
+            0f to veil.top.toColor(),
+            SkySampler.VEIL_MID.toFloat() to veil.mid.toColor(),
+            1f to veil.hor.toColor(),
+            startY = 0f,
+            endY = scope.size.height,
+        )
+        scope.drawRect(brush, alpha = strength.toFloat())
     }
 
     /** Фильтр, который тянет цвет к серому с яркостью 0,30 R + 0,59 G + 0,11 B (как в расчёте цветов интерфейса). */
@@ -138,29 +154,28 @@ internal class SkyPainter {
         return created
     }
 
-    /**
-     * Подложки на небе: под большими цифрами ([scrim], координаты как в макете, 96…440 из 892) и под строками под
-     * температурой ([infoScrim], около 300…575 dp). Форма и правило «берётся наибольшая плотность» в [ScrimShape].
-     * Градиент идёт на весь экран, а не на отдельном прямоугольнике: у прямоугольника был край в середине экрана,
-     * и на эмуляторе по этому краю проходила линия в 1 пиксель. Все цвета градиента одного оттенка (меняется только прозрачность),
-     * как у CSS-градиента в макете, поэтому тёмной каймы «прозрачный чёрный» нет.
-     */
-    fun drawScrim(scope: DrawScope, scrim: Color, infoScrim: Color) {
-        if (scrim.alpha <= 0f && infoScrim.alpha <= 0f) return
-        val base = if (scrim.alpha > 0f) scrim else infoScrim
-        val stops = ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble())
-        val brush = Brush.verticalGradient(
-            *Array(stops.size) { stops[it].first to base.copy(alpha = stops[it].second) },
-            startY = 0f,
-            endY = scope.size.height,
-        )
-        scope.drawRect(brush)
-    }
+    companion object {
+        private const val MIN_EFFECT = 0.01
+        private val DARK_COLOR = Color(10, 16, 32)
+        private val NIGHT_COLOR = Color(8, 12, 26)
 
-    private companion object {
-        const val MIN_EFFECT = 0.01
-        const val VEIL_MIDDLE = 0.55f
-        val DARK_COLOR = Color(10, 16, 32)
-        val NIGHT_COLOR = Color(8, 12, 26)
+        /**
+         * Подложки на небе: под большими цифрами ([scrim], координаты как в макете, 96…440 из 892) и под строками под
+         * температурой ([infoScrim], около 300…575 dp). Форма и правило «берётся наибольшая плотность» в [ScrimShape].
+         * Градиент идёт на весь экран, а не на отдельном прямоугольнике: у прямоугольника был край в середине экрана,
+         * и на эмуляторе по этому краю проходила линия в 1 пиксель. Все цвета градиента одного оттенка (меняется только прозрачность),
+         * как у CSS-градиента в макете, поэтому тёмной каймы «прозрачный чёрный» нет.
+         */
+        fun drawScrim(scope: DrawScope, scrim: Color, infoScrim: Color) {
+            if (scrim.alpha <= 0f && infoScrim.alpha <= 0f) return
+            val base = if (scrim.alpha > 0f) scrim else infoScrim
+            val stops = ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble())
+            val brush = Brush.verticalGradient(
+                *Array(stops.size) { stops[it].first to base.copy(alpha = stops[it].second) },
+                startY = 0f,
+                endY = scope.size.height,
+            )
+            scope.drawRect(brush)
+        }
     }
 }
