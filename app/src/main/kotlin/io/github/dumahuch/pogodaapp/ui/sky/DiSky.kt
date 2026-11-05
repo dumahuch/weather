@@ -116,7 +116,7 @@ internal class DiBitmapStore(private val context: Context) : SkyArtStore {
 
 /**
  * Рисует фон «Ди» тем же порядком, что и расчёт цветов ([io.github.dumahuch.pogodaapp.sky.DiRaster]):
- * небо → погодная вуаль → облака (подкрашенные, с прозрачностью слоя) → пять гряд сзади вперёд, всё под обесцвечиванием непогоды;
+ * небо → облака (подкрашенные, с прозрачностью слоя) → погодная вуаль → пять гряд сзади вперёд, всё под обесцвечиванием непогоды;
  * затем затемнение и приглушение. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
  */
 internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
@@ -143,9 +143,9 @@ internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
                     drawPlaced(image, place, (weight / sum).toFloat())
                 }
                 if (layer == DiArt.Layer.Sky) {
-                    effects.drawVeil(this, look)
                     val sheet = if (DiArt.storm(look.weather)) clouds.storm else clouds.light
                     drawPlaced(sheet, DiArt.placeClouds(w, h, look.cloudPosition), look.weather.cloudLayerAlpha.toFloat(), tint(look))
+                    effects.drawVeil(this, look)
                 }
             }
         }

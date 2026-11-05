@@ -49,7 +49,9 @@ internal class DiMaps private constructor(
 
 /**
  * Кадр фона «Ди» тем же порядком, что рисует экран ([io.github.dumahuch.pogodaapp.ui.sky.DiPainter]):
- * небо → погодная вуаль → облака (подкрашенные, с прозрачностью слоя) → пять гряд сзади вперёд → серость → затемнение → приглушение.
+ * небо → облака (подкрашенные, с прозрачностью слоя) → погодная вуаль → пять гряд сзади вперёд → серость → затемнение → приглушение.
+ * Вуаль ложится поверх облаков (у «Нейтрального» под ними): тёмные тучи на светлой вуали под цифрами давали пёстрый фон
+ * (контраст цифр 2,7 : 1 утром в пасмурно), дымка поверх выравнивает небо; гряды остаются чёткими.
  * Каждый слой смешивается между двумя временами суток по долям (композиция гряд у всех сцен одна).
  */
 internal class DiRaster(private val maps: DiMaps) : SkyRaster {
@@ -92,9 +94,6 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                     val a = layerColor[3] / 255.0
                     r = layerColor[0] + (1 - a) * r; g = layerColor[1] + (1 - a) * g; b = layerColor[2] + (1 - a) * b
                     if (layer == DiArt.Layer.Sky) {
-                        if (veilStrength > 0.01) {
-                            r = lerp(r, rowVeil.r, veilStrength); g = lerp(g, rowVeil.g, veilStrength); b = lerp(b, rowVeil.b, veilStrength)
-                        }
                         RasterKit.bilinearOrClear(
                             cloudMap, maps.sheetW, maps.sheetH,
                             (sx - cloudPlace.left) / cloudPlace.scale * sheetK, (sy - cloudPlace.top) / cloudPlace.scale * sheetK, tmp,
@@ -103,6 +102,9 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                         r = cloudAlpha * tmp[0] * tint.r / 255.0 + (1 - ca) * r
                         g = cloudAlpha * tmp[1] * tint.g / 255.0 + (1 - ca) * g
                         b = cloudAlpha * tmp[2] * tint.b / 255.0 + (1 - ca) * b
+                        if (veilStrength > 0.01) {
+                            r = lerp(r, rowVeil.r, veilStrength); g = lerp(g, rowVeil.g, veilStrength); b = lerp(b, rowVeil.b, veilStrength)
+                        }
                     }
                 }
                 rgb[0] = r; rgb[1] = g; rgb[2] = b
