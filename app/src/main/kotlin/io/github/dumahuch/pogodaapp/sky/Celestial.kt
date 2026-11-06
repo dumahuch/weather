@@ -2,6 +2,7 @@ package io.github.dumahuch.pogodaapp.sky
 
 import java.time.Instant
 import kotlin.math.hypot
+import kotlin.math.pow
 import kotlin.math.sqrt
 
 /** Луна в данный момент: где на небе места, какая фаза, северное или южное полушарие (от него зависит, какая сторона освещена). */
@@ -43,14 +44,24 @@ internal object Celestial {
     private const val MOON_FADE_START = 1.0
     private const val MOON_FADE_END = -5.0
 
+    /** Луна чуть приглушена: полная и яркая под большими цифрами не давала им читаться (step-25). */
+    const val MOON_MAX_ALPHA = 0.8
+
     /** Положение по горизонтали: 6 часов от юга сдвигают тело на [X_SPREAD] ширины экрана, дальше не больше [X_LIMIT] шагов. */
     private const val X_SPREAD = 0.32
     private const val X_LIMIT = 1.2
     private const val HOURS_PER_STEP = 6.0
 
-    /** Слоистый «Ди»: горизонт на гряде far (середина 782 из 1536, взято 790), 9,5 пикселей холста на градус, выше 62° не поднимается. */
+    /**
+     * Слоистый «Ди»: горизонт на гряде far (середина 782 из 1536, взято 790). Ниже горизонта 9,5 пикселей холста на градус
+     * (диск быстро уходит за гряды), выше растёт по степени [DI_CURVE]: у горизонта быстрее, к [DI_FULL_ELEVATION] медленнее,
+     * там диск стоит на высоте [DI_TOP_Y] (step-25: прежняя прямая ставила зимнее солнце слишком низко, на середину экрана).
+     */
     private const val DI_HORIZON_Y = 790.0
     private const val DI_PIXELS_PER_DEGREE = 9.5
+    private const val DI_TOP_Y = 100.0
+    private const val DI_FULL_ELEVATION = 40.0
+    private const val DI_CURVE = 0.7
     private const val ELEVATION_CAP = 62.0
 
     /** «Нейтральный»: горизонт у нижнего края (0,97 высоты), 62° на 0,12 высоты. */
@@ -73,6 +84,15 @@ internal object Celestial {
     fun moonSky(latitude: Double, longitude: Double, time: Instant) =
         MoonSky(Moon.positionAt(time, latitude, longitude), Moon.phaseAt(time), latitude < 0)
 
+    /**
+     * Момент, когда на долготе [longitude] в сутки [day] солнечный час [solarHour]: экран проверки ставит солнце на любой час,
+     * и луна должна стоять там же, где в этот час (уравнение времени, до 16 минут, не учитывается).
+     */
+    fun instantAtSolarHour(longitude: Double, day: Instant, solarHour: Double): Instant {
+        val noonUtc = Math.floorDiv(day.epochSecond, 86_400L) * 86_400L + 43_200L
+        return Instant.ofEpochSecond(noonUtc + Math.round((solarHour - 12.0 - longitude / 15.0) * 3600.0))
+    }
+
     /** Тела на небе: солнце над горизонтом и (ночью и в сумерках) луна. Список пуст, если видеть нечего. */
     fun bodies(sun: SunPosition.Sun, moon: MoonSky?): List<SkyBody> {
         val result = ArrayList<SkyBody>(2)
@@ -80,7 +100,7 @@ internal object Celestial {
             result += SkyBody("sun", false, sun.elevation, hourAngle(sun.solarHour), 1.0, 1.0, true)
         }
         if (moon != null && moon.position.elevation > MOON_HIDDEN_BELOW) {
-            val alpha = clamp01((MOON_FADE_START - sun.elevation) / (MOON_FADE_START - MOON_FADE_END))
+            val alpha = MOON_MAX_ALPHA * clamp01((MOON_FADE_START - sun.elevation) / (MOON_FADE_START - MOON_FADE_END))
             val image = moonImage(moon.phase.name)
             if (alpha > 0 && image != null) {
                 // Растущая на картинке освещена справа, убывающая слева; на юге всё наоборот (картинку отражаем).
@@ -115,7 +135,7 @@ internal object Celestial {
             val elevation = body.elevation.coerceAtMost(ELEVATION_CAP)
             val cx = width * (0.5 + X_SPREAD * (body.hourAngleHours / HOURS_PER_STEP).coerceIn(-X_LIMIT, X_LIMIT))
             val cy = when (frame) {
-                Frame.Di -> (DI_HORIZON_Y - elevation * DI_PIXELS_PER_DEGREE) * skyScale
+                Frame.Di -> diCanvasY(elevation) * skyScale
                 Frame.Neutral -> height * (NEUTRAL_HORIZON - elevation * (NEUTRAL_HORIZON - NEUTRAL_TOP) / ELEVATION_CAP)
             }
             val diameter = width * if (body.moon) MOON_DIAMETER else SUN_DIAMETER
@@ -123,6 +143,14 @@ internal object Celestial {
             Disc(body, cx, cy, diameter / 2, diameter / fraction)
         }
     }
+
+    /** Высота диска «Ди» на холсте 1536 пикселей по высоте над горизонтом в градусах. */
+    private fun diCanvasY(elevation: Double): Double =
+        if (elevation <= 0) {
+            DI_HORIZON_Y - elevation * DI_PIXELS_PER_DEGREE
+        } else {
+            DI_HORIZON_Y - (DI_HORIZON_Y - DI_TOP_Y) * (elevation / DI_FULL_ELEVATION).coerceAtMost(1.0).pow(DI_CURVE)
+        }
 
     /**
      * Кладёт диски поверх цвета [rgb] в точке (x, y) экрана для расчёта цветов интерфейса: освещённая часть диска

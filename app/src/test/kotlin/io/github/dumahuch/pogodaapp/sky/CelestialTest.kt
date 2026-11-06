@@ -32,8 +32,8 @@ class CelestialTest {
         val full = moonSky(30.0, 0.0, 0.5)
         assertTrue("днём луны нет", Celestial.bodies(sun(26.0, 12.0), full).none { it.moon })
         val dusk = Celestial.bodies(sun(-2.0, 17.3), full).single { it.moon }
-        assertTrue("в сумерках луна проступает", dusk.alpha > 0 && dusk.alpha < 1)
-        assertEquals(1.0, Celestial.bodies(sun(-30.0, 22.0), full).single { it.moon }.alpha, 1e-9)
+        assertTrue("в сумерках луна проступает", dusk.alpha > 0 && dusk.alpha < Celestial.MOON_MAX_ALPHA)
+        assertEquals(Celestial.MOON_MAX_ALPHA, Celestial.bodies(sun(-30.0, 22.0), full).single { it.moon }.alpha, 1e-9)
     }
 
     @Test
@@ -64,6 +64,28 @@ class CelestialTest {
             val low = disc(frame, Celestial.bodies(sun(10.0, 14.0), null).single())
             val high = disc(frame, Celestial.bodies(sun(50.0, 12.0), null).single())
             assertTrue("$frame: выше над горизонтом значит выше на экране", high.cy < low.cy)
+        }
+    }
+
+    @Test
+    fun winterSunInDiStandsInTheUpperPartOfTheScreen() {
+        // Декабрьский полдень в Ганновере 14°, ноябрьский 21°: выше 35 % высоты экрана, но не выше верхней границы.
+        for (elevation in listOf(14.0, 21.0, 61.0)) {
+            val d = disc(Celestial.Frame.Di, SkyBody("sun", false, elevation, 0.0, 1.0, 1.0, true))
+            assertTrue("$elevation°: центр на ${d.cy} из $height", d.cy < 0.35 * height && d.cy - d.radius > 0)
+        }
+        val low = disc(Celestial.Frame.Di, SkyBody("sun", false, 3.0, 0.0, 1.0, 1.0, true))
+        val high = disc(Celestial.Frame.Di, SkyBody("sun", false, 30.0, 0.0, 1.0, 1.0, true))
+        assertTrue("выше над горизонтом всё равно выше", high.cy < low.cy)
+    }
+
+    @Test
+    fun solarHourInstantGivesThatSolarHour() {
+        val day = Instant.parse("2026-11-06T09:30:00Z")
+        for (hour in listOf(2.0, 12.0, 21.5)) {
+            val sun = SunPosition.at(52.37, 9.73, Celestial.instantAtSolarHour(9.73, day, hour))
+            val diff = Math.abs(sun.solarHour - hour).let { minOf(it, 24 - it) }
+            assertTrue("час $hour: получилось ${sun.solarHour}", diff < 0.5)
         }
     }
 
