@@ -35,13 +35,29 @@ enum class SkyBackground(val key: String) {
     }
 }
 
+/**
+ * Значки погоды на «Главной» (решения Димы 31.10 и 06.11.2026): «Стеклянные» (по умолчанию) это матовое стекло с цветными
+ * каплями, молнией и снежинками, «Контурные» это линия цветом текста с цветными каплями, молнией и снегом. Меняет только
+ * значок рядом с температурой на «Главной».
+ */
+enum class WeatherIconStyle(val key: String) {
+    Glass("glass"),
+    Outline("outline"),
+    ;
+
+    companion object {
+        /** По умолчанию «Стеклянные»; незнакомое или пустое сохранённое значение тоже даёт их. */
+        fun fromKey(key: String?): WeatherIconStyle = entries.firstOrNull { it.key == key } ?: Glass
+    }
+}
+
 /** Где лежат настройки: ключи и значения строками, чтобы логику можно было проверить без Android. */
 interface SettingsStorage {
     fun read(name: String): String?
     fun write(name: String, value: String)
 }
 
-/** Настройки приложения: «Тень карточек» и «Фон». Выбор запоминается и переживает перезапуск. */
+/** Настройки приложения: «Тень карточек», «Фон» и «Значки погоды». Выбор запоминается и переживает перезапуск. */
 class AppSettings(private val storage: SettingsStorage) {
     private val mutableCardShadow = MutableStateFlow(CardShadow.fromKey(storage.read(CARD_SHADOW)))
 
@@ -63,9 +79,20 @@ class AppSettings(private val storage: SettingsStorage) {
         storage.write(BACKGROUND, value.key)
     }
 
+    private val mutableIconStyle = MutableStateFlow(WeatherIconStyle.fromKey(storage.read(ICON_STYLE)))
+
+    val iconStyle: StateFlow<WeatherIconStyle> = mutableIconStyle.asStateFlow()
+
+    fun setIconStyle(value: WeatherIconStyle) {
+        if (mutableIconStyle.value == value) return
+        mutableIconStyle.value = value
+        storage.write(ICON_STYLE, value.key)
+    }
+
     internal companion object {
         const val CARD_SHADOW = "card_shadow"
         const val BACKGROUND = "sky_background"
+        const val ICON_STYLE = "weather_icon_style"
     }
 }
 
