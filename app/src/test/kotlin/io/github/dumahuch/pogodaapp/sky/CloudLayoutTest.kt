@@ -172,6 +172,18 @@ class CloudLayoutTest {
     }
 
     @Test
+    fun darkAndLightCloudsAreMixedEvenlyAlongTheSheet() {
+        // Тёмные облака не кучкуются: при смеси (85 %) среди соседних слева направо нет серии из четырёх одного цвета.
+        val flags = cloudsAt(85.0).sortedBy { it.cx }.map { it.storm }
+        var run = 1
+        for (i in 1 until flags.size) {
+            run = if (flags[i] == flags[i - 1]) run + 1 else 1
+            assertTrue("серия одного цвета длиннее трёх: $flags", run <= 3)
+        }
+        assertTrue("есть и тёмные, и светлые: $flags", flags.contains(true) && flags.contains(false))
+    }
+
+    @Test
     fun topRowOfCloudsReachesTheTopOfTheScreen() {
         // Лист облаков начинается у верха экрана (2 %): верхние облака должны подходить к его краю, а не висеть ниже пустой полосой.
         for (condition in listOf(Condition.Partly, Condition.Cloudy, Condition.Rain)) {
