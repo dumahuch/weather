@@ -26,8 +26,8 @@ internal class SkyState(
         const val MAX_SCENES = 2
 
         /** [precipitationMm] осадки текущего часа (если известны): от них зависит густота облаков дождя и снега. */
-        fun of(sun: SunPosition.Sun, condition: Condition, precipitationMm: Double? = null): SkyState {
-            val weather = SkyWeather.of(condition, precipitationMm)
+        fun of(sun: SunPosition.Sun, condition: Condition, precipitationMm: Double? = null, cloudCoverPercent: Double? = null): SkyState {
+            val weather = SkyWeather.of(condition, precipitationMm, cloudCoverPercent)
             val weights = SkyTimeOfDay.weights(sun.elevation, sun.solarHour).strongest(MAX_SCENES)
             val veil = SkyColors.veil(sun.elevation, SkyTimeOfDay.evening(sun.solarHour), weather)
             return SkyState(sun, weights, weather, veil)

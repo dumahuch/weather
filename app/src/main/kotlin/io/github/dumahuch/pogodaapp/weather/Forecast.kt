@@ -5,18 +5,22 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/** Погода в данный момент (модель Open-Meteo, шаг 15 минут). */
+/**
+ * Погода в данный момент (модель Open-Meteo, шаг 15 минут).
+ * [cloudCover] закрытая облаками часть неба в процентах; пусто у сохранённого прогноза версий до 0.6.4.
+ */
 data class CurrentWeather(
     val time: Instant,
     val temperature: Double,
     val feelsLike: Double,
     val condition: Condition,
     val isDay: Boolean,
+    val cloudCover: Int? = null,
 )
 
 /**
  * Один час ленты. Температура и вид погоды относятся к началу часа,
- * осадки (мм) к часу, который начинается в это время.
+ * осадки (мм) к часу, который начинается в это время. [cloudCover] облачность в процентах (пусто, если модель её не дала).
  */
 data class HourPoint(
     val time: Instant,
@@ -24,6 +28,7 @@ data class HourPoint(
     val condition: Condition,
     val isDay: Boolean,
     val precipitationMm: Double,
+    val cloudCover: Int? = null,
 )
 
 /** Наибольшая и наименьшая температура сегодняшних суток по местному времени. */
@@ -96,7 +101,12 @@ data class Forecast(
         val first = slice.firstOrNull() ?: return slice
         val currentHour = current.time.atZone(zone).truncatedTo(ChronoUnit.HOURS).toInstant()
         if (first.time != currentHour) return slice
-        val head = first.copy(temperature = current.temperature, condition = current.condition, isDay = current.isDay)
+        val head = first.copy(
+            temperature = current.temperature,
+            condition = current.condition,
+            isDay = current.isDay,
+            cloudCover = current.cloudCover ?: first.cloudCover,
+        )
         return listOf(head) + slice.drop(1)
     }
 

@@ -52,6 +52,7 @@ object OpenMeteoParser {
         feelsLike = current.getDouble("apparent_temperature"),
         condition = WeatherCodes.toCondition(current.getInt("weather_code")),
         isDay = current.getInt("is_day") == 1,
+        cloudCover = if (current.isNull("cloud_cover")) null else Math.round(current.getDouble("cloud_cover")).toInt().coerceIn(0, 100),
     )
 
     private fun parseToday(daily: JSONObject) = DayRange(
@@ -110,6 +111,7 @@ object OpenMeteoParser {
         val codes = hourly.getJSONArray("weather_code")
         val isDay = hourly.getJSONArray("is_day")
         val precipitation = hourly.getJSONArray("precipitation")
+        val cloudCover = hourly.optJSONArray("cloud_cover")
         val count = times.length()
         if (count < 2) throw ForecastException("В ответе слишком мало часов: $count")
         if (listOf(temperatures, codes, isDay, precipitation).any { it.length() < count }) {
@@ -122,6 +124,7 @@ object OpenMeteoParser {
                 condition = WeatherCodes.toCondition(codes.getInt(i)),
                 isDay = isDay.getInt(i) == 1,
                 precipitationMm = precipitation.optNumber(i + 1),
+                cloudCover = cloudCover.numberAt(i)?.let { Math.round(it).toInt().coerceIn(0, 100) },
             )
         }
     }

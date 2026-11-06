@@ -7,8 +7,9 @@ import io.github.dumahuch.pogodaapp.weather.Condition
  * [cloud] сколько неба закрыто облаками (0…1), [gray] насколько небо уходит в ровный серый,
  * [dark] насколько затемнено (гроза темнее всего), [fog] густота тумана (для цвета неба),
  * [wind] условная скорость ветра в км/ч: от неё зависит скорость дрейфа облаков,
- * [density] насколько густо лежат облака фона «Ди»: от почти чистого неба (0) до сплошной гряды (1), по ней [CloudLayout] выбирает число и размер облаков.
- * Настоящую облачность и ветер из прогноза подключим вместе с погодой на фоне.
+ * [density] насколько густо лежат облака фона «Ди»: от почти чистого неба (0) до сплошной гряды (1), по ней [CloudLayout] выбирает число и размер облаков,
+ * [darkShare] какая доля облаков «Ди» берётся с тёмного (грозового) листа: 0 все светлые, 1 все тёмные.
+ * Настоящий процент облачности из прогноза подключён (см. [of]); ветер пока условный.
  */
 internal data class SkyWeather(
     val cloud: Double,
@@ -17,13 +18,17 @@ internal data class SkyWeather(
     val fog: Double,
     val wind: Double,
     val density: Double = 0.5,
+    val darkShare: Double = if (dark >= 0.1) 1.0 else 0.0,
 ) {
     companion object {
         /**
          * Небо для вида погоды [condition]. [precipitationMm] осадки текущего часа (мм): у дождя и снега от них зависит
          * густота облаков (морось против ливня); без них берётся средняя сила.
+         * [cloudCoverPercent] облачность из прогноза: у ясного, переменного и пасмурного неба облака плавно следуют ей,
+         * а не трём ступеням кода погоды (код 2 это 50–80 % неба, код 3 от 80 %). Остальные виды погоды определяет код.
          */
-        fun of(condition: Condition, precipitationMm: Double? = null): SkyWeather {
+        fun of(condition: Condition, precipitationMm: Double? = null, cloudCoverPercent: Double? = null): SkyWeather {
+            if (cloudCoverPercent != null && condition in COVER_CONDITIONS) return byCover(cloudCoverPercent / 100.0)
             val strength = precipitationMm?.let { smooth(MIN_PRECIPITATION_MM, HEAVY_PRECIPITATION_MM, it) } ?: 0.5
             return when (condition) {
                 Condition.Clear -> SkyWeather(cloud = 0.14, gray = 0.0, dark = 0.0, fog = 0.0, wind = 8.0, density = 0.0)
@@ -34,6 +39,40 @@ internal data class SkyWeather(
                 Condition.Snow -> SkyWeather(cloud = 0.95, gray = 0.70, dark = 0.06, fog = 0.15, wind = 14.0, density = 0.62 + 0.28 * strength)
                 Condition.Fog -> SkyWeather(cloud = 0.30, gray = 0.55, dark = 0.0, fog = 0.9, wind = 4.0, density = 0.10)
             }
+        }
+
+        /** Виды погоды без осадков, у которых облака считаются по проценту облачности. */
+        private val COVER_CONDITIONS = setOf(Condition.Clear, Condition.Partly, Condition.Cloudy)
+
+        /**
+         * Небо при облачности [cover] (доля неба 0…1) без осадков. Точки подобраны так, чтобы около 65 % давали
+         * густоту выше прежнего «малооблачно» (0,22), а от 80 % небо было не реже прежнего «облачно» (0,62);
+         * тёмные облака появляются после 60 % и к сплошной облачности занимают весь небосвод.
+         */
+        private fun byCover(cover: Double): SkyWeather {
+            val c = cover.coerceIn(0.0, 1.0)
+            return SkyWeather(
+                cloud = curve(c, 0.0 to 0.10, 0.2 to 0.20, 0.5 to 0.42, 0.8 to 0.88, 1.0 to 0.97),
+                gray = curve(c, 0.0 to 0.0, 0.5 to 0.12, 0.8 to 0.55, 1.0 to 0.66),
+                dark = curve(c, 0.0 to 0.0, 0.5 to 0.03, 0.8 to 0.10, 1.0 to 0.14),
+                fog = 0.0,
+                wind = 8.0 + 8.0 * c,
+                density = curve(c, 0.0 to 0.0, 0.2 to 0.08, 0.5 to 0.30, 0.8 to 0.58, 1.0 to 0.72),
+                darkShare = curve(c, 0.0 to 0.0, 0.6 to 0.0, 0.85 to 0.45, 1.0 to 1.0),
+            )
+        }
+
+        /** Значение ломаной по точкам [points] (x по возрастанию) в [x]. */
+        private fun curve(x: Double, vararg points: Pair<Double, Double>): Double {
+            if (x <= points.first().first) return points.first().second
+            for (i in 1 until points.size) {
+                val (x1, y1) = points[i]
+                if (x <= x1) {
+                    val (x0, y0) = points[i - 1]
+                    return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+                }
+            }
+            return points.last().second
         }
 
         /** Осадки часа (мм), с которых считается морось, и при которых дождь или снег уже сильные (плотность облаков больше не растёт). */

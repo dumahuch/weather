@@ -53,12 +53,6 @@ internal object DiArt {
     const val CLOUD_HEIGHT = 0.52
     const val CLOUD_TOP = 0.02
 
-    /**
-     * С какого затемнения облака берутся с грозового листа: пасмурно, дождь, гроза. Снег и туман остаются со светлыми:
-     * снеговые тучи светлые, а тёмные облака на светлой снежной вуали под цифрами давали пёстрый фон (контраст 2,7 : 1).
-     */
-    private const val STORM_DARK = 0.1
-
     /** Имя файла слоя без расширения: имена набора («day», «twilight»), а не «Нейтрального». */
     fun file(scene: SkyScene, layer: Layer): String = "${prefix(scene)}_${layer.file}"
 
@@ -95,9 +89,6 @@ internal object DiArt {
         val room = SHEET_W * scale - width
         return Placement(left = -clamp01(position) * room, top = CLOUD_TOP * height, scale = scale)
     }
-
-    /** Грозовой лист облаков или светлый. */
-    fun storm(weather: SkyWeather): Boolean = weather.dark >= STORM_DARK
 
     /** Подкраска светлых бумажных облаков под время суток (умножается на цвет облака). */
     fun tint(scene: SkyScene): Rgb = when (scene) {

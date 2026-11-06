@@ -70,9 +70,7 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
         val pan = DiArt.pan(w)
         val places = DiArt.Layer.entries.map { DiArt.place(it, sw, sh, pan, look.lift) }
         val cloudPlace = DiArt.placeClouds(sw, sh, look.cloudPosition)
-        val storm = DiArt.storm(look.weather)
-        val cloudMap = maps.clouds(storm)
-        val clouds = CloudLayout.of(look.weather, storm)
+        val clouds = CloudLayout.of(look.weather)
         val tint = DiArt.tint(w)
         val veilStrength = look.veilStrength
         // Размер карты в пикселях холста: слой 1024 / 64 = 16.
@@ -103,7 +101,7 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                             val ly = (v - cloud.top) / cloud.scale
                             if (lx < 0 || ly < 0 || lx >= cloud.rect.w || ly >= cloud.rect.h) continue
                             val ix = if (cloud.mirrored) cloud.rect.w - lx else lx
-                            RasterKit.bilinearOrClear(cloudMap, maps.sheetW, maps.sheetH, (cloud.rect.x + ix) * sheetK, (cloud.rect.y + ly) * sheetK, tmp)
+                            RasterKit.bilinearOrClear(maps.clouds(cloud.storm), maps.sheetW, maps.sheetH, (cloud.rect.x + ix) * sheetK, (cloud.rect.y + ly) * sheetK, tmp)
                             val ca = cloud.alpha * tmp[3] / 255.0
                             r = cloud.alpha * tmp[0] * tint.r / 255.0 + (1 - ca) * r
                             g = cloud.alpha * tmp[1] * tint.g / 255.0 + (1 - ca) * g

@@ -57,9 +57,9 @@ class OpenMeteoClientTest {
         val url = OpenMeteoClient().buildUrl(52.3651, 9.7449)
         assertTrue(url, url.startsWith("https://api.open-meteo.com/v1/forecast?latitude=52.37&longitude=9.74"))
         for (part in listOf(
-            "current=temperature_2m,apparent_temperature,weather_code,is_day",
+            "current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover",
             "hourly=temperature_2m,weather_code,precipitation,is_day,relative_humidity_2m,pressure_msl,visibility," +
-                "wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index",
+                "wind_speed_10m,wind_direction_10m,wind_gusts_10m,uv_index,cloud_cover",
             "daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max," +
                 "wind_speed_10m_max,wind_gusts_10m_max,uv_index_max,sunrise,sunset",
             "wind_speed_unit=kmh",

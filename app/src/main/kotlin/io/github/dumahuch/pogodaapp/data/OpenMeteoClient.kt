@@ -27,8 +27,8 @@ class OpenMeteoClient(
         val lat = String.format(Locale.ROOT, "%.2f", latitude)
         val lon = String.format(Locale.ROOT, "%.2f", longitude)
         return "$baseUrl?latitude=$lat&longitude=$lon" +
-            "&current=temperature_2m,apparent_temperature,weather_code,is_day" +
-            "&hourly=temperature_2m,weather_code,precipitation,is_day,$HOURLY_DETAIL_FIELDS" +
+            "&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover" +
+            "&hourly=temperature_2m,weather_code,precipitation,is_day,$HOURLY_DETAIL_FIELDS,cloud_cover" +
             "&daily=$DAILY_FIELDS" +
             "&wind_speed_unit=kmh" +
             "&timezone=auto&timeformat=unixtime&forecast_days=$DAYS_REQUESTED"

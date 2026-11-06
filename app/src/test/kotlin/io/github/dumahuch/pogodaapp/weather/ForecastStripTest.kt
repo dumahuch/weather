@@ -74,6 +74,21 @@ class ForecastStripTest {
     }
 
     @Test
+    fun firstStripPointTakesCloudCoverFromCurrent() {
+        val zone = ZoneId.of("UTC")
+        val first = at("2026-10-28T06:00:00Z")
+        val hours = (0 until 3).map { i -> HourPoint(first.plusSeconds(i * 3600L), 10.0, Condition.Cloudy, true, 0.0, cloudCover = 40 + i) }
+        val current = CurrentWeather(at("2026-10-28T06:10:00Z"), 11.0, 10.0, Condition.Cloudy, true, cloudCover = 95)
+        val withCover = Forecast(zone, current, DayRange(12.0, 8.0), hours)
+        val now = at("2026-10-28T06:20:00Z")
+        assertEquals(95, withCover.strip(now).first().cloudCover)
+        assertEquals(41, withCover.strip(now)[1].cloudCover)
+        // Сохранённый прогноз без облачности в current: первая точка оставляет облачность часа.
+        val oldCurrent = withCover.copy(current = current.copy(cloudCover = null))
+        assertEquals(40, oldCurrent.strip(now).first().cloudCover)
+    }
+
+    @Test
     fun emptyHoursGiveEmptyStrip() {
         val forecast = hannover().copy(hours = emptyList())
         assertTrue(forecast.strip(at("2026-10-28T11:20:00Z")).isEmpty())
