@@ -80,6 +80,39 @@ class CelestialTest {
     }
 
     @Test
+    fun schematicHeightDoesNotDependOnTheSeason() {
+        // Полдень в декабре (14°) и июне (61°) стоит на одной высоте, как и восход и середина утра.
+        fun cy(elevation: Double, peak: Double) = disc(Celestial.Frame.Di, Celestial.bodies(sun(elevation, 12.0), null, peak).single()).cy
+        assertEquals(cy(14.2, 14.2), cy(61.0, 61.0), 1e-6)
+        assertEquals(cy(7.1, 14.2), cy(30.5, 61.0), 1e-6)
+        assertTrue("полдень выше середины утра", cy(14.2, 14.2) < cy(7.1, 14.2))
+        // На горизонте диск у гряд, ниже горизонта высота настоящая.
+        val horizon = disc(Celestial.Frame.Di, Celestial.bodies(sun(0.0, 6.0), null, 61.0).single())
+        assertEquals(790.0 * DiArt.place(DiArt.Layer.Sky, width, height, 0.5, 0.0).scale, horizon.cy, 1e-6)
+    }
+
+    @Test
+    fun moonPeakIsTheHighestPointOfTheDayAroundTheMoment() {
+        val time = Instant.parse("2026-11-17T18:00:00Z")
+        val moon = Celestial.moonSky(52.37, 9.73, time)
+        assertTrue("полная дуга луны не ниже порога и не выше зенита: ${moon.peak}", moon.peak in 10.0..90.0)
+        assertTrue("высота сейчас не больше наибольшей", moon.position.elevation <= moon.peak + 1e-9)
+    }
+
+    @Test
+    fun testMoonShowsAnyPhaseAtAnyTimeOfDay() {
+        for ((cycle, file) in listOf(0.125 to "moon_crescent_waxing", 0.25 to "moon_quarter_waxing", 0.375 to "moon_gibbous_waxing", 0.5 to "moon_full",
+            0.625 to "moon_gibbous_waning", 0.75 to "moon_quarter_waning", 0.875 to "moon_crescent_waning")) {
+            val bodies = Celestial.bodies(sun(26.0, 12.0), Celestial.testMoon(52.37, cycle))
+            val moon = bodies.single { it.moon }
+            assertEquals(file, moon.file)
+            assertEquals(Celestial.MOON_MAX_ALPHA, moon.alpha, 1e-9)
+        }
+        val inSky = disc(Celestial.Frame.Di, Celestial.bodies(sun(-30.0, 22.0), Celestial.testMoon(52.37, 0.5)).single())
+        assertTrue("луна проверки на экране", inSky.cx in 0.0..width && inSky.cy in 0.0..height / 2)
+    }
+
+    @Test
     fun solarHourInstantGivesThatSolarHour() {
         val day = Instant.parse("2026-11-06T09:30:00Z")
         for (hour in listOf(2.0, 12.0, 21.5)) {

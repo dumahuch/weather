@@ -85,6 +85,18 @@ private val Weathers = listOf(
     Condition.Fog to R.string.check_wx_fog,
 )
 
+/** Луна на экране проверки: пусто это настоящая луна, число это доля лунного месяца (луна показывается всегда). */
+private val Moons = listOf<Pair<Double?, Int>>(
+    null to R.string.check_moon_real,
+    0.125 to R.string.check_moon_waxing_crescent,
+    0.25 to R.string.check_moon_first_quarter,
+    0.375 to R.string.check_moon_waxing_gibbous,
+    0.5 to R.string.check_moon_full,
+    0.625 to R.string.check_moon_waning_gibbous,
+    0.75 to R.string.check_moon_last_quarter,
+    0.875 to R.string.check_moon_waning_crescent,
+)
+
 private fun Double.format(digits: Int): String = String.format(Russian, "%.${digits}f", this)
 
 private fun clockText(solarHour: Double): String {
@@ -252,6 +264,15 @@ private fun ExpandedPanel(
                 text = stringResource(label),
                 selected = override.condition == condition,
                 onClick = { onOverride(override.copy(condition = condition)) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Caption(stringResource(R.string.check_moon_title))
+        ButtonGrid(columns = 2, items = Moons) { (cycle, label) ->
+            CheckButton(
+                text = stringResource(label),
+                selected = override.moonCycle == cycle,
+                onClick = { onOverride(override.copy(moonCycle = cycle)) },
                 modifier = Modifier.weight(1f),
             )
         }
