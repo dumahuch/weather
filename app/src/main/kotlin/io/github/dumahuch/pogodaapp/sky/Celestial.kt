@@ -5,8 +5,22 @@ import kotlin.math.hypot
 import kotlin.math.pow
 import kotlin.math.sqrt
 
-/** Луна в данный момент: где на небе места, какая фаза, северное или южное полушарие (от него зависит, какая сторона освещена). */
-internal class MoonSky(val position: Moon.Position, val phase: Moon.Phase, val southern: Boolean)
+/**
+ * Луна в данный момент: где на небе места, какая фаза, северное или южное полушарие (от него зависит, какая сторона освещена),
+ * [peak] наибольшая высота луны за сутки вокруг этого момента (по ней высота рисуется схематично), [forced] показать луну всегда
+ * (для экрана проверки: посмотреть фазу и свечение в любое время).
+ */
+internal class MoonSky(
+    val position: Moon.Position,
+    val phase: Moon.Phase,
+    val southern: Boolean,
+    val peak: Double = DEFAULT_PEAK,
+    val forced: Boolean = false,
+) {
+    companion object {
+        const val DEFAULT_PEAK = 45.0
+    }
+}
 
 /**
  * Солнце или луна на небе (решение Димы 06.11.2026): положение берётся по настоящему положению тела над горизонтом
@@ -60,6 +74,13 @@ internal object Celestial {
     private const val DI_HORIZON_Y = 790.0
     private const val DI_PIXELS_PER_DEGREE = 9.5
     private const val DI_TOP_Y = 100.0
+
+    /** Схематичная высота самой высокой точки дня в «условных градусах» ([schematic]); меньше [MIN_PEAK] наибольшая высота не считается. */
+    private const val SCHEMATIC_NOON = 30.0
+    private const val MIN_PEAK = 10.0
+
+    /** Луна на экране проверки чуть левее середины: часовой угол в часах. */
+    private const val TEST_MOON_HOUR_ANGLE = -1.5
     private const val DI_FULL_ELEVATION = 40.0
     private const val DI_CURVE = 0.7
     private const val ELEVATION_CAP = 62.0
@@ -81,8 +102,19 @@ internal object Celestial {
     private val SUN_COLOR = Rgb(240.0, 155.0, 35.0)
     private val MOON_COLOR = Rgb(226.0, 230.0, 228.0)
 
-    fun moonSky(latitude: Double, longitude: Double, time: Instant) =
-        MoonSky(Moon.positionAt(time, latitude, longitude), Moon.phaseAt(time), latitude < 0)
+    fun moonSky(latitude: Double, longitude: Double, time: Instant): MoonSky {
+        // Наибольшая высота за сутки вокруг момента (шаг час): по ней схема ставит луну на дугу, как солнце.
+        val peak = (-12..12).maxOf { Moon.positionAt(time.plusSeconds(it * 3600L), latitude, longitude).elevation }
+        return MoonSky(Moon.positionAt(time, latitude, longitude), Moon.phaseAt(time), latitude < 0, peak.coerceAtLeast(MIN_PEAK))
+    }
+
+    /**
+     * Схема, а не настоящая высота (решение Димы 06.11): тело идёт по одной и той же дуге в любое время года. Настоящая высота
+     * над горизонтом [elevation] делится на наибольшую за сутки [peak], и результат переводится в «условные градусы» шкалы [diCanvasY]:
+     * у горизонта ноль, в самой высокой точке дня [SCHEMATIC_NOON]. Ниже горизонта высота настоящая (в градусах).
+     */
+    fun schematic(elevation: Double, peak: Double): Double =
+        if (elevation <= 0) elevation else SCHEMATIC_NOON * (elevation / peak.coerceAtLeast(MIN_PEAK)).coerceAtMost(1.0)
 
     /**
      * Момент, когда на долготе [longitude] в сутки [day] солнечный час [solarHour]: экран проверки ставит солнце на любой час,
@@ -93,19 +125,32 @@ internal object Celestial {
         return Instant.ofEpochSecond(noonUtc + Math.round((solarHour - 12.0 - longitude / 15.0) * 3600.0))
     }
 
-    /** Тела на небе: солнце над горизонтом и (ночью и в сумерках) луна. Список пуст, если видеть нечего. */
-    fun bodies(sun: SunPosition.Sun, moon: MoonSky?): List<SkyBody> {
+    /** Луна для экрана проверки: заданная фаза ([cycle], доля месяца), всегда видна, стоит в самой высокой точке дуги. */
+    fun testMoon(latitude: Double, cycle: Double): MoonSky = MoonSky(
+        Moon.Position(MoonSky.DEFAULT_PEAK, TEST_MOON_HOUR_ANGLE),
+        Moon.Phase((1 - kotlin.math.cos(2 * Math.PI * cycle)) / 2, cycle),
+        latitude < 0,
+        MoonSky.DEFAULT_PEAK,
+        forced = true,
+    )
+
+    /**
+     * Тела на небе: солнце над горизонтом и (ночью и в сумерках) луна. Список пуст, если видеть нечего.
+     * [sunPeak] высота солнца в полдень этого дня: по ней высота ставится схематично ([schematic]).
+     */
+    fun bodies(sun: SunPosition.Sun, moon: MoonSky?, sunPeak: Double = MoonSky.DEFAULT_PEAK): List<SkyBody> {
         val result = ArrayList<SkyBody>(2)
         if (sun.elevation > SUN_HIDDEN_BELOW) {
-            result += SkyBody("sun", false, sun.elevation, hourAngle(sun.solarHour), 1.0, 1.0, true)
+            result += SkyBody("sun", false, schematic(sun.elevation, sunPeak), hourAngle(sun.solarHour), 1.0, 1.0, true)
         }
-        if (moon != null && moon.position.elevation > MOON_HIDDEN_BELOW) {
-            val alpha = MOON_MAX_ALPHA * clamp01((MOON_FADE_START - sun.elevation) / (MOON_FADE_START - MOON_FADE_END))
+        if (moon != null && (moon.forced || moon.position.elevation > MOON_HIDDEN_BELOW)) {
+            val fade = if (moon.forced) 1.0 else clamp01((MOON_FADE_START - sun.elevation) / (MOON_FADE_START - MOON_FADE_END))
+            val alpha = MOON_MAX_ALPHA * fade
             val image = moonImage(moon.phase.name)
             if (alpha > 0 && image != null) {
                 // Растущая на картинке освещена справа, убывающая слева; на юге всё наоборот (картинку отражаем).
                 val lightOnRight = moon.phase.waxing != moon.southern
-                result += SkyBody(image.file, true, moon.position.elevation, moon.position.hourAngleHours, alpha, image.lit, lightOnRight, moon.southern)
+                result += SkyBody(image.file, true, schematic(moon.position.elevation, moon.peak), moon.position.hourAngleHours, alpha, image.lit, lightOnRight, moon.southern)
             }
         }
         return result

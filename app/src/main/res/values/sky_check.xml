@@ -26,6 +26,16 @@
     <string name="check_wx_snow" translatable="false">Снег</string>
     <string name="check_wx_fog" translatable="false">Туман</string>
 
+    <string name="check_moon_title" translatable="false">Луна</string>
+    <string name="check_moon_real" translatable="false">Как есть</string>
+    <string name="check_moon_waxing_crescent" translatable="false">Растущий серп</string>
+    <string name="check_moon_first_quarter" translatable="false">Первая четверть</string>
+    <string name="check_moon_waxing_gibbous" translatable="false">Растущая</string>
+    <string name="check_moon_full" translatable="false">Полная</string>
+    <string name="check_moon_waning_gibbous" translatable="false">Убывающая</string>
+    <string name="check_moon_last_quarter" translatable="false">Последняя четверть</string>
+    <string name="check_moon_waning_crescent" translatable="false">Убывающий серп</string>
+
     <string name="check_now" translatable="false">Сейчас</string>
 
     <string name="check_info_title" translatable="false">Что видно сейчас</string>

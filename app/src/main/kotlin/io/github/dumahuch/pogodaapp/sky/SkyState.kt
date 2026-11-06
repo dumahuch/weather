@@ -33,11 +33,12 @@ internal class SkyState(
             precipitationMm: Double? = null,
             cloudCoverPercent: Double? = null,
             moon: MoonSky? = null,
+            sunPeak: Double? = null,
         ): SkyState {
             val weather = SkyWeather.of(condition, precipitationMm, cloudCoverPercent)
             val weights = SkyTimeOfDay.weights(sun.elevation, sun.solarHour).strongest(MAX_SCENES)
             val veil = SkyColors.veil(sun.elevation, SkyTimeOfDay.evening(sun.solarHour), weather)
-            return SkyState(sun, weights, weather, veil, Celestial.bodies(sun, moon))
+            return SkyState(sun, weights, weather, veil, Celestial.bodies(sun, moon, sunPeak ?: MoonSky.DEFAULT_PEAK))
         }
 
         fun at(latitude: Double, longitude: Double, time: Instant, condition: Condition): SkyState =
