@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
+import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
 import io.github.dumahuch.pogodaapp.sky.PlacedCloud
@@ -123,10 +124,10 @@ internal class DiBitmapStore(private val context: Context) : SkyArtStore {
 
 /**
  * Рисует фон «Ди» тем же порядком, что и расчёт цветов ([io.github.dumahuch.pogodaapp.sky.DiRaster]):
- * небо → облака (отдельные, число и размер по погоде: [CloudLayout]; подкрашенные) → погодная вуаль → пять гряд сзади вперёд, всё под обесцвечиванием непогоды;
+ * небо → солнце и луна → облака (отдельные, число и размер по погоде: [CloudLayout]; подкрашенные) → погодная вуаль → пять гряд сзади вперёд, всё под обесцвечиванием непогоды;
  * затем затемнение и приглушение. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
  */
-internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
+internal class DiPainter(private val store: DiBitmapStore, private val celestial: CelestialBitmaps) : SkyArtPainter {
 
     private val effects = SkyEffects()
     private var tintKey = -1
@@ -152,6 +153,8 @@ internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
                     drawPlaced(image, place, (weight / sum).toFloat())
                 }
                 if (layer == DiArt.Layer.Sky) {
+                    // Солнце и луна лежат на небе: за облаками и (рисуются раньше) за грядами.
+                    drawCelestial(look, Celestial.Frame.Di, celestial)
                     drawClouds(look, clouds, w, h)
                     effects.drawVeil(this, look)
                 }

@@ -44,6 +44,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.settings.CardShadow
 import io.github.dumahuch.pogodaapp.settings.SkyBackground
+import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.DiArt
 import io.github.dumahuch.pogodaapp.sky.DiMaps
 import io.github.dumahuch.pogodaapp.sky.DiRaster
@@ -174,6 +175,8 @@ internal fun SkyHost(
         if (background == SkyBackground.Di) DiBitmapStore(appContext) else SkyBitmapStore(appContext)
     }
     DisposableEffect(store) { onDispose { store.clear() } }
+    val celestial = remember(appContext) { CelestialBitmaps(appContext) }
+    DisposableEffect(celestial) { onDispose { celestial.clear() } }
     val parallax = remember { SkyParallax() }
     var hostSize by remember { mutableStateOf(IntSize.Zero) }
     val animationsOn by rememberAnimationsEnabled()
@@ -196,6 +199,10 @@ internal fun SkyHost(
             store.clear()
         }
     }
+
+    // Солнце и луна: только нужные картинки (обычно одна или две).
+    val bodyFiles = remember(sky) { sky?.bodies?.map { it.file }?.toSet().orEmpty() }
+    LaunchedEffect(celestial, bodyFiles, started) { if (started) celestial.ensure(bodyFiles) }
 
     var phase by remember { mutableDoubleStateOf(SkyDrift.START_PHASE) }
     LaunchedEffect(animationsOn, started, sky?.weather) {
@@ -264,7 +271,7 @@ internal fun SkyHost(
 
     // Раз в две минуты, пока приложение на виду и небо настоящее, снимок неба уходит на диск для следующего запуска.
     val snapshotLayer = rememberGraphicsLayer()
-    val snapshotPainter by rememberUpdatedState(remember(store) { painterFor(store) })
+    val snapshotPainter by rememberUpdatedState(remember(store, celestial) { painterFor(store, celestial) })
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val latestSky by rememberUpdatedState(sky)
@@ -301,6 +308,7 @@ internal fun SkyHost(
             SkyBackground(
                 sky = sky,
                 store = store,
+                celestial = celestial,
                 lift = { height -> if (layered) DiArt.liftOf(parallax.scrollPx.toDouble(), height) else 0.0 },
                 snapshot = restored?.image,
                 snapshotAlpha = { snapshotAlpha },
@@ -320,6 +328,7 @@ internal fun SkyHost(
 private fun SkyBackground(
     sky: SkyState?,
     store: SkyArtStore,
+    celestial: CelestialBitmaps,
     lift: (heightPx: Double) -> Double,
     snapshot: ImageBitmap?,
     snapshotAlpha: () -> Float,
@@ -329,7 +338,7 @@ private fun SkyBackground(
     infoScrim: Color,
     modifier: Modifier = Modifier,
 ) {
-    val painter = remember(store) { painterFor(store) }
+    val painter = remember(store, celestial) { painterFor(store, celestial) }
     Box(modifier.background(PogodaColors.SkyBrush)) {
         if (snapshot != null) {
             Box(
@@ -410,12 +419,13 @@ private fun buildSky(input: SkyInput, override: SkyOverride, now: Instant): SkyS
         override.condition ?: input.condition,
         if (measured) input.precipitationMm else null,
         if (measured) input.cloudCoverPercent else null,
+        Celestial.moonSky(input.latitude, input.longitude, now),
     )
 }
 
-private fun painterFor(store: SkyArtStore): SkyArtPainter = when (store) {
-    is DiBitmapStore -> DiPainter(store)
-    is SkyBitmapStore -> SkyPainter(store)
+private fun painterFor(store: SkyArtStore, celestial: CelestialBitmaps): SkyArtPainter = when (store) {
+    is DiBitmapStore -> DiPainter(store, celestial)
+    is SkyBitmapStore -> SkyPainter(store, celestial)
     else -> error("Неизвестный фон")
 }
 

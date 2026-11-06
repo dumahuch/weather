@@ -14,6 +14,8 @@ internal class SkyLook(
     val cloudPosition: Double,
     /** Насколько слои «Ди» подняты прокруткой экрана (доля высоты экрана, [DiArt.liftOf]); «Нейтральный» его не замечает. */
     val lift: Double = 0.0,
+    /** Солнце и луна на небе ([Celestial.bodies]): между небом и облаками, за грядами. */
+    val bodies: List<SkyBody> = emptyList(),
 ) {
     /** Насколько погодная вуаль перекрывает небо (0…0,85). */
     val veilStrength: Double get() = clamp01(weather.gray * 0.8 + weather.fog * 0.3).coerceAtMost(0.85)

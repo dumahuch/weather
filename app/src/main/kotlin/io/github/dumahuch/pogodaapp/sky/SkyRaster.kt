@@ -99,6 +99,7 @@ internal class NeutralRaster(private val maps: SkyMaps) : SkyRaster {
         val cloudHeight = maps.height * cloudScale
         val cloudX0 = -look.cloudPosition * (cloudWidth - sceneW)
         val cloudY0 = sceneH - cloudHeight
+        val discs = Celestial.discs(look.bodies, Celestial.Frame.Neutral, sceneW, sceneH)
 
         for (py in 0 until gh) {
             val sy = (py + 0.5) / gh * sceneH
@@ -119,6 +120,12 @@ internal class NeutralRaster(private val maps: SkyMaps) : SkyRaster {
                     )
                     val k = weight / acc
                     r = lerp(r, tmp[0], k); g = lerp(g, tmp[1], k); b = lerp(b, tmp[2], k)
+                }
+                // 1б) солнце и луна лежат на небе под вуалью и облаками
+                if (discs.isNotEmpty()) {
+                    rgb[0] = r; rgb[1] = g; rgb[2] = b
+                    Celestial.blend(discs, sx, sy, rgb)
+                    r = rgb[0]; g = rgb[1]; b = rgb[2]
                 }
                 // 2) погодная вуаль
                 if (veilStrength > 0.01) {
