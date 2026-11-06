@@ -26,8 +26,23 @@ class DiReadabilityTest {
     private val phases = listOf(0.0, 1.6, 3.2, 4.7)
     private val lifts = listOf(-DiArt.MAX_LIFT, 0.0, DiArt.MAX_LIFT)
 
-    private fun palette(m: Moment, condition: Condition, phase: Double, lift: Double): SkyPalette {
-        val state = SkyState.of(SunPosition.Sun(m.elevation, m.solarHour), condition)
+    /** Небо для проверки: вид погоды без процента облачности (как прежде) или с ним (плавная облачность, смесь светлых и тёмных облаков). */
+    private class Sky(val name: String, val condition: Condition, val cloudCover: Double? = null) {
+        override fun toString() = name
+    }
+
+    private val skies = Condition.entries.map { Sky("$it", it) } +
+        listOf(0.0, 20.0, 35.0, 50.0, 65.0, 80.0, 90.0, 100.0).map { percent ->
+            val condition = when {
+                percent < 50 -> Condition.Clear
+                percent < 80 -> Condition.Partly
+                else -> Condition.Cloudy
+            }
+            Sky("облачность ${percent.toInt()} %", condition, percent)
+        }
+
+    private fun palette(m: Moment, sky: Sky, phase: Double, lift: Double): SkyPalette {
+        val state = SkyState.of(SunPosition.Sun(m.elevation, m.solarHour), sky.condition, null, sky.cloudCover)
         val q = SkyTheme.scores(sampler.backdrops(state.look(SkyDrift.position(state.pan, phase), lift)))
         val k = if (q.lightInk.score > q.darkInk.score) 1.0 else 0.0
         return SkyTheme.palette(q, k)
@@ -37,7 +52,7 @@ class DiReadabilityTest {
     fun textIsReadableEverywhere() {
         val worst = mutableMapOf("цифры" to (Double.MAX_VALUE to ""), "карточки" to (Double.MAX_VALUE to ""),
             "оповещения" to (Double.MAX_VALUE to ""), "кнопки" to (Double.MAX_VALUE to ""), "строки под температурой" to (Double.MAX_VALUE to ""))
-        for (m in moments) for (c in Condition.entries) for (phase in phases) for (lift in lifts) {
+        for (m in moments) for (c in skies) for (phase in phases) for (lift in lifts) {
             val p = palette(m, c, phase, lift)
             val name = "${m.name} / $c / облака $phase / подъём $lift"
             fun track(key: String, value: Double) { if (value < worst.getValue(key).first) worst[key] = value to name }
@@ -57,7 +72,7 @@ class DiReadabilityTest {
 
     @Test
     fun nightGetsLightTextAndStormIsDarkerThanClearSky() {
-        val night = palette(moments.first { it.name == "глубокая ночь" }, Condition.Clear, 0.0, 0.0)
+        val night = palette(moments.first { it.name == "глубокая ночь" }, Sky("ясно", Condition.Clear), 0.0, 0.0)
         assertTrue("ночью текст светлый", !night.darkInk)
         val noon = moments.first { it.name == "полдень" }
         val clear = sampler.backdrops(SkyState.of(SunPosition.Sun(noon.elevation, noon.solarHour), Condition.Clear).look(0.5)).card.mean

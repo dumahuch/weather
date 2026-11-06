@@ -2,7 +2,6 @@ package io.github.dumahuch.pogodaapp.sky
 
 import io.github.dumahuch.pogodaapp.weather.Condition
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -69,12 +68,11 @@ class DiArtTest {
 
     @Test
     fun stormSheetIsForDarkSkiesOnly() {
-        assertFalse(DiArt.storm(SkyWeather.of(Condition.Clear)))
-        assertFalse(DiArt.storm(SkyWeather.of(Condition.Partly)))
-        assertFalse(DiArt.storm(SkyWeather.of(Condition.Snow)))
-        assertFalse(DiArt.storm(SkyWeather.of(Condition.Fog)))
+        for (c in listOf(Condition.Clear, Condition.Partly, Condition.Snow, Condition.Fog)) {
+            assertEquals("$c", 0.0, SkyWeather.of(c).darkShare, 0.0)
+        }
         for (c in listOf(Condition.Cloudy, Condition.Rain, Condition.Storm)) {
-            assertTrue("$c", DiArt.storm(SkyWeather.of(c)))
+            assertEquals("$c", 1.0, SkyWeather.of(c).darkShare, 0.0)
         }
     }
 

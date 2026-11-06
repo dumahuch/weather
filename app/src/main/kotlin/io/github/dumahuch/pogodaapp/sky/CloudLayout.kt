@@ -6,8 +6,10 @@ import kotlin.math.roundToInt
 /**
  * Одно облако фона «Ди» на листе облаков: какое ([rect] на листе), где лежит его центр ([cx], [cy], пиксели листа),
  * во сколько раз растянуто ([scale]), насколько непрозрачно ([alpha]) и отражено ли по горизонтали ([mirrored]).
+ * [storm] облако лежит на тёмном (грозовом) листе, иначе на светлом.
  */
 internal class PlacedCloud(
+    val storm: Boolean,
     val rect: CloudSprites.Rect,
     val cx: Double,
     val cy: Double,
@@ -36,8 +38,11 @@ internal object CloudLayout {
     private const val BASE_COUNT = 3
     private const val EXTRA_COUNT = 22
 
-    /** Центры облаков по высоте листа: от дальнего ряда (вверху, мельче) до ближнего (внизу, крупнее). */
-    private const val ROW_TOP = 150.0
+    /**
+     * Центры облаков по высоте листа: от дальнего ряда (вверху, мельче) до ближнего (внизу, крупнее).
+     * Лист начинается у самого верха экрана (2 %), так что верхние облака заходят за край и пустой полосы над ними нет.
+     */
+    private const val ROW_TOP = 30.0
     private const val ROW_BOTTOM = 600.0
 
     private const val GOLDEN = 0.6180339887498949
@@ -50,9 +55,11 @@ internal object CloudLayout {
     /** Непрозрачность облаков при густоте [density]: редкие облака чуть прозрачнее, плотная гряда полностью непрозрачна. */
     fun alpha(density: Double): Double = 0.85 + 0.15 * clamp01(density)
 
-    /** Облака для погоды [weather] на светлом или грозовом листе, дальние первыми (рисуются раньше). */
-    fun of(weather: SkyWeather, storm: Boolean): List<PlacedCloud> {
-        val sprites = if (storm) CloudSprites.storm else CloudSprites.light
+    /**
+     * Облака для погоды [weather], дальние первыми (рисуются раньше). Каждое облако лежит на светлом или грозовом листе:
+     * на грозовом столько, сколько задаёт [SkyWeather.darkShare], какие именно, решает постоянное число облака.
+     */
+    fun of(weather: SkyWeather): List<PlacedCloud> {
         val n = count(weather)
         val size = size(weather.density)
         val alpha = alpha(weather.density)
@@ -62,7 +69,10 @@ internal object CloudLayout {
             // Ряд (0 дальний, 1 ближний) по золотому сечению: соседние по горизонтали облака лежат на разной высоте.
             val row = fract(i * GOLDEN + 0.13)
             val depth = 0.8 + 0.4 * row
+            val storm = unit(i, 5) < weather.darkShare
+            val sprites = if (storm) CloudSprites.storm else CloudSprites.light
             clouds += PlacedCloud(
+                storm = storm,
                 rect = sprites[(i * 5) % sprites.size],
                 cx = DiArt.SHEET_W * along,
                 cy = ROW_TOP + (ROW_BOTTOM - ROW_TOP) * row + (unit(i, 2) - 0.5) * 40.0,

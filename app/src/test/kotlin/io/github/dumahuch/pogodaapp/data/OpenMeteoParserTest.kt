@@ -41,6 +41,19 @@ class OpenMeteoParserTest {
     }
 
     @Test
+    fun cloudCoverIsReadFromCurrentAndHourlyAndMissingStaysEmpty() {
+        val json = small()
+            .replace("\"is_day\":1},", "\"is_day\":1,\"cloud_cover\":72},")
+            .replace("\"precipitation\":[9.0,0.4,0.0,2.5]", "\"precipitation\":[9.0,0.4,0.0,2.5],\"cloud_cover\":[100,55.4,null,0]")
+        val with = OpenMeteoParser.parse(json)
+        assertEquals(72, with.current.cloudCover)
+        assertEquals(listOf<Int?>(100, 55, null), with.hours.map { it.cloudCover })
+        val without = OpenMeteoParser.parse(small())
+        assertEquals(null, without.current.cloudCover)
+        assertTrue(without.hours.all { it.cloudCover == null })
+    }
+
+    @Test
     fun hannoverTodayRange() {
         val forecast = OpenMeteoParser.parse(fixture("hannover.json"))
         assertEquals(13.5, forecast.today.max, 0.0)

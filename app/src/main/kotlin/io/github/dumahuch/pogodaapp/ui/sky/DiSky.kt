@@ -132,7 +132,6 @@ internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
     private var tintKey = -1
     private var tintFilter: ColorFilter? = null
     private var cloudWeather: SkyWeather? = null
-    private var cloudStorm = false
     private var cloudList: List<PlacedCloud> = emptyList()
 
     override fun draw(scope: DrawScope, look: SkyLook) {
@@ -165,13 +164,10 @@ internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
      * те, что целиком за краем экрана, пропускаются. Раскладка пересчитывается только при смене погоды.
      */
     private fun DrawScope.drawClouds(look: SkyLook, clouds: DiClouds, w: Double, h: Double) {
-        val storm = DiArt.storm(look.weather)
-        if (look.weather != cloudWeather || storm != cloudStorm) {
-            cloudList = CloudLayout.of(look.weather, storm)
+        if (look.weather != cloudWeather) {
+            cloudList = CloudLayout.of(look.weather)
             cloudWeather = look.weather
-            cloudStorm = storm
         }
-        val sheet = if (storm) clouds.storm else clouds.light
         val place = DiArt.placeClouds(w, h, look.cloudPosition)
         val filter = tint(look)
         for (cloud in cloudList) {
@@ -191,7 +187,7 @@ internal class DiPainter(private val store: DiBitmapStore) : SkyArtPainter {
                 }
             }) {
                 drawImage(
-                    sheet,
+                    if (cloud.storm) clouds.storm else clouds.light,
                     srcOffset = IntOffset(cloud.rect.x, cloud.rect.y),
                     srcSize = IntSize(cloud.rect.w, cloud.rect.h),
                     alpha = cloud.alpha.toFloat(),

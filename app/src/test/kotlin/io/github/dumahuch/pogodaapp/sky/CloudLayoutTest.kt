@@ -12,9 +12,16 @@ class CloudLayoutTest {
 
     private val maps = FileInputStream(File("src/main/assets/${DiMaps.ASSET_PATH}")).use { DiMaps.read(it) }
 
-    private fun clouds(condition: Condition, mm: Double? = null): List<PlacedCloud> {
-        val weather = SkyWeather.of(condition, mm)
-        return CloudLayout.of(weather, DiArt.storm(weather))
+    private fun clouds(condition: Condition, mm: Double? = null): List<PlacedCloud> = CloudLayout.of(SkyWeather.of(condition, mm))
+
+    /** Облака при проценте облачности [percent] (вид погоды как отдаёт код Open-Meteo для этой облачности). */
+    private fun cloudsAt(percent: Double): List<PlacedCloud> {
+        val condition = when {
+            percent < 50 -> Condition.Clear
+            percent < 80 -> Condition.Partly
+            else -> Condition.Cloudy
+        }
+        return CloudLayout.of(SkyWeather.of(condition, null, percent))
     }
 
     /** Сумма площадей облаков (пиксели листа): грубая мера того, сколько неба закрыто. */
@@ -89,13 +96,56 @@ class CloudLayoutTest {
     @Test
     fun neighbouringCloudsUseDifferentPictures() {
         for (condition in Condition.entries) {
-            val weather = SkyWeather.of(condition)
-            val storm = DiArt.storm(weather)
-            val sprites = if (storm) CloudSprites.storm else CloudSprites.light
-            val byX = CloudLayout.of(weather, storm).sortedBy { it.cx }
+            val byX = clouds(condition).sortedBy { it.cx }
             for (i in 1 until byX.size) {
-                assertTrue("$condition: два соседних облака одинаковы", sprites.indexOf(byX[i].rect) != sprites.indexOf(byX[i - 1].rect))
+                assertTrue("$condition: два соседних облака одинаковы", byX[i].rect !== byX[i - 1].rect)
             }
+        }
+    }
+
+    @Test
+    fun cloudsFollowCloudCoverSmoothly() {
+        val steps = listOf(0.0, 10.0, 20.0, 35.0, 50.0, 65.0, 80.0, 90.0, 100.0)
+        val counts = steps.map { cloudsAt(it).size }
+        for (i in 1 until steps.size) {
+            assertTrue("${steps[i]} %: облаков ${counts[i]} меньше, чем при ${steps[i - 1]} % (${counts[i - 1]})", counts[i] >= counts[i - 1])
+        }
+        assertTrue("переменная облачность (65 %) гуще прежнего «малооблачно»: ${cloudsAt(65.0).size}", cloudsAt(65.0).size >= 11)
+        assertTrue("от 80 % не реже прежнего «облачно»", cloudsAt(80.0).size >= clouds(Condition.Cloudy).size - 1)
+        assertTrue("при 35 % облака есть, хотя код погоды говорит «ясно»", cloudsAt(35.0).size >= 6)
+    }
+
+    @Test
+    fun darkCloudsAppearGraduallyWithCloudCover() {
+        fun darkShare(percent: Double) = cloudsAt(percent).let { list -> list.count { it.storm }.toDouble() / list.size }
+        assertEquals(0.0, darkShare(30.0), 0.0)
+        assertEquals(0.0, darkShare(60.0), 0.0)
+        val partlyDark = darkShare(85.0)
+        assertTrue("при 85 % есть и светлые, и тёмные: $partlyDark", partlyDark > 0.0 && partlyDark < 1.0)
+        assertEquals(1.0, darkShare(100.0), 0.0)
+    }
+
+    @Test
+    fun cloudCoverIsIgnoredForRainSnowFogAndStorm() {
+        for (condition in listOf(Condition.Rain, Condition.Snow, Condition.Fog, Condition.Storm)) {
+            assertEquals("$condition", SkyWeather.of(condition, 1.0), SkyWeather.of(condition, 1.0, 10.0))
+        }
+    }
+
+    @Test
+    fun withoutCloudCoverTheSkyIsAsBefore() {
+        assertEquals(SkyWeather.of(Condition.Partly), SkyWeather.of(Condition.Partly, null, null))
+        assertEquals(0.0, SkyWeather.of(Condition.Partly).darkShare, 0.0)
+        assertEquals(1.0, SkyWeather.of(Condition.Cloudy).darkShare, 0.0)
+        assertEquals(0.0, SkyWeather.of(Condition.Snow).darkShare, 0.0)
+    }
+
+    @Test
+    fun topRowOfCloudsReachesTheTopOfTheScreen() {
+        // Лист облаков начинается у верха экрана (2 %): верхние облака должны подходить к его краю, а не висеть ниже пустой полосой.
+        for (condition in listOf(Condition.Partly, Condition.Cloudy, Condition.Rain)) {
+            val top = clouds(condition).minOf { it.top }
+            assertTrue("$condition: самое верхнее облако начинается на $top", top <= 20.0)
         }
     }
 
