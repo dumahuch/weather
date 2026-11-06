@@ -71,7 +71,7 @@ class CloudLayoutTest {
     }
 
     @Test
-    fun layoutIsStableAndSortedFarToNear() {
+    fun layoutIsStableAndSortedTopToBottom() {
         val a = clouds(Condition.Cloudy)
         val b = clouds(Condition.Cloudy)
         assertEquals(a.size, b.size)
@@ -80,14 +80,14 @@ class CloudLayoutTest {
             assertEquals(a[i].cy, b[i].cy, 0.0)
             assertEquals(a[i].mirrored, b[i].mirrored)
         }
-        for (i in 1 until a.size) assertTrue("дальние первыми", a[i].cy >= a[i - 1].cy)
+        for (i in 1 until a.size) assertTrue("верхние первыми", a[i].cy >= a[i - 1].cy)
     }
 
     @Test
     fun everyCloudIsOnTheSheetWithSensibleSizeAndAlpha() {
         for (condition in Condition.entries) for (cloud in clouds(condition)) {
             assertTrue("$condition: прозрачность ${cloud.alpha}", cloud.alpha > 0.5 && cloud.alpha <= 1.0)
-            assertTrue("$condition: размер ${cloud.scale}", cloud.scale in 0.4..1.6)
+            assertTrue("$condition: размер ${cloud.scale}", cloud.scale in 0.4..1.8)
             assertTrue("$condition: центр по горизонтали ${cloud.cx}", cloud.cx in 0.0..DiArt.SHEET_W)
             assertTrue("$condition: центр по вертикали ${cloud.cy}", cloud.cy in 0.0..DiArt.SHEET_H)
         }
@@ -141,27 +141,25 @@ class CloudLayoutTest {
     }
 
     @Test
-    fun cloudSizeDoesNotGrowTowardTheBottom() {
-        // Раньше нижние облака были крупнее верхних почти вдвое по площади и сливались в сплошную гряду, а верхние оставались редкими.
+    fun cloudsAreLargeAtTheTopAndSmallAtTheBottom() {
+        // Замечание Димы (step-23): вверху больше крупных облаков, у нижнего края мелкие, середина не тяжелеет.
         for (condition in listOf(Condition.Partly, Condition.Cloudy, Condition.Rain, Condition.Storm)) {
             val list = clouds(condition)
-            val mid = (list.minOf { it.cy } + list.maxOf { it.cy }) / 2
+            val mid = (CloudLayout.ROW_TOP + CloudLayout.ROW_BOTTOM) / 2
             val (upper, lower) = list.partition { it.cy < mid }
-            val upperMean = upper.map { it.width * it.height / (it.rect.w * it.rect.h) }.average()
-            val lowerMean = lower.map { it.width * it.height / (it.rect.w * it.rect.h) }.average()
-            assertTrue("$condition: масштаб площади вверху $upperMean, внизу $lowerMean", lowerMean < upperMean * 1.25)
-            assertTrue("$condition: облака слишком разного размера", list.all { it.scale in 0.5..1.35 })
+            fun mean(l: List<PlacedCloud>) = l.map { it.width * it.height / (it.rect.w * it.rect.h) }.average()
+            assertTrue("$condition: масштаб площади вверху ${mean(upper)}, внизу ${mean(lower)}", mean(lower) < mean(upper) * 0.75)
+            val big = list.filter { it.scale >= CloudLayout.size(SkyWeather.of(condition).density) * 1.0 }
+            val small = list.filter { it.scale < CloudLayout.size(SkyWeather.of(condition).density) * 0.9 }
+            assertTrue("$condition: крупные внизу ${big.count { it.cy >= mid }} из ${big.size}", big.count { it.cy < mid } >= big.count { it.cy >= mid })
+            assertTrue("$condition: мелкие вверху ${small.count { it.cy < mid }} из ${small.size}", small.count { it.cy >= mid } >= small.count { it.cy < mid })
         }
     }
 
     @Test
-    fun cloudsAreSpreadAcrossTheHeightWithAtLeastAsManyAtTheTop() {
+    fun cloudsAreSpreadAcrossTheHeight() {
         for (condition in listOf(Condition.Cloudy, Condition.Rain, Condition.Storm)) {
             val list = clouds(condition)
-            val mid = (CloudLayout.ROW_TOP + CloudLayout.ROW_BOTTOM) / 2
-            val upper = list.count { it.cy < mid }
-            val lower = list.size - upper
-            assertTrue("$condition: вверху $upper облаков, внизу $lower", upper >= lower)
             // Ни одна треть высоты не пустеет: в каждой не меньше пятой доли облаков.
             val third = (CloudLayout.ROW_BOTTOM - CloudLayout.ROW_TOP) / 3
             for (k in 0 until 3) {
