@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.sky
 
 import kotlin.math.floor
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /**
@@ -39,11 +40,24 @@ internal object CloudLayout {
     private const val EXTRA_COUNT = 22
 
     /**
-     * Центры облаков по высоте листа: от дальнего ряда (вверху, мельче) до ближнего (внизу, крупнее).
+     * Центры облаков по высоте листа: от дальнего ряда (вверху) до ближнего (внизу).
      * Лист начинается у самого верха экрана (2 %), так что верхние облака заходят за край и пустой полосы над ними нет.
      */
-    private const val ROW_TOP = 30.0
-    private const val ROW_BOTTOM = 600.0
+    const val ROW_TOP = 30.0
+    const val ROW_BOTTOM = 600.0
+
+    /**
+     * Размер облака почти не зависит от ряда (от 0,95 вверху до 1,05 внизу): прежняя разница в четверть давала внизу
+     * вдвое большую площадь, и облака там сливались в сплошную гряду, а вверху оставались редкими и уходили за край.
+     */
+    private const val DEPTH_MIN = 0.95
+    private const val DEPTH_SPAN = 0.10
+
+    /**
+     * Показатель сдвига рядов вверх: ряд из равномерного числа возводится в эту степень, и облака чуть теснее у верха
+     * (при 1,15 в верхней половине листа около 55 % облаков). Единица дала бы строго равномерную раскладку.
+     */
+    private const val TOP_BIAS = 1.15
 
     private const val GOLDEN = 0.6180339887498949
 
@@ -66,9 +80,10 @@ internal object CloudLayout {
         val clouds = ArrayList<PlacedCloud>(n)
         for (i in 0 until n) {
             val along = (i + 0.5) / n + (unit(i, 1) - 0.5) * 0.7 / n
-            // Ряд (0 дальний, 1 ближний) по золотому сечению: соседние по горизонтали облака лежат на разной высоте.
-            val row = fract(i * GOLDEN + 0.13)
-            val depth = 0.8 + 0.4 * row
+            // Ряд (0 дальний, 1 ближний) по золотому сечению: соседние по горизонтали облака лежат на разной высоте,
+            // а по высоте облака распределены равномерно, с лёгким сдвигом вверх.
+            val row = fract(i * GOLDEN + 0.13).pow(TOP_BIAS)
+            val depth = DEPTH_MIN + DEPTH_SPAN * row
             val storm = unit(i, 5) < weather.darkShare
             val sprites = if (storm) CloudSprites.storm else CloudSprites.light
             clouds += PlacedCloud(

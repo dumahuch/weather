@@ -376,10 +376,11 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
 }
 
 /**
- * Слабый ореол вокруг названия погоды и максимума с минимумом: они лежат на небе без стекла. Ореол светлый у тёмного
- * текста и тёмный у светлого, радиус 3 dp, непрозрачность около трети: он помогает на пестрых облаках и не виден как
- * рамка. Второстепенные подписи («Ощущается как» и строка из трёх подписей) с версии 0.5.4 набраны без ореола (Дима:
- * «мыльная кайма»): им хватает подложки по расчёту темы ([io.github.dumahuch.pogodaapp.ui.PogodaPalette.infoScrim]).
+ * Слабый ореол вокруг названия погоды: оно лежит на небе без стекла. Ореол светлый у тёмного текста и тёмный у светлого,
+ * радиус 3 dp, непрозрачность около трети: он помогает на пестрых облаках и не виден как рамка. Остальные надписи
+ * («Ощущается как», максимум с минимумом, строка из трёх подписей) набраны без ореола (с 0.5.4 подписи, с step-21
+ * максимум и минимум; Дима: «мыльная кайма», «ощущение плохого качества»): им хватает подложки по расчёту темы
+ * ([io.github.dumahuch.pogodaapp.ui.PogodaPalette.infoScrim]).
  */
 @Composable
 private fun TextStyle.withGlow(): TextStyle {
@@ -392,7 +393,7 @@ private fun TextStyle.withGlow(): TextStyle {
 /**
  * Максимум и минимум календарного дня: тёплый оттенок со стрелкой вверх и холодный со стрелкой вниз (правила надписей,
  * раздел 4). Слов «Макс» и «Мин» на экране нет, они в описании для чтения экрана. Оттенок ослабляется там, где небо под
- * строкой не оставляет запаса контраста ([ExtremeTints]).
+ * строкой не оставляет запаса контраста ([ExtremeTints]); число дополнительно приглушено ([QuietInk]).
  */
 @Composable
 private fun HighLowRow(max: Double, min: Double, modifier: Modifier = Modifier) {
@@ -412,10 +413,11 @@ private fun HighLowRow(max: Double, min: Double, modifier: Modifier = Modifier) 
 @Composable
 private fun ExtremeValue(icon: LineIcon, text: String, palette: PogodaPalette, warm: Boolean) {
     val arrow = ExtremeTints.arrow(palette.ink, palette.smoke, warm, palette.infoBackdrop)
-    val number = ExtremeTints.text(palette.ink, palette.smoke, warm, palette.infoBackdrop)
+    // Число бледнее основного текста, как остальные второстепенные надписи, но с оттенком; ореола у него нет.
+    val number = QuietInk.text(ExtremeTints.text(palette.ink, palette.smoke, warm, palette.infoBackdrop), palette.infoBackdrop)
     Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
         LineIconView(icon, 16.dp, arrow, strokeWidth = 2f)
-        Text(text, style = pogodaText(17f, 600, color = number, tabular = true).withGlow(), maxLines = 1)
+        Text(text, style = pogodaText(17f, 600, color = number, tabular = true), maxLines = 1)
     }
 }
 
