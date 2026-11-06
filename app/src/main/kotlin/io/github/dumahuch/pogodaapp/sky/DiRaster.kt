@@ -49,7 +49,7 @@ internal class DiMaps private constructor(
 
 /**
  * Кадр фона «Ди» тем же порядком, что рисует экран ([io.github.dumahuch.pogodaapp.ui.sky.DiPainter]):
- * небо → облака (подкрашенные, с прозрачностью слоя) → погодная вуаль → пять гряд сзади вперёд → серость → затемнение → приглушение.
+ * небо → солнце и луна → облака (подкрашенные, с прозрачностью слоя) → погодная вуаль → пять гряд сзади вперёд → серость → затемнение → приглушение.
  * Вуаль ложится поверх облаков (у «Нейтрального» под ними): тёмные тучи на светлой вуали под цифрами давали пёстрый фон
  * (контраст цифр 2,7 : 1 утром в пасмурно), дымка поверх выравнивает небо; гряды остаются чёткими.
  * Каждый слой смешивается между двумя временами суток по долям (композиция гряд у всех сцен одна).
@@ -72,6 +72,7 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
         val cloudPlace = DiArt.placeClouds(sw, sh, look.cloudPosition)
         val clouds = CloudLayout.of(look.weather)
         val tint = DiArt.tint(w)
+        val discs = Celestial.discs(look.bodies, Celestial.Frame.Di, sw, sh)
         val veilStrength = look.veilStrength
         // Размер карты в пикселях холста: слой 1024 / 64 = 16.
         val layerK = maps.layerW / DiArt.CANVAS_W
@@ -93,6 +94,12 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                     val a = layerColor[3] / 255.0
                     r = layerColor[0] + (1 - a) * r; g = layerColor[1] + (1 - a) * g; b = layerColor[2] + (1 - a) * b
                     if (layer == DiArt.Layer.Sky) {
+                        // Солнце или луна лежат на небе, за облаками и за грядами.
+                        if (discs.isNotEmpty()) {
+                            rgb[0] = r; rgb[1] = g; rgb[2] = b
+                            Celestial.blend(discs, sx, sy, rgb)
+                            r = rgb[0]; g = rgb[1]; b = rgb[2]
+                        }
                         // Точка в пикселях листа облаков; облака дальние первыми, как при рисовании.
                         val u = (sx - cloudPlace.left) / cloudPlace.scale
                         val v = (sy - cloudPlace.top) / cloudPlace.scale

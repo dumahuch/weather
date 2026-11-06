@@ -102,6 +102,17 @@ internal object Moon {
 
     /** Высота центра диска над порогом восхода (градусы): положительная, пока луна над горизонтом. */
     private fun margin(epochSecond: Double, latitude: Double, longitude: Double): Double {
+        val moon = ecliptic((epochSecond - J2000_EPOCH_SECOND) / SECONDS_PER_DAY)
+        return horizontal(epochSecond, latitude, longitude).elevation - (PARALLAX_FACTOR * moon.parallax - REFRACTION_DEGREES)
+    }
+
+    /** Где луна на небе места: [elevation] высота центра диска в градусах, [hourAngleHours] часовой угол в часах (0 на юге, минус к востоку, плюс к западу). */
+    class Position(val elevation: Double, val hourAngleHours: Double)
+
+    fun positionAt(time: Instant, latitude: Double, longitude: Double): Position =
+        horizontal(time.epochSecond + time.nano / 1e9, latitude, longitude)
+
+    private fun horizontal(epochSecond: Double, latitude: Double, longitude: Double): Position {
         val d = (epochSecond - J2000_EPOCH_SECOND) / SECONDS_PER_DAY
         val moon = ecliptic(d)
         val obliquity = Math.toRadians(23.439 - 0.00000036 * d)
@@ -114,7 +125,8 @@ internal object Moon {
         val lat = Math.toRadians(latitude)
         val sinAltitude = sin(lat) * sin(declination) + cos(lat) * cos(declination) * cos(hourAngle)
         val altitude = Math.toDegrees(asin(sinAltitude.coerceIn(-1.0, 1.0)))
-        return altitude - (PARALLAX_FACTOR * moon.parallax - REFRACTION_DEGREES)
+        val wrapped = Math.toDegrees(atan2(sin(hourAngle), cos(hourAngle))) / 15.0
+        return Position(altitude, wrapped)
     }
 
     /** Момент пересечения порога между [from] и [to]: ложное положение, восемь шагов. */

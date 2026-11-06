@@ -14,23 +14,30 @@ internal class SkyState(
     val weights: SceneWeights,
     val weather: SkyWeather,
     val veil: Veil,
+    val bodies: List<SkyBody> = emptyList(),
 ) {
     /** Куда смотрит кадр на картине (0 слева, 1 справа). */
     val pan: Double get() = weights.pan
 
     /** Что видно в кадре при облаках в положении [cloudPosition] и подъёме гряд «Ди» [lift] (доля высоты экрана). */
-    fun look(cloudPosition: Double, lift: Double = 0.0) = SkyLook(weights, weather, veil, cloudPosition, lift)
+    fun look(cloudPosition: Double, lift: Double = 0.0) = SkyLook(weights, weather, veil, cloudPosition, lift, bodies)
 
     companion object {
         /** Сколько времён суток держим в памяти и рисуем одновременно. */
         const val MAX_SCENES = 2
 
         /** [precipitationMm] осадки текущего часа (если известны): от них зависит густота облаков дождя и снега. */
-        fun of(sun: SunPosition.Sun, condition: Condition, precipitationMm: Double? = null, cloudCoverPercent: Double? = null): SkyState {
+        fun of(
+            sun: SunPosition.Sun,
+            condition: Condition,
+            precipitationMm: Double? = null,
+            cloudCoverPercent: Double? = null,
+            moon: MoonSky? = null,
+        ): SkyState {
             val weather = SkyWeather.of(condition, precipitationMm, cloudCoverPercent)
             val weights = SkyTimeOfDay.weights(sun.elevation, sun.solarHour).strongest(MAX_SCENES)
             val veil = SkyColors.veil(sun.elevation, SkyTimeOfDay.evening(sun.solarHour), weather)
-            return SkyState(sun, weights, weather, veil)
+            return SkyState(sun, weights, weather, veil, Celestial.bodies(sun, moon))
         }
 
         fun at(latitude: Double, longitude: Double, time: Instant, condition: Condition): SkyState =

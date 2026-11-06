@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
+import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.ScrimShape
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkySampler
@@ -22,11 +23,11 @@ internal interface SkyArtPainter {
 
 /**
  * Фон «Нейтральный». Рисует небо в том же порядке слоёв, что и макет (и расчёт цветов в пакете sky):
- * картины со своими долями → погодная вуаль → облака → обесцвечивание → затемнение → приглушение света облаков.
+ * картины со своими долями → солнце и луна → погодная вуаль → облака → обесцвечивание → затемнение → приглушение света облаков.
  * Доли картин «каскадом»: каждая следующая ложится с прозрачностью вес / сумма весов до неё, это взвешенное среднее.
  * Объект хранит кисти и не создаёт новых на каждом кадре.
  */
-internal class SkyPainter(private val store: SkyBitmapStore) : SkyArtPainter {
+internal class SkyPainter(private val store: SkyBitmapStore, private val celestial: CelestialBitmaps) : SkyArtPainter {
 
     private val effects = SkyEffects()
     private val cloudPaint = Paint()
@@ -36,6 +37,7 @@ internal class SkyPainter(private val store: SkyBitmapStore) : SkyArtPainter {
         if (loaded.isEmpty()) return
         effects.withWeather(scope, look) {
             drawPlates(look, loaded)
+            drawCelestial(look, Celestial.Frame.Neutral, celestial)
             effects.drawVeil(this, look)
             drawClouds(look, loaded)
         }
