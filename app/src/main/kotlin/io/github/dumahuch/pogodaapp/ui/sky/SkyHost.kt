@@ -419,7 +419,7 @@ private fun buildSky(input: SkyInput, override: SkyOverride, now: Instant): SkyS
         override.condition ?: input.condition,
         if (measured) input.precipitationMm else null,
         if (measured) input.cloudCoverPercent else null,
-        Celestial.moonSky(input.latitude, input.longitude, now),
+        Celestial.moonSky(input.latitude, input.longitude, override.solarHour?.let { Celestial.instantAtSolarHour(input.longitude, now, it) } ?: now),
     )
 }
 
