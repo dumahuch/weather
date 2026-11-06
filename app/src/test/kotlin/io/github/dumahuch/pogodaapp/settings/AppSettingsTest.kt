@@ -74,4 +74,26 @@ class AppSettingsTest {
         // Тень карточек от выбора фона не меняется.
         assertEquals(CardShadow.Soft, AppSettings(storage).cardShadow.value)
     }
+
+    @Test
+    fun iconStyleIsGlassByDefaultAndUnknownFallsBackToGlass() {
+        assertEquals(WeatherIconStyle.Glass, AppSettings(MemoryStorage()).iconStyle.value)
+        assertEquals(WeatherIconStyle.Glass, WeatherIconStyle.fromKey("banana"))
+        assertEquals(WeatherIconStyle.Glass, WeatherIconStyle.fromKey(null))
+        val storage = MemoryStorage(mapOf(AppSettings.ICON_STYLE to "banana"))
+        assertEquals(WeatherIconStyle.Glass, AppSettings(storage).iconStyle.value)
+    }
+
+    @Test
+    fun chosenIconStyleIsStoredAndComesBackAfterRestart() {
+        val storage = MemoryStorage()
+        val first = AppSettings(storage)
+        first.setIconStyle(WeatherIconStyle.Outline)
+        assertEquals("outline", storage.values[AppSettings.ICON_STYLE])
+        assertEquals(WeatherIconStyle.Outline, AppSettings(storage).iconStyle.value)
+        first.setIconStyle(WeatherIconStyle.Outline)
+        assertEquals(1, storage.writes)
+        // Значки не трогают другие настройки.
+        assertEquals(CardShadow.Soft, AppSettings(storage).cardShadow.value)
+    }
 }

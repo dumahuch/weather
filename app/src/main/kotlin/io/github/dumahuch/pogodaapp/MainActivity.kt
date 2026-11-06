@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import io.github.dumahuch.pogodaapp.ui.PogodaApp
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
+import io.github.dumahuch.pogodaapp.ui.home.LocalWeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.sky.PollenCheck
@@ -181,6 +183,7 @@ class MainActivity : ComponentActivity() {
                 val glassBlur by skyCheck.glassBlur.collectAsStateWithLifecycle()
                 val cardShadow by settings.cardShadow.collectAsStateWithLifecycle()
                 val background by settings.background.collectAsStateWithLifecycle()
+                val iconStyle by settings.iconStyle.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
                 val input = remember(state) { state.skyInput() }
@@ -195,20 +198,24 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     Box(Modifier.fillMaxSize()) {
-                        PogodaApp(
-                            state = state,
-                            refreshing = refreshing,
-                            permanentlyDenied = permanentlyDenied,
-                            versionLabel = versionLabel,
-                            actions = actions,
-                            places = places,
-                            placesActions = placesActions,
-                            onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
-                            cardShadow = cardShadow,
-                            onCardShadow = settings::setCardShadow,
-                            background = background,
-                            onBackground = settings::setBackground,
-                        )
+                        CompositionLocalProvider(LocalWeatherIconStyle provides iconStyle) {
+                            PogodaApp(
+                                state = state,
+                                refreshing = refreshing,
+                                permanentlyDenied = permanentlyDenied,
+                                versionLabel = versionLabel,
+                                actions = actions,
+                                places = places,
+                                placesActions = placesActions,
+                                onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
+                                cardShadow = cardShadow,
+                                onCardShadow = settings::setCardShadow,
+                                background = background,
+                                onBackground = settings::setBackground,
+                                iconStyle = iconStyle,
+                                onIconStyle = settings::setIconStyle,
+                            )
+                        }
                         if (checkOpen) {
                             SkyCheckPanel(
                                 input = input,

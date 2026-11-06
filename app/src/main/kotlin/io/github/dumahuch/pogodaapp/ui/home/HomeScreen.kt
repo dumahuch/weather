@@ -41,6 +41,7 @@ import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.heroDigitsSize
+import io.github.dumahuch.pogodaapp.home.heroIconFor
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
 import io.github.dumahuch.pogodaapp.ui.ExtremeTints
@@ -57,7 +58,6 @@ import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
 import io.github.dumahuch.pogodaapp.ui.components.PullRefreshIndicator
 import io.github.dumahuch.pogodaapp.ui.components.rememberPullRefreshState
 import io.github.dumahuch.pogodaapp.ui.components.glassButton
-import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.forecast.percentText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.Condition
@@ -301,7 +301,7 @@ private fun LoadingTop() {
 }
 
 /**
- * Верхняя часть «Главной» с данными (вариант «В», всё по центру): крупный значок, огромная тонкая температура, состояние,
+ * Верхняя часть «Главной» с данными (вариант «В», всё по центру): огромная температура со значком справа, состояние,
  * максимум и минимум календарного дня, «Ощущается как» и одна тонкая строка подписей (влажность, ветер, осадки до конца
  * дня). Лента «По часам» стоит ниже и не сдвигается.
  */
@@ -332,7 +332,8 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
         digits = temperatureDigits(current.temperature),
         digitsSize = heroDigitsSize(current.temperature),
         description = temperatureText(current.temperature),
-        icon = iconFor(current.condition, current.isDay),
+        icon = heroIconFor(current.condition),
+        iconStyle = LocalWeatherIconStyle.current,
         modifier = heroModifier,
         scale = heroScale,
     )
