@@ -141,6 +141,37 @@ class CloudLayoutTest {
     }
 
     @Test
+    fun cloudSizeDoesNotGrowTowardTheBottom() {
+        // Раньше нижние облака были крупнее верхних почти вдвое по площади и сливались в сплошную гряду, а верхние оставались редкими.
+        for (condition in listOf(Condition.Partly, Condition.Cloudy, Condition.Rain, Condition.Storm)) {
+            val list = clouds(condition)
+            val mid = (list.minOf { it.cy } + list.maxOf { it.cy }) / 2
+            val (upper, lower) = list.partition { it.cy < mid }
+            val upperMean = upper.map { it.width * it.height / (it.rect.w * it.rect.h) }.average()
+            val lowerMean = lower.map { it.width * it.height / (it.rect.w * it.rect.h) }.average()
+            assertTrue("$condition: масштаб площади вверху $upperMean, внизу $lowerMean", lowerMean < upperMean * 1.25)
+            assertTrue("$condition: облака слишком разного размера", list.all { it.scale in 0.5..1.35 })
+        }
+    }
+
+    @Test
+    fun cloudsAreSpreadAcrossTheHeightWithAtLeastAsManyAtTheTop() {
+        for (condition in listOf(Condition.Cloudy, Condition.Rain, Condition.Storm)) {
+            val list = clouds(condition)
+            val mid = (CloudLayout.ROW_TOP + CloudLayout.ROW_BOTTOM) / 2
+            val upper = list.count { it.cy < mid }
+            val lower = list.size - upper
+            assertTrue("$condition: вверху $upper облаков, внизу $lower", upper >= lower)
+            // Ни одна треть высоты не пустеет: в каждой не меньше пятой доли облаков.
+            val third = (CloudLayout.ROW_BOTTOM - CloudLayout.ROW_TOP) / 3
+            for (k in 0 until 3) {
+                val n = list.count { it.cy >= CloudLayout.ROW_TOP - 20 + k * third && it.cy < CloudLayout.ROW_TOP - 20 + (k + 1) * third }
+                assertTrue("$condition: в части $k только $n из ${list.size}", n * 5 >= list.size)
+            }
+        }
+    }
+
+    @Test
     fun topRowOfCloudsReachesTheTopOfTheScreen() {
         // Лист облаков начинается у верха экрана (2 %): верхние облака должны подходить к его краю, а не висеть ниже пустой полосой.
         for (condition in listOf(Condition.Partly, Condition.Cloudy, Condition.Rain)) {

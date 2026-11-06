@@ -55,4 +55,16 @@ class QuietInkTest {
         assertTrue(contrast(icon, nightSky) < contrast(text, nightSky))
         assertTrue("контраст значка ${contrast(icon, nightSky)}", contrast(icon, nightSky) >= QuietInk.ICON_CONTRAST)
     }
+
+    @Test
+    fun tintedExtremeNumberIsQuietedButStaysAboveTheThreshold() {
+        for ((ink, smoke, sky) in listOf(Triple(lightInk, 1f, nightSky), Triple(darkInk, 0f, daySky))) {
+            for (warm in listOf(true, false)) {
+                val tinted = ExtremeTints.text(ink, smoke, warm, sky)
+                val quiet = QuietInk.text(tinted, sky)
+                assertTrue("слабее оттенённого числа (warm $warm)", contrast(quiet, sky) < contrast(tinted, sky))
+                assertTrue("контраст ${contrast(quiet, sky)}", contrast(quiet, sky) >= QuietInk.TEXT_CONTRAST)
+            }
+        }
+    }
 }

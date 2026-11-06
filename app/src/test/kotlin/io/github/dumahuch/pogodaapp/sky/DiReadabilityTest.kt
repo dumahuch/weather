@@ -63,7 +63,8 @@ class DiReadabilityTest {
             track("строки под температурой", p.contrast.info)
         }
         println("«Ди», худшие контрасты: " + worst.entries.joinToString { "${it.key} ${it.value.first} (${it.value.second})" })
-        val limits = mapOf("цифры" to 3.0, "карточки" to 4.0, "оповещения" to 4.0, "кнопки" to 4.0, "строки под температурой" to 4.5)
+        // Строки под температурой: 3,4 вместо 4,5 (step-21): второстепенные надписи приглушены до 3,6 : 1, решение Димы.
+        val limits = mapOf("цифры" to 3.0, "карточки" to 4.0, "оповещения" to 4.0, "кнопки" to 4.0, "строки под температурой" to 3.4)
         // Все нарушения одним сообщением: видно сразу, где и насколько не хватает.
         val failed = limits.filter { (key, limit) -> worst.getValue(key).first < limit }
             .map { (key, limit) -> "$key ${worst.getValue(key).first} < $limit (${worst.getValue(key).second})" }
