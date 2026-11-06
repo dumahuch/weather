@@ -23,9 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onSizeChanged
@@ -35,9 +32,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -349,7 +344,7 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
     ) {
         Text(
             conditionName(current.condition),
-            style = pogodaText(21f, 600).withGlow(),
+            style = pogodaText(21f, 600),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 10.dp),
         )
@@ -373,21 +368,6 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
             )
         }
     }
-}
-
-/**
- * Слабый ореол вокруг названия погоды: оно лежит на небе без стекла. Ореол светлый у тёмного текста и тёмный у светлого,
- * радиус 3 dp, непрозрачность около трети: он помогает на пестрых облаках и не виден как рамка. Остальные надписи
- * («Ощущается как», максимум с минимумом, строка из трёх подписей) набраны без ореола (с 0.5.4 подписи, с step-21
- * максимум и минимум; Дима: «мыльная кайма», «ощущение плохого качества»): им хватает подложки по расчёту темы
- * ([io.github.dumahuch.pogodaapp.ui.PogodaPalette.infoScrim]).
- */
-@Composable
-private fun TextStyle.withGlow(): TextStyle {
-    val palette = LocalPogodaPalette.current
-    val radius = with(LocalDensity.current) { 3.dp.toPx() }
-    val color = if (palette.darkInk) Color.White.copy(alpha = 0.40f) else Color.Black.copy(alpha = 0.35f)
-    return copy(shadow = Shadow(color = color, offset = Offset.Zero, blurRadius = radius))
 }
 
 /**
