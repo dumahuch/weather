@@ -242,11 +242,6 @@
     <string name="settings_icons_glass_hint">Frosted glass with coloured drops, lightning and snow. Home screen only.</string>
     <string name="settings_icons_outline">Outline</string>
     <string name="settings_icons_outline_hint">Thin lines with coloured drops, lightning and snow. Home screen only.</string>
-    <string name="settings_background">Background</string>
-    <string name="settings_background_neutral">Neutral</string>
-    <string name="settings_background_neutral_hint">Painted sky with clouds.</string>
-    <string name="settings_background_di">Di</string>
-    <string name="settings_background_di_hint">Layered paper mountains: the layers shift with the time of day and as you scroll.</string>
 
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">

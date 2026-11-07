@@ -63,19 +63,6 @@ class AppSettingsTest {
     }
 
     @Test
-    fun backgroundIsNeutralByDefaultAndChosenOneSurvivesRestart() {
-        val storage = MemoryStorage()
-        assertEquals(SkyBackground.Neutral, AppSettings(storage).background.value)
-        assertEquals(SkyBackground.Neutral, SkyBackground.fromKey("banana"))
-        assertEquals(SkyBackground.Neutral, SkyBackground.fromKey(null))
-        AppSettings(storage).setBackground(SkyBackground.Di)
-        assertEquals("di", storage.values[AppSettings.BACKGROUND])
-        assertEquals(SkyBackground.Di, AppSettings(storage).background.value)
-        // Тень карточек от выбора фона не меняется.
-        assertEquals(CardShadow.Soft, AppSettings(storage).cardShadow.value)
-    }
-
-    @Test
     fun iconStyleIsGlassByDefaultAndUnknownFallsBackToGlass() {
         assertEquals(WeatherIconStyle.Glass, AppSettings(MemoryStorage()).iconStyle.value)
         assertEquals(WeatherIconStyle.Glass, WeatherIconStyle.fromKey("banana"))

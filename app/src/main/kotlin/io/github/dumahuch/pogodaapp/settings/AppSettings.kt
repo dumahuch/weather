@@ -21,21 +21,6 @@ enum class CardShadow(val key: String) {
 }
 
 /**
- * Фон приложения (решение Димы 05.11.2026): «Нейтральный» это нарисованные картины неба с облаками (как до версии с «Ди»),
- * «Ди» это слоистые бумажные горы, слои сдвигаются по времени суток и при прокрутке.
- */
-enum class SkyBackground(val key: String) {
-    Neutral("neutral"),
-    Di("di"),
-    ;
-
-    companion object {
-        /** По умолчанию «Нейтральный»; незнакомое или пустое сохранённое значение тоже даёт его. */
-        fun fromKey(key: String?): SkyBackground = entries.firstOrNull { it.key == key } ?: Neutral
-    }
-}
-
-/**
  * Значки погоды на «Главной» (решения Димы 31.10 и 06.11.2026): «Стеклянные» (по умолчанию) это матовое стекло с цветными
  * каплями, молнией и снежинками, «Контурные» это линия цветом текста с цветными каплями, молнией и снегом. Меняет только
  * значок рядом с температурой на «Главной».
@@ -57,7 +42,7 @@ interface SettingsStorage {
     fun write(name: String, value: String)
 }
 
-/** Настройки приложения: «Тень карточек», «Фон» и «Значки погоды». Выбор запоминается и переживает перезапуск. */
+/** Настройки приложения: «Тень карточек» и «Значки погоды». Выбор запоминается и переживает перезапуск. */
 class AppSettings(private val storage: SettingsStorage) {
     private val mutableCardShadow = MutableStateFlow(CardShadow.fromKey(storage.read(CARD_SHADOW)))
 
@@ -67,16 +52,6 @@ class AppSettings(private val storage: SettingsStorage) {
         if (mutableCardShadow.value == value) return
         mutableCardShadow.value = value
         storage.write(CARD_SHADOW, value.key)
-    }
-
-    private val mutableBackground = MutableStateFlow(SkyBackground.fromKey(storage.read(BACKGROUND)))
-
-    val background: StateFlow<SkyBackground> = mutableBackground.asStateFlow()
-
-    fun setBackground(value: SkyBackground) {
-        if (mutableBackground.value == value) return
-        mutableBackground.value = value
-        storage.write(BACKGROUND, value.key)
     }
 
     private val mutableIconStyle = MutableStateFlow(WeatherIconStyle.fromKey(storage.read(ICON_STYLE)))
@@ -91,7 +66,6 @@ class AppSettings(private val storage: SettingsStorage) {
 
     internal companion object {
         const val CARD_SHADOW = "card_shadow"
-        const val BACKGROUND = "sky_background"
         const val ICON_STYLE = "weather_icon_style"
     }
 }

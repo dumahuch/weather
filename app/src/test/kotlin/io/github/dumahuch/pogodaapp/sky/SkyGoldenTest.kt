@@ -4,7 +4,6 @@ import io.github.dumahuch.pogodaapp.sky.SkyTestData.distance
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.abs
 
 /**
  * Сверка с макетом, который одобрил Дима. Числа (golden.json) сняты с настоящей страницы макета
@@ -76,50 +75,5 @@ class SkyGoldenTest {
                 assertEquals("$label контраст кнопок", want.getDouble("ccBtn"), p.contrast.buttons, 1e-6)
             }
         }
-    }
-
-    @Test
-    fun backdropsFromTheMapsAreCloseToWhatTheMockupSaw() {
-        // Картины в макете сжаты иначе, чем карты приложения, поэтому допуск в несколько единиц цвета.
-        val sampler = SkySampler(SkyTestData.maps)
-        var worstMean = 0.0
-        var worstPatch = 0.0
-        var worstLabel = ""
-        for (g in golden) {
-            val got = sampler.backdrops(SkyTestData.look(g))
-            val want = g.backdrops()
-            val pairs = listOf(
-                "top" to (got.top to want.top), "mid" to (got.mid to want.mid), "hor" to (got.hor to want.hor),
-                "hero" to (got.hero.mean to want.hero.mean), "alert" to (got.alert.mean to want.alert.mean),
-                "card" to (got.card.mean to want.card.mean), "dock" to (got.dock.mean to want.dock.mean),
-            )
-            for ((name, pair) in pairs) {
-                val d = distance(pair.first, pair.second)
-                if (d > worstMean) { worstMean = d; worstLabel = "${g.label} $name" }
-            }
-            val patches = listOf(
-                got.hero.underDarkInk to want.hero.underDarkInk, got.hero.underLightInk to want.hero.underLightInk,
-                got.alert.underDarkInk to want.alert.underDarkInk, got.alert.underLightInk to want.alert.underLightInk,
-                got.card.underDarkInk to want.card.underDarkInk, got.card.underLightInk to want.card.underLightInk,
-                got.dock.underDarkInk to want.dock.underDarkInk, got.dock.underLightInk to want.dock.underLightInk,
-            )
-            for ((a, b) in patches) worstPatch = maxOf(worstPatch, distance(a, b))
-        }
-        println("Наибольшее расхождение средних цветов: $worstMean ($worstLabel), пятен: $worstPatch")
-        assertTrue("средние цвета расходятся на $worstMean ($worstLabel)", worstMean <= 8.0)
-        assertTrue("пятна расходятся на $worstPatch", worstPatch <= 14.0)
-    }
-
-    @Test
-    fun readabilityDecisionsAreCloseToTheMockupToo() {
-        val sampler = SkySampler(SkyTestData.maps)
-        var worst = 0.0
-        for (g in golden) {
-            val q = SkyTheme.scores(sampler.backdrops(SkyTestData.look(g)))
-            val want = g.backdrops().let { SkyTheme.scores(it) }
-            worst = maxOf(worst, abs(q.darkInk.score - want.darkInk.score), abs(q.lightInk.score - want.lightInk.score))
-        }
-        println("Наибольшее расхождение оценок текста: $worst")
-        assertTrue("оценки расходятся на $worst", worst <= 1.2)
     }
 }

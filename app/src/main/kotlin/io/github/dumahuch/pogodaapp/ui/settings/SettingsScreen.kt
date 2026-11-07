@@ -25,7 +25,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.settings.CardShadow
-import io.github.dumahuch.pogodaapp.settings.SkyBackground
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
@@ -38,15 +37,13 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 private val CardShape = RoundedCornerShape(24.dp)
 
 /**
- * Экран настроек (с версии 0.5.4): «Фон» (с «Ди»), «Значки погоды» (step-27) и «Тень карточек», по два варианта. Карточки с выбором сами стеклянные
+ * Экран настроек (с версии 0.5.4): «Значки погоды» (step-27) и «Тень карточек», по два варианта. Карточки с выбором сами стеклянные
  * и лежат на небе, поэтому смена видна сразу. Открывается шестерёнкой на «Главной», закрывается кнопкой «назад».
  */
 @Composable
 fun SettingsScreen(
     cardShadow: CardShadow,
     onCardShadow: (CardShadow) -> Unit,
-    background: SkyBackground,
-    onBackground: (SkyBackground) -> Unit,
     iconStyle: WeatherIconStyle,
     onIconStyle: (WeatherIconStyle) -> Unit,
     onClose: () -> Unit,
@@ -65,27 +62,6 @@ fun SettingsScreen(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             BackButton(onClose)
             Text(stringResource(R.string.settings_title), style = pogodaText(20f, 600, lineHeight = 1.2f), maxLines = 1)
-        }
-        Column(Modifier.fillMaxWidth().glassCard(CardShape, glass).padding(vertical = 8.dp)) {
-            Text(
-                stringResource(R.string.settings_background),
-                style = pogodaText(15f, 600),
-                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 2.dp),
-            )
-            Column(Modifier.selectableGroup()) {
-                ChoiceOption(
-                    title = stringResource(R.string.settings_background_neutral),
-                    hint = stringResource(R.string.settings_background_neutral_hint),
-                    selected = background == SkyBackground.Neutral,
-                    onClick = { onBackground(SkyBackground.Neutral) },
-                )
-                ChoiceOption(
-                    title = stringResource(R.string.settings_background_di),
-                    hint = stringResource(R.string.settings_background_di_hint),
-                    selected = background == SkyBackground.Di,
-                    onClick = { onBackground(SkyBackground.Di) },
-                )
-            }
         }
         Column(Modifier.fillMaxWidth().glassCard(CardShape, glass).padding(vertical = 8.dp)) {
             Text(

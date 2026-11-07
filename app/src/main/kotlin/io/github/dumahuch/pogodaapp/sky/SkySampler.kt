@@ -12,7 +12,7 @@ internal class SkyLook(
     val weather: SkyWeather,
     val veil: Veil,
     val cloudPosition: Double,
-    /** Насколько слои «Ди» подняты прокруткой экрана (доля высоты экрана, [DiArt.liftOf]); «Нейтральный» его не замечает. */
+    /** Насколько слои «Ди» подняты прокруткой экрана (доля высоты экрана, [DiArt.liftOf]). */
     val lift: Double = 0.0,
     /** Солнце и луна на небе ([Celestial.bodies]): между небом и облаками, за грядами. */
     val bodies: List<SkyBody> = emptyList(),
@@ -70,12 +70,9 @@ internal class Backdrops(
 
 /**
  * Снимает с маленького кадра 41×89 цвета под цифрами, предупреждениями, карточкой и нижней панелью.
- * Кадр собирает [SkyRaster] по картам яркости выбранного фона тем же порядком слоёв, что на экране
- * («Нейтральный»: [NeutralRaster], «Ди»: [DiRaster]). Кадр для экрана 412×892 dp (Pixel 6 Pro); на других экранах те же доли высоты.
+ * Кадр собирает [SkyRaster] ([DiRaster]) по картам яркости фона «Ди» тем же порядком слоёв, что на экране. Кадр для экрана 412×892 dp (Pixel 6 Pro); на других экранах те же доли высоты.
  */
 internal class SkySampler(private val raster: SkyRaster) {
-
-    constructor(maps: SkyMaps) : this(NeutralRaster(maps))
 
     private val pixels = DoubleArray(GRID_W * GRID_H * 3)
 
@@ -138,8 +135,6 @@ internal class SkySampler(private val raster: SkyRaster) {
         const val SCENE_W = 412.0
         const val SCENE_H = 892.0
 
-        /** Слой облаков на 12 % крупнее неба и прижат к нижнему краю. */
-        const val CLOUD_SCALE = 1.12
         const val VEIL_MID = 0.55
     }
 }

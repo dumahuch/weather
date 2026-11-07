@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
-import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
 import io.github.dumahuch.pogodaapp.sky.PlacedCloud
@@ -46,26 +45,32 @@ internal class DiClouds(val light: ImageBitmap, val storm: ImageBitmap)
  * и два листа облаков. Слои одного времени суток декодируются параллельно.
  */
 @Stable
-internal class DiBitmapStore(private val context: Context) : SkyArtStore {
+internal class DiBitmapStore(private val context: Context) {
+
+    /**
+     * Сколько заняла последняя загрузка картин: сколько времён суток декодировано, через сколько миллисекунд готово
+     * первое (с него небо уже можно показывать) и через сколько все. Нужно экрану проверки.
+     */
+    class LoadTiming(val scenes: Int, val firstMillis: Long, val totalMillis: Long)
 
     private val loaded = mutableStateMapOf<SkyScene, DiSceneBitmaps>()
 
     var clouds by mutableStateOf<DiClouds?>(null)
         private set
 
-    final override var lastLoad by mutableStateOf<SkyBitmapStore.LoadTiming?>(null)
+    var lastLoad by mutableStateOf<LoadTiming?>(null)
         private set
 
     fun get(scene: SkyScene): DiSceneBitmaps? = loaded[scene]
 
-    override fun has(scene: SkyScene): Boolean = loaded[scene] != null && clouds != null
+    fun has(scene: SkyScene): Boolean = loaded[scene] != null && clouds != null
 
-    override fun clear() {
+    fun clear() {
         loaded.clear()
         clouds = null
     }
 
-    override suspend fun ensure(scenes: Set<SkyScene>) {
+    suspend fun ensure(scenes: Set<SkyScene>) {
         if (scenes.isEmpty()) return
         require(scenes.size <= SkyState.MAX_SCENES) { "Нельзя держать больше ${SkyState.MAX_SCENES} времён суток" }
         for (scene in loaded.keys.toList()) {
@@ -94,7 +99,7 @@ internal class DiBitmapStore(private val context: Context) : SkyArtStore {
             decoded++
         }
         if (decoded > 0) {
-            val timing = SkyBitmapStore.LoadTiming(decoded, firstMillis, SystemClock.elapsedRealtime() - begin)
+            val timing = LoadTiming(decoded, firstMillis, SystemClock.elapsedRealtime() - begin)
             lastLoad = timing
             Log.i(TAG, "Слои «Ди» загружены: ${timing.scenes} шт., первое время суток за ${timing.firstMillis} мс, все за ${timing.totalMillis} мс")
         }
@@ -127,7 +132,7 @@ internal class DiBitmapStore(private val context: Context) : SkyArtStore {
  * небо → погодная вуаль на небе (под обесцвечиванием непогоды) → солнце и луна своим цветом → облака (отдельные, число и размер по
  * погоде: [CloudLayout]; подкрашенные; вуаль красит и их) → пять гряд сзади вперёд (под обесцвечиванием); затемнение и приглушение лежат на небе и на облаках с грядами, но не на солнце и луне. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
  */
-internal class DiPainter(private val store: DiBitmapStore, private val celestial: CelestialBitmaps) : SkyArtPainter {
+internal class DiPainter(private val store: DiBitmapStore, private val celestial: CelestialBitmaps) {
 
     private val effects = SkyEffects()
     private var tintKey = -1
@@ -135,7 +140,7 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
     private var cloudWeather: SkyWeather? = null
     private var cloudList: List<PlacedCloud> = emptyList()
 
-    override fun draw(scope: DrawScope, look: SkyLook) {
+    fun draw(scope: DrawScope, look: SkyLook) {
         val loaded = look.weights.visible().filter { store.has(it) }
         if (loaded.isEmpty()) return
         val clouds = store.clouds ?: return
@@ -148,7 +153,7 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
             drawLayer(DiArt.Layer.Sky, loaded, look, pan, w, h)
             effects.drawVeil(this, look)
         }
-        scope.drawCelestial(look, Celestial.Frame.Di, celestial)
+        scope.drawCelestial(look, celestial)
         // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
         effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
             drawClouds(look, clouds, w, h)

@@ -201,7 +201,6 @@ class MainActivity : ComponentActivity() {
                 val override by skyCheck.override.collectAsStateWithLifecycle()
                 val glassBlur by skyCheck.glassBlur.collectAsStateWithLifecycle()
                 val cardShadow by settings.cardShadow.collectAsStateWithLifecycle()
-                val background by settings.background.collectAsStateWithLifecycle()
                 val iconStyle by settings.iconStyle.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
@@ -211,7 +210,6 @@ class MainActivity : ComponentActivity() {
                     override = override,
                     glassBlur = glassBlur,
                     cardShadow = cardShadow,
-                    background = background,
                     diagnostics = if (checkOpen) diagnostics else null,
                     onDarkIcons = ::setDarkBarIcons,
                     modifier = Modifier.fillMaxSize(),
@@ -233,8 +231,7 @@ class MainActivity : ComponentActivity() {
                                 onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
                                 cardShadow = cardShadow,
                                 onCardShadow = settings::setCardShadow,
-                                background = background,
-                                onBackground = settings::setBackground,
+                                            onBackground = settings::setBackground,
                                 iconStyle = iconStyle,
                                 onIconStyle = settings::setIconStyle,
                             )

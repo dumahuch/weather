@@ -45,9 +45,6 @@ internal class Disc(val body: SkyBody, val cx: Double, val cy: Double, val radiu
 
 internal object Celestial {
 
-    /** Какой кадр: слоистый «Ди» (за грядами) или «Нейтральный» (горизонт у нижнего края). */
-    enum class Frame { Di, Neutral }
-
     /** Солнце ниже этой высоты не рисуется (диск целиком под горизонтом). */
     const val SUN_HIDDEN_BELOW = -11.0
 
@@ -84,10 +81,6 @@ internal object Celestial {
     private const val DI_FULL_ELEVATION = 40.0
     private const val DI_CURVE = 0.7
     private const val ELEVATION_CAP = 62.0
-
-    /** «Нейтральный»: горизонт у нижнего края (0,97 высоты), 62° на 0,12 высоты. */
-    private const val NEUTRAL_HORIZON = 0.97
-    private const val NEUTRAL_TOP = 0.12
 
     /** Видимый диск: доля ширины экрана; доля картинки, которую занимает диск (кольца солнца, лунный диск). */
     private const val SUN_DIAMETER = 0.20
@@ -172,17 +165,14 @@ internal object Celestial {
     /** Солнечный час (0…24, 12 полдень) в часовой угол (−12…12). */
     private fun hourAngle(solarHour: Double): Double = solarHour - 12.0
 
-    /** Диски на экране [width]×[height] для кадра [frame]. */
-    fun discs(bodies: List<SkyBody>, frame: Frame, width: Double, height: Double): List<Disc> {
+    /** Диски на экране [width]×[height]. */
+    fun discs(bodies: List<SkyBody>, width: Double, height: Double): List<Disc> {
         if (bodies.isEmpty()) return emptyList()
         val skyScale = DiArt.place(DiArt.Layer.Sky, width, height, 0.5, 0.0).scale
         return bodies.map { body ->
             val elevation = body.elevation.coerceAtMost(ELEVATION_CAP)
             val cx = width * (0.5 + X_SPREAD * (body.hourAngleHours / HOURS_PER_STEP).coerceIn(-X_LIMIT, X_LIMIT))
-            val cy = when (frame) {
-                Frame.Di -> diCanvasY(elevation) * skyScale
-                Frame.Neutral -> height * (NEUTRAL_HORIZON - elevation * (NEUTRAL_HORIZON - NEUTRAL_TOP) / ELEVATION_CAP)
-            }
+            val cy = diCanvasY(elevation) * skyScale
             val diameter = width * if (body.moon) MOON_DIAMETER else SUN_DIAMETER
             val fraction = if (body.moon) MOON_FRACTION else SUN_FRACTION
             Disc(body, cx, cy, diameter / 2, diameter / fraction)

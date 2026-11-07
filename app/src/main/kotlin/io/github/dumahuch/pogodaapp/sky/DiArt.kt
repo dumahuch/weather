@@ -37,7 +37,7 @@ internal object DiArt {
     /** Ширина слоя не меньше ширины экрана с этим запасом (на случай широкого экрана). */
     private const val MIN_WIDTH = 1.1
 
-    /** Насколько ход кадра по времени суток слабее, чем у «Нейтрального»: свет в сценах «Ди» не сбоку, а по центру. */
+    /** Насколько ход кадра по времени суток слабее хода сцены: свет в сценах «Ди» не сбоку, а по центру. */
     private const val PAN_SPREAD = 0.35
 
     /** Ближняя гряда по горизонтали ходит на 60 % сильнее неба: от этого глубина. */
@@ -53,7 +53,7 @@ internal object DiArt {
     const val CLOUD_HEIGHT = 0.52
     const val CLOUD_TOP = 0.02
 
-    /** Имя файла слоя без расширения: имена набора («day», «twilight»), а не «Нейтрального». */
+    /** Имя файла слоя без расширения: имена набора («day», «twilight»). */
     fun file(scene: SkyScene, layer: Layer): String = "${prefix(scene)}_${layer.file}"
 
     fun prefix(scene: SkyScene): String = when (scene) {
@@ -65,7 +65,7 @@ internal object DiArt {
         SkyScene.Night -> "night"
     }
 
-    /** Куда смотрит кадр (0…1): ход «Нейтрального», сжатый к середине. */
+    /** Куда смотрит кадр (0…1): ход сцены, сжатый к середине. */
     fun pan(weights: SceneWeights): Double = 0.5 + (weights.pan - 0.5) * PAN_SPREAD
 
     /** Подъём гряд по прокрутке [scrollPx] на экране высотой [heightPx]: вниз положительный, протягивание вниз опускает гряды. */
