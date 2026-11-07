@@ -42,6 +42,7 @@ import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.heroDigitsSize
 import io.github.dumahuch.pogodaapp.home.heroIconFor
+import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
 import io.github.dumahuch.pogodaapp.ui.ExtremeTints
@@ -337,15 +338,18 @@ internal fun ContentTop(
             wide = true,
         ),
     )
+    val heroDay = LocalHeroSolarHourOverride.current?.let { it in DAY_FROM_HOUR..DAY_TO_HOUR } ?: current.isDay
     HeroBlock(
         digits = temperatureDigits(current.temperature),
         digitsSize = heroDigitsSize(current.temperature),
         description = temperatureText(current.temperature),
         icon = heroIconFor(
             LocalHeroConditionOverride.current ?: current.condition,
-            isDay = LocalHeroSolarHourOverride.current?.let { it in DAY_FROM_HOUR..DAY_TO_HOUR } ?: current.isDay,
+            isDay = heroDay,
+            windy = LocalHeroWindOverride.current ?: isStrongWind(details?.windKmh),
         ),
         iconStyle = LocalWeatherIconStyle.current,
+        night = !heroDay,
         modifier = heroModifier,
         scale = heroScale,
     )
