@@ -54,6 +54,7 @@ jobs:
             --allow-permission android.permission.ACCESS_COARSE_LOCATION \
             --allow-permission android.permission.ACCESS_FINE_LOCATION \
             --allow-permission android.permission.POST_NOTIFICATIONS \
+            --allow-permission android.permission.ACCESS_NETWORK_STATE \
             --allow-permission android.permission.RECEIVE_BOOT_COMPLETED
 
       - name: Расчёт номера версии из метки
@@ -102,6 +103,7 @@ jobs:
             --allow-permission android.permission.ACCESS_COARSE_LOCATION \
             --allow-permission android.permission.ACCESS_FINE_LOCATION \
             --allow-permission android.permission.POST_NOTIFICATIONS \
+            --allow-permission android.permission.ACCESS_NETWORK_STATE \
             --allow-permission android.permission.RECEIVE_BOOT_COMPLETED
 
       - name: Причина падения

@@ -249,6 +249,7 @@
     <string name="settings_notify_status_hint">Число рядом с часами. Запись в шторке уведомлений при этом остаётся: без неё Android значок не показывает.</string>
     <string name="settings_notify_lock">Название места на заблокированном экране</string>
     <string name="settings_notify_lock_hint">Если выключено, на заблокированном экране видны только температура и погода. Действует вместе с температурой в строке состояния.</string>
+    <string name="settings_notify_error">Ошибка уведомления: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
     <string name="notify_text">Ощущается как %1$s · %2$s</string>

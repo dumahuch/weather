@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.NotificationToggle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
  * Выключатели уведомления о погоде на экране настроек. Включение шторки или строки состояния сначала просит разрешение на
  * уведомления (Android 13+); без него выключатель остаётся выключенным. Если человек отказал дважды, системное окно больше
  * не появляется: тогда открываются системные настройки уведомлений приложения. Создаётся вместе с окном приложения.
+ * Любая ошибка уведомления не роняет приложение: её текст попадает в строку под выключателями (0.7.2).
  */
 class NotificationSwitches(private val activity: ComponentActivity, private val settings: AppSettings) {
     private val notifier = WeatherNotifier(activity.applicationContext)
@@ -43,20 +45,31 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
 
     /** При открытии приложения: расписание фонового обновления по выключателям (после обновления версии тоже на месте). */
     fun onAppStarted() {
-        WeatherJobs.sync(activity, settings.notifications.value)
+        guarded { WeatherJobs.sync(activity, settings.notifications.value) }
     }
 
     /** Приложение уходит в фон: уведомление сразу берёт прогноз, который только что получило приложение (если он свежий). */
     fun onAppHidden() {
         if (!settings.notifications.value.wanted) return
-        activity.lifecycleScope.launch(Dispatchers.Default) { notifier.showFromCache() }
+        activity.lifecycleScope.launch(Dispatchers.Default) { guarded { notifier.showFromCache() } }
     }
 
     private fun apply(toggle: NotificationToggle, on: Boolean) {
         settings.setNotification(toggle, on)
-        WeatherJobs.sync(activity, settings.notifications.value)
+        if (!settings.notifications.value.wanted) settings.setNoticeError(null)
+        guarded { WeatherJobs.sync(activity, settings.notifications.value) }
         activity.lifecycleScope.launch(Dispatchers.Default) {
-            if (!notifier.showFromCache()) WeatherJobs.refreshSoon(activity)
+            guarded { if (!notifier.showFromCache()) WeatherJobs.refreshSoon(activity) }
+        }
+    }
+
+    private inline fun guarded(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            settings.setNoticeError(NoticeFailure.describe(e))
         }
     }
 

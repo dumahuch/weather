@@ -247,6 +247,7 @@
     <string name="settings_notify_status_hint">Die Zahl neben der Uhr. Der Eintrag in der Benachrichtigungsleiste bleibt: Ohne ihn zeigt Android das Symbol nicht.</string>
     <string name="settings_notify_lock">Ortsname auf dem Sperrbildschirm</string>
     <string name="settings_notify_lock_hint">Ausgeschaltet zeigt der Sperrbildschirm nur Temperatur und Wetter. Gilt zusammen mit der Temperatur in der Statusleiste.</string>
+    <string name="settings_notify_error">Fehler der Benachrichtigung: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
     <string name="notify_text">Gefühlt %1$s · %2$s</string>
