@@ -231,7 +231,6 @@ class MainActivity : ComponentActivity() {
                                 onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
                                 cardShadow = cardShadow,
                                 onCardShadow = settings::setCardShadow,
-                                            onBackground = settings::setBackground,
                                 iconStyle = iconStyle,
                                 onIconStyle = settings::setIconStyle,
                             )
