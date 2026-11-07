@@ -6,12 +6,6 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Rect
-import android.graphics.Typeface
 import android.graphics.drawable.Icon
 import android.icu.text.DateFormat
 import android.icu.text.ListFormatter
@@ -23,6 +17,7 @@ import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoParser
 import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
+import io.github.dumahuch.pogodaapp.home.roundTemperature
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
@@ -112,7 +107,7 @@ class WeatherNotifier(private val context: Context) {
             context.getString(R.string.notify_place_since, DateFormat.getInstanceForSkeleton("dMMMM", locale).format(Date.from(placeAt)))
         }
         val smallIcon = if (channel == NoticeChannel.StatusBar) {
-            Icon.createWithBitmap(statusBitmap(temperatureText(current.temperature)))
+            Icon.createWithResource(context, TemperatureIcons.of(roundTemperature(current.temperature)))
         } else {
             Icon.createWithResource(context, R.drawable.ic_notification)
         }
@@ -173,27 +168,6 @@ class WeatherNotifier(private val context: Context) {
             }
         }
 
-    /**
-     * Значок строки состояния: число температуры белым на прозрачном (систему интересует только прозрачность, цвет она
-     * задаёт сама). Цифры жирным Manrope и уменьшаются, пока «−12°» не встанет в квадрат.
-     */
-    private fun statusBitmap(text: String): Bitmap {
-        val size = (STATUS_ICON_DP * context.resources.displayMetrics.density).roundToInt().coerceIn(48, 160)
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
-            typeface = Typeface.create(context.resources.getFont(R.font.manrope), STATUS_WEIGHT, false)
-            textAlign = Paint.Align.CENTER
-            textSize = size * 0.86f
-        }
-        val width = paint.measureText(text)
-        if (width > size) paint.textSize *= size / width
-        val bounds = Rect()
-        paint.getTextBounds(text, 0, text.length, bounds)
-        Canvas(bitmap).drawText(text, size / 2f, size / 2f - bounds.exactCenterY(), paint)
-        return bitmap
-    }
-
     private fun largeIconPx(): Int = (LARGE_ICON_DP * context.resources.displayMetrics.density).roundToInt().coerceIn(64, 256)
 
     private fun onLight(): Boolean =
@@ -207,8 +181,6 @@ class WeatherNotifier(private val context: Context) {
 
     private companion object {
         const val NOTIFICATION_ID = 7001
-        const val STATUS_ICON_DP = 24f
         const val LARGE_ICON_DP = 48f
-        const val STATUS_WEIGHT = 700
     }
 }
