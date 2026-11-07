@@ -124,4 +124,28 @@ class HeroFitTest {
         assertTrue("снизу $below", below >= edge - 0.01f)
         assertTrue("сверху ${plan.top}", plan.top >= edge)
     }
+
+    @Test
+    fun withThreeAlertsTheBlockIsNeverLargerThanUsualAndEverythingFits() {
+        // Свободное место от узкого до обычного (Pixel 6 Pro около 155): три плашки всегда видны целиком, блок не больше прежнего.
+        var free = 90f
+        while (free <= 155f) {
+            val plan = HeroFit.plan(free, 3, rows, edge, hero)
+            assertEquals("free=$free", 3, plan.shown)
+            assertTrue("free=$free масштаб ${plan.scale}", plan.scale <= 1f)
+            assertTrue("free=$free масштаб ${plan.scale}", plan.scale >= HeroFit.MIN_SCALE)
+            assertTrue("free=$free снизу ${below(free, plan)}", below(free, plan) >= edge - 0.01f)
+            assertTrue("free=$free сверху ${plan.top}", plan.top >= edge - 0.01f)
+            free += 5f
+        }
+    }
+
+    @Test
+    fun withoutAlertsTheBlockReachesTheNewLimitOnAnAmpleScreen() {
+        val plan = HeroFit.plan(400f, 0, rows, edge, hero)
+        assertEquals(1.4f, HeroFit.MAX_SCALE, 0f)
+        assertEquals(HeroFit.MAX_SCALE, plan.scale, 1e-4f)
+        val usual = HeroFit.plan(155f, 0, rows, edge, hero)
+        assertTrue("на Pixel 6 Pro без предупреждений блок заметно крупнее прежнего", usual.scale > 1.3f)
+    }
 }

@@ -49,6 +49,7 @@ import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import io.github.dumahuch.pogodaapp.ui.PogodaApp
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
+import io.github.dumahuch.pogodaapp.ui.home.LocalHeroConditionOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalWeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
@@ -198,7 +199,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     Box(Modifier.fillMaxSize()) {
-                        CompositionLocalProvider(LocalWeatherIconStyle provides iconStyle) {
+                        CompositionLocalProvider(
+                            LocalWeatherIconStyle provides iconStyle,
+                            LocalHeroConditionOverride provides override.condition,
+                        ) {
                             PogodaApp(
                                 state = state,
                                 refreshing = refreshing,

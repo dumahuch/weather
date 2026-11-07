@@ -10,7 +10,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -19,7 +18,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
@@ -27,12 +25,16 @@ import androidx.compose.ui.unit.Dp
 import io.github.dumahuch.pogodaapp.home.HeroIcon
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.weather.Condition
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
 /** Выбранный набор значков погоды (настройка «Значки погоды»), задаётся в `MainActivity`. */
 val LocalWeatherIconStyle = staticCompositionLocalOf { WeatherIconStyle.Glass }
+
+/** Вид погоды, подставленный экраном проверки; `null`: значок у температуры берёт настоящую погоду. Задаётся в `MainActivity`. */
+val LocalHeroConditionOverride = staticCompositionLocalOf<Condition?> { null }
 
 private const val VIEWPORT = 24f
 
@@ -241,11 +243,15 @@ private fun DrawScope.glassBody(
         style = Stroke(0.5f),
     )
     if (sheen) {
-        clipPath(path) {
-            val cx = 10.8f
-            val cy = top + 2.4f
-            drawOval(Color.White.copy(alpha = 0.55f), topLeft = Offset(cx - 2.2f, cy - 0.7f), size = Size(4.4f, 1.4f))
-        }
+        // Мягкий свет по верхней кромке: плавный градиент от верха вниз, без резких краёв.
+        drawPath(
+            path,
+            Brush.verticalGradient(
+                listOf(Color.White.copy(alpha = 0.34f), Color.Transparent),
+                top,
+                top + (bottom - top) * 0.5f,
+            ),
+        )
     }
 }
 
