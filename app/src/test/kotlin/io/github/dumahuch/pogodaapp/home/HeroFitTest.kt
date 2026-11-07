@@ -45,6 +45,30 @@ class HeroFitTest {
     }
 
     @Test
+    fun oneAlertKeepsTheBlockAlmostAsLargeAndMovesItUp() {
+        val none = HeroFit.plan(155f, 0, rows, edge, hero)
+        val one = HeroFit.plan(155f, 1, rows, edge, hero)
+        assertEquals(1, one.shown)
+        // Одна плашка (16 + 42 = 58) оставляет 73 из 131: блок теряет только то, что не помещается (5,6 из 78,6).
+        assertEquals(1f + 73f / hero, one.scale, 1e-4f)
+        assertTrue("почти прежний размер", none.scale - one.scale < 0.03f)
+        assertTrue("сдвинут вверх", one.top < none.top)
+        assertEquals("сверху наименьший промежуток", edge, one.top, 0.01f)
+        assertEquals("снизу наименьший промежуток", edge, below(155f, one), 0.01f)
+    }
+
+    @Test
+    fun withRoomToSpareAlertsDoNotShrinkTheBlockAtAll() {
+        val none = HeroFit.plan(500f, 0, rows, edge, hero)
+        for (count in 1..5) {
+            val plan = HeroFit.plan(500f, count, rows, edge, hero)
+            assertEquals("count=$count", none.scale, plan.scale, 1e-6f)
+            assertTrue("count=$count снизу ${below(500f, plan)}", below(500f, plan) >= edge - 0.01f)
+            assertTrue("count=$count сверху ${plan.top}", plan.top >= edge - 0.01f && plan.top <= none.top + 0.01f)
+        }
+    }
+
+    @Test
     fun threeAlertsAreAllShownAndTheBlockShrinksToMakeRoom() {
         val plan = HeroFit.plan(155f, 3, rows, edge, hero)
         assertEquals(3, plan.shown)
