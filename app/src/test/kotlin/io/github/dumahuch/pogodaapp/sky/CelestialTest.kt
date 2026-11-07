@@ -18,7 +18,7 @@ class CelestialTest {
     private fun moonSky(elevation: Double, hourAngle: Double, cycle: Double, southern: Boolean = false) =
         MoonSky(Moon.Position(elevation, hourAngle), Moon.Phase(0.5, cycle), southern)
 
-    private fun disc(frame: Celestial.Frame, body: SkyBody) = Celestial.discs(listOf(body), frame, width, height).single()
+    private fun disc(body: SkyBody) = Celestial.discs(listOf(body), width, height).single()
 
     @Test
     fun sunIsShownOnlyAboveTheHorizonWithMargin() {
@@ -59,35 +59,33 @@ class CelestialTest {
     }
 
     @Test
-    fun higherSunSitsHigherInBothFrames() {
-        for (frame in Celestial.Frame.entries) {
-            val low = disc(frame, Celestial.bodies(sun(10.0, 14.0), null).single())
-            val high = disc(frame, Celestial.bodies(sun(50.0, 12.0), null).single())
-            assertTrue("$frame: выше над горизонтом значит выше на экране", high.cy < low.cy)
-        }
+    fun higherSunSitsHigherOnTheScreen() {
+        val low = disc(Celestial.bodies(sun(10.0, 14.0), null).single())
+        val high = disc(Celestial.bodies(sun(50.0, 12.0), null).single())
+        assertTrue("выше над горизонтом значит выше на экране", high.cy < low.cy)
     }
 
     @Test
     fun winterSunInDiStandsInTheUpperPartOfTheScreen() {
         // Декабрьский полдень в Ганновере 14°, ноябрьский 21°: выше 35 % высоты экрана, но не выше верхней границы.
         for (elevation in listOf(14.0, 21.0, 61.0)) {
-            val d = disc(Celestial.Frame.Di, SkyBody("sun", false, elevation, 0.0, 1.0, 1.0, true))
+            val d = disc(SkyBody("sun", false, elevation, 0.0, 1.0, 1.0, true))
             assertTrue("$elevation°: центр на ${d.cy} из $height", d.cy < 0.35 * height && d.cy - d.radius > 0)
         }
-        val low = disc(Celestial.Frame.Di, SkyBody("sun", false, 3.0, 0.0, 1.0, 1.0, true))
-        val high = disc(Celestial.Frame.Di, SkyBody("sun", false, 30.0, 0.0, 1.0, 1.0, true))
+        val low = disc(SkyBody("sun", false, 3.0, 0.0, 1.0, 1.0, true))
+        val high = disc(SkyBody("sun", false, 30.0, 0.0, 1.0, 1.0, true))
         assertTrue("выше над горизонтом всё равно выше", high.cy < low.cy)
     }
 
     @Test
     fun schematicHeightDoesNotDependOnTheSeason() {
         // Полдень в декабре (14°) и июне (61°) стоит на одной высоте, как и восход и середина утра.
-        fun cy(elevation: Double, peak: Double) = disc(Celestial.Frame.Di, Celestial.bodies(sun(elevation, 12.0), null, peak).single()).cy
+        fun cy(elevation: Double, peak: Double) = disc(Celestial.bodies(sun(elevation, 12.0), null, peak).single()).cy
         assertEquals(cy(14.2, 14.2), cy(61.0, 61.0), 1e-6)
         assertEquals(cy(7.1, 14.2), cy(30.5, 61.0), 1e-6)
         assertTrue("полдень выше середины утра", cy(14.2, 14.2) < cy(7.1, 14.2))
         // На горизонте диск у гряд, ниже горизонта высота настоящая.
-        val horizon = disc(Celestial.Frame.Di, Celestial.bodies(sun(0.0, 6.0), null, 61.0).single())
+        val horizon = disc(Celestial.bodies(sun(0.0, 6.0), null, 61.0).single())
         assertEquals(790.0 * DiArt.place(DiArt.Layer.Sky, width, height, 0.5, 0.0).scale, horizon.cy, 1e-6)
     }
 
@@ -108,7 +106,7 @@ class CelestialTest {
             assertEquals(file, moon.file)
             assertEquals(Celestial.MOON_MAX_ALPHA, moon.alpha, 1e-9)
         }
-        val inSky = disc(Celestial.Frame.Di, Celestial.bodies(sun(-30.0, 22.0), Celestial.testMoon(52.37, 0.5)).single())
+        val inSky = disc(Celestial.bodies(sun(-30.0, 22.0), Celestial.testMoon(52.37, 0.5)).single())
         assertTrue("луна проверки на экране", inSky.cx in 0.0..width && inSky.cy in 0.0..height / 2)
     }
 
@@ -124,13 +122,11 @@ class CelestialTest {
 
     @Test
     fun sunMovesFromLeftToRightDuringTheDayAndStaysOnTheScreen() {
-        for (frame in Celestial.Frame.entries) {
-            val xs = listOf(5.0, 8.0, 12.0, 16.0, 19.0).map { hour -> disc(frame, Celestial.bodies(sun(20.0, hour), null).single()).cx }
-            assertTrue("$frame: слева направо $xs", xs.zipWithNext().all { (a, b) -> a < b })
-            assertTrue("$frame: диск целиком на экране по ширине", xs.all { it - 0.1 * width >= 0 && it + 0.1 * width <= width })
-        }
-        val moonRise = disc(Celestial.Frame.Di, Celestial.bodies(sun(-30.0, 22.0), moonSky(10.0, -6.0, 0.5)).single())
-        val moonSet = disc(Celestial.Frame.Di, Celestial.bodies(sun(-30.0, 22.0), moonSky(10.0, 6.0, 0.5)).single())
+        val xs = listOf(5.0, 8.0, 12.0, 16.0, 19.0).map { hour -> disc(Celestial.bodies(sun(20.0, hour), null).single()).cx }
+        assertTrue("слева направо $xs", xs.zipWithNext().all { (a, b) -> a < b })
+        assertTrue("диск целиком на экране по ширине", xs.all { it - 0.1 * width >= 0 && it + 0.1 * width <= width })
+        val moonRise = disc(Celestial.bodies(sun(-30.0, 22.0), moonSky(10.0, -6.0, 0.5)).single())
+        val moonSet = disc(Celestial.bodies(sun(-30.0, 22.0), moonSky(10.0, 6.0, 0.5)).single())
         assertTrue("луна идёт с востока (слева) на запад", moonRise.cx < width / 2 && moonSet.cx > width / 2)
     }
 
@@ -139,17 +135,17 @@ class CelestialTest {
         // Самая низкая вершина гряды far на холсте: 823 из 1536 (ridges.json), ниже неё её закрывает mid.
         val scale = DiArt.place(DiArt.Layer.Sky, width, height, 0.5, 0.0).scale
         val ridgeTop = 823.0 * scale
-        val hidden = disc(Celestial.Frame.Di, SkyBody("sun", false, Celestial.SUN_HIDDEN_BELOW, 6.0, 1.0, 1.0, true))
+        val hidden = disc(SkyBody("sun", false, Celestial.SUN_HIDDEN_BELOW, 6.0, 1.0, 1.0, true))
         assertTrue("при ${Celestial.SUN_HIDDEN_BELOW}° диск целиком под гребнями", hidden.cy - hidden.radius >= ridgeTop)
-        val rising = disc(Celestial.Frame.Di, SkyBody("sun", false, 0.0, -6.0, 1.0, 1.0, true))
+        val rising = disc(SkyBody("sun", false, 0.0, -6.0, 1.0, 1.0, true))
         assertTrue("на горизонте диск наполовину над гребнем", rising.cy - rising.radius < ridgeTop && rising.cy > 700 * scale)
-        val noon = disc(Celestial.Frame.Di, Celestial.bodies(sun(26.0, 12.0), null).single())
+        val noon = disc(Celestial.bodies(sun(26.0, 12.0), null).single())
         assertTrue("днём диск над гребнями", noon.cy + noon.radius < 727.0 * scale)
     }
 
     @Test
     fun blendPaintsTheLitPartOfTheDiscAndLeavesTheFarSkyAlone() {
-        val sunDisc = disc(Celestial.Frame.Di, Celestial.bodies(sun(30.0, 12.0), null).single())
+        val sunDisc = disc(Celestial.bodies(sun(30.0, 12.0), null).single())
         val inside = doubleArrayOf(20.0, 40.0, 200.0)
         Celestial.blend(listOf(sunDisc), sunDisc.cx, sunDisc.cy, inside)
         assertTrue("центр солнца тёплый и светлый", inside[0] > 200 && inside[1] > 120 && inside[2] < 80)
@@ -157,7 +153,7 @@ class CelestialTest {
         Celestial.blend(listOf(sunDisc), sunDisc.cx + 4 * sunDisc.radius, sunDisc.cy, far)
         assertEquals(20.0, far[0], 0.0)
         // Растущая четверть освещена справа: слева от центра диска цвет не меняется, справа меняется.
-        val quarter = disc(Celestial.Frame.Di, Celestial.bodies(sun(-30.0, 22.0), moonSky(40.0, 0.0, 0.25)).single())
+        val quarter = disc(Celestial.bodies(sun(-30.0, 22.0), moonSky(40.0, 0.0, 0.25)).single())
         val dark = doubleArrayOf(10.0, 10.0, 30.0)
         Celestial.blend(listOf(quarter), quarter.cx - 0.6 * quarter.radius, quarter.cy, dark)
         assertEquals(10.0, dark[0], 0.0)

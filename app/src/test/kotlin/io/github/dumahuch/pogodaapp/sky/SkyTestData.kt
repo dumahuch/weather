@@ -5,12 +5,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-/** Общие помощники тестов неба: настоящие карты яркости и значения, снятые с макета. */
+/** Общие помощники тестов неба: настоящие карты яркости «Ди» и значения, снятые с макета. */
 internal object SkyTestData {
 
-    /** Файл карт яркости из приложения (тесты запускаются в папке модуля app). */
-    val maps: SkyMaps by lazy {
-        File("src/main/assets/${SkyMaps.ASSET_PATH}").inputStream().use { SkyMaps.read(it) }
+    /** Снимает цвета по настоящим картам яркости фона «Ди» из приложения (тесты запускаются в папке модуля app). */
+    val sampler: SkySampler by lazy {
+        SkySampler(DiRaster(File("src/main/assets/${DiMaps.ASSET_PATH}").inputStream().use { DiMaps.read(it) }))
     }
 
     /** Значения, снятые с макета в браузере (версия 21): для сверки расчётов приложения с тем, что одобрил Дима. */
@@ -68,8 +68,6 @@ internal object SkyTestData {
     fun rgbOf(array: JSONArray) = Rgb(array.getDouble(0), array.getDouble(1), array.getDouble(2))
 
     fun weightsOf(g: Golden): SceneWeights = SkyTimeOfDay.weights(g.elevation, g.hour)
-
-    fun look(g: Golden): SkyLook = SkyLook(weightsOf(g), g.weather, g.veil(), g.cloudPosition)
 
     fun distance(a: Rgb, b: Rgb): Double = maxOf(kotlin.math.abs(a.r - b.r), kotlin.math.abs(a.g - b.g), kotlin.math.abs(a.b - b.b))
 }

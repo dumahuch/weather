@@ -240,11 +240,6 @@
     <string name="settings_icons_glass_hint">Матовое стекло с цветными каплями, молнией и снегом. Только на главном экране.</string>
     <string name="settings_icons_outline">Контурные</string>
     <string name="settings_icons_outline_hint">Тонкие линии с цветными каплями, молнией и снегом. Только на главном экране.</string>
-    <string name="settings_background">Фон</string>
-    <string name="settings_background_neutral">Нейтральный</string>
-    <string name="settings_background_neutral_hint">Нарисованное небо с облаками.</string>
-    <string name="settings_background_di">Ди</string>
-    <string name="settings_background_di_hint">Бумажные горы слоями: слои сдвигаются по времени суток и при прокрутке.</string>
 
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">

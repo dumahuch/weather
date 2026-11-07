@@ -238,11 +238,6 @@
     <string name="settings_icons_glass_hint">Mattglas mit farbigen Tropfen, Blitz und Schnee. Nur auf dem Startbildschirm.</string>
     <string name="settings_icons_outline">Kontur</string>
     <string name="settings_icons_outline_hint">Feine Linien mit farbigen Tropfen, Blitz und Schnee. Nur auf dem Startbildschirm.</string>
-    <string name="settings_background">Hintergrund</string>
-    <string name="settings_background_neutral">Neutral</string>
-    <string name="settings_background_neutral_hint">Gemalter Himmel mit Wolken.</string>
-    <string name="settings_background_di">Di</string>
-    <string name="settings_background_di_hint">Berge aus Papier in Schichten: Die Schichten verschieben sich mit der Tageszeit und beim Scrollen.</string>
 
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">

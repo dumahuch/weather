@@ -11,79 +11,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
-import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.ScrimShape
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkySampler
-import io.github.dumahuch.pogodaapp.sky.SkyScene
-
-/** Рисует небо выбранного фона (без подложки под цифрами, её рисует [SkyEffects.drawScrim]). */
-internal interface SkyArtPainter {
-    fun draw(scope: DrawScope, look: SkyLook)
-}
-
-/**
- * Фон «Нейтральный». Рисует небо в том же порядке слоёв, что и макет (и расчёт цветов в пакете sky):
- * картины со своими долями → солнце и луна → погодная вуаль → облака → обесцвечивание → затемнение → приглушение света облаков.
- * Доли картин «каскадом»: каждая следующая ложится с прозрачностью вес / сумма весов до неё, это взвешенное среднее.
- * Объект хранит кисти и не создаёт новых на каждом кадре.
- */
-internal class SkyPainter(private val store: SkyBitmapStore, private val celestial: CelestialBitmaps) : SkyArtPainter {
-
-    private val effects = SkyEffects()
-    private val cloudPaint = Paint()
-
-    override fun draw(scope: DrawScope, look: SkyLook) {
-        val loaded = look.weights.visible().filter { store.get(it) != null }
-        if (loaded.isEmpty()) return
-        effects.withWeather(scope, look) {
-            drawPlates(look, loaded)
-            drawCelestial(look, Celestial.Frame.Neutral, celestial)
-            effects.drawVeil(this, look)
-            drawClouds(look, loaded)
-        }
-    }
-
-    private fun DrawScope.drawPlates(look: SkyLook, loaded: List<SkyScene>) {
-        var sum = 0.0
-        for (scene in loaded) {
-            val image = store.get(scene)?.plate ?: continue
-            val weight = look.weights[scene]
-            sum += weight
-            val scale = size.height / image.height
-            val shift = -look.weights.pan.toFloat() * (image.width * scale - size.width)
-            drawScaled(image, shift, 0f, scale, (weight / sum).toFloat())
-        }
-    }
-
-    private fun DrawScope.drawClouds(look: SkyLook, loaded: List<SkyScene>) {
-        val alpha = look.weather.cloudLayerAlpha.toFloat()
-        if (loaded.size == 1) {
-            val image = store.get(loaded[0])?.clouds ?: return
-            drawCloudLayer(image, look.cloudPosition, alpha)
-            return
-        }
-        // Слои разных времён суток сначала складываются друг с другом, потом целиком ложатся на небо.
-        cloudPaint.alpha = alpha
-        val canvas = drawContext.canvas
-        canvas.saveLayer(Rect(0f, 0f, size.width, size.height), cloudPaint)
-        var sum = 0.0
-        for (scene in loaded) {
-            val image = store.get(scene)?.clouds ?: continue
-            val weight = look.weights[scene]
-            sum += weight
-            drawCloudLayer(image, look.cloudPosition, (weight / sum).toFloat())
-        }
-        canvas.restore()
-    }
-
-    private fun DrawScope.drawCloudLayer(image: ImageBitmap, position: Double, alpha: Float) {
-        val scale = SkySampler.CLOUD_SCALE.toFloat() * size.height / image.height
-        val shift = -position.toFloat() * (image.width * scale - size.width)
-        val top = size.height - image.height * scale
-        drawScaled(image, shift, top, scale, alpha)
-    }
-}
 
 /** Рисует картину целиком: сначала масштаб, потом сдвиг. Сдвиг дробный, поэтому слои плывут плавно. */
 internal fun DrawScope.drawScaled(image: ImageBitmap, left: Float, top: Float, scale: Float, alpha: Float, filter: ColorFilter? = null) {
@@ -96,7 +26,7 @@ internal fun DrawScope.drawScaled(image: ImageBitmap, left: Float, top: Float, s
 }
 
 /**
- * Погода поверх картин, общая для обоих фонов: обесцвечивание (цветовой матрицей на слое), погодная вуаль,
+ * Погода поверх картин: обесцвечивание (цветовой матрицей на слое), погодная вуаль,
  * затемнение грозы и приглушение света ночью. Хранит кисть и фильтр, на каждом кадре новых не создаёт.
  */
 internal class SkyEffects {
@@ -105,12 +35,6 @@ internal class SkyEffects {
     private val tonePaint = Paint()
     private var filterAmount = -1.0
     private var filter: ColorFilter? = null
-
-    /** Рисует [body] (картины, вуаль, облака) с обесцвечиванием непогоды, затем затемнение и приглушение. */
-    fun withWeather(scope: DrawScope, look: SkyLook, body: DrawScope.() -> Unit) {
-        layer(scope, look, force = false, body = body)
-        finish(scope, look)
-    }
 
     /**
      * Рисует [body] с обесцвечиванием непогоды (цветовой матрицей на слое). [force]: слой нужен и без обесцвечивания,

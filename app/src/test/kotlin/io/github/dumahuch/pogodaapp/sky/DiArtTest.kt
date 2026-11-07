@@ -58,7 +58,7 @@ class DiArtTest {
     }
 
     @Test
-    fun panStaysCloserToTheMiddleThanNeutral() {
+    fun panStaysCloserToTheMiddleThanTheScene() {
         for (scene in SkyScene.entries) {
             val weights = SceneWeights(DoubleArray(SkyScene.entries.size) { if (it == scene.ordinal) 1.0 else 0.0 })
             val di = DiArt.pan(weights)

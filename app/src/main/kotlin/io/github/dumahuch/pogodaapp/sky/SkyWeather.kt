@@ -98,9 +98,6 @@ internal data class SkyWeather(
         const val HEAVY_PRECIPITATION_MM = 4.0
     }
 
-    /** Прозрачность слоя облаков: ясное небо почти без них (12 %), сплошная облачность полностью. */
-    val cloudLayerAlpha: Double get() = 0.12 + 0.88 * smooth(0.1, 0.95, cloud)
-
     /** Сколько секунд длится один период покачивания облаков: ветер ускоряет дрейф. */
     val driftPeriodSeconds: Double get() = 150.0 - wind * 1.5
 }

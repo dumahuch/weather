@@ -11,7 +11,7 @@ import org.junit.Test
  */
 class SkyGlassPaletteTest {
 
-    private val sampler = SkySampler(SkyTestData.maps)
+    private val sampler = SkyTestData.sampler
 
     private fun scores(elevation: Double, solarHour: Double): InkScores {
         val sky = SkyState.of(SunPosition.Sun(elevation, solarHour), Condition.Clear)

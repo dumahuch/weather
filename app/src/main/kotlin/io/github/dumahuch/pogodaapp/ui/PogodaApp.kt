@@ -16,7 +16,6 @@ import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.places.PlaceChoice
 import io.github.dumahuch.pogodaapp.places.PlacesLogic
 import io.github.dumahuch.pogodaapp.settings.CardShadow
-import io.github.dumahuch.pogodaapp.settings.SkyBackground
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
@@ -62,8 +61,6 @@ fun PogodaApp(
     onVersionTap: () -> Unit,
     cardShadow: CardShadow,
     onCardShadow: (CardShadow) -> Unit,
-    background: SkyBackground,
-    onBackground: (SkyBackground) -> Unit,
     iconStyle: WeatherIconStyle,
     onIconStyle: (WeatherIconStyle) -> Unit,
     modifier: Modifier = Modifier,
@@ -144,8 +141,6 @@ fun PogodaApp(
         SettingsScreen(
             cardShadow = cardShadow,
             onCardShadow = onCardShadow,
-            background = background,
-            onBackground = onBackground,
             iconStyle = iconStyle,
             onIconStyle = onIconStyle,
             onClose = { settingsOpen = false },

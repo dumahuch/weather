@@ -8,7 +8,7 @@ import org.junit.Test
 
 class SkyThemeDriverTest {
 
-    private val sampler = SkySampler(SkyTestData.maps)
+    private val sampler = SkyTestData.sampler
 
     private fun driver() = SkyThemeDriver(sampler)
 

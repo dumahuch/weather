@@ -60,9 +60,9 @@ internal class CelestialBitmaps(private val context: Context) {
  * Рисует солнце и луну тем же положением и размером, что учитывает расчёт цветов ([Celestial.discs]).
  * У картинок солнца и полной луны свечение уже есть; у остальных фаз луны его рисует код.
  */
-internal fun DrawScope.drawCelestial(look: SkyLook, frame: Celestial.Frame, bitmaps: CelestialBitmaps) {
+internal fun DrawScope.drawCelestial(look: SkyLook, bitmaps: CelestialBitmaps) {
     if (look.bodies.isEmpty()) return
-    for (disc in Celestial.discs(look.bodies, frame, size.width.toDouble(), size.height.toDouble())) {
+    for (disc in Celestial.discs(look.bodies, size.width.toDouble(), size.height.toDouble())) {
         val body = disc.body
         val image = bitmaps.get(body.file) ?: continue
         val side = disc.imageSize.roundToInt().coerceAtLeast(1)

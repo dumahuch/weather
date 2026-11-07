@@ -43,15 +43,12 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.settings.CardShadow
-import io.github.dumahuch.pogodaapp.settings.SkyBackground
 import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.DiArt
 import io.github.dumahuch.pogodaapp.sky.DiMaps
 import io.github.dumahuch.pogodaapp.sky.DiRaster
-import io.github.dumahuch.pogodaapp.sky.NeutralRaster
 import io.github.dumahuch.pogodaapp.sky.SkyRaster
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
-import io.github.dumahuch.pogodaapp.sky.SkyMaps
 import io.github.dumahuch.pogodaapp.sky.SkyOverride
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkyPalette
@@ -109,13 +106,13 @@ internal class SkyDiagnostics {
         val hero: Double,
         val cards: Double,
         val buttons: Double,
-        val load: SkyBitmapStore.LoadTiming?,
+        val load: DiBitmapStore.LoadTiming?,
     )
 
     var snapshot by mutableStateOf<Snapshot?>(null)
         private set
 
-    fun publish(sky: SkyState, palette: SkyPalette, cloudPosition: Double, load: SkyBitmapStore.LoadTiming?) {
+    fun publish(sky: SkyState, palette: SkyPalette, cloudPosition: Double, load: DiBitmapStore.LoadTiming?) {
         snapshot = Snapshot(
             elevation = sky.sun.elevation,
             solarHour = sky.sun.solarHour,
@@ -162,18 +159,14 @@ internal fun SkyHost(
     modifier: Modifier = Modifier,
     glassBlur: Boolean = true,
     cardShadow: CardShadow = CardShadow.Soft,
-    background: SkyBackground = SkyBackground.Neutral,
     content: @Composable () -> Unit,
 ) {
     val appContext = LocalContext.current.applicationContext
-    // Карты яркости и картины выбранного фона; при смене фона прежние картины выгружаются.
-    val raster by produceState<SkyRaster?>(null, appContext, background) {
-        value = null
-        value = withContext(Dispatchers.IO) { loadRaster(appContext, background) }
+    // Карты яркости и картины фона «Ди».
+    val raster by produceState<SkyRaster?>(null, appContext) {
+        value = withContext(Dispatchers.IO) { loadRaster(appContext) }
     }
-    val store: SkyArtStore = remember(appContext, background) {
-        if (background == SkyBackground.Di) DiBitmapStore(appContext) else SkyBitmapStore(appContext)
-    }
+    val store = remember(appContext) { DiBitmapStore(appContext) }
     DisposableEffect(store) { onDispose { store.clear() } }
     val celestial = remember(appContext) { CelestialBitmaps(appContext) }
     DisposableEffect(celestial) { onDispose { celestial.clear() } }
@@ -218,7 +211,6 @@ internal fun SkyHost(
     }
 
     val driver = remember(raster) { raster?.let { SkyThemeDriver(SkySampler(it)) } }
-    val layered = background == SkyBackground.Di
     var skyPalette by remember { mutableStateOf<PogodaPalette?>(null) }
     LaunchedEffect(driver, sky, animationsOn, started, diagnostics != null) {
         val themeDriver = driver ?: return@LaunchedEffect
@@ -230,7 +222,7 @@ internal fun SkyHost(
             val seconds = if (animationsOn) (at - last) / NANOS_PER_SECOND else INSTANT_SECONDS
             last = at
             val cloudPosition = SkyDrift.position(state.pan, phase)
-            val lift = if (layered) DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble()) else 0.0
+            val lift = DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble())
             val scores = themeDriver.measure(state, cloudPosition, lift)
             val palette = themeDriver.palette(scores, seconds)
             skyPalette = palette.toUi()
@@ -271,7 +263,7 @@ internal fun SkyHost(
 
     // Раз в две минуты, пока приложение на виду и небо настоящее, снимок неба уходит на диск для следующего запуска.
     val snapshotLayer = rememberGraphicsLayer()
-    val snapshotPainter by rememberUpdatedState(remember(store, celestial) { painterFor(store, celestial) })
+    val snapshotPainter by rememberUpdatedState(remember(store, celestial) { DiPainter(store, celestial) })
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val latestSky by rememberUpdatedState(sky)
@@ -283,7 +275,7 @@ internal fun SkyHost(
             val state = latestSky
             val colors = latestPalette
             if (state != null && colors != null && hostSize.width > 0) {
-                val lift = if (layered) DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble()) else 0.0
+                val lift = DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble())
                 captureSnapshot(
                     appContext, snapshotLayer, snapshotPainter, state.look(SkyDrift.position(state.pan, phase), lift), colors,
                     density, layoutDirection, hostSize,
@@ -293,7 +285,7 @@ internal fun SkyHost(
         }
     }
 
-    // Стекло размывает то, что нарисовано на небе (вместе с нейтральным фоном, пока неба ещё нет).
+    // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
     val hazeState = rememberHazeState()
     // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
     val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong)
@@ -309,7 +301,7 @@ internal fun SkyHost(
                 sky = sky,
                 store = store,
                 celestial = celestial,
-                lift = { height -> if (layered) DiArt.liftOf(parallax.scrollPx.toDouble(), height) else 0.0 },
+                lift = { height -> DiArt.liftOf(parallax.scrollPx.toDouble(), height) },
                 snapshot = restored?.image,
                 snapshotAlpha = { snapshotAlpha },
                 phase = { phase },
@@ -327,7 +319,7 @@ internal fun SkyHost(
 @Composable
 private fun SkyBackground(
     sky: SkyState?,
-    store: SkyArtStore,
+    store: DiBitmapStore,
     celestial: CelestialBitmaps,
     lift: (heightPx: Double) -> Double,
     snapshot: ImageBitmap?,
@@ -338,7 +330,7 @@ private fun SkyBackground(
     infoScrim: Color,
     modifier: Modifier = Modifier,
 ) {
-    val painter = remember(store, celestial) { painterFor(store, celestial) }
+    val painter = remember(store, celestial) { DiPainter(store, celestial) }
     Box(modifier.background(PogodaColors.SkyBrush)) {
         if (snapshot != null) {
             Box(
@@ -384,7 +376,7 @@ private const val SNAPSHOT_WIDTH = 96
 private suspend fun captureSnapshot(
     context: Context,
     layer: GraphicsLayer,
-    painter: SkyArtPainter,
+    painter: DiPainter,
     look: SkyLook,
     colors: PogodaPalette,
     density: Density,
@@ -429,17 +421,8 @@ private fun buildSky(input: SkyInput, override: SkyOverride, now: Instant): SkyS
     )
 }
 
-private fun painterFor(store: SkyArtStore, celestial: CelestialBitmaps): SkyArtPainter = when (store) {
-    is DiBitmapStore -> DiPainter(store, celestial)
-    is SkyBitmapStore -> SkyPainter(store, celestial)
-    else -> error("Неизвестный фон")
-}
-
-private fun loadRaster(context: Context, background: SkyBackground): SkyRaster? = try {
-    when (background) {
-        SkyBackground.Neutral -> context.assets.open(SkyMaps.ASSET_PATH).use { NeutralRaster(SkyMaps.read(it)) }
-        SkyBackground.Di -> context.assets.open(DiMaps.ASSET_PATH).use { DiRaster(DiMaps.read(it)) }
-    }
+private fun loadRaster(context: Context): SkyRaster? = try {
+    context.assets.open(DiMaps.ASSET_PATH).use { DiRaster(DiMaps.read(it)) }
 } catch (e: IOException) {
     Log.w(TAG, "Не удалось прочитать карты яркости неба", e)
     null

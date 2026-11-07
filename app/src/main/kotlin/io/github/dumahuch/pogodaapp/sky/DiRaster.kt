@@ -52,7 +52,7 @@ internal class DiMaps private constructor(
  * Кадр фона «Ди» тем же порядком, что рисует экран ([io.github.dumahuch.pogodaapp.ui.sky.DiPainter]):
  * небо → погодная вуаль → солнце и луна (своим цветом, step-29) → облака (подкрашенные, с прозрачностью слоя, вуаль красит и их) →
  * пять гряд сзади вперёд; серость, затемнение и приглушение лежат на небе, облаках и грядах, но не на солнце и луне (step-30).
- * Вуаль ложится и на облака (у «Нейтрального» под ними): тёмные тучи на светлой вуали под цифрами давали пёстрый фон
+ * Вуаль ложится и на облака: тёмные тучи на светлой вуали под цифрами давали пёстрый фон
  * (контраст цифр 2,7 : 1 утром в пасмурно), дымка выравнивает небо; гряды остаются чёткими.
  * Каждый слой смешивается между двумя временами суток по долям (композиция гряд у всех сцен одна).
  */
@@ -74,7 +74,7 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
         val cloudPlace = DiArt.placeClouds(sw, sh, look.cloudPosition)
         val clouds = CloudLayout.of(look.weather)
         val tint = DiArt.tint(w).let { t -> (look.weather.cloudShade * look.weather.cloudLift).let { k -> Rgb(t.r * k, t.g * k, t.b * k) } }
-        val discs = Celestial.discs(look.bodies, Celestial.Frame.Di, sw, sh)
+        val discs = Celestial.discs(look.bodies, sw, sh)
         val veilStrength = look.veilStrength
         // Размер карты в пикселях холста: слой 1024 / 64 = 16.
         val layerK = maps.layerW / DiArt.CANVAS_W
