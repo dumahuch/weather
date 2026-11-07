@@ -53,9 +53,9 @@ class OpenMeteoClientTest {
     }
 
     @Test
-    fun urlHasRoundedCoordinatesAndAllRequestedFields() {
+    fun urlHasCoordinatesToThreeDecimalsAndAllRequestedFields() {
         val url = OpenMeteoClient().buildUrl(52.3651, 9.7449)
-        assertTrue(url, url.startsWith("https://api.open-meteo.com/v1/forecast?latitude=52.37&longitude=9.74"))
+        assertTrue(url, url.startsWith("https://api.open-meteo.com/v1/forecast?latitude=52.365&longitude=9.745"))
         for (part in listOf(
             "current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover",
             "hourly=temperature_2m,weather_code,precipitation,is_day,relative_humidity_2m,pressure_msl,visibility," +
@@ -77,7 +77,7 @@ class OpenMeteoClientTest {
         try {
             Locale.setDefault(Locale.GERMANY)
             val url = OpenMeteoClient().buildUrl(-33.8688, 151.2093)
-            assertTrue(url, url.contains("latitude=-33.87&longitude=151.21"))
+            assertTrue(url, url.contains("latitude=-33.869&longitude=151.209"))
         } finally {
             Locale.setDefault(saved)
         }
@@ -89,7 +89,7 @@ class OpenMeteoClientTest {
         val raw = OpenMeteoClient(baseUrl, "TestAgent/1").fetchRaw(52.3651, 9.7449)
         assertEquals("{\"ok\":\"да\"}", raw)
         assertEquals("TestAgent/1", lastUserAgent)
-        assertTrue(lastQuery.orEmpty(), lastQuery.orEmpty().startsWith("latitude=52.37&longitude=9.74&"))
+        assertTrue(lastQuery.orEmpty(), lastQuery.orEmpty().startsWith("latitude=52.365&longitude=9.745&"))
     }
 
     @Test

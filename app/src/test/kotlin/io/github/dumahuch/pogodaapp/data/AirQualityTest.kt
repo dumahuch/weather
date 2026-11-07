@@ -70,7 +70,7 @@ class AirQualityTest {
         val url = OpenMeteoAirQualityClient().buildUrl(52.3651, 9.7449)
         assertTrue(
             url,
-            url.startsWith("https://air-quality-api.open-meteo.com/v1/air-quality?latitude=52.37&longitude=9.74"),
+            url.startsWith("https://air-quality-api.open-meteo.com/v1/air-quality?latitude=52.365&longitude=9.745"),
         )
         for (part in listOf("hourly=european_aqi", "timezone=auto", "timeformat=unixtime", "forecast_days=2")) {
             assertTrue("в адресе нет $part: $url", url.contains(part))

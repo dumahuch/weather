@@ -51,7 +51,8 @@ jobs:
             --version-name 0.0.0-dev-debug --version-code 1 \
             --min-sdk 36 --target-sdk 36 --require-signature \
             --allow-permission android.permission.INTERNET \
-            --allow-permission android.permission.ACCESS_COARSE_LOCATION
+            --allow-permission android.permission.ACCESS_COARSE_LOCATION \
+            --allow-permission android.permission.ACCESS_FINE_LOCATION
 
       - name: Расчёт номера версии из метки
         run: |
@@ -96,7 +97,8 @@ jobs:
             --forbid-dex-string PogodaRefresh \
             --forbid-dex-string "обновление протягиванием" \
             --allow-permission android.permission.INTERNET \
-            --allow-permission android.permission.ACCESS_COARSE_LOCATION
+            --allow-permission android.permission.ACCESS_COARSE_LOCATION \
+            --allow-permission android.permission.ACCESS_FINE_LOCATION
 
       - name: Причина падения
         if: failure()

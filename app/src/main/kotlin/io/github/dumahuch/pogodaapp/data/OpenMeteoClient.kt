@@ -2,7 +2,6 @@ package io.github.dumahuch.pogodaapp.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 /** Источник прогноза в виде сырого ответа; в тестах подменяется. */
 interface ForecastSource {
@@ -24,8 +23,8 @@ class OpenMeteoClient(
     }
 
     internal fun buildUrl(latitude: Double, longitude: Double): String {
-        val lat = String.format(Locale.ROOT, "%.2f", latitude)
-        val lon = String.format(Locale.ROOT, "%.2f", longitude)
+        val lat = Coordinates.param(latitude)
+        val lon = Coordinates.param(longitude)
         return "$baseUrl?latitude=$lat&longitude=$lon" +
             "&current=temperature_2m,apparent_temperature,weather_code,is_day,cloud_cover" +
             "&hourly=temperature_2m,weather_code,precipitation,is_day,$HOURLY_DETAIL_FIELDS,cloud_cover" +

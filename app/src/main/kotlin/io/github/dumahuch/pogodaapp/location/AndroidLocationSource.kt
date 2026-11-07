@@ -19,9 +19,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 /**
- * Приблизительное место (разрешение ACCESS_COARSE_LOCATION): для погоды хватает нескольких километров.
- * Последнее известное место берётся сразу, свежее запрашивается у объединённого (FUSED) и сетевого поставщиков
- * одновременно, побеждает тот, кто ответил первым.
+ * Место телефона. Точность зависит от выбора человека в системном окне: точное (ACCESS_FINE_LOCATION) или приблизительное
+ * (ACCESS_COARSE_LOCATION, около 3 км); приложение работает с любым. Система сама огрубляет место при приблизительном
+ * разрешении, поэтому код различать их не должен. Последнее известное место берётся сразу, свежее запрашивается
+ * у объединённого (FUSED) и сетевого поставщиков одновременно, побеждает тот, кто ответил первым.
  */
 class AndroidLocationSource(private val context: Context) : LocationSource {
 
@@ -69,7 +70,7 @@ class AndroidLocationSource(private val context: Context) : LocationSource {
         }
     }
 
-    /** Служба местоположения, если доступ есть и геолокация включена; иначе null. */
+    /** Служба местоположения, если доступ есть и геолокация включена; иначе null. Точное разрешение всегда идёт вместе с приблизительным. */
     private fun usableManager(): LocationManager? {
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "нет разрешения на местоположение")

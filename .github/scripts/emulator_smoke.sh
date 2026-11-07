@@ -25,6 +25,7 @@ RELEASE_VERSION_NAME="${8:-}"
 RELEASE_VERSION_CODE="${9:-}"
 ACTIVITY="io.github.dumahuch.pogodaapp.MainActivity"
 PERMISSION="android.permission.ACCESS_COARSE_LOCATION"
+PERMISSION_FINE="android.permission.ACCESS_FINE_LOCATION"
 OUT="${SMOKE_OUT:-smoke-out}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$OUT"
@@ -779,6 +780,7 @@ if [ -n "$RELEASE_APK" ]; then
   # После разрешения приложение идёт определять место. На эмуляторе оно не определится (или определится),
   # важно, что приложение не падает и остаётся на экране с нижней панелью.
   adb shell pm grant "$PKG" "$PERMISSION" || fail "Не удалось выдать разрешение рабочей сборке"
+  adb shell pm grant "$PKG" "$PERMISSION_FINE" || fail "Не удалось выдать точное разрешение рабочей сборке"
   set_locale en
   start_app
   sleep 20
