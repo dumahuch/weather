@@ -14,23 +14,20 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.dumahuch.pogodaapp.home.GLYPH_LIFT
 import io.github.dumahuch.pogodaapp.home.HeroIcon
+import io.github.dumahuch.pogodaapp.home.HeroWidth
 import io.github.dumahuch.pogodaapp.home.glyphCloudBottom
-import io.github.dumahuch.pogodaapp.home.glyphLift
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.HeroLetterSpacing
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import kotlin.math.roundToInt
 
-private const val DEGREE_SCALE = 0.44f
-private const val DEGREE_GAP_EM = 0.04f
-
 /**
- * Градус придвинут к цифрам (просьба Димы 07.11.2026, step-30), доля размера цифр. Запас оставлен: у «7» и «1» просвет
- * между цифрой и градусом самый маленький (измерено по шрифту Manrope, вес 400), глубже придвигать нельзя.
+ * Верх градуса вровень с верхом цифр: у Manrope верх цифр 0,72 em, верх знака градуса 0,735 em его размера, базовая
+ * линия строки [BASELINE_EM]. Отступ базовой линии градуса от верха строки в долях его размера.
  */
-private const val DEGREE_PULL_EM = 0.025f
-private const val DEGREE_TOP_EM = 0.08f
+private val DEGREE_TOP_EM = (BASELINE_EM - 0.72f) / HeroWidth.DEGREE_SCALE + 0.735f - BASELINE_EM
 
 /**
  * Базовая линия строки высотой 0,9 em у Manrope (верх 1,066 em, низ 0,3 em):
@@ -48,8 +45,11 @@ private const val TOP_GAP_DP = 12
 /** Значок погоды справа от цифр (step-29: 80 dp; step-42: 72 dp при цифрах 124 sp, у мелких цифр меньше в той же доле, с масштабом не растёт). */
 private const val GLYPH_DP = 72f
 
-/** Цифры и градус плотнее прежних тонких 200 (просьба Димы 06.11.2026); Manrope переменный, вес любой от 200 до 800. */
-private const val DIGITS_WEIGHT = 400
+/**
+ * Вес цифр и градуса: снова тонкие 200 (решение Димы 07.11.2026, step-42: 400 при цифрах до 1,3 читалась толстой).
+ * Manrope переменный, вес любой от 200 до 800.
+ */
+private const val DIGITS_WEIGHT = 200
 
 /** Наибольший размер цифры (sp): высота блока считается по нему, чтобы строки ниже не прыгали при смене числа. */
 private const val MAX_DIGITS_SP = 124
@@ -65,7 +65,7 @@ private fun Placeable.baselineOrDefault(): Int {
  * при ясной погоде это цифры с градусом. При ясной погоде значка нет ([icon] пустой): солнце и луна на небе.
  * Высота блока всегда считается по самому крупному размеру цифр ([MAX_DIGITS_SP]).
  *
- * [scale] увеличивает цифры и значок вместе (с версии 0.6.0 блок растёт на свободное место, см.
+ * [scale] увеличивает цифры (значок с step-42 не растёт) (с версии 0.6.0 блок растёт на свободное место, см.
  * [io.github.dumahuch.pogodaapp.home.HeroFit]); высота блока: зазор [TOP_GAP_DP] плюс [scale] × [heroDigitsHeight].
  */
 @Composable
@@ -75,11 +75,12 @@ fun HeroBlock(
     description: String,
     icon: HeroIcon?,
     iconStyle: WeatherIconStyle,
+    night: Boolean,
     modifier: Modifier = Modifier,
     scale: Float = 1f,
 ) {
     val numberSize = digitsSize * scale
-    val degreeSize = numberSize * DEGREE_SCALE
+    val degreeSize = numberSize * HeroWidth.DEGREE_SCALE
     // Значок с ростом цифр не растёт (step-42): при цифрах в 1,3 раза крупнее он остаётся около 0,6 их высоты.
     val glyphSize = (GLYPH_DP * digitsSize / MAX_DIGITS_SP).dp
     Layout(
@@ -105,7 +106,7 @@ fun HeroBlock(
                 modifier = Modifier.clearAndSetSemantics { },
             )
             if (icon != null) {
-                WeatherGlyph(icon, iconStyle, glyphSize, Modifier.clearAndSetSemantics { })
+                WeatherGlyph(icon, iconStyle, glyphSize, night, Modifier.clearAndSetSemantics { })
             }
         },
         modifier = modifier.fillMaxWidth(),
@@ -116,9 +117,9 @@ fun HeroBlock(
         val glyphPlaceable = measurables.getOrNull(2)?.measure(loose)
 
         val width = constraints.maxWidth
-        val gap = (degreeSize * DEGREE_GAP_EM).sp.roundToPx()
+        val gap = (degreeSize * HeroWidth.DEGREE_GAP_EM).sp.roundToPx()
         // Правая колонка (градус и значок) шире из двух; весь блок стоит по центру как единое целое.
-        val pull = (numberSize * DEGREE_PULL_EM).sp.roundToPx()
+        val pull = (numberSize * HeroWidth.DEGREE_PULL_EM).sp.roundToPx()
         val sideWidth = maxOf(degreePlaceable.width - pull, glyphPlaceable?.width ?: 0)
         val digitsX = ((width - (digitsPlaceable.width + gap + sideWidth)) / 2).coerceAtLeast(0)
         val sideX = digitsX + digitsPlaceable.width + gap
@@ -132,10 +133,10 @@ fun HeroBlock(
         val digitsY = lineTop + (digitsBaselineWanted - digitsBaseline).roundToInt()
         val degreeY = lineTop + ((degreeSize * (DEGREE_TOP_EM + BASELINE_EM)).sp.toPx() - degreeBaseline).roundToInt()
         // У цифр нет нижних выносных: нижний край цифр это базовая линия. Нижний край облака любого значка стоит над ней
-        // на одной и той же высоте (glyphLift), всё остальное (капли, молния, снег, туман) свисает ниже облака.
+        // на одной и той же высоте (GLYPH_LIFT), всё остальное (штрихи дождя, молния, снег) свисает ниже облака.
         val glyphY = if (icon == null) 0 else {
             val unit = glyphSize.toPx() / 24f
-            (lineTop + digitsBaselineWanted - glyphCloudBottom(icon, iconStyle) * unit - glyphLift(iconStyle) * unit)
+            (lineTop + digitsBaselineWanted - glyphCloudBottom(icon) * unit - GLYPH_LIFT * unit)
                 .roundToInt()
         }
 

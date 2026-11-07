@@ -9,7 +9,6 @@ import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.icu.text.DateFormat
 import android.icu.text.ListFormatter
-import androidx.compose.ui.graphics.asAndroidBitmap
 import io.github.dumahuch.pogodaapp.AppVersion
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.data.ForecastCache
@@ -17,6 +16,7 @@ import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoParser
 import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
+import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.home.roundTemperature
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.settings.AppSettings
@@ -112,7 +112,14 @@ class WeatherNotifier(private val context: Context) {
             Icon.createWithResource(context, R.drawable.ic_notification)
         }
         val largeIcon = Icon.createWithBitmap(
-            weatherGlyphBitmap(current.condition, current.isDay, settings().iconStyle.value, onLight(), largeIconPx()).asAndroidBitmap(),
+            weatherGlyphBitmap(
+                current.condition,
+                current.isDay,
+                isStrongWind(forecast.detailsAt(now)?.windKmh),
+                settings().iconStyle.value,
+                onLight(),
+                largeIconPx(),
+            ),
         )
         fun builder(contentTitle: String) = Notification.Builder(context, channel.id)
             .setSmallIcon(smallIcon)

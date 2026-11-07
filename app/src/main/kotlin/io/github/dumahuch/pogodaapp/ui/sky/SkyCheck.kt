@@ -270,6 +270,14 @@ private fun ExpandedPanel(
                 modifier = Modifier.weight(1f),
             )
         }
+        Row(Modifier.fillMaxWidth()) {
+            CheckButton(
+                text = stringResource(R.string.check_wx_wind),
+                selected = override.windy == true,
+                onClick = { onOverride(override.copy(windy = if (override.windy == true) null else true)) },
+                modifier = Modifier.weight(1f),
+            )
+        }
         Caption(stringResource(R.string.check_moon_title))
         ButtonGrid(columns = 2, items = Moons) { (cycle, label) ->
             CheckButton(
