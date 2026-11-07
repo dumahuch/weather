@@ -39,11 +39,11 @@ private const val DEGREE_TOP_EM = 0.08f
 private const val BASELINE_EM = 0.833f
 
 /**
- * Место над цифрами, где до step-27 стоял значок 96 dp (вместе с промежутком 2 dp). Оставлено пустым: цифры и строки под
- * ними стоят там же, где раньше, подложки под небо (вуаль 96–440 dp, строки под температурой) рассчитаны на это место.
- * Над цифрами теперь видно небо с солнцем или луной.
+ * Зазор над строкой цифр (step-40, решение Димы 07.11.2026). До этого здесь было 98 dp, место бывшего значка 96 dp над
+ * цифрами (до step-27), и оно росло вместе с цифрами: при масштабе 1,35 около 132 dp пустоты. Зазор фиксированный и
+ * с масштабом не растёт.
  */
-private const val TOP_ROOM_DP = 98
+private const val TOP_GAP_DP = 12
 
 /** Значок погоды справа от цифр (решение Димы 07.11.2026, step-29): 80 dp при цифрах 124 sp, у мелких цифр меньше в той же доле. */
 private const val GLYPH_DP = 80f
@@ -66,7 +66,7 @@ private fun Placeable.baselineOrDefault(): Int {
  * Высота блока всегда считается по самому крупному размеру цифр ([MAX_DIGITS_SP]).
  *
  * [scale] увеличивает цифры и значок вместе (с версии 0.6.0 блок растёт на свободное место, см.
- * [io.github.dumahuch.pogodaapp.home.HeroFit]); высота блока ровно [scale] × [heroBaseHeight].
+ * [io.github.dumahuch.pogodaapp.home.HeroFit]); высота блока: зазор [TOP_GAP_DP] плюс [scale] × [heroDigitsHeight].
  */
 @Composable
 fun HeroBlock(
@@ -121,7 +121,7 @@ fun HeroBlock(
         val sideWidth = maxOf(degreePlaceable.width - pull, glyphPlaceable?.width ?: 0)
         val digitsX = ((width - (digitsPlaceable.width + gap + sideWidth)) / 2).coerceAtLeast(0)
         val sideX = digitsX + digitsPlaceable.width + gap
-        val lineTop = (TOP_ROOM_DP * scale).dp.roundToPx()
+        val lineTop = TOP_GAP_DP.dp.roundToPx()
 
         // Положение цифр считается от базовой линии, как в макете (строка высотой 0,9 em), а не от верха надписи:
         // так результат не зависит от того, как Compose распределяет межстрочный интервал.
@@ -149,6 +149,8 @@ fun HeroBlock(
 
 private const val LINE_HEIGHT_EM = 0.9f
 
-/** Высота блока при обычном размере (место сверху и строка цифр): от неё считается рост ([HeroBlock], scale). */
-internal fun Density.heroBaseHeight(): Float =
-    TOP_ROOM_DP.dp.toPx() + (MAX_DIGITS_SP * LINE_HEIGHT_EM).sp.toPx()
+/** Высота блока при обычном размере (зазор сверху и строка цифр). */
+internal fun Density.heroBaseHeight(): Float = TOP_GAP_DP.dp.toPx() + heroDigitsHeight()
+
+/** Высота строки цифр при обычном размере: это та часть блока, которая растёт с масштабом ([HeroBlock], scale). */
+internal fun Density.heroDigitsHeight(): Float = (MAX_DIGITS_SP * LINE_HEIGHT_EM).sp.toPx()

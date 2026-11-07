@@ -23,7 +23,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.home.HeroFit
+import io.github.dumahuch.pogodaapp.home.HeroWidth
 import io.github.dumahuch.pogodaapp.home.HomeUiState
+import io.github.dumahuch.pogodaapp.home.heroDigitsSize
+import io.github.dumahuch.pogodaapp.home.temperatureDigits
+import io.github.dumahuch.pogodaapp.ui.sky.LocalScrimRegions
+import io.github.dumahuch.pogodaapp.ui.sky.ScrimRegions
+import io.github.dumahuch.pogodaapp.ui.sky.scrimRegion
 import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.abs
@@ -88,6 +94,7 @@ internal fun ColumnScope.ContentMiddle(
     state: HomeUiState.Content,
     layout: HomeLayout,
     viewport: Dp,
+    viewportWidth: Dp,
     pulled: Modifier,
     actions: HomeActions,
 ) {
@@ -95,6 +102,12 @@ internal fun ColumnScope.ContentMiddle(
     val now = remember(state) { Instant.now() }
     val alerts = remember(state.alerts, now) { state.alerts?.shownAt(now).orEmpty() }
     val heroBase = remember(density) { density.heroBaseHeight() }
+    // Растёт только строка цифр, зазор над ней фиксированный; по ширине рост ограничен (крупный шрифт, узкий экран).
+    val digitsBase = remember(density) { density.heroDigitsHeight() }
+    val temperature = state.forecast.current.temperature
+    val maxScale = HeroWidth.maxScale(
+        temperatureDigits(temperature), heroDigitsSize(temperature), viewportWidth.value, density.fontScale,
+    )
     val edge = with(density) { CENTER_EDGE.roundToPx() }
     val rows = with(density) {
         HeroFit.Rows(
@@ -105,8 +118,9 @@ internal fun ColumnScope.ContentMiddle(
         )
     }
     val free = layout.free(with(density) { viewport.roundToPx() }, heroBase, edge)
-    val plan = free?.let { HeroFit.plan(it.toFloat(), alerts.size, rows, edge.toFloat(), heroBase) }
+    val plan = free?.let { HeroFit.plan(it.toFloat(), alerts.size, rows, edge.toFloat(), digitsBase, maxScale) }
 
+    val regions = LocalScrimRegions.current
     DisposableEffect(layout) { onDispose { layout.forgetMiddle() } }
     val scale = remember { Animatable(1f) }
     val top = remember { Animatable(-1f) }
@@ -129,7 +143,13 @@ internal fun ColumnScope.ContentMiddle(
         Spacer(Modifier.height(with(density) { top.value.toDp() }).then(topModifier))
     }
     Column(Modifier.fillMaxWidth().then(pulled)) {
-        ContentTop(state, scale.value, Modifier.onSizeChanged { layout.hero = it.height })
+        // Подложки неба идут за настоящими границами блока цифр и строк под ним (step-40).
+        ContentTop(
+            state,
+            scale.value,
+            heroModifier = Modifier.onSizeChanged { layout.hero = it.height }.scrimRegion(regions, ScrimRegions.Kind.Hero),
+            infoModifier = Modifier.scrimRegion(regions, ScrimRegions.Kind.Info),
+        )
     }
     val shown = plan?.shown ?: alerts.size
     Column(
