@@ -42,6 +42,7 @@ import io.github.dumahuch.pogodaapp.location.Locations
 import io.github.dumahuch.pogodaapp.location.PreciseLocationPrompt
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
+import io.github.dumahuch.pogodaapp.notify.NotificationSwitches
 import io.github.dumahuch.pogodaapp.places.FilePinnedPlacesStorage
 import io.github.dumahuch.pogodaapp.places.PinResult
 import io.github.dumahuch.pogodaapp.places.PinnedForecastCaches
@@ -78,7 +79,7 @@ class MainActivity : ComponentActivity() {
                     locations = Locations.create(context),
                     namer = AndroidPlaceNamer(context),
                     source = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
-                    cache = ForecastCache(File(context.filesDir, "forecast_cache.json")),
+                    cache = ForecastCache(File(context.filesDir, ForecastCache.CURRENT_PLACE_FILE)),
                     air = OpenMeteoAirQualityClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     pollenSource = DwdPollenClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"),
                     pollenRegions = AssetPollenRegionLocator(context),
@@ -97,6 +98,9 @@ class MainActivity : ComponentActivity() {
 
     /** Настройки приложения (тень карточек); выбор хранится в папке приложения. */
     private val settings: AppSettings by lazy { AppSettings(PreferencesSettingsStorage(applicationContext)) }
+
+    /** Выключатели уведомления о погоде (0.7.0); создаются в onCreate: им нужен запрос разрешения от окна. */
+    private lateinit var notificationSwitches: NotificationSwitches
 
     /** Истина, если система больше не покажет окно запроса (отказ с «не спрашивать»). */
     private var permanentlyDenied by mutableStateOf(false)
@@ -133,6 +137,9 @@ class MainActivity : ComponentActivity() {
         // Начальный вид панелей: прозрачные, значки тёмные (фон светлый). Дальше цвет значков следует за небом.
         val transparentLight = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
         enableEdgeToEdge(statusBarStyle = transparentLight, navigationBarStyle = transparentLight)
+
+        notificationSwitches = NotificationSwitches(this, settings)
+        notificationSwitches.onAppStarted()
 
         val version = AppVersion.read(this)
         val versionLabel = getString(R.string.version_footer, version.name, version.code)
@@ -202,6 +209,7 @@ class MainActivity : ComponentActivity() {
                 val glassBlur by skyCheck.glassBlur.collectAsStateWithLifecycle()
                 val cardShadow by settings.cardShadow.collectAsStateWithLifecycle()
                 val iconStyle by settings.iconStyle.collectAsStateWithLifecycle()
+                val notifications by settings.notifications.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
                 val input = remember(state) { state.skyInput() }
@@ -233,6 +241,8 @@ class MainActivity : ComponentActivity() {
                                 onCardShadow = settings::setCardShadow,
                                 iconStyle = iconStyle,
                                 onIconStyle = settings::setIconStyle,
+                                notifications = notifications,
+                                onNotification = notificationSwitches::set,
                             )
                         }
                         if (checkOpen) {
@@ -265,6 +275,11 @@ class MainActivity : ComponentActivity() {
             upgradeRequest.launch(LOCATION_PERMISSIONS)
         }
         viewModel.onResumed(permissionGranted = hasLocationPermission())
+    }
+
+    override fun onStop() {
+        super.onStop()
+        notificationSwitches.onAppHidden()
     }
 
     private fun pinCurrentLocation(done: () -> Unit) {

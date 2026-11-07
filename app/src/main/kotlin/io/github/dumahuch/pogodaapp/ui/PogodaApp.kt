@@ -16,6 +16,8 @@ import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.places.PlaceChoice
 import io.github.dumahuch.pogodaapp.places.PlacesLogic
 import io.github.dumahuch.pogodaapp.settings.CardShadow
+import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
+import io.github.dumahuch.pogodaapp.settings.NotificationToggle
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
@@ -63,6 +65,8 @@ fun PogodaApp(
     onCardShadow: (CardShadow) -> Unit,
     iconStyle: WeatherIconStyle,
     onIconStyle: (WeatherIconStyle) -> Unit,
+    notifications: NotificationPrefs,
+    onNotification: (NotificationToggle, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(AppTab.Home) }
@@ -143,6 +147,8 @@ fun PogodaApp(
             onCardShadow = onCardShadow,
             iconStyle = iconStyle,
             onIconStyle = onIconStyle,
+            notifications = notifications,
+            onNotification = onNotification,
             onClose = { settingsOpen = false },
             modifier = modifier,
         )

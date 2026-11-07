@@ -239,6 +239,24 @@
     <string name="settings_icons_outline">Kontur</string>
     <string name="settings_icons_outline_hint">Feine Linien mit farbigen Tropfen, Blitz und Schnee. Nur auf dem Startbildschirm.</string>
 
+    <!-- Уведомление о погоде (0.7.0) -->
+    <string name="settings_notifications">Benachrichtigungen</string>
+    <string name="settings_notify_shade">Wetter in der Benachrichtigungsleiste</string>
+    <string name="settings_notify_shade_hint">Temperatur, Wetter und Niederschlag für den Ort, an dem Sie die App zuletzt geöffnet haben. Wird etwa halbstündlich aktualisiert.</string>
+    <string name="settings_notify_status">Temperatur in der Statusleiste</string>
+    <string name="settings_notify_status_hint">Die Zahl neben der Uhr. Der Eintrag in der Benachrichtigungsleiste bleibt: Ohne ihn zeigt Android das Symbol nicht.</string>
+    <string name="settings_notify_lock">Ortsname auf dem Sperrbildschirm</string>
+    <string name="settings_notify_lock_hint">Ausgeschaltet zeigt der Sperrbildschirm nur Temperatur und Wetter. Gilt zusammen mit der Temperatur in der Statusleiste.</string>
+    <string name="notify_headline">%1$s %2$s</string>
+    <string name="notify_title">%1$s · %2$s</string>
+    <string name="notify_text">Gefühlt %1$s · %2$s</string>
+    <string name="notify_place_since">Ort vom %1$s</string>
+    <string name="notify_precip_tomorrow_morning">Niederschlag morgen früh</string>
+    <string name="channel_weather_status">Temperatur in der Statusleiste</string>
+    <string name="channel_weather_status_hint">Aktuelles Wetter, Temperatur neben der Uhr. Ohne Ton.</string>
+    <string name="channel_weather_shade">Wetter in der Benachrichtigungsleiste</string>
+    <string name="channel_weather_shade_hint">Aktuelles Wetter unten in der Benachrichtigungsleiste. Ohne Ton und ohne Symbol in der Statusleiste.</string>
+
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">
         <item>Gewitter</item>

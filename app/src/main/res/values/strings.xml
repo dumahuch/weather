@@ -243,6 +243,24 @@
     <string name="settings_icons_outline">Outline</string>
     <string name="settings_icons_outline_hint">Thin lines with coloured drops, lightning and snow. Home screen only.</string>
 
+    <!-- Уведомление о погоде (0.7.0) -->
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_notify_shade">Weather in the notification shade</string>
+    <string name="settings_notify_shade_hint">Temperature, weather and precipitation for the place where you last opened the app. Updates about every half hour.</string>
+    <string name="settings_notify_status">Temperature in the status bar</string>
+    <string name="settings_notify_status_hint">The number next to the clock. The entry in the notification shade stays: Android shows the icon only together with it.</string>
+    <string name="settings_notify_lock">Place name on the lock screen</string>
+    <string name="settings_notify_lock_hint">When off, the lock screen shows only the temperature and weather. Works with the temperature in the status bar.</string>
+    <string name="notify_headline">%1$s %2$s</string>
+    <string name="notify_title">%1$s · %2$s</string>
+    <string name="notify_text">Feels like %1$s · %2$s</string>
+    <string name="notify_place_since">Location as of %1$s</string>
+    <string name="notify_precip_tomorrow_morning">Precipitation tomorrow morning</string>
+    <string name="channel_weather_status">Temperature in the status bar</string>
+    <string name="channel_weather_status_hint">Current weather, with the temperature next to the clock. Silent.</string>
+    <string name="channel_weather_shade">Weather in the notification shade</string>
+    <string name="channel_weather_shade_hint">Current weather at the bottom of the notification shade. Silent, no icon in the status bar.</string>
+
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">
         <item>Thunderstorm</item>

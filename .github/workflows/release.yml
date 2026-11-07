@@ -99,7 +99,9 @@ jobs:
             --forbid-dex-string "обновление протягиванием" \
             --allow-permission android.permission.INTERNET \
             --allow-permission android.permission.ACCESS_COARSE_LOCATION \
-            --allow-permission android.permission.ACCESS_FINE_LOCATION
+            --allow-permission android.permission.ACCESS_FINE_LOCATION \
+            --allow-permission android.permission.POST_NOTIFICATIONS \
+            --allow-permission android.permission.RECEIVE_BOOT_COMPLETED
 
       - name: Сверка ключа с прошлым выпуском
         env:

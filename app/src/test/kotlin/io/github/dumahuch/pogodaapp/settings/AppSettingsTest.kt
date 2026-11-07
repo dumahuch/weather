@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.settings
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -82,5 +83,46 @@ class AppSettingsTest {
         assertEquals(1, storage.writes)
         // Значки не трогают другие настройки.
         assertEquals(CardShadow.Soft, AppSettings(storage).cardShadow.value)
+    }
+
+    @Test
+    fun notificationsAreOffByDefault() {
+        val prefs = AppSettings(MemoryStorage()).notifications.value
+        assertEquals(NotificationPrefs(), prefs)
+        assertFalse(prefs.wanted)
+    }
+
+    @Test
+    fun notificationTogglesAreStoredSeparatelyAndComeBackAfterRestart() {
+        val storage = MemoryStorage()
+        val first = AppSettings(storage)
+        first.setNotification(NotificationToggle.StatusBar, true)
+        first.setNotification(NotificationToggle.LockScreenPlace, true)
+        first.setNotification(NotificationToggle.StatusBar, true)
+        assertEquals(2, storage.writes)
+        val restored = AppSettings(storage).notifications.value
+        assertEquals(NotificationPrefs(inShade = false, inStatusBar = true, placeOnLockScreen = true), restored)
+        assertTrue(restored.wanted)
+        first.setNotification(NotificationToggle.StatusBar, false)
+        assertFalse(AppSettings(storage).notifications.value.wanted)
+        // Уведомление не трогает другие настройки.
+        assertEquals(CardShadow.Soft, AppSettings(storage).cardShadow.value)
+    }
+
+    @Test
+    fun shadeAloneIsEnoughForTheNotification() {
+        assertTrue(NotificationPrefs(inShade = true).wanted)
+        assertFalse(NotificationPrefs(placeOnLockScreen = true).wanted)
+    }
+
+    @Test
+    fun permissionPromptIsRememberedOnce() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        assertFalse(settings.notificationPermissionAsked())
+        settings.markNotificationPermissionAsked()
+        settings.markNotificationPermissionAsked()
+        assertTrue(AppSettings(storage).notificationPermissionAsked())
+        assertEquals(1, storage.writes)
     }
 }
