@@ -14,10 +14,10 @@ package io.github.dumahuch.pogodaapp.home
 internal object HeroFit {
 
     /** Доля свободного места (после предупреждений), которую забирает рост блока. */
-    const val GROW_SHARE = 0.4f
+    const val GROW_SHARE = 0.6f
 
     /** Наибольший размер блока относительно прежнего. */
-    const val MAX_SCALE = 1.23f
+    const val MAX_SCALE = 1.4f
 
     /** Наименьший размер блока относительно прежнего: технический предел, чтобы значок и цифры не пропали совсем. */
     const val MIN_SCALE = 0.5f

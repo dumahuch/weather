@@ -332,7 +332,7 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
         digits = temperatureDigits(current.temperature),
         digitsSize = heroDigitsSize(current.temperature),
         description = temperatureText(current.temperature),
-        icon = heroIconFor(current.condition),
+        icon = heroIconFor(LocalHeroConditionOverride.current ?: current.condition),
         iconStyle = LocalWeatherIconStyle.current,
         modifier = heroModifier,
         scale = heroScale,

@@ -37,8 +37,8 @@ private const val BASELINE_EM = 0.833f
  */
 private const val TOP_ROOM_DP = 98
 
-/** Значок погоды справа от цифр (решение Димы 06.11.2026): 52 dp при цифрах 124 sp, у мелких цифр меньше в той же доле. */
-private const val GLYPH_DP = 52f
+/** Значок погоды справа от цифр (решение Димы 07.11.2026): 64 dp при цифрах 124 sp, у мелких цифр меньше в той же доле. */
+private const val GLYPH_DP = 64f
 
 /** Цифры и градус плотнее прежних тонких 200 (просьба Димы 06.11.2026); Manrope переменный, вес любой от 200 до 800. */
 private const val DIGITS_WEIGHT = 400
@@ -53,8 +53,8 @@ private fun Placeable.baselineOrDefault(): Int {
 
 /**
  * Текущая погода по центру: огромная температура, справа сверху градус, под градусом значок погоды (step-27). Нижний край
- * значка стоит на нижнем крае цифр. По центру экрана стоят сами цифры, градус и значок висят справа, поэтому число не
- * сдвигается, когда значок появляется или пропадает. При ясной погоде значка нет ([icon] пустой): солнце и луна на небе.
+ * значка стоит на нижнем крае цифр. По центру экрана стоит весь блок целиком (цифры, зазор, градус или значок: step-28),
+ * при ясной погоде это цифры с градусом. При ясной погоде значка нет ([icon] пустой): солнце и луна на небе.
  * Высота блока всегда считается по самому крупному размеру цифр ([MAX_DIGITS_SP]).
  *
  * [scale] увеличивает цифры и значок вместе (с версии 0.6.0 блок растёт на свободное место, см.
@@ -108,7 +108,9 @@ fun HeroBlock(
 
         val width = constraints.maxWidth
         val gap = (degreeSize * DEGREE_GAP_EM).sp.roundToPx()
-        val digitsX = (width - digitsPlaceable.width) / 2
+        // Правая колонка (градус и значок) шире из двух; весь блок стоит по центру как единое целое.
+        val sideWidth = maxOf(degreePlaceable.width, glyphPlaceable?.width ?: 0)
+        val digitsX = ((width - (digitsPlaceable.width + gap + sideWidth)) / 2).coerceAtLeast(0)
         val sideX = digitsX + digitsPlaceable.width + gap
         val lineTop = (TOP_ROOM_DP * scale).dp.roundToPx()
 
