@@ -45,8 +45,8 @@ private const val BASELINE_EM = 0.833f
  */
 private const val TOP_GAP_DP = 12
 
-/** Значок погоды справа от цифр (решение Димы 07.11.2026, step-29): 80 dp при цифрах 124 sp, у мелких цифр меньше в той же доле. */
-private const val GLYPH_DP = 80f
+/** Значок погоды справа от цифр (step-29: 80 dp; step-42: 72 dp при цифрах 124 sp, у мелких цифр меньше в той же доле, с масштабом не растёт). */
+private const val GLYPH_DP = 72f
 
 /** Цифры и градус плотнее прежних тонких 200 (просьба Димы 06.11.2026); Manrope переменный, вес любой от 200 до 800. */
 private const val DIGITS_WEIGHT = 400
@@ -80,7 +80,8 @@ fun HeroBlock(
 ) {
     val numberSize = digitsSize * scale
     val degreeSize = numberSize * DEGREE_SCALE
-    val glyphSize = (GLYPH_DP * scale * digitsSize / MAX_DIGITS_SP).dp
+    // Значок с ростом цифр не растёт (step-42): при цифрах в 1,3 раза крупнее он остаётся около 0,6 их высоты.
+    val glyphSize = (GLYPH_DP * digitsSize / MAX_DIGITS_SP).dp
     Layout(
         content = {
             Text(
