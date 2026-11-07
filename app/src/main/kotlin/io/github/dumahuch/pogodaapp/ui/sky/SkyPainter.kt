@@ -102,37 +102,58 @@ internal fun DrawScope.drawScaled(image: ImageBitmap, left: Float, top: Float, s
 internal class SkyEffects {
 
     private val grayPaint = Paint()
+    private val tonePaint = Paint()
     private var filterAmount = -1.0
     private var filter: ColorFilter? = null
 
     /** Рисует [body] (картины, вуаль, облака) с обесцвечиванием непогоды, затем затемнение и приглушение. */
     fun withWeather(scope: DrawScope, look: SkyLook, body: DrawScope.() -> Unit) {
-        layer(scope, look, force = false, body)
+        layer(scope, look, force = false, body = body)
         finish(scope, look)
     }
 
     /**
      * Рисует [body] с обесцвечиванием непогоды (цветовой матрицей на слое). [force]: слой нужен и без обесцвечивания,
      * чтобы то, что рисуется в нём со смешиванием «только по нарисованному» ([BlendMode.SrcAtop]), не тронуло экран под ним.
+     * [withTone]: затемнение грозы и приглушение ночью ложатся на этот же слой, после обесцвечивания, и красят только
+     * нарисованное в нём (SrcAtop), поэтому всё, что рисуется вне слоя (солнце и луна), остаётся своего цвета.
+     * [opaque]: слой закрашен целиком (небо); тогда накладки идут обычным смешиванием и лишний слой не нужен.
      */
-    fun layer(scope: DrawScope, look: SkyLook, force: Boolean, body: DrawScope.() -> Unit) = with(scope) {
+    fun layer(
+        scope: DrawScope,
+        look: SkyLook,
+        force: Boolean,
+        withTone: Boolean = false,
+        opaque: Boolean = false,
+        body: DrawScope.() -> Unit,
+    ) = with(scope) {
         val canvas = drawContext.canvas
+        val bounds = Rect(0f, 0f, size.width, size.height)
         val gray = look.grayAmount
         val desaturate = gray > MIN_EFFECT
         val separate = desaturate || force
+        val tone = withTone && (look.weather.dark > MIN_EFFECT || look.nightDim > MIN_EFFECT)
+        val outer = tone && !opaque
+        if (outer) canvas.saveLayer(bounds, tonePaint)
         if (separate) {
             grayPaint.colorFilter = if (desaturate) grayFilter(gray) else null
-            canvas.saveLayer(Rect(0f, 0f, size.width, size.height), grayPaint)
+            canvas.saveLayer(bounds, grayPaint)
         }
         body()
         if (separate) canvas.restore()
+        if (tone) {
+            drawTone(this, look, if (opaque) BlendMode.SrcOver else BlendMode.SrcAtop)
+            if (outer) canvas.restore()
+        }
     }
 
     /** Затемнение грозы и приглушение света ночью поверх всего кадра. */
-    fun finish(scope: DrawScope, look: SkyLook) = with(scope) {
-        if (look.weather.dark > MIN_EFFECT) drawRect(DARK_COLOR, alpha = look.darkAlpha.toFloat())
+    fun finish(scope: DrawScope, look: SkyLook) = drawTone(scope, look, BlendMode.SrcOver)
+
+    private fun drawTone(scope: DrawScope, look: SkyLook, blendMode: BlendMode) = with(scope) {
+        if (look.weather.dark > MIN_EFFECT) drawRect(DARK_COLOR, alpha = look.darkAlpha.toFloat(), blendMode = blendMode)
         val dim = look.nightDim
-        if (dim > MIN_EFFECT) drawRect(NIGHT_COLOR, alpha = dim.toFloat())
+        if (dim > MIN_EFFECT) drawRect(NIGHT_COLOR, alpha = dim.toFloat(), blendMode = blendMode)
     }
 
     /** Нужна ли погодная вуаль на этом кадре (она заметна). */

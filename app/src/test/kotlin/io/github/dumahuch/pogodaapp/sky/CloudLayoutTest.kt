@@ -131,7 +131,7 @@ class CloudLayoutTest {
         assertEquals(1.0, SkyWeather.of(Condition.Rain, 1.0).cloudShade, 0.0)
         assertEquals(1.0, SkyWeather.of(Condition.Storm, 1.0).cloudShade, 0.0)
         val full = SkyWeather.of(Condition.Cloudy, null, 100.0).cloudShade
-        assertTrue("при сплошной облачности светлые облака серые, но не тёмные: $full", full in 0.65..0.80)
+        assertTrue("при сплошной облачности светлые облака серые, но не тёмные: $full", full in 0.82..0.92)
         assertTrue("при 50 % облака ещё белые: ${SkyWeather.of(Condition.Partly, null, 50.0).cloudShade}", SkyWeather.of(Condition.Partly, null, 50.0).cloudShade > 0.99)
         assertTrue("затемнение неба при сплошной облачности почти нет", SkyWeather.of(Condition.Cloudy, null, 100.0).dark <= 0.05 + 1e-9)
     }

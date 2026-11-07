@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.home.HeroIcon
+import io.github.dumahuch.pogodaapp.home.glyphCloudBottom
+import io.github.dumahuch.pogodaapp.home.glyphLift
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.HeroLetterSpacing
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -22,6 +24,12 @@ import kotlin.math.roundToInt
 
 private const val DEGREE_SCALE = 0.44f
 private const val DEGREE_GAP_EM = 0.04f
+
+/**
+ * Градус придвинут к цифрам (просьба Димы 07.11.2026, step-30), доля размера цифр. Запас оставлен: у «7» и «1» просвет
+ * между цифрой и градусом самый маленький (измерено по шрифту Manrope, вес 400), глубже придвигать нельзя.
+ */
+private const val DEGREE_PULL_EM = 0.025f
 private const val DEGREE_TOP_EM = 0.08f
 
 /**
@@ -109,7 +117,8 @@ fun HeroBlock(
         val width = constraints.maxWidth
         val gap = (degreeSize * DEGREE_GAP_EM).sp.roundToPx()
         // Правая колонка (градус и значок) шире из двух; весь блок стоит по центру как единое целое.
-        val sideWidth = maxOf(degreePlaceable.width, glyphPlaceable?.width ?: 0)
+        val pull = (numberSize * DEGREE_PULL_EM).sp.roundToPx()
+        val sideWidth = maxOf(degreePlaceable.width - pull, glyphPlaceable?.width ?: 0)
         val digitsX = ((width - (digitsPlaceable.width + gap + sideWidth)) / 2).coerceAtLeast(0)
         val sideX = digitsX + digitsPlaceable.width + gap
         val lineTop = (TOP_ROOM_DP * scale).dp.roundToPx()
@@ -121,16 +130,18 @@ fun HeroBlock(
         val digitsBaselineWanted = (numberSize * BASELINE_EM).sp.toPx()
         val digitsY = lineTop + (digitsBaselineWanted - digitsBaseline).roundToInt()
         val degreeY = lineTop + ((degreeSize * (DEGREE_TOP_EM + BASELINE_EM)).sp.toPx() - degreeBaseline).roundToInt()
-        // У цифр нет нижних выносных: нижний край цифр это базовая линия. На неё ставится нижний край рисунка значка.
+        // У цифр нет нижних выносных: нижний край цифр это базовая линия. Нижний край облака любого значка стоит над ней
+        // на одной и той же высоте (glyphLift), всё остальное (капли, молния, снег, туман) свисает ниже облака.
         val glyphY = if (icon == null) 0 else {
-            val bottom = glyphBottom(icon, iconStyle, glyphSize) / 24f * glyphSize.toPx()
-            (lineTop + digitsBaselineWanted - bottom).roundToInt()
+            val unit = glyphSize.toPx() / 24f
+            (lineTop + digitsBaselineWanted - glyphCloudBottom(icon, iconStyle) * unit - glyphLift(iconStyle) * unit)
+                .roundToInt()
         }
 
         val height = lineTop + (MAX_DIGITS_SP * scale * LINE_HEIGHT_EM).sp.roundToPx()
         layout(width, height) {
             digitsPlaceable.placeRelative(digitsX, digitsY)
-            degreePlaceable.placeRelative(sideX, degreeY)
+            degreePlaceable.placeRelative(sideX - pull, degreeY)
             glyphPlaceable?.placeRelative(sideX, glyphY)
         }
     }

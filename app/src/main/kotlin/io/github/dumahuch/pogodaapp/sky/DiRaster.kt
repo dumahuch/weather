@@ -50,7 +50,7 @@ internal class DiMaps private constructor(
 /**
  * Кадр фона «Ди» тем же порядком, что рисует экран ([io.github.dumahuch.pogodaapp.ui.sky.DiPainter]):
  * небо → погодная вуаль → солнце и луна (своим цветом, step-29) → облака (подкрашенные, с прозрачностью слоя, вуаль красит и их) →
- * пять гряд сзади вперёд → серость → затемнение → приглушение.
+ * пять гряд сзади вперёд; серость, затемнение и приглушение лежат на небе, облаках и грядах, но не на солнце и луне (step-30).
  * Вуаль ложится и на облака (у «Нейтрального» под ними): тёмные тучи на светлой вуали под цифрами давали пёстрый фон
  * (контраст цифр 2,7 : 1 утром в пасмурно), дымка выравнивает небо; гряды остаются чёткими.
  * Каждый слой смешивается между двумя временами суток по долям (композиция гряд у всех сцен одна).
@@ -93,12 +93,21 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                     val my = (sy - p.top) / p.scale * layerK
                     mixScenes(scenes, w, layer, mx, my)
                     val a = layerColor[3] / 255.0
+                    if (layer != DiArt.Layer.Sky) {
+                        // Гряды: серость, затемнение и приглушение красят их цвет (умноженный на прозрачность) до наложения.
+                        rgb[0] = layerColor[0]; rgb[1] = layerColor[1]; rgb[2] = layerColor[2]
+                        RasterKit.tone(look, rgb, a)
+                        layerColor[0] = rgb[0]; layerColor[1] = rgb[1]; layerColor[2] = rgb[2]
+                    }
                     r = layerColor[0] + (1 - a) * r; g = layerColor[1] + (1 - a) * g; b = layerColor[2] + (1 - a) * b
                     if (layer == DiArt.Layer.Sky) {
                         // Небо под вуалью; солнце или луна лежат на небе своим цветом (step-29), за облаками и за грядами.
                         if (veilStrength > 0.01) {
                             r = lerp(r, rowVeil.r, veilStrength); g = lerp(g, rowVeil.g, veilStrength); b = lerp(b, rowVeil.b, veilStrength)
                         }
+                        rgb[0] = r; rgb[1] = g; rgb[2] = b
+                        RasterKit.tone(look, rgb, 1.0)
+                        r = rgb[0]; g = rgb[1]; b = rgb[2]
                         if (discs.isNotEmpty()) {
                             rgb[0] = r; rgb[1] = g; rgb[2] = b
                             Celestial.blend(discs, sx, sy, rgb)
@@ -121,16 +130,17 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                                 // Цвет облака умножен на прозрачность; вуаль красит его пропорционально ей.
                                 cr = lerp(cr, ca * rowVeil.r, veilStrength); cg = lerp(cg, ca * rowVeil.g, veilStrength); cb = lerp(cb, ca * rowVeil.b, veilStrength)
                             }
+                            rgb[0] = cr; rgb[1] = cg; rgb[2] = cb
+                            RasterKit.tone(look, rgb, ca)
+                            cr = rgb[0]; cg = rgb[1]; cb = rgb[2]
                             r = cr + (1 - ca) * r
                             g = cg + (1 - ca) * g
                             b = cb + (1 - ca) * b
                         }
                     }
                 }
-                rgb[0] = r; rgb[1] = g; rgb[2] = b
-                RasterKit.finish(look, rgb)
                 val i = (py * gw + px) * 3
-                out[i] = rgb[0]; out[i + 1] = rgb[1]; out[i + 2] = rgb[2]
+                out[i] = r; out[i + 1] = g; out[i + 2] = b
             }
         }
     }
