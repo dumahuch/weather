@@ -7,6 +7,10 @@
          может оставить приблизительное, приложение работает и с ним. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Уведомление о погоде (0.7.0): спрашивается, только когда человек включает его в настройках. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Чтобы обновление уведомления пережило перезагрузку телефона (JobInfo.setPersisted). Само ничего не запускает. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="false"
@@ -26,6 +30,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Фоновое обновление уведомления о погоде; запускает только система (JobScheduler). -->
+        <service
+            android:name=".notify.WeatherJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
 
     </application>
 

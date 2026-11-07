@@ -52,7 +52,9 @@ jobs:
             --min-sdk 36 --target-sdk 36 --require-signature \
             --allow-permission android.permission.INTERNET \
             --allow-permission android.permission.ACCESS_COARSE_LOCATION \
-            --allow-permission android.permission.ACCESS_FINE_LOCATION
+            --allow-permission android.permission.ACCESS_FINE_LOCATION \
+            --allow-permission android.permission.POST_NOTIFICATIONS \
+            --allow-permission android.permission.RECEIVE_BOOT_COMPLETED
 
       - name: Расчёт номера версии из метки
         run: |
@@ -98,7 +100,9 @@ jobs:
             --forbid-dex-string "обновление протягиванием" \
             --allow-permission android.permission.INTERNET \
             --allow-permission android.permission.ACCESS_COARSE_LOCATION \
-            --allow-permission android.permission.ACCESS_FINE_LOCATION
+            --allow-permission android.permission.ACCESS_FINE_LOCATION \
+            --allow-permission android.permission.POST_NOTIFICATIONS \
+            --allow-permission android.permission.RECEIVE_BOOT_COMPLETED
 
       - name: Причина падения
         if: failure()

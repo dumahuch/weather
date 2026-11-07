@@ -241,6 +241,24 @@
     <string name="settings_icons_outline">Контурные</string>
     <string name="settings_icons_outline_hint">Тонкие линии с цветными каплями, молнией и снегом. Только на главном экране.</string>
 
+    <!-- Уведомление о погоде (0.7.0) -->
+    <string name="settings_notifications">Уведомления</string>
+    <string name="settings_notify_shade">Погода в шторке уведомлений</string>
+    <string name="settings_notify_shade_hint">Температура, погода и осадки для места, где вы последний раз открывали приложение. Обновляется примерно раз в полчаса.</string>
+    <string name="settings_notify_status">Температура в строке состояния</string>
+    <string name="settings_notify_status_hint">Число рядом с часами. Запись в шторке уведомлений при этом остаётся: без неё Android значок не показывает.</string>
+    <string name="settings_notify_lock">Название места на заблокированном экране</string>
+    <string name="settings_notify_lock_hint">Если выключено, на заблокированном экране видны только температура и погода. Действует вместе с температурой в строке состояния.</string>
+    <string name="notify_headline">%1$s %2$s</string>
+    <string name="notify_title">%1$s · %2$s</string>
+    <string name="notify_text">Ощущается как %1$s · %2$s</string>
+    <string name="notify_place_since">Место с %1$s</string>
+    <string name="notify_precip_tomorrow_morning">Осадки завтра утром</string>
+    <string name="channel_weather_status">Температура в строке состояния</string>
+    <string name="channel_weather_status_hint">Погода сейчас, температура рядом с часами. Без звука.</string>
+    <string name="channel_weather_shade">Погода в шторке уведомлений</string>
+    <string name="channel_weather_shade_hint">Погода сейчас внизу шторки уведомлений. Без звука и без значка в строке состояния.</string>
+
     <!-- Официальные предупреждения (0.6.0) -->
     <string-array name="alert_kinds">
         <item>Гроза</item>

@@ -58,7 +58,10 @@ class ForecastCache(private val file: File) {
         }
     }
 
-    private companion object {
-        const val VERSION = 1
+    companion object {
+        /** Файл прогноза для места «там, где вы» в папке приложения; его же читает уведомление о погоде. */
+        const val CURRENT_PLACE_FILE = "forecast_cache.json"
+
+        private const val VERSION = 1
     }
 }

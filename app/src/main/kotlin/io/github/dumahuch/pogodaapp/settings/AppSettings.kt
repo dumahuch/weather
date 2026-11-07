@@ -36,13 +36,33 @@ enum class WeatherIconStyle(val key: String) {
     }
 }
 
+/**
+ * Выключатели уведомления о погоде (0.7.0, решения Димы 07.11.2026), все по умолчанию выключены. Число в строке состояния
+ * Android показывает только как значок уведомления, поэтому при нём запись в шторке тоже есть.
+ */
+data class NotificationPrefs(
+    val inShade: Boolean = false,
+    val inStatusBar: Boolean = false,
+    val placeOnLockScreen: Boolean = false,
+) {
+    /** Уведомление нужно, если включена шторка или строка состояния. */
+    val wanted: Boolean get() = inShade || inStatusBar
+}
+
+/** Один выключатель уведомления и ключ, под которым он хранится. */
+enum class NotificationToggle(val key: String) {
+    Shade("notify_shade"),
+    StatusBar("notify_status_bar"),
+    LockScreenPlace("notify_lock_place"),
+}
+
 /** Где лежат настройки: ключи и значения строками, чтобы логику можно было проверить без Android. */
 interface SettingsStorage {
     fun read(name: String): String?
     fun write(name: String, value: String)
 }
 
-/** Настройки приложения: «Тень карточек» и «Значки погоды». Выбор запоминается и переживает перезапуск. */
+/** Настройки приложения: «Тень карточек», «Значки погоды» и уведомление о погоде. Выбор запоминается и переживает перезапуск. */
 class AppSettings(private val storage: SettingsStorage) {
     private val mutableCardShadow = MutableStateFlow(CardShadow.fromKey(storage.read(CARD_SHADOW)))
 
@@ -64,9 +84,43 @@ class AppSettings(private val storage: SettingsStorage) {
         storage.write(ICON_STYLE, value.key)
     }
 
+    private val mutableNotifications = MutableStateFlow(
+        NotificationPrefs(
+            inShade = flag(NotificationToggle.Shade),
+            inStatusBar = flag(NotificationToggle.StatusBar),
+            placeOnLockScreen = flag(NotificationToggle.LockScreenPlace),
+        ),
+    )
+
+    val notifications: StateFlow<NotificationPrefs> = mutableNotifications.asStateFlow()
+
+    fun setNotification(toggle: NotificationToggle, on: Boolean) {
+        val current = mutableNotifications.value
+        val next = when (toggle) {
+            NotificationToggle.Shade -> current.copy(inShade = on)
+            NotificationToggle.StatusBar -> current.copy(inStatusBar = on)
+            NotificationToggle.LockScreenPlace -> current.copy(placeOnLockScreen = on)
+        }
+        if (next == current) return
+        mutableNotifications.value = next
+        storage.write(toggle.key, if (on) ON else OFF)
+    }
+
+    /** Системное окно «Разрешить уведомления» уже показывали: при следующем отказе ведём в системные настройки. */
+    fun notificationPermissionAsked(): Boolean = storage.read(NOTIFY_ASKED) == ON
+
+    fun markNotificationPermissionAsked() {
+        if (!notificationPermissionAsked()) storage.write(NOTIFY_ASKED, ON)
+    }
+
+    private fun flag(toggle: NotificationToggle): Boolean = storage.read(toggle.key) == ON
+
     internal companion object {
         const val CARD_SHADOW = "card_shadow"
         const val ICON_STYLE = "weather_icon_style"
+        const val NOTIFY_ASKED = "notify_permission_asked"
+        private const val ON = "1"
+        private const val OFF = "0"
     }
 }
 

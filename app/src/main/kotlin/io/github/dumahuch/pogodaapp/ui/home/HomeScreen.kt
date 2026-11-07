@@ -409,17 +409,18 @@ private fun ExtremeValue(icon: LineIcon, text: String, palette: PogodaPalette, w
 }
 
 @Composable
-internal fun conditionName(condition: Condition): String = stringResource(
-    when (condition) {
-        Condition.Clear -> R.string.wx_clear
-        Condition.Partly -> R.string.wx_partly
-        Condition.Cloudy -> R.string.wx_cloudy
-        Condition.Rain -> R.string.wx_rain
-        Condition.Storm -> R.string.wx_storm
-        Condition.Snow -> R.string.wx_snow
-        Condition.Fog -> R.string.wx_fog
-    },
-)
+internal fun conditionName(condition: Condition): String = stringResource(conditionNameRes(condition))
+
+/** Строка с названием погоды; общая для «Главной» и уведомления (один словарь состояний, правила подписей). */
+internal fun conditionNameRes(condition: Condition): Int = when (condition) {
+    Condition.Clear -> R.string.wx_clear
+    Condition.Partly -> R.string.wx_partly
+    Condition.Cloudy -> R.string.wx_cloudy
+    Condition.Rain -> R.string.wx_rain
+    Condition.Storm -> R.string.wx_storm
+    Condition.Snow -> R.string.wx_snow
+    Condition.Fog -> R.string.wx_fog
+}
 
 @Composable
 internal fun NoPermissionTop(permanentlyDenied: Boolean, actions: HomeActions) {

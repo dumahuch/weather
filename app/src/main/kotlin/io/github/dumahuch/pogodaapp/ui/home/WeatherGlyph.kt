@@ -10,19 +10,25 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import io.github.dumahuch.pogodaapp.home.HeroIcon
+import io.github.dumahuch.pogodaapp.home.heroIconFor
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.weather.Condition
@@ -63,6 +69,54 @@ fun WeatherGlyph(icon: HeroIcon, style: WeatherIconStyle, size: Dp, modifier: Mo
                 inUnits { drawOutline(parts, palette.ink, accents, stroke) }
             }
         }
+    }
+}
+
+/**
+ * Значок погоды картинкой [sizePx] × [sizePx] для уведомления (0.7.0): тот же набор, что на «Главной». [onLight]: фон
+ * шторки светлый (дневная тема системы), линии и стекло темнее. При ясной погоде неба за значком нет, поэтому вместо
+ * пустого места солнце днём и месяц ночью.
+ */
+fun weatherGlyphBitmap(condition: Condition, isDay: Boolean, style: WeatherIconStyle, onLight: Boolean, sizePx: Int): ImageBitmap {
+    val bitmap = ImageBitmap(sizePx, sizePx)
+    val accents = if (onLight) Accents.OnLight else Accents.OnDark
+    val icon = heroIconFor(condition, isDay)
+    val canvas = androidx.compose.ui.graphics.Canvas(bitmap)
+    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, canvas, Size(sizePx.toFloat(), sizePx.toFloat())) {
+        inUnits {
+            when {
+                icon == null -> drawClearSky(isDay, accents)
+                style == WeatherIconStyle.Glass -> drawGlass(icon, GlassShapes(icon), accents, onLight)
+                else -> drawOutline(OutlineParts(icon), if (onLight) NOTIFY_INK_LIGHT else NOTIFY_INK_DARK, accents, NOTIFY_STROKE)
+            }
+        }
+    }
+    return bitmap
+}
+
+/** Цвет линий контурного значка в шторке: как текст уведомлений Android на светлом и тёмном фоне. */
+private val NOTIFY_INK_LIGHT = Color(0xFF1F1F1F)
+private val NOTIFY_INK_DARK = Color(0xFFE3E3E3)
+
+/** Значок уведомления мелкий (около 40 dp): линия толще, чем у крупного значка «Главной». */
+private const val NOTIFY_STROKE = 1.6f
+
+/** Ясно: солнце с лучами днём, месяц ночью, по центру значка. */
+private fun DrawScope.drawClearSky(isDay: Boolean, accents: Accents) {
+    if (isDay) {
+        for (k in 0 until 8) {
+            val a = k * PI / 4
+            val from = Offset(12f + (cos(a) * 7.2).toFloat(), 12f + (sin(a) * 7.2).toFloat())
+            val to = Offset(12f + (cos(a) * 9.6).toFloat(), 12f + (sin(a) * 9.6).toFloat())
+            drawLine(accents.boltBottom, from, to, 1.5f, StrokeCap.Round)
+        }
+        val sun = circlePath(12f, 12f, 5.4f)
+        drawPath(sun, Brush.verticalGradient(listOf(accents.boltTop, accents.boltBottom), 6.6f, 17.4f))
+        drawPath(sun, accents.boltEdge, style = Stroke(0.35f))
+    } else {
+        val moon = Path.combine(PathOperation.Difference, circlePath(11.5f, 12.5f, 7f), circlePath(15.2f, 10.3f, 5.8f))
+        drawPath(moon, Brush.verticalGradient(listOf(Color(0xFFFFF4C2), Color(0xFFE6C96A)), 5.5f, 19.5f))
+        drawPath(moon, accents.boltEdge, style = Stroke(0.35f, join = StrokeJoin.Round))
     }
 }
 
