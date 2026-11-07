@@ -249,6 +249,8 @@
     <string name="settings_notify_status_hint">Число рядом с часами. Запись в шторке уведомлений при этом остаётся: без неё Android значок не показывает.</string>
     <string name="settings_notify_lock">Название места на заблокированном экране</string>
     <string name="settings_notify_lock_hint">Если выключено, на заблокированном экране видны только температура и погода. Действует вместе с температурой в строке состояния.</string>
+    <string name="settings_notify_alerts">Предупреждения о погоде</string>
+    <string name="settings_notify_alerts_hint">Официальные предупреждения DWD для места, где вы последний раз открывали приложение, со звуком. Только в Германии. Проверяются примерно раз в полчаса.</string>
     <string name="settings_notify_error">Ошибка уведомления: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
@@ -257,6 +259,8 @@
     <string name="notify_precip_tomorrow_morning">Осадки завтра утром</string>
     <string name="channel_weather_status">Температура в строке состояния</string>
     <string name="channel_weather_status_hint">Погода сейчас, температура рядом с часами. Без звука.</string>
+    <string name="channel_weather_alerts">Предупреждения о погоде</string>
+    <string name="channel_weather_alerts_hint">Официальные предупреждения DWD (Германия). Со звуком.</string>
     <string name="channel_weather_shade">Погода в шторке уведомлений</string>
     <string name="channel_weather_shade_hint">Погода сейчас внизу шторки уведомлений. Без звука и без значка в строке состояния.</string>
 

@@ -116,6 +116,29 @@ class AppSettingsTest {
     }
 
     @Test
+    fun alertsAloneNeedTheBackgroundJobButNotTheWeatherNotification() {
+        val storage = MemoryStorage()
+        AppSettings(storage).setNotification(NotificationToggle.Alerts, true)
+        val restored = AppSettings(storage).notifications.value
+        assertEquals(NotificationPrefs(alerts = true), restored)
+        assertTrue(restored.background)
+        assertFalse(restored.wanted)
+        assertFalse(NotificationPrefs().background)
+        assertTrue(NotificationPrefs(inShade = true).background)
+    }
+
+    @Test
+    fun notifiedAlertsAreStoredAndUnchangedValueWritesNothing() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        assertEquals("", settings.notifiedAlerts())
+        settings.setNotifiedAlerts("Wind|1|1|2")
+        settings.setNotifiedAlerts("Wind|1|1|2")
+        assertEquals("Wind|1|1|2", AppSettings(storage).notifiedAlerts())
+        assertEquals(1, storage.writes)
+    }
+
+    @Test
     fun permissionPromptIsRememberedOnce() {
         val storage = MemoryStorage()
         val settings = AppSettings(storage)

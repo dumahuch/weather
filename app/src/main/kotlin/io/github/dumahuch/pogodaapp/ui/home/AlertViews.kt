@@ -95,21 +95,29 @@ internal fun levelLine(level: AlertLevel): String = stringResource(R.string.aler
 /** Подпись справа на плашке: «через 20 мин», «с 15:00», «завтра с 06:00», «до 06:00», «до пт 06:00»; пусто, если конец не известен. */
 @Composable
 internal fun alertWhenText(alert: WeatherAlert, now: Instant, zone: ZoneId): String {
-    val days = stringArrayResource(R.array.days_short)
+    val label = alertWhenLabel(alert, now, zone, stringArrayResource(R.array.days_short)) ?: return ""
+    return stringResource(label.res, *label.args)
+}
+
+/** Подпись времени предупреждения как ресурс строки и её аргументы: одна и та же для плашки и для уведомления. */
+internal class AlertWhenLabel(val res: Int, vararg val args: Any)
+
+/** Ресурс и аргументы подписи [alertWhenText]; [days] короткие названия дней «Пн…Вс». `null`, если конец не известен. */
+internal fun alertWhenLabel(alert: WeatherAlert, now: Instant, zone: ZoneId, days: Array<String>): AlertWhenLabel? {
     fun dayName(at: Instant) = days[at.atZone(zone).dayOfWeek.value - 1]
     return when (val moment = AlertWhen.of(alert, now, zone)) {
-        is AlertWhen.StartsIn -> stringResource(R.string.alert_starts_in, moment.minutes)
+        is AlertWhen.StartsIn -> AlertWhenLabel(R.string.alert_starts_in, moment.minutes)
         is AlertWhen.From -> when (moment.days) {
-            0 -> stringResource(R.string.alert_from, clockText(moment.at, zone))
-            1 -> stringResource(R.string.alert_from_tomorrow, clockText(moment.at, zone))
-            else -> stringResource(R.string.alert_from_day, clockText(moment.at, zone), dayName(moment.at))
+            0 -> AlertWhenLabel(R.string.alert_from, clockText(moment.at, zone))
+            1 -> AlertWhenLabel(R.string.alert_from_tomorrow, clockText(moment.at, zone))
+            else -> AlertWhenLabel(R.string.alert_from_day, clockText(moment.at, zone), dayName(moment.at))
         }
         is AlertWhen.Until -> when (moment.days) {
-            0 -> stringResource(R.string.alert_until, clockText(moment.at, zone))
-            1 -> stringResource(R.string.alert_until_tomorrow, clockText(moment.at, zone))
-            else -> stringResource(R.string.alert_until_day, clockText(moment.at, zone), dayName(moment.at))
+            0 -> AlertWhenLabel(R.string.alert_until, clockText(moment.at, zone))
+            1 -> AlertWhenLabel(R.string.alert_until_tomorrow, clockText(moment.at, zone))
+            else -> AlertWhenLabel(R.string.alert_until_day, clockText(moment.at, zone), dayName(moment.at))
         }
-        AlertWhen.Ongoing -> ""
+        AlertWhen.Ongoing -> null
     }
 }
 
