@@ -11,7 +11,6 @@ import org.json.JSONObject
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
-import java.util.Locale
 
 /** Источник официальных предупреждений в виде сырого ответа; в тестах подменяется. */
 interface AlertsSource {
@@ -22,7 +21,7 @@ interface AlertsSource {
  * Предупреждения DWD через Bright Sky (https://brightsky.dev/, описание: https://api.brightsky.dev/openapi.json).
  * Bright Sky переводит CAP-ленту DWD в JSON и сам находит район предупреждений (Warnzelle) по координатам; ключа не нужно,
  * код сервиса под лицензией MIT, к самим данным применяются условия DWD (ссылка на источник «Deutscher Wetterdienst»).
- * Координаты округляются до сотых долей градуса, как у прогноза: точнее для района не нужно.
+ * Координаты в запросе с тремя знаками, как у прогноза (см. Coordinates).
  */
 class BrightSkyAlertsClient(
     private val baseUrl: String = DEFAULT_BASE_URL,
@@ -34,8 +33,8 @@ class BrightSkyAlertsClient(
     }
 
     internal fun buildUrl(latitude: Double, longitude: Double): String {
-        val lat = String.format(Locale.ROOT, "%.2f", latitude)
-        val lon = String.format(Locale.ROOT, "%.2f", longitude)
+        val lat = Coordinates.param(latitude)
+        val lon = Coordinates.param(longitude)
         return "$baseUrl?lat=$lat&lon=$lon"
     }
 

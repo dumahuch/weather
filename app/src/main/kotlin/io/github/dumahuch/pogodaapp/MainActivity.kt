@@ -39,6 +39,7 @@ import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
 import io.github.dumahuch.pogodaapp.home.PollenStatus
 import io.github.dumahuch.pogodaapp.location.Locations
+import io.github.dumahuch.pogodaapp.location.PreciseLocationPrompt
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
 import io.github.dumahuch.pogodaapp.places.FilePinnedPlacesStorage
@@ -103,16 +104,28 @@ class MainActivity : ComponentActivity() {
     /** Что сделать, когда место закреплено после запроса доступа из экрана мест (кнопка «Определить место»). */
     private var afterLocatePermission: (() -> Unit)? = null
 
-    private val locatePermissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+    private val locatePermissionRequest = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         // Отказ тоже идёт дальше: определение места тогда не удастся и экран покажет сообщение об этом.
         val done = afterLocatePermission
         afterLocatePermission = null
         if (done != null) pinCurrentLocation(done)
     }
 
-    private val permissionRequest = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    private val permissionRequest = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        // Точное разрешение выдаётся только вместе с приблизительным, поэтому «доступ есть» это приблизительное.
+        val granted = result[LOCATION_PERMISSION] == true || hasLocationPermission()
         permanentlyDenied = !granted && !shouldShowRequestPermissionRationale(LOCATION_PERMISSION)
         viewModel.retry(permissionGranted = granted)
+    }
+
+    /** Окно «Точное / Приблизительное» один раз для тех, у кого уже выдано приблизительное (решение Димы 07.11.2026). */
+    private val precisePrompt: PreciseLocationPrompt by lazy {
+        PreciseLocationPrompt(PreferencesSettingsStorage(applicationContext))
+    }
+
+    private val upgradeRequest = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        // Что человек выбрал, то и принимается; место перечитывается в любом случае.
+        viewModel.retry(permissionGranted = hasLocationPermission())
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,7 +137,10 @@ class MainActivity : ComponentActivity() {
         val version = AppVersion.read(this)
         val versionLabel = getString(R.string.version_footer, version.name, version.code)
         val actions = HomeActions(
-            onAllow = { permissionRequest.launch(LOCATION_PERMISSION) },
+            onAllow = {
+                precisePrompt.markAsked()
+                permissionRequest.launch(LOCATION_PERMISSIONS)
+            },
             onOpenSettings = ::openAppSettings,
             onRetry = { viewModel.retry(permissionGranted = hasLocationPermission()) },
             onRefresh = {
@@ -144,7 +160,8 @@ class MainActivity : ComponentActivity() {
                     pinCurrentLocation(done)
                 } else {
                     afterLocatePermission = done
-                    locatePermissionRequest.launch(LOCATION_PERMISSION)
+                    precisePrompt.markAsked()
+                    locatePermissionRequest.launch(LOCATION_PERMISSIONS)
                 }
             },
             onLeave = {
@@ -247,6 +264,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (precisePrompt.shouldAsk(hasCoarse = hasLocationPermission(), hasFine = hasPreciseLocationPermission())) {
+            precisePrompt.markAsked()
+            upgradeRequest.launch(LOCATION_PERMISSIONS)
+        }
         viewModel.onResumed(permissionGranted = hasLocationPermission())
     }
 
@@ -265,6 +286,9 @@ class MainActivity : ComponentActivity() {
     private fun hasLocationPermission(): Boolean =
         checkSelfPermission(LOCATION_PERMISSION) == PackageManager.PERMISSION_GRANTED
 
+    private fun hasPreciseLocationPermission(): Boolean =
+        checkSelfPermission(PRECISE_LOCATION_PERMISSION) == PackageManager.PERMISSION_GRANTED
+
     private fun openAppSettings() {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null))
         startActivity(intent)
@@ -272,6 +296,10 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val LOCATION_PERMISSION = Manifest.permission.ACCESS_COARSE_LOCATION
+        const val PRECISE_LOCATION_PERMISSION = Manifest.permission.ACCESS_FINE_LOCATION
+
+        /** Просим оба сразу: система показывает окно «Точное / Приблизительное». */
+        val LOCATION_PERMISSIONS = arrayOf(PRECISE_LOCATION_PERMISSION, LOCATION_PERMISSION)
         const val REFRESH_LOG_TAG = "PogodaRefresh"
         val SEARCH_LANGUAGES = setOf("ru", "de", "en")
 

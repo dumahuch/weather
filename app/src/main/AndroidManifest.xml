@@ -3,7 +3,9 @@
 
     <!-- Прогноз из интернета. -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Приблизительное место для погоды «там, где вы»; точное место не нужно. -->
+    <!-- Место для погоды «там, где вы». Точное по умолчанию (решение Димы 07.11.2026); человек в системном окне
+         может оставить приблизительное, приложение работает и с ним. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application

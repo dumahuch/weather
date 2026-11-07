@@ -98,7 +98,8 @@ jobs:
             --forbid-dex-string PogodaRefresh \
             --forbid-dex-string "обновление протягиванием" \
             --allow-permission android.permission.INTERNET \
-            --allow-permission android.permission.ACCESS_COARSE_LOCATION
+            --allow-permission android.permission.ACCESS_COARSE_LOCATION \
+            --allow-permission android.permission.ACCESS_FINE_LOCATION
 
       - name: Сверка ключа с прошлым выпуском
         env:

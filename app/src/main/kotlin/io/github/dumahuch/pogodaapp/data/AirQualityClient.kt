@@ -6,7 +6,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONException
 import org.json.JSONObject
 import java.time.Instant
-import java.util.Locale
 
 /** Источник качества воздуха в виде сырого ответа; в тестах подменяется. */
 interface AirQualitySource {
@@ -15,7 +14,7 @@ interface AirQualitySource {
 
 /**
  * Запрос к Open-Meteo Air Quality (https://open-meteo.com/en/docs/air-quality-api): европейский индекс по часам,
- * данные CAMS. Координаты округляются так же, как для прогноза.
+ * данные CAMS. Координаты в запросе с тремя знаками, как у прогноза (см. Coordinates).
  */
 class OpenMeteoAirQualityClient(
     private val baseUrl: String = DEFAULT_BASE_URL,
@@ -27,8 +26,8 @@ class OpenMeteoAirQualityClient(
     }
 
     internal fun buildUrl(latitude: Double, longitude: Double): String {
-        val lat = String.format(Locale.ROOT, "%.2f", latitude)
-        val lon = String.format(Locale.ROOT, "%.2f", longitude)
+        val lat = Coordinates.param(latitude)
+        val lon = Coordinates.param(longitude)
         return "$baseUrl?latitude=$lat&longitude=$lon&hourly=european_aqi&timezone=auto&timeformat=unixtime&forecast_days=2"
     }
 
