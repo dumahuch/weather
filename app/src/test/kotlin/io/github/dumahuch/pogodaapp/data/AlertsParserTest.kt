@@ -96,8 +96,8 @@ class AlertsParserTest {
     }
 
     @Test
-    fun urlHasRoundedCoordinatesOnly() {
+    fun urlHasCoordinatesToThreeDecimalsOnly() {
         val url = BrightSkyAlertsClient().buildUrl(52.374512, 9.738633)
-        assertEquals("https://api.brightsky.dev/alerts?lat=52.37&lon=9.74", url)
+        assertEquals("https://api.brightsky.dev/alerts?lat=52.375&lon=9.739", url)
     }
 }
