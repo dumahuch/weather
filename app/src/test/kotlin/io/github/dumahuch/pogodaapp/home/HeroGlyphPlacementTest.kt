@@ -25,13 +25,32 @@ class HeroGlyphPlacementTest {
     }
 
     @Test
-    fun rainBoltSnowAndFogHangLowerThanThePlainCloud() {
+    fun rainBoltAndSnowHangLowerThanThePlainCloud() {
         for (style in WeatherIconStyle.values()) {
             val plain = glyphBottom(HeroIcon.Cloud, style, 1.2f) - glyphCloudBottom(HeroIcon.Cloud, style)
-            for (icon in listOf(HeroIcon.Rain, HeroIcon.Storm, HeroIcon.Snow, HeroIcon.Fog)) {
+            for (icon in listOf(HeroIcon.Rain, HeroIcon.Storm, HeroIcon.Snow)) {
                 val hang = glyphBottom(icon, style, 1.2f) - glyphCloudBottom(icon, style)
                 assertTrue("$style $icon: свисающие части ниже облака", hang > plain + 3f)
             }
+        }
+    }
+
+    @Test
+    fun fogHasNoCloudAndNothingHangsBelowItsLowestLine() {
+        // Туман без облака (step-41): нижняя полоса стоит там же, где у остальных нижний край облака, и ничего не свисает.
+        for (style in WeatherIconStyle.values()) {
+            assertEquals(
+                "$style: у тумана нет частей ниже нижней полосы",
+                glyphCloudBottom(HeroIcon.Fog, style),
+                glyphBottom(HeroIcon.Fog, style, 0f),
+                0f,
+            )
+            assertEquals(
+                "$style: нижняя полоса на уровне нижнего края облака",
+                glyphCloudBottom(HeroIcon.Cloud, style),
+                glyphCloudBottom(HeroIcon.Fog, style),
+                0.6f,
+            )
         }
     }
 

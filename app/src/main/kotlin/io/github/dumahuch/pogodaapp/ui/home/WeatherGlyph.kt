@@ -11,9 +11,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.StrokeCap
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
@@ -157,15 +160,19 @@ private enum class Accents(
 
 // ---------- Стеклянный набор ----------
 
-/** Многодольное облако: три круга и скруглённое основание; [k] масштаб, [dx] и [dy] сдвиг (после масштаба). */
+/**
+ * Многодольное облако, симметричное относительно x = 12 (step-41): крупная доля по центру, две боковые одного размера,
+ * плоское основание между ними. Боковые доли закруглены снизу и выступают за основание с обеих сторон, поэтому ни
+ * ступеньки слева, ни среза справа нет. [k] масштаб, [dx] и [dy] сдвиг (после масштаба).
+ */
 private fun cloudPath(dy: Float, dx: Float = 0f, k: Float = 1f): Path {
     fun x(v: Float) = v * k + dx
     fun y(v: Float) = v * k + dy
     fun circle(cx: Float, cy: Float, r: Float) = Path().apply {
         addOval(Rect(x(cx) - r * k, y(cy) - r * k, x(cx) + r * k, y(cy) + r * k))
     }
-    var shape = Path().apply { addRoundRect(RoundRect(Rect(x(2.5f), y(11.5f), x(21.5f), y(18.5f)), CornerRadius(3.5f * k))) }
-    for (lobe in listOf(circle(8f, 12.5f, 4.2f), circle(13.2f, 9.6f, 5.4f), circle(18f, 12.6f, 3.5f))) {
+    var shape = Path().apply { addRect(Rect(x(7.5f), y(11.5f), x(16.5f), y(18.5f))) }
+    for (lobe in listOf(circle(7.5f, 14.5f, 4f), circle(12f, 9.8f, 5.6f), circle(16.5f, 14.5f, 4f))) {
         shape = Path.combine(PathOperation.Union, shape, lobe)
     }
     return shape
@@ -188,16 +195,22 @@ private fun dropPath(x: Float, top: Float, w: Float, h: Float): Path = Path().ap
 }
 
 private class GlassShapes(icon: HeroIcon) {
-    /** Облаку с каплями, молнией, снегом или туманом нужно место снизу: оно поднято. */
+    /** Облаку с каплями, молнией или снегом нужно место снизу: оно поднято. */
     private val lift = when (icon) {
-        HeroIcon.Cloud, HeroIcon.CloudSun, HeroIcon.CloudMoon -> 0f
-        HeroIcon.Fog -> -2.5f
+        HeroIcon.Cloud, HeroIcon.CloudSun, HeroIcon.CloudMoon, HeroIcon.Fog -> 0f
         else -> -3f
     }
     private val partly = icon == HeroIcon.CloudSun || icon == HeroIcon.CloudMoon
 
-    /** Облако переменной облачности меньше и сдвинуто вправо вниз: над ним выглядывает солнце или луна. */
-    val cloud = if (partly) cloudPath(dy = 4.5f, dx = 5f, k = 0.8f) else cloudPath(lift)
+    /**
+     * Облако переменной облачности меньше и сдвинуто вправо вниз: над ним выглядывает солнце или луна. У тумана облака
+     * нет (step-41): только горизонтальные полосы.
+     */
+    val cloud: Path? = when {
+        icon == HeroIcon.Fog -> null
+        partly -> cloudPath(dy = 4.5f, dx = 5f, k = 0.8f)
+        else -> cloudPath(lift)
+    }
     val top = if (partly) 7.8f else 4.2f + lift
     val bottom = if (partly) 19.3f else 18.5f + lift
 
@@ -243,8 +256,10 @@ private class GlassShapes(icon: HeroIcon) {
     } else {
         emptyList()
     }
+
+    /** Три полосы тумана со сдвигом влево, вправо, влево; вместе симметричны относительно x = 12, низ на 18,5 как у облака. */
     val fogBars = if (icon == HeroIcon.Fog) {
-        listOf(Rect(3f, 16.8f, 17f, 18.8f), Rect(7f, 20f, 21f, 22f))
+        listOf(Rect(4f, 7.7f, 17f, 9.9f), Rect(7f, 12f, 20f, 14.2f), Rect(4f, 16.3f, 17f, 18.5f))
     } else {
         emptyList()
     }
@@ -252,7 +267,7 @@ private class GlassShapes(icon: HeroIcon) {
 
 /**
  * Матовое стекло: полупрозрачная светлая заливка сверху вниз, тень, светлая кромка и блик. Цветные капли, молния и
- * снежинки нарисованы под стеклом и просвечивают сквозь нижний край облака.
+ * снежинки видны только под облаком: за стеклом они не просвечивают (облако стирает их над собой, step-41).
  */
 private fun DrawScope.drawGlass(icon: HeroIcon, s: GlassShapes, accents: Accents, darkInk: Boolean) {
     s.sun?.let {
@@ -264,17 +279,22 @@ private fun DrawScope.drawGlass(icon: HeroIcon, s: GlassShapes, accents: Accents
         drawPath(it, Brush.verticalGradient(listOf(Color(0xFFFFF4C2), Color(0xFFE6C96A)), 3.7f, 13.3f))
         drawPath(it, accents.boltEdge, style = Stroke(0.3f, join = StrokeJoin.Round))
     }
-    for (drop in s.drops) {
-        drawPath(drop, Brush.verticalGradient(listOf(accents.dropTop, accents.dropBottom), 14.6f, 22f))
+    val cloud = s.cloud
+    if (cloud != null && (s.drops.isNotEmpty() || s.bolt != null || s.flakes.isNotEmpty())) {
+        beneathCloud(cloud) {
+            for (drop in s.drops) {
+                drawPath(drop, Brush.verticalGradient(listOf(accents.dropTop, accents.dropBottom), 14.6f, 22f))
+            }
+            s.bolt?.let {
+                drawPath(it, Brush.verticalGradient(listOf(accents.boltTop, accents.boltBottom), 11f, 23.2f))
+                drawPath(it, accents.boltEdge, style = Stroke(0.35f, join = StrokeJoin.Round))
+            }
+            for ((x, y, r) in s.flakes) snowflake(x, y, r, accents)
+        }
     }
-    s.bolt?.let {
-        drawPath(it, Brush.verticalGradient(listOf(accents.boltTop, accents.boltBottom), 11f, 23.2f))
-        drawPath(it, accents.boltEdge, style = Stroke(0.35f, join = StrokeJoin.Round))
-    }
-    for ((x, y, r) in s.flakes) snowflake(x, y, r, accents)
-    glassBody(s.cloud, s.top, s.bottom, darkInk, dim = false)
+    cloud?.let { glassBody(it, s.top, s.bottom, darkInk, dim = false) }
     for (bar in s.fogBars) {
-        val path = Path().apply { addRoundRect(RoundRect(bar, CornerRadius(1f))) }
+        val path = Path().apply { addRoundRect(RoundRect(bar, CornerRadius(1.1f))) }
         glassBody(path, bar.top, bar.bottom, darkInk, dim = false, sheen = false)
     }
     if (icon == HeroIcon.Rain) {
@@ -283,6 +303,17 @@ private fun DrawScope.drawGlass(icon: HeroIcon, s: GlassShapes, accents: Accents
             drawCircle(Color.White.copy(alpha = 0.7f), radius = 0.5f, center = Offset(x, y))
         }
     }
+}
+
+/**
+ * Рисует [draw] в отдельном слое и стирает из него всё, что лежит внутри контура [cloud]: останется только то, что
+ * выходит за облако (капли, молния и снег под ним). Слой нужен, чтобы стирание не задело то, что нарисовано раньше.
+ */
+private fun DrawScope.beneathCloud(cloud: Path, draw: DrawScope.() -> Unit) {
+    drawIntoCanvas { it.saveLayer(Rect(-2f, -2f, VIEWPORT + 2f, VIEWPORT + 2f), Paint()) }
+    draw()
+    drawPath(cloud, Color.Black, blendMode = BlendMode.DstOut)
+    drawIntoCanvas { it.restore() }
 }
 
 private fun DrawScope.glassBody(
@@ -355,7 +386,8 @@ private class OutlineParts(icon: HeroIcon) {
         )
         HeroIcon.Rain, HeroIcon.Snow -> listOf(CLOUD_OPEN)
         HeroIcon.Storm -> listOf("M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973")
-        HeroIcon.Fog -> listOf(CLOUD_OPEN, "M16 17H7M17 21H9")
+        // Туман без облака (step-41): три горизонтальные линии со сдвигом, вместе симметричны относительно x = 12.
+        HeroIcon.Fog -> listOf("M4 10h13M7 14.5h13M4 19h13")
     }.map(::parse)
 
     /** Цветные части: синие капли и снег, оранжевая молния. */
