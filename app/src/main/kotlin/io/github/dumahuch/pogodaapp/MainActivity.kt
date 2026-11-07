@@ -210,6 +210,7 @@ class MainActivity : ComponentActivity() {
                 val cardShadow by settings.cardShadow.collectAsStateWithLifecycle()
                 val iconStyle by settings.iconStyle.collectAsStateWithLifecycle()
                 val notifications by settings.notifications.collectAsStateWithLifecycle()
+                val noticeError by settings.noticeError.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
                 val input = remember(state) { state.skyInput() }
@@ -243,6 +244,7 @@ class MainActivity : ComponentActivity() {
                                 onIconStyle = settings::setIconStyle,
                                 notifications = notifications,
                                 onNotification = notificationSwitches::set,
+                                noticeError = noticeError,
                             )
                         }
                         if (checkOpen) {

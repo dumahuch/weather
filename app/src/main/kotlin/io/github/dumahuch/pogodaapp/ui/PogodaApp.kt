@@ -67,6 +67,7 @@ fun PogodaApp(
     onIconStyle: (WeatherIconStyle) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    noticeError: String?,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(AppTab.Home) }
@@ -149,6 +150,7 @@ fun PogodaApp(
             onIconStyle = onIconStyle,
             notifications = notifications,
             onNotification = onNotification,
+            noticeError = noticeError,
             onClose = { settingsOpen = false },
             modifier = modifier,
         )

@@ -125,4 +125,18 @@ class AppSettingsTest {
         assertTrue(AppSettings(storage).notificationPermissionAsked())
         assertEquals(1, storage.writes)
     }
+
+    @Test
+    fun noticeErrorIsKeptUntilClearedAndTrimmed() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        assertEquals(null, settings.noticeError.value)
+        settings.setNoticeError("x".repeat(1000))
+        assertEquals(AppSettings.NOTIFY_ERROR_MAX, AppSettings(storage).noticeError.value?.length)
+        settings.setNoticeError(null)
+        assertEquals(null, AppSettings(storage).noticeError.value)
+        val writes = storage.writes
+        settings.setNoticeError(null)
+        assertEquals(writes, storage.writes)
+    }
 }

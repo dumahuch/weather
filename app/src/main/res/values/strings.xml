@@ -251,6 +251,7 @@
     <string name="settings_notify_status_hint">The number next to the clock. The entry in the notification shade stays: Android shows the icon only together with it.</string>
     <string name="settings_notify_lock">Place name on the lock screen</string>
     <string name="settings_notify_lock_hint">When off, the lock screen shows only the temperature and weather. Works with the temperature in the status bar.</string>
+    <string name="settings_notify_error">Notification error: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
     <string name="notify_text">Feels like %1$s · %2$s</string>

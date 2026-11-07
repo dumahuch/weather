@@ -113,12 +113,26 @@ class AppSettings(private val storage: SettingsStorage) {
         if (!notificationPermissionAsked()) storage.write(NOTIFY_ASKED, ON)
     }
 
+    private val mutableNoticeError = MutableStateFlow(storage.read(NOTIFY_ERROR)?.takeIf { it.isNotEmpty() })
+
+    /** Текст последней ошибки уведомления о погоде (показывается в настройках, чтобы Дима мог прислать снимок); `null`: ошибок нет. */
+    val noticeError: StateFlow<String?> = mutableNoticeError.asStateFlow()
+
+    fun setNoticeError(text: String?) {
+        val value = text?.take(NOTIFY_ERROR_MAX)?.takeIf { it.isNotEmpty() }
+        if (mutableNoticeError.value == value) return
+        mutableNoticeError.value = value
+        storage.write(NOTIFY_ERROR, value.orEmpty())
+    }
+
     private fun flag(toggle: NotificationToggle): Boolean = storage.read(toggle.key) == ON
 
     internal companion object {
         const val CARD_SHADOW = "card_shadow"
         const val ICON_STYLE = "weather_icon_style"
         const val NOTIFY_ASKED = "notify_permission_asked"
+        const val NOTIFY_ERROR = "notify_last_error"
+        const val NOTIFY_ERROR_MAX = 400
         private const val ON = "1"
         private const val OFF = "0"
     }
