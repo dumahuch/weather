@@ -51,6 +51,7 @@ object OpenMeteoParser {
         temperature = current.getDouble("temperature_2m"),
         feelsLike = current.getDouble("apparent_temperature"),
         condition = WeatherCodes.toCondition(current.getInt("weather_code")),
+        drizzle = WeatherCodes.isDrizzle(current.getInt("weather_code")),
         isDay = current.getInt("is_day") == 1,
         cloudCover = if (current.isNull("cloud_cover")) null else Math.round(current.getDouble("cloud_cover")).toInt().coerceIn(0, 100),
     )

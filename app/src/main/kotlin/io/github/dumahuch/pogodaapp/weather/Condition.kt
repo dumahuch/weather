@@ -20,4 +20,7 @@ object WeatherCodes {
         95, 96, 97, 99 -> Condition.Storm
         else -> Condition.Cloudy
     }
+
+    /** Морось и ледяная морось (коды 51, 53, 55, 56, 57): в [toCondition] это дождь, но называется на главной «Морось». */
+    fun isDrizzle(code: Int): Boolean = code in 51..57
 }

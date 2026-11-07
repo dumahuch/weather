@@ -27,7 +27,17 @@ internal data class SkyWeather(
      */
     val cloudShade: Double get() = 1.0 - 0.14 * ((gray - 0.12) / 0.5).coerceIn(0.0, 1.0) * (1.0 - darkShare.coerceIn(0.0, 1.0))
 
+    /**
+     * Подъём яркости светлых облаков при малой и средней облачности (1,0…1,14; Дима 07.11.2026: «малооблачно» должно быть
+     * белее). Лист светлых облаков в среднем серый (около 215 из 255), поэтому при ясном и переменном небе цвет умножается
+     * на число больше единицы и обрезается белым; с серостью от 0,3 подъёма нет. У грозовых облаков (доля [darkShare] 1) его нет.
+     */
+    val cloudLift: Double get() = 1.0 + MAX_CLOUD_LIFT * (1.0 - (gray / LIFT_GRAY_END).coerceIn(0.0, 1.0)) * (1.0 - darkShare.coerceIn(0.0, 1.0))
+
     companion object {
+        private const val MAX_CLOUD_LIFT = 0.14
+        private const val LIFT_GRAY_END = 0.3
+
         /**
          * Небо для вида погоды [condition]. [precipitationMm] осадки текущего часа (мм): у дождя и снега от них зависит
          * густота облаков (морось против ливня); без них берётся средняя сила.

@@ -2,6 +2,7 @@ package io.github.dumahuch.pogodaapp.sky
 
 import java.io.DataInputStream
 import java.io.InputStream
+import kotlin.math.min
 
 /**
  * Карты яркости фона «Ди»: уменьшенные копии всех слоёв (64×96) и двух листов облаков (128×48), блоки 16×16.
@@ -72,7 +73,7 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
         val places = DiArt.Layer.entries.map { DiArt.place(it, sw, sh, pan, look.lift) }
         val cloudPlace = DiArt.placeClouds(sw, sh, look.cloudPosition)
         val clouds = CloudLayout.of(look.weather)
-        val tint = DiArt.tint(w).let { t -> look.weather.cloudShade.let { k -> Rgb(t.r * k, t.g * k, t.b * k) } }
+        val tint = DiArt.tint(w).let { t -> (look.weather.cloudShade * look.weather.cloudLift).let { k -> Rgb(t.r * k, t.g * k, t.b * k) } }
         val discs = Celestial.discs(look.bodies, Celestial.Frame.Di, sw, sh)
         val veilStrength = look.veilStrength
         // Размер карты в пикселях холста: слой 1024 / 64 = 16.
@@ -123,9 +124,11 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                             val ix = if (cloud.mirrored) cloud.rect.w - lx else lx
                             RasterKit.bilinearOrClear(maps.clouds(cloud.storm), maps.sheetW, maps.sheetH, (cloud.rect.x + ix) * sheetK, (cloud.rect.y + ly) * sheetK, tmp)
                             val ca = cloud.alpha * tmp[3] / 255.0
-                            var cr = cloud.alpha * tmp[0] * tint.r / 255.0
-                            var cg = cloud.alpha * tmp[1] * tint.g / 255.0
-                            var cb = cloud.alpha * tmp[2] * tint.b / 255.0
+                            // Подъём яркости обрезается белым (цвет облака умножен на прозрачность), как у фильтра на экране.
+                            val cap = ca * 255.0
+                            var cr = min(cap, cloud.alpha * tmp[0] * tint.r / 255.0)
+                            var cg = min(cap, cloud.alpha * tmp[1] * tint.g / 255.0)
+                            var cb = min(cap, cloud.alpha * tmp[2] * tint.b / 255.0)
                             if (veilStrength > 0.01) {
                                 // Цвет облака умножен на прозрачность; вуаль красит его пропорционально ей.
                                 cr = lerp(cr, ca * rowVeil.r, veilStrength); cg = lerp(cg, ca * rowVeil.g, veilStrength); cb = lerp(cb, ca * rowVeil.b, veilStrength)

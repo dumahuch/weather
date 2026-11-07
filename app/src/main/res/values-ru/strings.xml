@@ -41,6 +41,7 @@
     <string name="wx_partly">Переменная облачность</string>
     <string name="wx_cloudy">Пасмурно</string>
     <string name="wx_rain">Дождь</string>
+    <string name="wx_drizzle">Морось</string>
     <string name="wx_storm">Гроза</string>
     <string name="wx_snow">Снег</string>
     <string name="wx_fog">Туман</string>
@@ -79,6 +80,8 @@
     <string name="precip_today_none">Без осадков</string>
     <string name="precip_short_all_day">Весь день</string>
     <string name="precip_short_none">Нет</string>
+    <string name="precip_short_now">Сейчас</string>
+    <string name="precip_today_now">Осадки сейчас</string>
     <string name="outlook_until">%1$s до %2$s</string>
     <string name="outlook_from">%1$s с %2$s</string>
     <string name="outlook_all_day">%1$s весь день</string>

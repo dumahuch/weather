@@ -11,8 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -24,7 +24,6 @@ import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
 import io.github.dumahuch.pogodaapp.sky.PlacedCloud
 import io.github.dumahuch.pogodaapp.sky.Placement
-import io.github.dumahuch.pogodaapp.sky.Rgb
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkyScene
 import io.github.dumahuch.pogodaapp.sky.SkyState
@@ -214,17 +213,36 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         drawScaled(image, place.left.toFloat(), place.top.toFloat(), place.scale.toFloat(), alpha, filter)
     }
 
-    /** Подкраска облаков умножением; фильтр пересоздаётся только при заметной смене цвета (шаг 1 из 255). */
+    /**
+     * Подкраска облаков умножением на цвет времени суток, серость плотной облачности ([SkyWeather.cloudShade]) и подъём яркости
+     * при малой облачности ([SkyWeather.cloudLift], результат обрезается белым); фильтр пересоздаётся только при заметной смене цвета.
+     */
     private fun tint(look: SkyLook): ColorFilter {
-        val c = DiArt.tint(look.weights).let { t -> look.weather.cloudShade.let { k -> Rgb(t.r * k, t.g * k, t.b * k) } }
-        val r = c.r.roundToInt().coerceIn(0, 255)
-        val g = c.g.roundToInt().coerceIn(0, 255)
-        val b = c.b.roundToInt().coerceIn(0, 255)
-        val key = (r shl 16) or (g shl 8) or b
+        val t = DiArt.tint(look.weights)
+        val k = look.weather.cloudShade * look.weather.cloudLift
+        val r = (t.r * k).roundToInt().coerceIn(0, MAX_TINT)
+        val g = (t.g * k).roundToInt().coerceIn(0, MAX_TINT)
+        val b = (t.b * k).roundToInt().coerceIn(0, MAX_TINT)
+        val key = (r shl 20) or (g shl 10) or b
         tintFilter?.let { if (key == tintKey) return it }
-        val created = ColorFilter.tint(Color(r, g, b), BlendMode.Modulate)
+        val scale = 1f / 255f
+        val created = ColorFilter.colorMatrix(
+            ColorMatrix(
+                floatArrayOf(
+                    r * scale, 0f, 0f, 0f, 0f,
+                    0f, g * scale, 0f, 0f, 0f,
+                    0f, 0f, b * scale, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f,
+                ),
+            ),
+        )
         tintKey = key
         tintFilter = created
         return created
+    }
+
+    private companion object {
+        /** Множитель цвета в единицах 0…255 с запасом на подъём яркости (до 1,14 · 255 ≈ 291). */
+        const val MAX_TINT = 400
     }
 }
