@@ -58,4 +58,71 @@ class ScrimShapeTest {
     fun noScrimGivesNothingVisible() {
         assertTrue(ScrimShape.stops(0.0, 0.0).all { it.second == 0f })
     }
+
+    private val around = ScrimShape.around(
+        heroTop = 300.0, heroBottom = 600.0, infoTop = 800.0, infoBottom = 1000.0, heroFeather = 60.0, infoFeather = 40.0,
+    )
+
+    @Test
+    fun bandsFollowTheRealBlocks() {
+        // Подложка под цифрами: полная от верха до низа блока, снаружи мягкий край 60.
+        assertEquals(0.0, ScrimShape.alphaAt(240.0, 0.3, 0.0, around), 1e-9)
+        assertEquals(0.15, ScrimShape.alphaAt(270.0, 0.3, 0.0, around), 1e-9)
+        for (y in listOf(300.0, 450.0, 600.0)) assertEquals("y=$y", 0.3, ScrimShape.alphaAt(y, 0.3, 0.0, around), 1e-9)
+        assertEquals(0.15, ScrimShape.alphaAt(630.0, 0.3, 0.0, around), 1e-9)
+        assertEquals(0.0, ScrimShape.alphaAt(660.0, 0.3, 0.0, around), 1e-9)
+        // Подложка под строками: то же вокруг своих границ, мягкий край 40.
+        assertEquals(0.0, ScrimShape.alphaAt(760.0, 0.0, 0.25, around), 1e-9)
+        assertEquals(0.125, ScrimShape.alphaAt(780.0, 0.0, 0.25, around), 1e-9)
+        for (y in listOf(800.0, 900.0, 1000.0)) assertEquals("y=$y", 0.25, ScrimShape.alphaAt(y, 0.0, 0.25, around), 1e-9)
+        assertEquals(0.0, ScrimShape.alphaAt(1040.0, 0.0, 0.25, around), 1e-9)
+    }
+
+    @Test
+    fun bandsMoveTogetherWithTheBlocks() {
+        val moved = ScrimShape.around(400.0, 700.0, 900.0, 1100.0, 60.0, 40.0)
+        for (y in 200..1200 step 25) {
+            assertEquals(
+                "y=$y",
+                ScrimShape.alphaAt(y.toDouble(), 0.3, 0.25, around),
+                ScrimShape.alphaAt(y + 100.0, 0.3, 0.25, moved),
+                1e-9,
+            )
+        }
+    }
+
+    @Test
+    fun stopsOfMeasuredBandsMatchTheShapeAndAreIncreasing() {
+        val height = 2400.0
+        val stops = ScrimShape.stops(0.30, 0.25, around, height)
+        assertEquals(0f, stops.first().first, 0f)
+        assertEquals(1f, stops.last().first, 1e-6f)
+        for (i in 1 until stops.size) assertTrue("остановка $i", stops[i].first > stops[i - 1].first)
+        for ((position, alpha) in stops) {
+            assertEquals(ScrimShape.alphaAt(position * height, 0.30, 0.25, around).toFloat(), alpha, 1e-5f)
+        }
+        // Углы подложек попадают в остановки точно: иначе градиент срезал бы их линейной интерполяцией.
+        for (corner in listOf(240.0, 300.0, 600.0, 660.0, 760.0, 800.0, 1000.0, 1040.0)) {
+            assertTrue("угол $corner", stops.any { kotlin.math.abs(it.first * height - corner) < 0.01 })
+        }
+    }
+
+    @Test
+    fun aBlockNearTheTopEdgeKeepsItsDensityAtTheEdge() {
+        // Мягкий край выходит за верх экрана: углы вне экрана отбрасываются, а плотность у верха считается по той же форме.
+        val high = ScrimShape.around(10.0, 300.0, 400.0, 500.0, 60.0, 40.0)
+        val stops = ScrimShape.stops(0.30, 0.0, high, 1000.0)
+        assertEquals(0f, stops.first().first, 0f)
+        assertEquals(ScrimShape.alphaAt(0.0, 0.30, 0.0, high).toFloat(), stops.first().second, 1e-6f)
+        assertTrue("у верха уже плотная", stops.first().second > 0.2f)
+        for (i in 1 until stops.size) assertTrue("остановка $i", stops[i].first > stops[i - 1].first)
+    }
+
+    @Test
+    fun aBlockWithoutHeightStillGivesAValidBand() {
+        val line = ScrimShape.around(500.0, 500.0, 500.0, 500.0, 60.0, 40.0)
+        assertEquals(0.3, ScrimShape.alphaAt(500.0, 0.3, 0.0, line), 1e-9)
+        assertEquals(0.0, ScrimShape.alphaAt(440.0, 0.3, 0.0, line), 1e-9)
+        assertEquals(0.0, ScrimShape.alphaAt(560.0, 0.3, 0.0, line), 1e-9)
+    }
 }

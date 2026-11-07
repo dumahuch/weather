@@ -126,16 +126,21 @@ internal class SkyEffects {
         private val NIGHT_COLOR = Color(8, 12, 26)
 
         /**
-         * Подложки на небе: под большими цифрами ([scrim], координаты как в макете, 96…440 из 892) и под строками под
-         * температурой ([infoScrim], около 300…575 dp). Форма и правило «берётся наибольшая плотность» в [ScrimShape].
-         * Градиент идёт на весь экран, а не на отдельном прямоугольнике: у прямоугольника был край в середине экрана,
-         * и на эмуляторе по этому краю проходила линия в 1 пиксель. Все цвета градиента одного оттенка (меняется только прозрачность),
-         * как у CSS-градиента в макете, поэтому тёмной каймы «прозрачный чёрный» нет.
+         * Подложки на небе: под большими цифрами ([scrim]) и под строками под температурой ([infoScrim]). Форма и правило
+         * «берётся наибольшая плотность» в [ScrimShape]. [bands] границы настоящих блоков «Главной» в пикселях [hostHeight]
+         * (step-40); `null` значит прежняя форма по координатам макета. Градиент идёт на весь экран, а не на отдельном
+         * прямоугольнике: у прямоугольника был край в середине экрана, и на эмуляторе по этому краю проходила линия в
+         * 1 пиксель. Все цвета градиента одного оттенка (меняется только прозрачность), как у CSS-градиента в макете,
+         * поэтому тёмной каймы «прозрачный чёрный» нет.
          */
-        fun drawScrim(scope: DrawScope, scrim: Color, infoScrim: Color) {
+        fun drawScrim(scope: DrawScope, scrim: Color, infoScrim: Color, bands: ScrimShape.Bands?, hostHeight: Float) {
             if (scrim.alpha <= 0f && infoScrim.alpha <= 0f) return
             val base = if (scrim.alpha > 0f) scrim else infoScrim
-            val stops = ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble())
+            val stops = if (bands == null) {
+                ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble())
+            } else {
+                ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble(), bands, hostHeight.toDouble())
+            }
             val brush = Brush.verticalGradient(
                 *Array(stops.size) { stops[it].first to base.copy(alpha = stops[it].second) },
                 startY = 0f,

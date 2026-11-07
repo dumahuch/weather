@@ -16,6 +16,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberUpdatedState
@@ -28,7 +29,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
@@ -51,6 +54,7 @@ import io.github.dumahuch.pogodaapp.sky.SkyRaster
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
 import io.github.dumahuch.pogodaapp.sky.SkyOverride
 import io.github.dumahuch.pogodaapp.sky.SkyLook
+import io.github.dumahuch.pogodaapp.sky.ScrimShape
 import io.github.dumahuch.pogodaapp.sky.SkyPalette
 import io.github.dumahuch.pogodaapp.sky.SkySampler
 import io.github.dumahuch.pogodaapp.sky.SkyScene
@@ -172,6 +176,9 @@ internal fun SkyHost(
     DisposableEffect(celestial) { onDispose { celestial.clear() } }
     val parallax = remember { SkyParallax() }
     var hostSize by remember { mutableStateOf(IntSize.Zero) }
+    // Границы блоков «Главной» для подложек и положение верха хозяина в окне (подложки считаются от верха хозяина).
+    val scrimRegions = remember { ScrimRegions() }
+    var hostTop by remember { mutableFloatStateOf(0f) }
     val animationsOn by rememberAnimationsEnabled()
     var started by remember { mutableStateOf(true) }
     LifecycleStartEffect(Unit) {
@@ -278,7 +285,7 @@ internal fun SkyHost(
                 val lift = DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble())
                 captureSnapshot(
                     appContext, snapshotLayer, snapshotPainter, state.look(SkyDrift.position(state.pan, phase), lift), colors,
-                    density, layoutDirection, hostSize,
+                    density, layoutDirection, hostSize, scrimRegions.bands(hostTop, density.density),
                 )
             }
             delay(SNAPSHOT_REPEAT_MILLIS)
@@ -295,8 +302,13 @@ internal fun SkyHost(
         LocalGlass provides glass,
         LocalContentColor provides palette.ink,
         LocalSkyParallax provides parallax,
+        LocalScrimRegions provides scrimRegions,
     ) {
-        Box(modifier.onSizeChanged { hostSize = it }) {
+        Box(
+            modifier
+                .onSizeChanged { hostSize = it }
+                .onGloballyPositioned { hostTop = it.positionInRoot().y },
+        ) {
             SkyBackground(
                 sky = sky,
                 store = store,
@@ -308,6 +320,7 @@ internal fun SkyHost(
                 reveal = { reveal },
                 scrim = palette.scrim,
                 infoScrim = palette.infoScrim,
+                bands = { scrimRegions.bands(hostTop, density.density) },
                 modifier = Modifier.matchParentSize().then(if (glassBlur) Modifier.hazeSource(hazeState) else Modifier),
             )
             content()
@@ -328,6 +341,7 @@ private fun SkyBackground(
     reveal: () -> Float,
     scrim: Color,
     infoScrim: Color,
+    bands: () -> ScrimShape.Bands?,
     modifier: Modifier = Modifier,
 ) {
     val painter = remember(store, celestial) { DiPainter(store, celestial) }
@@ -353,7 +367,7 @@ private fun SkyBackground(
                     .graphicsLayer { alpha = reveal() }
                     .drawBehind {
                         painter.draw(this, sky.look(SkyDrift.position(sky.pan, phase()), lift(size.height.toDouble())))
-                        SkyEffects.drawScrim(this, scrim, infoScrim)
+                        SkyEffects.drawScrim(this, scrim, infoScrim, bands(), size.height)
                     },
             )
         }
@@ -382,12 +396,13 @@ private suspend fun captureSnapshot(
     density: Density,
     layoutDirection: LayoutDirection,
     host: IntSize,
+    bands: ScrimShape.Bands?,
 ) {
     try {
         val height = (SNAPSHOT_WIDTH * host.height.toFloat() / host.width).roundToInt().coerceAtLeast(1)
         layer.record(density, layoutDirection, IntSize(SNAPSHOT_WIDTH, height)) {
             painter.draw(this, look)
-            SkyEffects.drawScrim(this, colors.scrim, colors.infoScrim)
+            SkyEffects.drawScrim(this, colors.scrim, colors.infoScrim, bands, host.height.toFloat())
         }
         val image = layer.toImageBitmap().asAndroidBitmap()
         withContext(Dispatchers.IO) {

@@ -122,6 +122,7 @@ fun HomeScreen(
                 .nestedScroll(pull.connection),
         ) {
             val viewport = maxHeight // внутри колонки область BoxWithConstraints уже не видна
+            val viewportWidth = maxWidth
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -152,7 +153,7 @@ fun HomeScreen(
                         Spacer(Modifier.height(CENTER_EDGE))
                     }
                     // С данными: блок погоды, под ним предупреждения; как делится свободное место, решает [HeroFit].
-                    is HomeUiState.Content -> ContentMiddle(state, layout, viewport, pulled, actions)
+                    is HomeUiState.Content -> ContentMiddle(state, layout, viewport, viewportWidth, pulled, actions)
                     // Карточки состояний остаются наверху, как были.
                     else -> {
                         Column(Modifier.fillMaxWidth().then(pulled)) {
@@ -306,7 +307,12 @@ private fun LoadingTop() {
  * дня). Лента «По часам» стоит ниже и не сдвигается.
  */
 @Composable
-internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifier: Modifier) {
+internal fun ContentTop(
+    state: HomeUiState.Content,
+    heroScale: Float,
+    heroModifier: Modifier,
+    infoModifier: Modifier = Modifier,
+) {
     val palette = LocalPogodaPalette.current
     val forecast = state.forecast
     val current = forecast.current
@@ -344,7 +350,7 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
         scale = heroScale,
     )
     Column(
-        Modifier
+        infoModifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
