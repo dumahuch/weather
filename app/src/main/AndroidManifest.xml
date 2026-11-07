@@ -9,6 +9,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Уведомление о погоде (0.7.0): спрашивается, только когда человек включает его в настройках. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Фоновое обновление уведомления ждёт сети (JobInfo.setRequiredNetworkType): с Android 14 без этого права система
+         не ставит такую задачу и закрывает приложение (так падали 0.7.0 и 0.7.1). Окна не показывает. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Чтобы обновление уведомления пережило перезагрузку телефона (JobInfo.setPersisted). Само ничего не запускает. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 

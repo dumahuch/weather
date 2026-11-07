@@ -130,6 +130,7 @@ class WeatherNotifier(private val context: Context) {
         val lockScreen = builder(headline).setVisibility(Notification.VISIBILITY_PUBLIC).build()
         val visibility = if (prefs.placeOnLockScreen) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
         manager.notify(NOTIFICATION_ID, builder(title).setVisibility(visibility).setPublicVersion(lockScreen).build())
+        settings().setNoticeError(null)
     }
 
     /** Каналы создаются при каждом показе: так их названия следуют за языком интерфейса. */

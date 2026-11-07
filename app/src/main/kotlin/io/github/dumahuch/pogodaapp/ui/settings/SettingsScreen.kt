@@ -56,6 +56,7 @@ fun SettingsScreen(
     onIconStyle: (WeatherIconStyle) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    noticeError: String?,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -141,6 +142,14 @@ fun SettingsScreen(
                 enabled = notifications.inStatusBar,
                 onChange = { onNotification(NotificationToggle.LockScreenPlace, it) },
             )
+            // Ошибка уведомления (0.7.2): текст для снимка экрана, пока журнала падений у приложения нет.
+            noticeError?.let {
+                Text(
+                    stringResource(R.string.settings_notify_error, it),
+                    style = pogodaText(12f, 400, color = LocalPogodaPalette.current.ink2),
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }

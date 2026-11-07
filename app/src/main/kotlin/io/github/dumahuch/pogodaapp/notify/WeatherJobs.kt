@@ -7,7 +7,9 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import android.util.Log
+import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
+import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,9 +65,11 @@ class WeatherJobService : JobService() {
                 WeatherNotifier(applicationContext).refresh()
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: RuntimeException) {
-                // Сбой в фоне не должен ронять приложение: уведомление останется прежним до следующего запуска.
+            } catch (e: Exception) {
+                // Сбой в фоне не должен ронять приложение: уведомление останется прежним до следующего запуска,
+                // текст ошибки виден в настройках.
                 Log.w(TAG, "уведомление о погоде не обновлено", e)
+                AppSettings(PreferencesSettingsStorage(applicationContext)).setNoticeError(NoticeFailure.describe(e))
             } finally {
                 jobFinished(params, false)
             }
