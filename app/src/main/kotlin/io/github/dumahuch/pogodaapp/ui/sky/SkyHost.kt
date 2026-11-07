@@ -409,16 +409,20 @@ private suspend fun captureSnapshot(
     }
 }
 
+/** Облачность, с которой экран проверки рисует «Пасмурно»: сплошная, как у плотных облаков в прогнозе. */
+private const val OVERCAST_COVER_PERCENT = 100.0
+
 private fun buildSky(input: SkyInput, override: SkyOverride, now: Instant): SkyState {
     val sun = override.solarHour?.let { SunPosition.atSolarHour(input.latitude, now, it) }
         ?: SunPosition.at(input.latitude, input.longitude, now)
-    // Подставленная на экране проверки погода идёт без осадков: берётся средняя сила.
+    // Подставленная на экране проверки погода идёт без осадков: берётся средняя сила. Пасмурное небо при этом считается
+    // как при сплошной облачности из прогноза, то есть так же, как на настоящих данных (те же цвет и густота облаков).
     val measured = override.condition == null
     return SkyState.of(
         sun,
         override.condition ?: input.condition,
         if (measured) input.precipitationMm else null,
-        if (measured) input.cloudCoverPercent else null,
+        if (measured) input.cloudCoverPercent else if (override.condition == Condition.Cloudy) OVERCAST_COVER_PERCENT else null,
         override.moonCycle?.let { Celestial.testMoon(input.latitude, it) }
             ?: Celestial.moonSky(input.latitude, input.longitude, override.solarHour?.let { Celestial.instantAtSolarHour(input.longitude, now, it) } ?: now),
         SunPosition.atSolarHour(input.latitude, now, 12.0).elevation,

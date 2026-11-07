@@ -56,7 +56,13 @@ internal object RasterKit {
      * Последние шаги, общие для обоих фонов: серость непогоды, затемнение грозы, приглушение света ночью.
      * [rgb] меняется на месте.
      */
-    fun finish(look: SkyLook, rgb: DoubleArray) {
+    fun finish(look: SkyLook, rgb: DoubleArray) = tone(look, rgb, 1.0)
+
+    /**
+     * Те же три шага для слоя с прозрачностью [alpha] (цвет [rgb] умножен на неё): затемнение и приглушение красят только
+     * нарисованное, как накладки со смешиванием «по нарисованному» на экране. Так фон «Ди» не затемняет солнце и луну (step-30).
+     */
+    fun tone(look: SkyLook, rgb: DoubleArray, alpha: Double) {
         var r = rgb[0]
         var g = rgb[1]
         var b = rgb[2]
@@ -67,11 +73,11 @@ internal object RasterKit {
         }
         if (look.weather.dark > 0.01) {
             val a = look.darkAlpha
-            r = lerp(r, 10.0, a); g = lerp(g, 16.0, a); b = lerp(b, 32.0, a)
+            r = lerp(r, 10.0 * alpha, a); g = lerp(g, 16.0 * alpha, a); b = lerp(b, 32.0 * alpha, a)
         }
         val dim = look.nightDim
         if (dim > 0.01) {
-            r = lerp(r, 8.0, dim); g = lerp(g, 12.0, dim); b = lerp(b, 26.0, dim)
+            r = lerp(r, 8.0 * alpha, dim); g = lerp(g, 12.0 * alpha, dim); b = lerp(b, 26.0 * alpha, dim)
         }
         rgb[0] = r; rgb[1] = g; rgb[2] = b
     }

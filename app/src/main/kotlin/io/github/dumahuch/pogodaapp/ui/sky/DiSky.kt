@@ -126,7 +126,7 @@ internal class DiBitmapStore(private val context: Context) : SkyArtStore {
 /**
  * Рисует фон «Ди» тем же порядком, что и расчёт цветов ([io.github.dumahuch.pogodaapp.sky.DiRaster]):
  * небо → погодная вуаль на небе (под обесцвечиванием непогоды) → солнце и луна своим цветом → облака (отдельные, число и размер по
- * погоде: [CloudLayout]; подкрашенные; вуаль красит и их) → пять гряд сзади вперёд (под обесцвечиванием); затем затемнение и приглушение. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
+ * погоде: [CloudLayout]; подкрашенные; вуаль красит и их) → пять гряд сзади вперёд (под обесцвечиванием); затемнение и приглушение лежат на небе и на облаках с грядами, но не на солнце и луне. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
  */
 internal class DiPainter(private val store: DiBitmapStore, private val celestial: CelestialBitmaps) : SkyArtPainter {
 
@@ -143,22 +143,21 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         val pan = DiArt.pan(look.weights)
         val w = scope.size.width.toDouble()
         val h = scope.size.height.toDouble()
-        // Небо с вуалью под обесцвечиванием; солнце и луна лежат на небе своим цветом (step-29), поэтому они вне слоя
-        // обесцвечивания и не под вуалью.
-        effects.layer(scope, look, force = false) {
+        // Небо с вуалью под обесцвечиванием, затемнением грозы и ночным приглушением; солнце и луна лежат на небе своим
+        // цветом (step-29, step-30), поэтому они вне слоя и ничем из этого не затемняются.
+        effects.layer(scope, look, force = false, withTone = true, opaque = true) {
             drawLayer(DiArt.Layer.Sky, loaded, look, pan, w, h)
             effects.drawVeil(this, look)
         }
         scope.drawCelestial(look, Celestial.Frame.Di, celestial)
         // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
-        effects.layer(scope, look, force = effects.hasVeil(look)) {
+        effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
             drawClouds(look, clouds, w, h)
             effects.drawVeil(this, look, BlendMode.SrcAtop)
             for (layer in DiArt.Layer.entries) {
                 if (layer != DiArt.Layer.Sky) drawLayer(layer, loaded, look, pan, w, h)
             }
         }
-        effects.finish(scope, look)
     }
 
     /** Один слой картины, смешанный между временами суток каскадом (вес / сумма весов до него). */

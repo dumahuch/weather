@@ -44,27 +44,6 @@ private const val VIEWPORT = 24f
 /** Толщина контура в единицах значка: тоньше на крупном значке, толще на мелком (подбирается по размеру, не в настройках). */
 internal fun outlineStroke(size: Dp): Float = if (size.value >= 40f) 1.2f else 1.6f
 
-/**
- * Нижний край рисунка в единицах значка (0…24): по нему значок ставится на нижний край цифр температуры.
- * Для контура учтена половина толщины линии.
- */
-internal fun glyphBottom(icon: HeroIcon, style: WeatherIconStyle, size: Dp): Float = when (style) {
-    WeatherIconStyle.Glass -> when (icon) {
-        HeroIcon.Cloud -> 18.5f
-        HeroIcon.CloudSun, HeroIcon.CloudMoon -> 19.3f
-        HeroIcon.Rain -> 22f
-        HeroIcon.Storm -> 23.2f
-        HeroIcon.Snow -> 23f
-        HeroIcon.Fog -> 22f
-    }
-    WeatherIconStyle.Outline -> outlineStroke(size) / 2 + when (icon) {
-        HeroIcon.Cloud -> 19f
-        HeroIcon.CloudSun, HeroIcon.CloudMoon -> 22f
-        HeroIcon.Rain, HeroIcon.Storm -> 22f
-        HeroIcon.Snow, HeroIcon.Fog -> 21f
-    }
-}
-
 /** Значок погоды «Главной» в выбранном наборе ([WeatherIconStyle]); рисуется кодом в квадрате [size]. */
 @Composable
 fun WeatherGlyph(icon: HeroIcon, style: WeatherIconStyle, size: Dp, modifier: Modifier = Modifier) {
