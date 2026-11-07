@@ -50,6 +50,7 @@ import io.github.dumahuch.pogodaapp.ui.PogodaApp
 import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.LocalHeroConditionOverride
+import io.github.dumahuch.pogodaapp.ui.home.LocalHeroSolarHourOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalWeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
@@ -202,6 +203,7 @@ class MainActivity : ComponentActivity() {
                         CompositionLocalProvider(
                             LocalWeatherIconStyle provides iconStyle,
                             LocalHeroConditionOverride provides override.condition,
+                            LocalHeroSolarHourOverride provides override.solarHour,
                         ) {
                             PogodaApp(
                                 state = state,

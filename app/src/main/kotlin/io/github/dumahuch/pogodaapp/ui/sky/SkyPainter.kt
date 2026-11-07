@@ -2,6 +2,7 @@ package io.github.dumahuch.pogodaapp.ui.sky
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -105,22 +106,40 @@ internal class SkyEffects {
     private var filter: ColorFilter? = null
 
     /** Рисует [body] (картины, вуаль, облака) с обесцвечиванием непогоды, затем затемнение и приглушение. */
-    fun withWeather(scope: DrawScope, look: SkyLook, body: DrawScope.() -> Unit) = with(scope) {
+    fun withWeather(scope: DrawScope, look: SkyLook, body: DrawScope.() -> Unit) {
+        layer(scope, look, force = false, body)
+        finish(scope, look)
+    }
+
+    /**
+     * Рисует [body] с обесцвечиванием непогоды (цветовой матрицей на слое). [force]: слой нужен и без обесцвечивания,
+     * чтобы то, что рисуется в нём со смешиванием «только по нарисованному» ([BlendMode.SrcAtop]), не тронуло экран под ним.
+     */
+    fun layer(scope: DrawScope, look: SkyLook, force: Boolean, body: DrawScope.() -> Unit) = with(scope) {
         val canvas = drawContext.canvas
         val gray = look.grayAmount
         val desaturate = gray > MIN_EFFECT
-        if (desaturate) {
-            grayPaint.colorFilter = grayFilter(gray)
+        val separate = desaturate || force
+        if (separate) {
+            grayPaint.colorFilter = if (desaturate) grayFilter(gray) else null
             canvas.saveLayer(Rect(0f, 0f, size.width, size.height), grayPaint)
         }
         body()
-        if (desaturate) canvas.restore()
+        if (separate) canvas.restore()
+    }
+
+    /** Затемнение грозы и приглушение света ночью поверх всего кадра. */
+    fun finish(scope: DrawScope, look: SkyLook) = with(scope) {
         if (look.weather.dark > MIN_EFFECT) drawRect(DARK_COLOR, alpha = look.darkAlpha.toFloat())
         val dim = look.nightDim
         if (dim > MIN_EFFECT) drawRect(NIGHT_COLOR, alpha = dim.toFloat())
     }
 
-    fun drawVeil(scope: DrawScope, look: SkyLook) {
+    /** Нужна ли погодная вуаль на этом кадре (она заметна). */
+    fun hasVeil(look: SkyLook): Boolean = look.veilStrength > MIN_EFFECT
+
+    /** Вуаль на весь кадр; [blendMode] [BlendMode.SrcAtop] красит только уже нарисованное (облака на прозрачном слое). */
+    fun drawVeil(scope: DrawScope, look: SkyLook, blendMode: BlendMode = BlendMode.SrcOver) {
         val strength = look.veilStrength
         if (strength <= MIN_EFFECT) return
         val veil = look.veil
@@ -131,7 +150,7 @@ internal class SkyEffects {
             startY = 0f,
             endY = scope.size.height,
         )
-        scope.drawRect(brush, alpha = strength.toFloat())
+        scope.drawRect(brush, alpha = strength.toFloat(), blendMode = blendMode)
     }
 
     /** Фильтр, который тянет цвет к серому с яркостью 0,30 R + 0,59 G + 0,11 B (как в расчёте цветов интерфейса). */

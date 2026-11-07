@@ -24,6 +24,7 @@ import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
 import io.github.dumahuch.pogodaapp.sky.PlacedCloud
 import io.github.dumahuch.pogodaapp.sky.Placement
+import io.github.dumahuch.pogodaapp.sky.Rgb
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkyScene
 import io.github.dumahuch.pogodaapp.sky.SkyState
@@ -124,8 +125,8 @@ internal class DiBitmapStore(private val context: Context) : SkyArtStore {
 
 /**
  * Рисует фон «Ди» тем же порядком, что и расчёт цветов ([io.github.dumahuch.pogodaapp.sky.DiRaster]):
- * небо → солнце и луна → облака (отдельные, число и размер по погоде: [CloudLayout]; подкрашенные) → погодная вуаль → пять гряд сзади вперёд, всё под обесцвечиванием непогоды;
- * затем затемнение и приглушение. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
+ * небо → погодная вуаль на небе (под обесцвечиванием непогоды) → солнце и луна своим цветом → облака (отдельные, число и размер по
+ * погоде: [CloudLayout]; подкрашенные; вуаль красит и их) → пять гряд сзади вперёд (под обесцвечиванием); затем затемнение и приглушение. Каждый слой двух времён суток ложится каскадом (вес / сумма весов до него).
  */
 internal class DiPainter(private val store: DiBitmapStore, private val celestial: CelestialBitmaps) : SkyArtPainter {
 
@@ -139,26 +140,36 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         val loaded = look.weights.visible().filter { store.has(it) }
         if (loaded.isEmpty()) return
         val clouds = store.clouds ?: return
-        effects.withWeather(scope, look) {
-            val pan = DiArt.pan(look.weights)
-            val w = size.width.toDouble()
-            val h = size.height.toDouble()
+        val pan = DiArt.pan(look.weights)
+        val w = scope.size.width.toDouble()
+        val h = scope.size.height.toDouble()
+        // Небо с вуалью под обесцвечиванием; солнце и луна лежат на небе своим цветом (step-29), поэтому они вне слоя
+        // обесцвечивания и не под вуалью.
+        effects.layer(scope, look, force = false) {
+            drawLayer(DiArt.Layer.Sky, loaded, look, pan, w, h)
+            effects.drawVeil(this, look)
+        }
+        scope.drawCelestial(look, Celestial.Frame.Di, celestial)
+        // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
+        effects.layer(scope, look, force = effects.hasVeil(look)) {
+            drawClouds(look, clouds, w, h)
+            effects.drawVeil(this, look, BlendMode.SrcAtop)
             for (layer in DiArt.Layer.entries) {
-                val place = DiArt.place(layer, w, h, pan, look.lift)
-                var sum = 0.0
-                for (scene in loaded) {
-                    val image = store.get(scene)?.layers?.get(layer.ordinal) ?: continue
-                    val weight = look.weights[scene]
-                    sum += weight
-                    drawPlaced(image, place, (weight / sum).toFloat())
-                }
-                if (layer == DiArt.Layer.Sky) {
-                    // Солнце и луна лежат на небе: за облаками и (рисуются раньше) за грядами.
-                    drawCelestial(look, Celestial.Frame.Di, celestial)
-                    drawClouds(look, clouds, w, h)
-                    effects.drawVeil(this, look)
-                }
+                if (layer != DiArt.Layer.Sky) drawLayer(layer, loaded, look, pan, w, h)
             }
+        }
+        effects.finish(scope, look)
+    }
+
+    /** Один слой картины, смешанный между временами суток каскадом (вес / сумма весов до него). */
+    private fun DrawScope.drawLayer(layer: DiArt.Layer, loaded: List<SkyScene>, look: SkyLook, pan: Double, w: Double, h: Double) {
+        val place = DiArt.place(layer, w, h, pan, look.lift)
+        var sum = 0.0
+        for (scene in loaded) {
+            val image = store.get(scene)?.layers?.get(layer.ordinal) ?: continue
+            val weight = look.weights[scene]
+            sum += weight
+            drawPlaced(image, place, (weight / sum).toFloat())
         }
     }
 
@@ -206,7 +217,7 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
 
     /** Подкраска облаков умножением; фильтр пересоздаётся только при заметной смене цвета (шаг 1 из 255). */
     private fun tint(look: SkyLook): ColorFilter {
-        val c = DiArt.tint(look.weights)
+        val c = DiArt.tint(look.weights).let { t -> look.weather.cloudShade.let { k -> Rgb(t.r * k, t.g * k, t.b * k) } }
         val r = c.r.roundToInt().coerceIn(0, 255)
         val g = c.g.roundToInt().coerceIn(0, 255)
         val b = c.b.roundToInt().coerceIn(0, 255)

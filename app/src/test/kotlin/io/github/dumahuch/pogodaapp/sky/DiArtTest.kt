@@ -71,9 +71,11 @@ class DiArtTest {
         for (c in listOf(Condition.Clear, Condition.Partly, Condition.Snow, Condition.Fog)) {
             assertEquals("$c", 0.0, SkyWeather.of(c).darkShare, 0.0)
         }
-        for (c in listOf(Condition.Cloudy, Condition.Rain, Condition.Storm)) {
+        for (c in listOf(Condition.Rain, Condition.Storm)) {
             assertEquals("$c", 1.0, SkyWeather.of(c).darkShare, 0.0)
         }
+        // Пасмурно без процента облачности: светлые облака, лишь одно из десяти на грозовом листе (step-29).
+        assertEquals(0.1, SkyWeather.of(Condition.Cloudy).darkShare, 0.0)
     }
 
     @Test

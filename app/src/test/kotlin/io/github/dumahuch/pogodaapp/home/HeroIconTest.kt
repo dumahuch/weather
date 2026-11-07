@@ -9,23 +9,32 @@ class HeroIconTest {
 
     @Test
     fun clearSkyHasNoIconBecauseSunAndMoonAreOnTheSky() {
-        assertNull(heroIconFor(Condition.Clear))
+        assertNull(heroIconFor(Condition.Clear, isDay = true))
+        assertNull(heroIconFor(Condition.Clear, isDay = false))
     }
 
     @Test
-    fun partlyCloudyIsCloudWithoutSunOrMoon() {
-        assertEquals(HeroIcon.Cloud, heroIconFor(Condition.Partly))
+    fun partlyCloudyIsACloudWithTheSunByDayAndTheMoonByNight() {
+        assertEquals(HeroIcon.CloudSun, heroIconFor(Condition.Partly, isDay = true))
+        assertEquals(HeroIcon.CloudMoon, heroIconFor(Condition.Partly, isDay = false))
+    }
+
+    @Test
+    fun overcastIsOneCloudByDayAndByNight() {
+        assertEquals(HeroIcon.Cloud, heroIconFor(Condition.Cloudy, isDay = true))
+        assertEquals(HeroIcon.Cloud, heroIconFor(Condition.Cloudy, isDay = false))
     }
 
     @Test
     fun everyOtherConditionHasItsOwnIcon() {
-        val icons = Condition.entries.mapNotNull(::heroIconFor)
-        assertEquals(Condition.entries.size - 1, icons.size)
-        assertEquals(icons.size, icons.toSet().size)
-        assertEquals(HeroIcon.Rain, heroIconFor(Condition.Rain))
-        assertEquals(HeroIcon.Storm, heroIconFor(Condition.Storm))
-        assertEquals(HeroIcon.Snow, heroIconFor(Condition.Snow))
-        assertEquals(HeroIcon.Fog, heroIconFor(Condition.Fog))
-        assertEquals(HeroIcon.Clouds, heroIconFor(Condition.Cloudy))
+        for (day in listOf(true, false)) {
+            val icons = Condition.entries.mapNotNull { heroIconFor(it, day) }
+            assertEquals(Condition.entries.size - 1, icons.size)
+            assertEquals(icons.size, icons.toSet().size)
+        }
+        assertEquals(HeroIcon.Rain, heroIconFor(Condition.Rain, isDay = true))
+        assertEquals(HeroIcon.Storm, heroIconFor(Condition.Storm, isDay = false))
+        assertEquals(HeroIcon.Snow, heroIconFor(Condition.Snow, isDay = true))
+        assertEquals(HeroIcon.Fog, heroIconFor(Condition.Fog, isDay = false))
     }
 }
