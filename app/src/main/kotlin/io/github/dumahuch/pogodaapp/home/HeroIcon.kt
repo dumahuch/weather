@@ -3,27 +3,47 @@ package io.github.dumahuch.pogodaapp.home
 import io.github.dumahuch.pogodaapp.weather.Condition
 
 /**
- * Значок погоды справа от температуры (решение Димы 06.11.2026, step-27; уточнено 07.11.2026, step-29). При ясной погоде
- * значка нет: солнце и луна уже нарисованы на небе. Переменная облачность это облако с выглядывающим солнцем днём и
- * с луной ночью, пасмурно это одно облако.
+ * Значок погоды справа от температуры (решение Димы 06.11.2026, step-27; набор переделан по его образцам 07.11.2026,
+ * step-42). При ясной погоде значка нет: солнце и луна уже нарисованы на небе; при ясной погоде с сильным ветром только
+ * ветер. Переменная облачность это облако с выглядывающим солнцем днём и с луной ночью, пасмурно это два облака.
+ * При сильном ветре облако, дождь и снег рисуются вместе с ветром. Рисунок: [GlyphScenes].
  */
 enum class HeroIcon {
-    Cloud,
     CloudSun,
     CloudMoon,
+    Clouds,
+    CloudWind,
     Rain,
-    Storm,
+    RainWind,
     Snow,
+    SnowWind,
+    Storm,
+    Wind,
     Fog,
 }
 
-/** Значок для вида погоды; `null` при ясной погоде (значка нет). [isDay] выбирает солнце или луну у переменной облачности. */
-fun heroIconFor(condition: Condition, isDay: Boolean): HeroIcon? = when (condition) {
-    Condition.Clear -> null
-    Condition.Partly -> if (isDay) HeroIcon.CloudSun else HeroIcon.CloudMoon
-    Condition.Cloudy -> HeroIcon.Cloud
-    Condition.Rain -> HeroIcon.Rain
+/**
+ * Сильный ветер для значка: средний ветер от 39 км/ч (6 баллов по Бофорту, «сильный ветер»; выбрано Claude 07.11.2026,
+ * Дима может сменить порог). Порывы не считаются: при порывах без сильного ветра значок с ветром был бы слишком частым.
+ */
+const val STRONG_WIND_KMH = 39.0
+
+fun isStrongWind(windKmh: Double?): Boolean = windKmh != null && windKmh >= STRONG_WIND_KMH
+
+/**
+ * Значок для вида погоды; `null` при ясной погоде без сильного ветра (значка нет). [isDay] выбирает солнце или луну у
+ * переменной облачности, [windy] добавляет ветер ([isStrongWind]). У грозы и тумана варианта с ветром нет.
+ */
+fun heroIconFor(condition: Condition, isDay: Boolean, windy: Boolean = false): HeroIcon? = when (condition) {
+    Condition.Clear -> if (windy) HeroIcon.Wind else null
+    Condition.Partly -> when {
+        windy -> HeroIcon.CloudWind
+        isDay -> HeroIcon.CloudSun
+        else -> HeroIcon.CloudMoon
+    }
+    Condition.Cloudy -> if (windy) HeroIcon.CloudWind else HeroIcon.Clouds
+    Condition.Rain -> if (windy) HeroIcon.RainWind else HeroIcon.Rain
     Condition.Storm -> HeroIcon.Storm
-    Condition.Snow -> HeroIcon.Snow
+    Condition.Snow -> if (windy) HeroIcon.SnowWind else HeroIcon.Snow
     Condition.Fog -> HeroIcon.Fog
 }
