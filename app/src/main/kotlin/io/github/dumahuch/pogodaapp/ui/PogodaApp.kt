@@ -4,8 +4,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -13,6 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import io.github.dumahuch.pogodaapp.home.HomeUiState
+import io.github.dumahuch.pogodaapp.notify.AlertNotices
+import io.github.dumahuch.pogodaapp.notify.AlertRequest
 import io.github.dumahuch.pogodaapp.places.PlaceChoice
 import io.github.dumahuch.pogodaapp.places.PlacesLogic
 import io.github.dumahuch.pogodaapp.settings.CardShadow
@@ -68,6 +72,8 @@ fun PogodaApp(
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
     noticeError: String?,
+    alertRequest: AlertRequest?,
+    onAlertRequestDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(AppTab.Home) }
@@ -94,6 +100,23 @@ fun PogodaApp(
         placesOpen = false
         searching = false
         placesActions.onLeave()
+    }
+
+    // Нажали уведомление о предупреждении: «Главная» и на ней это предупреждение, как только предупреждения для места
+    // загрузятся. Если его уже нет (DWD уточнил или отменил), открывается предупреждение того же явления или весь список.
+    val alertSet = (state as? HomeUiState.Content)?.alerts
+    val alertRequestDone by rememberUpdatedState(onAlertRequestDone)
+    LaunchedEffect(alertRequest, alertSet) {
+        val request = alertRequest ?: return@LaunchedEffect
+        val shown = alertSet?.shownAt(Instant.now()) ?: return@LaunchedEffect
+        if (placesOpen) closePlaces()
+        settingsOpen = false
+        openDay = null
+        tab = AppTab.Home
+        closeAlerts()
+        val match = AlertNotices.pick(request, shown)
+        if (match != null) openAlert = match.id else alertsListOpen = shown.isNotEmpty()
+        alertRequestDone()
     }
 
     BackHandler(enabled = settingsOpen) { settingsOpen = false }

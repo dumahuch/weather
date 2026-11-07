@@ -122,6 +122,7 @@ internal fun SkyCheckPanel(
     onGlassBlur: (Boolean) -> Unit,
     onPollenSample: (Boolean) -> Unit,
     onAlertSample: (Int) -> Unit,
+    onSampleAlertNotice: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -144,6 +145,7 @@ internal fun SkyCheckPanel(
             onGlassBlur = onGlassBlur,
             onPollenSample = onPollenSample,
             onAlertSample = onAlertSample,
+            onSampleAlertNotice = onSampleAlertNotice,
             onCollapse = { collapsed = true },
             onClose = onClose,
             modifier = modifier,
@@ -199,6 +201,7 @@ private fun ExpandedPanel(
     onGlassBlur: (Boolean) -> Unit,
     onPollenSample: (Boolean) -> Unit,
     onAlertSample: (Int) -> Unit,
+    onSampleAlertNotice: () -> Unit,
     onCollapse: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -232,7 +235,7 @@ private fun ExpandedPanel(
             Text(stringResource(R.string.check_no_forecast), style = pogodaText(13f, 500, color = PanelTextDim))
         }
         // Сразу под шапкой: так ряд виден без прокрутки панели (на медленном эмуляторе прокрутка ненадёжна).
-        AlertSection(count = alertSample, onCount = onAlertSample)
+        AlertSection(count = alertSample, onCount = onAlertSample, onNotice = onSampleAlertNotice)
 
         Caption(stringResource(R.string.check_scene_title))
         val strongest = snapshot?.weights?.maxByOrNull { it.second }?.first
@@ -313,9 +316,12 @@ private fun ExpandedPanel(
     }
 }
 
-/** Учебные предупреждения: сколько подставить на «Главную» вместо настоящих (0: настоящие). */
+/**
+ * Учебные предупреждения: сколько подставить на «Главную» вместо настоящих (0: настоящие). Кнопка ниже присылает учебное
+ * уведомление о предупреждении: видно, как оно приходит, звучит и открывает плашку.
+ */
 @Composable
-private fun AlertSection(count: Int, onCount: (Int) -> Unit) {
+private fun AlertSection(count: Int, onCount: (Int) -> Unit, onNotice: () -> Unit) {
     Caption(stringResource(R.string.check_alerts_title))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         AlertSampleCounts.forEach { option ->
@@ -327,6 +333,7 @@ private fun AlertSection(count: Int, onCount: (Int) -> Unit) {
             )
         }
     }
+    CheckButton(stringResource(R.string.check_alerts_notice), selected = false, onClick = onNotice, modifier = Modifier.fillMaxWidth())
 }
 
 /** Варианты числа учебных предупреждений: ни одного, одно, три (все видны) и все (видны три и строка «Ещё N»). */

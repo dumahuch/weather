@@ -14,33 +14,50 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Выключатели уведомления о погоде на экране настроек. Включение шторки или строки состояния сначала просит разрешение на
- * уведомления (Android 13+); без него выключатель остаётся выключенным. Если человек отказал дважды, системное окно больше
- * не появляется: тогда открываются системные настройки уведомлений приложения. Создаётся вместе с окном приложения.
+ * Выключатели уведомлений на экране настроек. Включение шторки, строки состояния или предупреждений сначала просит
+ * разрешение на уведомления (Android 13+); без него выключатель остаётся выключенным. Если человек отказал дважды,
+ * системное окно больше не появляется: тогда открываются системные настройки уведомлений приложения. Создаётся вместе с
+ * окном приложения.
  * Любая ошибка уведомления не роняет приложение: её текст попадает в строку под выключателями (0.7.2).
  */
 class NotificationSwitches(private val activity: ComponentActivity, private val settings: AppSettings) {
     private val notifier = WeatherNotifier(activity.applicationContext)
-    private var pending: NotificationToggle? = null
+    private val alerts = AlertNotifier(activity.applicationContext)
+
+    /** Что сделать, когда разрешение выдано. */
+    private var pending: (() -> Unit)? = null
 
     private val request = activity.registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        val toggle = pending
+        val action = pending
         pending = null
-        if (granted && toggle != null) apply(toggle, on = true)
+        if (granted && action != null) action()
     }
 
     fun set(toggle: NotificationToggle, on: Boolean) {
-        if (on && toggle != NotificationToggle.LockScreenPlace && !allowed()) {
-            if (settings.notificationPermissionAsked() && !activity.shouldShowRequestPermissionRationale(PERMISSION)) {
-                openSystemSettings()
-                return
-            }
-            settings.markNotificationPermissionAsked()
-            pending = toggle
-            request.launch(PERMISSION)
+        if (on && toggle != NotificationToggle.LockScreenPlace) {
+            withPermission { apply(toggle, on = true) }
+        } else {
+            apply(toggle, on)
+        }
+    }
+
+    /** Кнопка экрана проверки: учебное уведомление о предупреждении (со звуком, как настоящее). */
+    fun showSampleAlert() {
+        withPermission { guarded { alerts.showSample() } }
+    }
+
+    private fun withPermission(action: () -> Unit) {
+        if (allowed()) {
+            action()
             return
         }
-        apply(toggle, on)
+        if (settings.notificationPermissionAsked() && !activity.shouldShowRequestPermissionRationale(PERMISSION)) {
+            openSystemSettings()
+            return
+        }
+        settings.markNotificationPermissionAsked()
+        pending = action
+        request.launch(PERMISSION)
     }
 
     /** При открытии приложения: расписание фонового обновления по выключателям (после обновления версии тоже на месте). */
@@ -56,8 +73,13 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
 
     private fun apply(toggle: NotificationToggle, on: Boolean) {
         settings.setNotification(toggle, on)
-        if (!settings.notifications.value.wanted) settings.setNoticeError(null)
+        if (!settings.notifications.value.background) settings.setNoticeError(null)
         guarded { WeatherJobs.sync(activity, settings.notifications.value) }
+        if (toggle == NotificationToggle.Alerts) {
+            // Включили: предупреждения запрашиваются сразу, как будет сеть. Выключили: прежние уведомления убираются.
+            guarded { if (on) WeatherJobs.refreshSoon(activity) else alerts.cancelAll() }
+            return
+        }
         activity.lifecycleScope.launch(Dispatchers.Default) {
             guarded { if (!notifier.showFromCache()) WeatherJobs.refreshSoon(activity) }
         }

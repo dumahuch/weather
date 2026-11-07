@@ -20,8 +20,8 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 
 /**
- * Фоновое обновление уведомления о погоде через JobScheduler системы (без сторонних библиотек). Раз в полчаса, только при
- * сети; Android сам сдвигает запуск ради батареи, ночью реже. Задача переживает перезагрузку телефона.
+ * Фоновое обновление уведомления о погоде и предупреждений DWD через JobScheduler системы (без сторонних библиотек). Раз в
+ * полчаса, только при сети; Android сам сдвигает запуск ради батареи, ночью реже. Задача переживает перезагрузку телефона.
  */
 object WeatherJobs {
     private const val PERIODIC_ID = 7101
@@ -32,7 +32,7 @@ object WeatherJobs {
     /** Включает или снимает периодическое обновление по выключателям; повторный вызов ничего не дублирует. */
     fun sync(context: Context, prefs: NotificationPrefs) {
         val scheduler = context.getSystemService(JobScheduler::class.java)
-        if (!prefs.wanted) {
+        if (!prefs.background) {
             scheduler.cancel(PERIODIC_ID)
             scheduler.cancel(NOW_ID)
             return
@@ -55,26 +55,38 @@ object WeatherJobs {
     }
 }
 
-/** Выполняет обновление уведомления; запрос в сеть идёт в фоне, система ждёт его до [jobFinished]. */
+/**
+ * Обновляет уведомление о погоде и предупреждения; запросы в сеть идут в фоне, система ждёт их до [jobFinished]. Сбой одного
+ * не мешает другому.
+ */
 class WeatherJobService : JobService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onStartJob(params: JobParameters): Boolean {
         scope.launch {
             try {
-                WeatherNotifier(applicationContext).refresh()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Сбой в фоне не должен ронять приложение: уведомление останется прежним до следующего запуска,
-                // текст ошибки виден в настройках.
-                Log.w(TAG, "уведомление о погоде не обновлено", e)
-                AppSettings(PreferencesSettingsStorage(applicationContext)).setNoticeError(NoticeFailure.describe(e))
+                guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh() }
+                guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
             } finally {
                 jobFinished(params, false)
             }
         }
         return true
+    }
+
+    /**
+     * Сбой в фоне не должен ронять приложение: уведомление останется прежним до следующего запуска, текст ошибки виден в
+     * настройках.
+     */
+    private suspend fun guarded(what: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, what, e)
+            AppSettings(PreferencesSettingsStorage(applicationContext)).setNoticeError(NoticeFailure.describe(e))
+        }
     }
 
     /** Система прервала задачу (пропала сеть, экономия батареи): запрос отменяется, следующий запуск по расписанию. */

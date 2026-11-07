@@ -71,5 +71,6 @@
     <string name="check_alerts_title" translatable="false">Учебные предупреждения на «Главной»</string>
     <string name="check_alerts_none" translatable="false">Настоящие</string>
     <string name="check_alerts_count" translatable="false">Учебных: %1$d</string>
+    <string name="check_alerts_notice" translatable="false">Учебное уведомление о грозе</string>
     <string name="check_pollen_sample_off" translatable="false">Убрать пример пыльцы</string>
 </resources>

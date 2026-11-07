@@ -42,6 +42,8 @@ import io.github.dumahuch.pogodaapp.location.Locations
 import io.github.dumahuch.pogodaapp.location.PreciseLocationPrompt
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
+import io.github.dumahuch.pogodaapp.notify.AlertNotifier
+import io.github.dumahuch.pogodaapp.notify.AlertRequest
 import io.github.dumahuch.pogodaapp.notify.NotificationSwitches
 import io.github.dumahuch.pogodaapp.places.FilePinnedPlacesStorage
 import io.github.dumahuch.pogodaapp.places.PinResult
@@ -62,6 +64,7 @@ import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckPanel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyDiagnostics
 import io.github.dumahuch.pogodaapp.ui.sky.SkyHost
 import io.github.dumahuch.pogodaapp.ui.sky.TapSequence
+import io.github.dumahuch.pogodaapp.ui.sky.SAMPLE_ALERTS
 import io.github.dumahuch.pogodaapp.ui.sky.sampleAlerts
 import io.github.dumahuch.pogodaapp.ui.sky.samplePollen
 import io.github.dumahuch.pogodaapp.ui.sky.skyInput
@@ -102,6 +105,9 @@ class MainActivity : ComponentActivity() {
     /** Выключатели уведомления о погоде (0.7.0); создаются в onCreate: им нужен запрос разрешения от окна. */
     private lateinit var notificationSwitches: NotificationSwitches
 
+    /** Предупреждение из нажатого уведомления: его откроет «Главная», когда предупреждения для места загрузятся. */
+    private var alertRequest by mutableStateOf<AlertRequest?>(null)
+
     /** Истина, если система больше не покажет окно запроса (отказ с «не спрашивать»). */
     private var permanentlyDenied by mutableStateOf(false)
 
@@ -140,6 +146,8 @@ class MainActivity : ComponentActivity() {
 
         notificationSwitches = NotificationSwitches(this, settings)
         notificationSwitches.onAppStarted()
+        // После пересоздания окна намерение то же самое: предупреждение уже было открыто.
+        if (savedInstanceState == null) takeAlertRequest(intent)
 
         val version = AppVersion.read(this)
         val versionLabel = getString(R.string.version_footer, version.name, version.code)
@@ -245,6 +253,8 @@ class MainActivity : ComponentActivity() {
                                 notifications = notifications,
                                 onNotification = notificationSwitches::set,
                                 noticeError = noticeError,
+                                alertRequest = alertRequest,
+                                onAlertRequestDone = { alertRequest = null },
                             )
                         }
                         if (checkOpen) {
@@ -260,6 +270,7 @@ class MainActivity : ComponentActivity() {
                                 onGlassBlur = skyCheck::setGlassBlur,
                                 onPollenSample = skyCheck::setPollenSample,
                                 onAlertSample = skyCheck::setAlertSample,
+                                onSampleAlertNotice = notificationSwitches::showSampleAlert,
                                 onClose = skyCheck::close,
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             )
@@ -277,6 +288,22 @@ class MainActivity : ComponentActivity() {
             upgradeRequest.launch(LOCATION_PERMISSIONS)
         }
         viewModel.onResumed(permissionGranted = hasLocationPermission())
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        takeAlertRequest(intent)
+    }
+
+    /** Учебное предупреждение открывается вместе с экраном проверки и учебными плашками, иначе его нет на «Главной». */
+    private fun takeAlertRequest(intent: Intent?) {
+        val request = AlertNotifier.requestOf(intent) ?: return
+        if (AlertNotifier.isSample(request)) {
+            skyCheck.show()
+            skyCheck.setAlertSample(SAMPLE_ALERTS)
+        }
+        alertRequest = request
     }
 
     override fun onStop() {
