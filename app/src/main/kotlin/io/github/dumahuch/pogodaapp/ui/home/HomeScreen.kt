@@ -332,7 +332,10 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
         digits = temperatureDigits(current.temperature),
         digitsSize = heroDigitsSize(current.temperature),
         description = temperatureText(current.temperature),
-        icon = heroIconFor(LocalHeroConditionOverride.current ?: current.condition),
+        icon = heroIconFor(
+            LocalHeroConditionOverride.current ?: current.condition,
+            isDay = LocalHeroSolarHourOverride.current?.let { it in DAY_FROM_HOUR..DAY_TO_HOUR } ?: current.isDay,
+        ),
         iconStyle = LocalWeatherIconStyle.current,
         modifier = heroModifier,
         scale = heroScale,
@@ -450,3 +453,7 @@ internal fun StateTop(
         onSecondary = onSecondary,
     )
 }
+
+/** Солнечные часы, между которыми на экране проверки считается день (для значка у температуры). */
+private const val DAY_FROM_HOUR = 6.0
+private const val DAY_TO_HOUR = 18.0

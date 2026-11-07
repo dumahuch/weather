@@ -36,6 +36,9 @@ val LocalWeatherIconStyle = staticCompositionLocalOf { WeatherIconStyle.Glass }
 /** Вид погоды, подставленный экраном проверки; `null`: значок у температуры берёт настоящую погоду. Задаётся в `MainActivity`. */
 val LocalHeroConditionOverride = staticCompositionLocalOf<Condition?> { null }
 
+/** Солнечный час (0…24), подставленный экраном проверки; `null`: день или ночь берутся из настоящих данных. */
+val LocalHeroSolarHourOverride = staticCompositionLocalOf<Double?> { null }
+
 private const val VIEWPORT = 24f
 
 /** Толщина контура в единицах значка: тоньше на крупном значке, толще на мелком (подбирается по размеру, не в настройках). */
@@ -48,7 +51,7 @@ internal fun outlineStroke(size: Dp): Float = if (size.value >= 40f) 1.2f else 1
 internal fun glyphBottom(icon: HeroIcon, style: WeatherIconStyle, size: Dp): Float = when (style) {
     WeatherIconStyle.Glass -> when (icon) {
         HeroIcon.Cloud -> 18.5f
-        HeroIcon.Clouds -> 19.5f
+        HeroIcon.CloudSun, HeroIcon.CloudMoon -> 19.3f
         HeroIcon.Rain -> 22f
         HeroIcon.Storm -> 23.2f
         HeroIcon.Snow -> 23f
@@ -56,7 +59,7 @@ internal fun glyphBottom(icon: HeroIcon, style: WeatherIconStyle, size: Dp): Flo
     }
     WeatherIconStyle.Outline -> outlineStroke(size) / 2 + when (icon) {
         HeroIcon.Cloud -> 19f
-        HeroIcon.Clouds -> 21f
+        HeroIcon.CloudSun, HeroIcon.CloudMoon -> 22f
         HeroIcon.Rain, HeroIcon.Storm -> 22f
         HeroIcon.Snow, HeroIcon.Fog -> 21f
     }
@@ -135,6 +138,12 @@ private fun cloudPath(dy: Float, dx: Float = 0f, k: Float = 1f): Path {
     return shape
 }
 
+private fun circlePath(cx: Float, cy: Float, r: Float): Path = Path().apply { addOval(Rect(cx - r, cy - r, cx + r, cy + r)) }
+
+/** Центр солнца и луны на значке «облако с солнцем / с луной» (единицы значка 0…24). */
+private const val SUN_X = 8.2f
+private const val SUN_Y = 8.4f
+
 /** Капля остриём вверх: верх [top], высота [h], ширина [w]. */
 private fun dropPath(x: Float, top: Float, w: Float, h: Float): Path = Path().apply {
     val r = w / 2
@@ -148,15 +157,35 @@ private fun dropPath(x: Float, top: Float, w: Float, h: Float): Path = Path().ap
 private class GlassShapes(icon: HeroIcon) {
     /** Облаку с каплями, молнией, снегом или туманом нужно место снизу: оно поднято. */
     private val lift = when (icon) {
-        HeroIcon.Cloud -> 0f
-        HeroIcon.Clouds -> 1f
+        HeroIcon.Cloud, HeroIcon.CloudSun, HeroIcon.CloudMoon -> 0f
         HeroIcon.Fog -> -2.5f
         else -> -3f
     }
-    val cloud = cloudPath(lift)
-    val back: Path? = if (icon == HeroIcon.Clouds) cloudPath(dy = -1.2f, dx = 8.6f, k = 0.66f) else null
-    val top = 4.2f + lift
-    val bottom = 18.5f + lift
+    private val partly = icon == HeroIcon.CloudSun || icon == HeroIcon.CloudMoon
+
+    /** Облако переменной облачности меньше и сдвинуто вправо вниз: над ним выглядывает солнце или луна. */
+    val cloud = if (partly) cloudPath(dy = 4.5f, dx = 5f, k = 0.8f) else cloudPath(lift)
+    val top = if (partly) 7.8f else 4.2f + lift
+    val bottom = if (partly) 19.3f else 18.5f + lift
+
+    /** Солнце: диск и восемь коротких лучей; нижние правые лучи скрыты облаком. */
+    val sun: Path? = if (icon == HeroIcon.CloudSun) circlePath(SUN_X, SUN_Y, 3.9f) else null
+    val rays: List<Pair<Offset, Offset>> = if (icon == HeroIcon.CloudSun) {
+        (0 until 8).map { k ->
+            val a = k * PI / 4
+            Offset(SUN_X + (cos(a) * 5.5).toFloat(), SUN_Y + (sin(a) * 5.5).toFloat()) to
+                Offset(SUN_X + (cos(a) * 7.0).toFloat(), SUN_Y + (sin(a) * 7.0).toFloat())
+        }
+    } else {
+        emptyList()
+    }
+
+    /** Луна: полумесяц, рога вверх и влево. */
+    val moon: Path? = if (icon == HeroIcon.CloudMoon) {
+        Path.combine(PathOperation.Difference, circlePath(SUN_X, SUN_Y + 0.2f, 4.7f), circlePath(SUN_X + 2.5f, SUN_Y - 1.3f, 3.9f))
+    } else {
+        null
+    }
     val drops = if (icon == HeroIcon.Rain) {
         listOf(dropPath(7.6f, 14.6f, 3f, 6f), dropPath(12.1f, 16f, 3f, 6f), dropPath(16.6f, 14.6f, 3f, 6f))
     } else {
@@ -193,7 +222,15 @@ private class GlassShapes(icon: HeroIcon) {
  * снежинки нарисованы под стеклом и просвечивают сквозь нижний край облака.
  */
 private fun DrawScope.drawGlass(icon: HeroIcon, s: GlassShapes, accents: Accents, darkInk: Boolean) {
-    s.back?.let { glassBody(it, top = 1.5f, bottom = 11f, darkInk = darkInk, dim = true) }
+    s.sun?.let {
+        for ((from, to) in s.rays) drawLine(accents.boltBottom, from, to, 1.1f, StrokeCap.Round)
+        drawPath(it, Brush.verticalGradient(listOf(accents.boltTop, accents.boltBottom), 4.5f, 12.3f))
+        drawPath(it, accents.boltEdge, style = Stroke(0.3f))
+    }
+    s.moon?.let {
+        drawPath(it, Brush.verticalGradient(listOf(Color(0xFFFFF4C2), Color(0xFFE6C96A)), 3.7f, 13.3f))
+        drawPath(it, accents.boltEdge, style = Stroke(0.3f, join = StrokeJoin.Round))
+    }
     for (drop in s.drops) {
         drawPath(drop, Brush.verticalGradient(listOf(accents.dropTop, accents.dropBottom), 14.6f, 22f))
     }
@@ -278,9 +315,10 @@ private class OutlineParts(icon: HeroIcon) {
     /** Линии цветом текста. */
     val ink: List<Path> = when (icon) {
         HeroIcon.Cloud -> listOf("M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z")
-        HeroIcon.Clouds -> listOf(
-            "M17.5 21H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z",
-            "M22 10a3 3 0 0 0-3-3h-2.207a5.502 5.502 0 0 0-10.702.5",
+        HeroIcon.CloudSun -> listOf("M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z")
+        HeroIcon.CloudMoon -> listOf(
+            "M13 16a3 3 0 0 1 0 6H7a5 5 0 1 1 4.9-6z",
+            "M18.376 14.512a6 6 0 0 0 3.461-4.127c.148-.625-.659-.97-1.248-.714a4 4 0 0 1-5.259-5.26c.255-.589-.09-1.395-.716-1.248a6 6 0 0 0-4.594 5.36",
         )
         HeroIcon.Rain, HeroIcon.Snow -> listOf(CLOUD_OPEN)
         HeroIcon.Storm -> listOf("M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973")
@@ -292,10 +330,11 @@ private class OutlineParts(icon: HeroIcon) {
         HeroIcon.Rain -> "M16 14v6M8 14v6M12 16v6"
         HeroIcon.Snow -> "M8 15h.01M8 19h.01M12 17h.01M12 21h.01M16 15h.01M16 19h.01"
         HeroIcon.Storm -> "M13 12l-3 5h4l-3 5"
+        HeroIcon.CloudSun -> "M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41M15.947 12.65a4 4 0 0 0-5.925-4.128"
         else -> null
     }?.let(::parse)
 
-    val warm = icon == HeroIcon.Storm
+    val warm = icon == HeroIcon.Storm || icon == HeroIcon.CloudSun
 
     /** Снег рисуется точками: точка толще линии, иначе на крупном значке теряется. */
     val dots = icon == HeroIcon.Snow

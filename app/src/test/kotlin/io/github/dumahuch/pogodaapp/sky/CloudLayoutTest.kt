@@ -116,13 +116,24 @@ class CloudLayoutTest {
     }
 
     @Test
-    fun darkCloudsAppearGraduallyWithCloudCover() {
+    fun overcastCloudsAreLightGrayAndOnlyAFewAreDark() {
+        // Решение Димы 07.11.2026 (step-29): плотные светло-серые облака, не грозовые тучи; грозовой лист в одном из десяти.
         fun darkShare(percent: Double) = cloudsAt(percent).let { list -> list.count { it.storm }.toDouble() / list.size }
         assertEquals(0.0, darkShare(30.0), 0.0)
         assertEquals(0.0, darkShare(60.0), 0.0)
-        val partlyDark = darkShare(85.0)
-        assertTrue("при 85 % есть и светлые, и тёмные: $partlyDark", partlyDark > 0.0 && partlyDark < 1.0)
-        assertEquals(1.0, darkShare(100.0), 0.0)
+        assertEquals(0.0, darkShare(85.0), 0.0)
+        assertTrue("при сплошной облачности тёмных не больше четверти: ${darkShare(100.0)}", darkShare(100.0) <= 0.25)
+    }
+
+    @Test
+    fun overcastLightCloudsAreShadedToGrayButStormCloudsAreNot() {
+        assertEquals(1.0, SkyWeather.of(Condition.Clear, null, 10.0).cloudShade, 0.0)
+        assertEquals(1.0, SkyWeather.of(Condition.Rain, 1.0).cloudShade, 0.0)
+        assertEquals(1.0, SkyWeather.of(Condition.Storm, 1.0).cloudShade, 0.0)
+        val full = SkyWeather.of(Condition.Cloudy, null, 100.0).cloudShade
+        assertTrue("при сплошной облачности светлые облака серые, но не тёмные: $full", full in 0.65..0.80)
+        assertTrue("при 50 % облака ещё белые: ${SkyWeather.of(Condition.Partly, null, 50.0).cloudShade}", SkyWeather.of(Condition.Partly, null, 50.0).cloudShade > 0.99)
+        assertTrue("затемнение неба при сплошной облачности почти нет", SkyWeather.of(Condition.Cloudy, null, 100.0).dark <= 0.05 + 1e-9)
     }
 
     @Test
@@ -136,7 +147,7 @@ class CloudLayoutTest {
     fun withoutCloudCoverTheSkyIsAsBefore() {
         assertEquals(SkyWeather.of(Condition.Partly), SkyWeather.of(Condition.Partly, null, null))
         assertEquals(0.0, SkyWeather.of(Condition.Partly).darkShare, 0.0)
-        assertEquals(1.0, SkyWeather.of(Condition.Cloudy).darkShare, 0.0)
+        assertEquals(0.1, SkyWeather.of(Condition.Cloudy).darkShare, 0.0)
         assertEquals(0.0, SkyWeather.of(Condition.Snow).darkShare, 0.0)
     }
 
@@ -170,15 +181,12 @@ class CloudLayoutTest {
     }
 
     @Test
-    fun darkAndLightCloudsAreMixedEvenlyAlongTheSheet() {
-        // Тёмные облака не кучкуются: при смеси (85 %) среди соседних слева направо нет серии из четырёх одного цвета.
-        val flags = cloudsAt(85.0).sortedBy { it.cx }.map { it.storm }
-        var run = 1
+    fun theFewDarkCloudsDoNotCluster() {
+        // При сплошной облачности тёмные облака редки и не стоят рядом (слева направо).
+        val flags = cloudsAt(100.0).sortedBy { it.cx }.map { it.storm }
         for (i in 1 until flags.size) {
-            run = if (flags[i] == flags[i - 1]) run + 1 else 1
-            assertTrue("серия одного цвета длиннее трёх: $flags", run <= 3)
+            assertTrue("два тёмных рядом: $flags", !(flags[i] && flags[i - 1]))
         }
-        assertTrue("есть и тёмные, и светлые: $flags", flags.contains(true) && flags.contains(false))
     }
 
     @Test
