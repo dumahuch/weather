@@ -8,7 +8,7 @@ class HeroWidthTest {
 
     @Test
     fun theWidestTwoDigitNumberFitsTheFullLimitOnAPhoneWithNormalFont() {
-        // Pixel 6 Pro, 411 dp: «66°» при цифрах 124 sp и значке 80 dp помещается и при масштабе 1,7.
+        // Pixel 6 Pro, 411 dp: «66°» при цифрах 124 sp и значке 72 dp помещается и при предельном масштабе.
         val scale = HeroWidth.maxScale("66", 124, 411f, 1f)
         assertTrue("масштаб $scale", scale >= HeroFit.MAX_SCALE)
     }
@@ -29,7 +29,7 @@ class HeroWidthTest {
 
     @Test
     fun aNarrowScreenLimitsTheGrowth() {
-        assertTrue(HeroWidth.maxScale("66", 124, 320f, 1f) < HeroFit.MAX_SCALE)
+        assertTrue(HeroWidth.maxScale("66", 124, 240f, 1f) < HeroFit.MAX_SCALE)
     }
 
     @Test

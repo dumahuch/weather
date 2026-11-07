@@ -7,7 +7,8 @@ import org.junit.Test
 
 /**
  * Деление свободного места «Главной» (числа в dp при плотности 1). С step-40 место над цифрами не зарезервировано,
- * растёт только строка цифр (112 dp), и на Pixel 6 Pro свободно около 253 dp (было 155 с пустой полосой 98 dp).
+ * растёт только строка цифр (112 dp), и на Pixel 6 Pro свободно около 253 dp (было 155 с пустой полосой 98 dp);
+ * с step-42 рост не больше 1,3, остаток места делится 40 : 60 над блоком и под ним.
  */
 class HeroFitTest {
 
@@ -22,31 +23,30 @@ class HeroFitTest {
     }
 
     @Test
-    fun withoutAlertsTheBlockFillsTheSpaceUpToTheLimitAndTheRestSplitsEvenly() {
+    fun withoutAlertsTheBlockGrowsToTheLimitAndTheRestSplitsFortySixty() {
         val plan = HeroFit.plan(free = 253f, count = 0, rows = rows, edge = edge, heroBase = hero)
         assertEquals(0, plan.shown)
         assertFalse(plan.more)
         assertEquals(0f, plan.alerts, 0f)
         assertEquals("на Pixel 6 Pro блок упирается в предел", HeroFit.MAX_SCALE, plan.scale, 1e-4f)
         val growth = (plan.scale - 1f) * hero
-        assertEquals((253f - growth) / 2, plan.top, 0.01f)
-        assertEquals("над и под блоком поровну", plan.top, below(253f, plan), 0.01f)
+        assertEquals((253f - growth) * 0.4f, plan.top, 0.01f)
+        assertEquals("под блоком больше, чем над ним", (253f - growth) * 0.6f, below(253f, plan), 0.01f)
     }
 
     @Test
-    fun onAShorterScreenTheBlockTakesItsShareAndTheRestSplitsEvenly() {
-        val plan = HeroFit.plan(140f, 0, rows, edge, hero)
-        // Рост 60 % от (140 − 24) = 69,6, это меньше предела (78,4).
-        assertEquals(1f + 69.6f / hero, plan.scale, 1e-4f)
-        assertEquals((140f - 69.6f) / 2, plan.top, 0.01f)
-        assertEquals(plan.top, below(140f, plan), 0.01f)
+    fun onAShortScreenTheBlockTakesItsShareBelowTheLimit() {
+        val plan = HeroFit.plan(70f, 0, rows, edge, hero)
+        // Рост 60 % от (70 − 24) = 27,6, это меньше предела (33,6).
+        assertEquals(1f + 27.6f / hero, plan.scale, 1e-4f)
+        assertEquals((70f - 27.6f) * 0.4f, plan.top, 0.01f)
     }
 
     @Test
     fun theWidthLimitCapsTheGrowth() {
-        val capped = HeroFit.plan(253f, 0, rows, edge, hero, maxScale = 1.3f)
-        assertEquals(1.3f, capped.scale, 1e-4f)
-        assertEquals((253f - 0.3f * hero) / 2, capped.top, 0.01f)
+        val capped = HeroFit.plan(253f, 0, rows, edge, hero, maxScale = 1.15f)
+        assertEquals(1.15f, capped.scale, 1e-4f)
+        assertEquals((253f - 0.15f * hero) * 0.4f, capped.top, 0.01f)
         // Предел по ширине выше общего предела ничего не добавляет.
         val loose = HeroFit.plan(253f, 0, rows, edge, hero, maxScale = 3f)
         assertEquals(HeroFit.MAX_SCALE, loose.scale, 1e-4f)
@@ -58,7 +58,7 @@ class HeroFitTest {
         val one = HeroFit.plan(140f, 1, rows, edge, hero)
         val two = HeroFit.plan(140f, 2, rows, edge, hero)
         val three = HeroFit.plan(140f, 3, rows, edge, hero)
-        assertTrue(none.scale > one.scale)
+        assertTrue(none.scale >= one.scale)
         assertTrue(one.scale > two.scale)
         assertTrue(two.scale > three.scale)
         assertEquals(2, two.shown)
@@ -66,15 +66,13 @@ class HeroFitTest {
     }
 
     @Test
-    fun oneAlertKeepsTheBlockAlmostAsLargeAndMovesItUp() {
+    fun oneAlertKeepsTheBlockSizeAndMovesItUp() {
         val none = HeroFit.plan(140f, 0, rows, edge, hero)
         val one = HeroFit.plan(140f, 1, rows, edge, hero)
         assertEquals(1, one.shown)
-        // Одна плашка (16 + 42 = 58) оставляет 58 из 116: блок теряет только то, что не помещается (11,6 из 69,6).
-        assertEquals(1f + 58f / hero, one.scale, 1e-4f)
-        assertTrue("почти прежний размер", none.scale - one.scale < 0.11f)
+        // Плашка (16 + 42 = 58) помещается без сжатия блока: размер прежний, блок только сдвинут вверх.
+        assertEquals(none.scale, one.scale, 1e-6f)
         assertTrue("сдвинут вверх", one.top < none.top)
-        assertEquals("сверху наименьший промежуток", edge, one.top, 0.01f)
         assertEquals("снизу наименьший промежуток", edge, below(140f, one), 0.01f)
     }
 
@@ -203,9 +201,9 @@ class HeroFitTest {
     @Test
     fun withoutAlertsTheBlockReachesTheNewLimitOnAnAmpleScreen() {
         val plan = HeroFit.plan(400f, 0, rows, edge, hero)
-        assertEquals(1.7f, HeroFit.MAX_SCALE, 0f)
+        assertEquals(1.3f, HeroFit.MAX_SCALE, 0f)
         assertEquals(HeroFit.MAX_SCALE, plan.scale, 1e-4f)
         val usual = HeroFit.plan(253f, 0, rows, edge, hero)
-        assertTrue("на Pixel 6 Pro без предупреждений блок заметно крупнее прежнего", usual.scale > 1.6f)
+        assertTrue("на Pixel 6 Pro без предупреждений блок упирается в предел", usual.scale > 1.29f)
     }
 }

@@ -161,9 +161,9 @@ private enum class Accents(
 // ---------- Стеклянный набор ----------
 
 /**
- * Многодольное облако, симметричное относительно x = 12 (step-41): крупная доля по центру, две боковые одного размера,
- * плоское основание между ними. Боковые доли закруглены снизу и выступают за основание с обеих сторон, поэтому ни
- * ступеньки слева, ни среза справа нет. [k] масштаб, [dx] и [dy] сдвиг (после масштаба).
+ * Облако, симметричное относительно x = 12 (step-42): широкое, ширина к высоте около 1,5 : 1. Одна доля сверху по центру и
+ * две боковые поменьше, закруглённые снизу, основание плоское. Первый вариант (step-41) был высоким, с крупным куполом, и
+ * читался как шапка. [k] масштаб, [dx] и [dy] сдвиг (после масштаба). Размеры: ширина 3,2…20,8, верх 6,2, низ 18,5.
  */
 private fun cloudPath(dy: Float, dx: Float = 0f, k: Float = 1f): Path {
     fun x(v: Float) = v * k + dx
@@ -171,8 +171,8 @@ private fun cloudPath(dy: Float, dx: Float = 0f, k: Float = 1f): Path {
     fun circle(cx: Float, cy: Float, r: Float) = Path().apply {
         addOval(Rect(x(cx) - r * k, y(cy) - r * k, x(cx) + r * k, y(cy) + r * k))
     }
-    var shape = Path().apply { addRect(Rect(x(7.5f), y(11.5f), x(16.5f), y(18.5f))) }
-    for (lobe in listOf(circle(7.5f, 14.5f, 4f), circle(12f, 9.8f, 5.6f), circle(16.5f, 14.5f, 4f))) {
+    var shape = Path().apply { addRect(Rect(x(6.8f), y(13f), x(17.2f), y(18.5f))) }
+    for (lobe in listOf(circle(6.8f, 14.9f, 3.6f), circle(12f, 10.8f, 4.6f), circle(17.2f, 14.9f, 3.6f))) {
         shape = Path.combine(PathOperation.Union, shape, lobe)
     }
     return shape
@@ -211,7 +211,7 @@ private class GlassShapes(icon: HeroIcon) {
         partly -> cloudPath(dy = 4.5f, dx = 5f, k = 0.8f)
         else -> cloudPath(lift)
     }
-    val top = if (partly) 7.8f else 4.2f + lift
+    val top = if (partly) 9.5f else 6.2f + lift
     val bottom = if (partly) 19.3f else 18.5f + lift
 
     /** Солнце: диск и восемь коротких лучей; нижние правые лучи скрыты облаком. */
@@ -324,13 +324,13 @@ private fun DrawScope.glassBody(
     dim: Boolean,
     sheen: Boolean = true,
 ) {
-    val shadowAlpha = if (darkInk) 0.10f else 0.18f
+    val shadowAlpha = if (darkInk) 0.08f else 0.12f
     translate(0.3f, 0.8f) { drawPath(path, Color.Black.copy(alpha = shadowAlpha)) }
     val low = if (darkInk) Color(0xFF9FB3CC) else Color.White
     val fill = if (dim) {
         listOf(Color(0xFFDCE5F0).copy(alpha = 0.46f), Color(0xFF8FA3BC).copy(alpha = 0.34f))
     } else {
-        listOf(Color.White.copy(alpha = 0.80f), low.copy(alpha = if (darkInk) 0.62f else 0.42f))
+        listOf(Color.White.copy(alpha = 0.62f), low.copy(alpha = if (darkInk) 0.46f else 0.26f))
     }
     drawPath(path, Brush.verticalGradient(fill, top, bottom))
     if (darkInk) drawPath(path, Color(0xFF2A3B52).copy(alpha = 0.20f), style = Stroke(0.4f))
