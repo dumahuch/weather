@@ -108,7 +108,7 @@ internal class SkyEffects {
 
     /** Рисует [body] (картины, вуаль, облака) с обесцвечиванием непогоды, затем затемнение и приглушение. */
     fun withWeather(scope: DrawScope, look: SkyLook, body: DrawScope.() -> Unit) {
-        layer(scope, look, force = false, body)
+        layer(scope, look, force = false, body = body)
         finish(scope, look)
     }
 
