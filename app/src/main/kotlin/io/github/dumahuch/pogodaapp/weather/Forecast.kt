@@ -16,6 +16,8 @@ data class CurrentWeather(
     val condition: Condition,
     val isDay: Boolean,
     val cloudCover: Int? = null,
+    /** Код погоды «сейчас» это морось (в [condition] она остаётся дождём): на главной подпись «Морось», значок прежний. */
+    val drizzle: Boolean = false,
 )
 
 /**

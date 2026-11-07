@@ -43,6 +43,7 @@
     <string name="wx_partly">Partly cloudy</string>
     <string name="wx_cloudy">Overcast</string>
     <string name="wx_rain">Rain</string>
+    <string name="wx_drizzle">Drizzle</string>
     <string name="wx_storm">Thunderstorm</string>
     <string name="wx_snow">Snow</string>
     <string name="wx_fog">Fog</string>
@@ -81,6 +82,8 @@
     <string name="precip_today_none">No precipitation</string>
     <string name="precip_short_all_day">All day</string>
     <string name="precip_short_none">None</string>
+    <string name="precip_short_now">Now</string>
+    <string name="precip_today_now">Precipitation now</string>
     <string name="outlook_until">%1$s until %2$s</string>
     <string name="outlook_from">%1$s from %2$s</string>
     <string name="outlook_all_day">%1$s all day</string>

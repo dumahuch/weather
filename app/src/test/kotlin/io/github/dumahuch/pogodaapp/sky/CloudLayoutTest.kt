@@ -137,6 +137,19 @@ class CloudLayoutTest {
     }
 
     @Test
+    fun lightCloudsAreLiftedWhiterOnlyInFairWeather() {
+        // Дима 07.11.2026: при малой облачности облака должны быть белее (лист светлых облаков в среднем серый).
+        fun lift(percent: Double) = SkyWeather.of(Condition.Partly, null, percent).cloudLift
+        assertTrue("при 20 % подъём заметный: ${lift(20.0)}", lift(20.0) in 1.10..1.14)
+        assertTrue("при 40 % подъём ещё есть: ${lift(40.0)}", lift(40.0) > 1.05)
+        assertTrue("подъём убывает с облачностью", lift(20.0) > lift(40.0) && lift(40.0) > lift(60.0))
+        assertEquals("при сплошной облачности подъёма нет", 1.0, SkyWeather.of(Condition.Cloudy, null, 100.0).cloudLift, 1e-9)
+        assertEquals(1.0, SkyWeather.of(Condition.Rain, 1.0).cloudLift, 1e-9)
+        assertEquals(1.0, SkyWeather.of(Condition.Storm, 1.0).cloudLift, 1e-9)
+        assertEquals(1.0, SkyWeather.of(Condition.Fog).cloudLift, 1e-9)
+    }
+
+    @Test
     fun cloudCoverIsIgnoredForRainSnowFogAndStorm() {
         for (condition in listOf(Condition.Rain, Condition.Snow, Condition.Fog, Condition.Storm)) {
             assertEquals("$condition", SkyWeather.of(condition, 1.0), SkyWeather.of(condition, 1.0, 10.0))

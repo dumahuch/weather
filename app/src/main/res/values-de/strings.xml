@@ -39,6 +39,7 @@
     <string name="wx_partly">Wechselnd bewölkt</string>
     <string name="wx_cloudy">Bedeckt</string>
     <string name="wx_rain">Regen</string>
+    <string name="wx_drizzle">Nieselregen</string>
     <string name="wx_storm">Gewitter</string>
     <string name="wx_snow">Schnee</string>
     <string name="wx_fog">Nebel</string>
@@ -77,6 +78,8 @@
     <string name="precip_today_none">Kein Niederschlag</string>
     <string name="precip_short_all_day">Ganztägig</string>
     <string name="precip_short_none">Keiner</string>
+    <string name="precip_short_now">Jetzt</string>
+    <string name="precip_today_now">Niederschlag jetzt</string>
     <string name="outlook_until">%1$s bis %2$s</string>
     <string name="outlook_from">%1$s ab %2$s</string>
     <string name="outlook_all_day">%1$s den ganzen Tag</string>

@@ -313,6 +313,9 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
     val now = remember(forecast) { Instant.now() }
     val details = remember(forecast, now) { forecast.detailsAt(now) }
     val rain = remember(forecast, now) { precipitationCaption(forecast, now) }
+    // Идут осадки сейчас (по коду погоды), а в часовых данных их нет или слишком мало для части суток: «Нет» тут было бы ложью.
+    val wetNow = current.condition == Condition.Rain || current.condition == Condition.Storm || current.condition == Condition.Snow
+    val noRainAhead = rain == PrecipitationCaption.None
     val dash = "–"
     val kmh = stringResource(R.string.kmh_unit)
     val humidityText = details?.humidity?.let(::percentText) ?: dash
@@ -322,9 +325,9 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
         Caption(LineIcons.Wind, windText, "${stringResource(R.string.tile_wind_now)} $windText"),
         Caption(
             LineIcons.Rain,
-            precipitationShortText(rain),
-            precipitationText(rain),
-            faded = rain == PrecipitationCaption.None,
+            if (noRainAhead && wetNow) stringResource(R.string.precip_short_now) else precipitationShortText(rain),
+            if (noRainAhead && wetNow) stringResource(R.string.precip_today_now) else precipitationText(rain),
+            faded = noRainAhead && !wetNow,
             wide = true,
         ),
     )
@@ -347,7 +350,7 @@ internal fun ContentTop(state: HomeUiState.Content, heroScale: Float, heroModifi
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            conditionName(current.condition),
+            if (current.drizzle) stringResource(R.string.wx_drizzle) else conditionName(current.condition),
             style = pogodaText(21f, 600),
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 10.dp),
