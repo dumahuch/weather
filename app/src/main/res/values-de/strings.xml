@@ -55,7 +55,6 @@
     </string-array>
 
     <string name="today">Heute</string>
-    <string name="back">Zurück</string>
     <string name="forecast_7_days">7 Tage</string>
     <string name="forecast_14_days">14 Tage</string>
     <string name="forecast_far_note">Nach dem 10. Tag ist die Vorhersage weniger zuverlässig</string>
@@ -251,6 +250,12 @@
     <string name="settings_notify_alerts_hint">Amtliche Warnungen des DWD für den Ort, an dem Sie die App zuletzt geöffnet haben, mit Ton. Nur in Deutschland. Etwa jede halbe Stunde geprüft.</string>
     <string name="settings_notify_rain">Bald Regen</string>
     <string name="settings_notify_rain_hint">Hinweis, wenn laut DWD-Radar innerhalb der nächsten Stunde Regen ab 0,5 mm/h beginnt, für den Ort, an dem Sie die App zuletzt geöffnet haben. Nur in Deutschland. Etwa jede halbe Stunde geprüft, die Zeit ist daher ungefähr.</string>
+    <string name="settings_notify_pollen">Pollen</string>
+    <string name="settings_notify_pollen_hint">Einmal täglich ein Hinweis, wenn die Pollenbelastung heute für eine gewählte Art mindestens mittel bis hoch ist, nach dem DWD-Index, für den Ort, an dem Sie die App zuletzt geöffnet haben. Nur in Deutschland. Zwischen 7 und 21 Uhr.</string>
+    <string name="settings_pollen_kinds">Pollenarten für den Hinweis</string>
+    <string name="settings_section_view">Darstellung</string>
+    <string name="settings_summary_off">Alles aus</string>
+    <string name="settings_summary_on">%1$d von %2$d an</string>
     <string name="settings_notify_error">Fehler der Benachrichtigung: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
@@ -263,6 +268,9 @@
     <string name="channel_weather_alerts_hint">Amtliche Warnungen des DWD (Deutschland). Mit Ton.</string>
     <string name="channel_weather_rain">Bald Regen</string>
     <string name="channel_weather_rain_hint">DWD-Radar (Deutschland). Regen innerhalb der nächsten Stunde.</string>
+    <string name="channel_weather_pollen">Pollen</string>
+    <string name="channel_weather_pollen_hint">DWD-Pollenflug-Gefahrenindex (Deutschland). Einmal täglich.</string>
+    <string name="notify_pollen_title">Pollen heute</string>
     <string name="notify_rain_title">Bald Regen</string>
     <string name="notify_rain_now">Regen beginnt in den nächsten Minuten</string>
     <string name="notify_rain_in">Regen beginnt in etwa %1$d Min.</string>

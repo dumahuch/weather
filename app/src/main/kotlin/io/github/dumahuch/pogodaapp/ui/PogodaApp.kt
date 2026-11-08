@@ -36,6 +36,7 @@ import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
+import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -71,6 +72,8 @@ fun PogodaApp(
     onIconStyle: (WeatherIconStyle) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    pollenKinds: Set<PollenKind>,
+    onPollenKind: (PollenKind, Boolean) -> Unit,
     noticeError: String?,
     alertRequest: AlertRequest?,
     onAlertRequestDone: () -> Unit,
@@ -173,8 +176,9 @@ fun PogodaApp(
             onIconStyle = onIconStyle,
             notifications = notifications,
             onNotification = onNotification,
+            pollenKinds = pollenKinds,
+            onPollenKind = onPollenKind,
             noticeError = noticeError,
-            onClose = { settingsOpen = false },
             modifier = modifier,
         )
         return

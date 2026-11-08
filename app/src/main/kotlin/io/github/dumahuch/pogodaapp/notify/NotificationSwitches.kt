@@ -24,6 +24,7 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
     private val notifier = WeatherNotifier(activity.applicationContext)
     private val alerts = AlertNotifier(activity.applicationContext)
     private val rain = RainNotifier(activity.applicationContext)
+    private val pollen = PollenNotifier(activity.applicationContext)
 
     /** Что сделать, когда разрешение выдано. */
     private var pending: (() -> Unit)? = null
@@ -84,6 +85,11 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
         if (toggle == NotificationToggle.RainSoon) {
             // Включили: радар смотрится сразу, как будет сеть. Выключили: прежнее уведомление убирается.
             guarded { if (on) WeatherJobs.refreshSoon(activity) else rain.cancelAll() }
+            return
+        }
+        if (toggle == NotificationToggle.Pollen) {
+            // Включили: файл DWD смотрится при ближайшем запуске задачи (в часы с 7 до 21). Выключили: уведомление убирается.
+            guarded { if (on) WeatherJobs.refreshSoon(activity) else pollen.cancelAll() }
             return
         }
         activity.lifecycleScope.launch(Dispatchers.Default) {

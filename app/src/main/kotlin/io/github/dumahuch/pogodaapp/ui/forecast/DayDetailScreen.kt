@@ -1,21 +1,17 @@
 package io.github.dumahuch.pogodaapp.ui.forecast
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -27,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
@@ -39,11 +33,8 @@ import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.isStormWet
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
-import io.github.dumahuch.pogodaapp.ui.components.LineIconView
-import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
-import io.github.dumahuch.pogodaapp.ui.components.glassButton
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.home.HourlyFrame
 import io.github.dumahuch.pogodaapp.ui.home.HourlyStrip
@@ -59,7 +50,7 @@ import kotlin.math.roundToInt
 
 /**
  * Подробности одного дня: сводка, почасовой прогноз этого дня, осадки, ветер, УФ-индекс, восход и закат.
- * Открывается нажатием на день во вкладке «Прогноз», кнопка «назад» (и системный жест) возвращает к списку.
+ * Открывается нажатием на день во вкладке «Прогноз», системный жест «назад» возвращает к списку.
  * Макета у этой страницы не было: решено только, что в ней есть (документ решений, раздел «Продукт»); вид выбран по образцу
  * плиток вкладки «Подробно» и карточек «Главной».
  */
@@ -94,19 +85,13 @@ fun DayDetailScreen(
             .statusBarsPadding()
             .verticalScroll(scroll),
     ) {
-        Row(
-            Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            BackButton(onBack)
-            val title = if (isToday) stringResource(R.string.today) else dayName(date, dayNames)
-            Text(
-                "$title, ${fullDate(date, locale)}",
-                style = pogodaText(20f, 600, lineHeight = 1.2f),
-                maxLines = 1,
-            )
-        }
+        val title = if (isToday) stringResource(R.string.today) else dayName(date, dayNames)
+        Text(
+            "$title, ${fullDate(date, locale)}",
+            style = pogodaText(20f, 600, lineHeight = 1.2f),
+            maxLines = 1,
+            modifier = Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
+        )
 
         Row(
             Modifier.padding(start = 24.dp, top = 22.dp, end = 24.dp),
@@ -144,23 +129,6 @@ fun DayDetailScreen(
 
         DayTiles(day, zone, Modifier.padding(horizontal = 20.dp))
         Spacer(Modifier.height(bottomContentPadding()))
-    }
-}
-
-/** Круглая кнопка «назад» из материала кнопок. */
-@Composable
-internal fun BackButton(onClick: () -> Unit) {
-    val palette = LocalPogodaPalette.current
-    val label = stringResource(R.string.back)
-    Box(
-        Modifier
-            .size(44.dp)
-            .glassButton(CircleShape, LocalGlass.current)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
-    ) {
-        LineIconView(LineIcons.ChevronLeft, 22.dp, palette.ink)
     }
 }
 

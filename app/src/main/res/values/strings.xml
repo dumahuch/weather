@@ -59,7 +59,6 @@
     </string-array>
 
     <string name="today">Today</string>
-    <string name="back">Back</string>
     <string name="forecast_7_days">7 days</string>
     <string name="forecast_14_days">14 days</string>
     <string name="forecast_far_note">Forecast is less reliable after day 10</string>
@@ -255,6 +254,12 @@
     <string name="settings_notify_alerts_hint">Official DWD warnings for the place where you last opened the app, with sound. Germany only. Checked about every half hour.</string>
     <string name="settings_notify_rain">Rain soon</string>
     <string name="settings_notify_rain_hint">A notice when rain of at least 0.5 mm/h is expected to start within the hour, from the DWD radar, for the place where you last opened the app. Germany only. Checked about every half hour, so the time is approximate.</string>
+    <string name="settings_notify_pollen">Pollen</string>
+    <string name="settings_notify_pollen_hint">A daily notice when the pollen load today is at least moderate to high for a species you pick, from the DWD index, for the place where you last opened the app. Germany only. Sent between 7 am and 9 pm.</string>
+    <string name="settings_pollen_kinds">Species to notify about</string>
+    <string name="settings_section_view">Appearance</string>
+    <string name="settings_summary_off">All off</string>
+    <string name="settings_summary_on">%1$d of %2$d on</string>
     <string name="settings_notify_error">Notification error: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <!-- Уведомление о предупреждении: «Гроза с 15:00» (явление и подпись времени, как на плашке). -->
@@ -269,6 +274,9 @@
     <string name="channel_weather_alerts_hint">Official DWD warnings (Germany). With sound.</string>
     <string name="channel_weather_rain">Rain soon</string>
     <string name="channel_weather_rain_hint">DWD radar (Germany). Rain expected within the hour.</string>
+    <string name="channel_weather_pollen">Pollen</string>
+    <string name="channel_weather_pollen_hint">DWD pollen index (Germany). Once a day.</string>
+    <string name="notify_pollen_title">Pollen today</string>
     <string name="notify_rain_title">Rain soon</string>
     <string name="notify_rain_now">Rain is expected to start in the next few minutes</string>
     <string name="notify_rain_in">Rain is expected in about %1$d min</string>

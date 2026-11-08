@@ -57,7 +57,6 @@
     </string-array>
 
     <string name="today">Сегодня</string>
-    <string name="back">Назад</string>
     <string name="forecast_7_days">7 дней</string>
     <string name="forecast_14_days">14 дней</string>
     <string name="forecast_far_note">После 10-го дня прогноз менее надёжен</string>
@@ -253,6 +252,12 @@
     <string name="settings_notify_alerts_hint">Официальные предупреждения DWD для места, где вы последний раз открывали приложение, со звуком. Только в Германии. Проверяются примерно раз в полчаса.</string>
     <string name="settings_notify_rain">Скоро дождь</string>
     <string name="settings_notify_rain_hint">Уведомление, если в ближайший час по радару DWD ожидается дождь не слабее 0,5 мм/ч, для места, где вы последний раз открывали приложение. Только в Германии. Проверяется примерно раз в полчаса, поэтому время приблизительное.</string>
+    <string name="settings_notify_pollen">Пыльца</string>
+    <string name="settings_notify_pollen_hint">Уведомление раз в день, если сегодня нагрузка пыльцой от средней до высокой и выше у выбранного вида, по индексу DWD, для места, где вы последний раз открывали приложение. Только в Германии. Приходит с 7 до 21 часа.</string>
+    <string name="settings_pollen_kinds">Виды пыльцы для уведомления</string>
+    <string name="settings_section_view">Вид</string>
+    <string name="settings_summary_off">Всё выключено</string>
+    <string name="settings_summary_on">Включено %1$d из %2$d</string>
     <string name="settings_notify_error">Ошибка уведомления: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
@@ -265,6 +270,9 @@
     <string name="channel_weather_alerts_hint">Официальные предупреждения DWD (Германия). Со звуком.</string>
     <string name="channel_weather_rain">Скоро дождь</string>
     <string name="channel_weather_rain_hint">Радар DWD (Германия). Дождь ожидается в ближайший час.</string>
+    <string name="channel_weather_pollen">Пыльца</string>
+    <string name="channel_weather_pollen_hint">Индекс пыльцы DWD (Германия). Раз в день.</string>
+    <string name="notify_pollen_title">Пыльца сегодня</string>
     <string name="notify_rain_title">Скоро дождь</string>
     <string name="notify_rain_now">Дождь начнётся в ближайшие минуты</string>
     <string name="notify_rain_in">Дождь начнётся примерно через %1$d мин</string>

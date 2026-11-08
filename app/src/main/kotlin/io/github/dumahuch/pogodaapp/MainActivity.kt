@@ -220,6 +220,7 @@ class MainActivity : ComponentActivity() {
                 val iconStyle by settings.iconStyle.collectAsStateWithLifecycle()
                 val notifications by settings.notifications.collectAsStateWithLifecycle()
                 val noticeError by settings.noticeError.collectAsStateWithLifecycle()
+                val pollenKinds by settings.pollenKinds.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
                 val input = remember(state) { state.skyInput() }
@@ -254,6 +255,8 @@ class MainActivity : ComponentActivity() {
                                 onIconStyle = settings::setIconStyle,
                                 notifications = notifications,
                                 onNotification = notificationSwitches::set,
+                                pollenKinds = pollenKinds,
+                                onPollenKind = settings::setPollenKind,
                                 noticeError = noticeError,
                                 alertRequest = alertRequest,
                                 onAlertRequestDone = { alertRequest = null },
