@@ -42,9 +42,6 @@ private const val BASELINE_EM = 0.833f
  */
 private const val TOP_GAP_DP = 12
 
-/** Значок погоды справа от цифр (step-29: 80 dp; step-42: 72 dp при цифрах 124 sp, у мелких цифр меньше в той же доле, с масштабом не растёт). */
-private const val GLYPH_DP = 72f
-
 /**
  * Вес цифр и градуса: снова тонкие 200 (решение Димы 07.11.2026, step-42: 400 при цифрах до 1,3 читалась толстой).
  * Manrope переменный, вес любой от 200 до 800.
@@ -65,7 +62,7 @@ private fun Placeable.baselineOrDefault(): Int {
  * при ясной погоде это цифры с градусом. При ясной погоде значка нет ([icon] пустой): солнце и луна на небе.
  * Высота блока всегда считается по самому крупному размеру цифр ([MAX_DIGITS_SP]).
  *
- * [scale] увеличивает цифры (значок с step-42 не растёт) (с версии 0.6.0 блок растёт на свободное место, см.
+ * [scale] увеличивает цифры и значок (с версии 0.6.0 блок растёт на свободное место, см.
  * [io.github.dumahuch.pogodaapp.home.HeroFit]); высота блока: зазор [TOP_GAP_DP] плюс [scale] × [heroDigitsHeight].
  */
 @Composable
@@ -81,8 +78,8 @@ fun HeroBlock(
 ) {
     val numberSize = digitsSize * scale
     val degreeSize = numberSize * HeroWidth.DEGREE_SCALE
-    // Значок с ростом цифр не растёт (step-42): при цифрах в 1,3 раза крупнее он остаётся около 0,6 их высоты.
-    val glyphSize = (GLYPH_DP * digitsSize / MAX_DIGITS_SP).dp
+    // Значок растёт вместе с цифрами (step-44, вариант D): 72 dp при цифрах 124 sp и масштабе 1, 94 dp при 1,3.
+    val glyphSize = HeroWidth.glyphDp(digitsSize, scale).dp
     Layout(
         content = {
             Text(
@@ -118,10 +115,12 @@ fun HeroBlock(
 
         val width = constraints.maxWidth
         val gap = (degreeSize * HeroWidth.DEGREE_GAP_EM).sp.roundToPx()
-        // Правая колонка (градус и значок) шире из двух; весь блок стоит по центру как единое целое.
+        // Правая колонка (градус и значок) шире из двух; по центру стоят цифры с градусом и половина ширины значка
+        // (вариант D, [HeroWidth.centeringSide]): цифры ближе к центру экрана, лёгкий значок свисает вправо.
         val pull = (numberSize * HeroWidth.DEGREE_PULL_EM).sp.roundToPx()
-        val sideWidth = maxOf(degreePlaceable.width - pull, glyphPlaceable?.width ?: 0)
-        val digitsX = ((width - (digitsPlaceable.width + gap + sideWidth)) / 2).coerceAtLeast(0)
+        val degreeSide = degreePlaceable.width - pull
+        val centering = HeroWidth.centeringSide(degreeSide.toFloat(), (glyphPlaceable?.width ?: 0).toFloat()).roundToInt()
+        val digitsX = ((width - (digitsPlaceable.width + gap + centering)) / 2).coerceAtLeast(0)
         val sideX = digitsX + digitsPlaceable.width + gap
         val lineTop = TOP_GAP_DP.dp.roundToPx()
 

@@ -3,11 +3,17 @@ package io.github.dumahuch.pogodaapp.home
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import io.github.dumahuch.pogodaapp.weather.Condition
 
 class GlyphSceneTest {
 
+    private val small = Condition.entries.flatMap { c ->
+        listOf(true, false).flatMap { day -> listOf(true, false).map { wet -> GlyphScenes.small(c, day, wet) } }
+    }
+
     private val all = HeroIcon.entries.map { it to GlyphScenes.of(it) } +
-        listOf(true, false).map { null to GlyphScenes.clear(it) }
+        listOf(true, false).map { null to GlyphScenes.clear(it) } +
+        small.map { null to it }
 
     @Test
     fun everyIconFitsTheSquare() {
@@ -66,5 +72,39 @@ class GlyphSceneTest {
         val front = scene.front!!
         assertTrue(back.k < front.k)
         assertTrue(back.top < front.top)
+    }
+
+    @Test
+    fun stormWithRainKeepsTheRainLeftOfTheBoltAndNoneOnTheRight() {
+        val dry = GlyphScenes.of(HeroIcon.Storm).parts.filterIsInstance<GlyphPart.Bolt>().single()
+        val wet = GlyphScenes.of(HeroIcon.StormRain)
+        val bolt = wet.parts.filterIsInstance<GlyphPart.Bolt>().single()
+        val rain = wet.parts.filterIsInstance<GlyphPart.Rain>().single()
+        assertTrue("молния сдвинута вправо", bolt.points.minOf { it.first } > dry.points.minOf { it.first })
+        val boltLeft = bolt.points.minOf { it.first }
+        // Справа от молнии штрихов нет (решение Димы 08.11.2026), слева два ряда.
+        assertTrue("штрихи только слева", rain.dashes.all { maxOf(it.x1, it.x2) < boltLeft })
+        assertTrue("штрихи свисают ниже облака", rain.bottom > wet.cloudBottom + 3f)
+    }
+
+    @Test
+    fun smallFogIsACloudWithTwoBars() {
+        val scene = GlyphScenes.small(Condition.Fog, isDay = true, wet = false)
+        assertTrue("у мелкого тумана есть облако", scene.front != null)
+        assertEquals(2, scene.parts.filterIsInstance<GlyphPart.Fog>().single().bars.size)
+    }
+
+    @Test
+    fun smallClearSkyIsTheSunWithRaysByDayAndTheMoonByNight() {
+        assertTrue(GlyphScenes.small(Condition.Clear, true, false).parts.single().let { it is GlyphPart.Sun && it.rays })
+        assertTrue(GlyphScenes.small(Condition.Clear, false, false).parts.single() is GlyphPart.Moon)
+    }
+
+    @Test
+    fun smallStormFollowsThePrecipitationFlag() {
+        val dry = GlyphScenes.small(Condition.Storm, true, wet = false)
+        val wet = GlyphScenes.small(Condition.Storm, true, wet = true)
+        assertTrue(dry.parts.none { it is GlyphPart.Rain })
+        assertTrue(wet.parts.any { it is GlyphPart.Rain })
     }
 }

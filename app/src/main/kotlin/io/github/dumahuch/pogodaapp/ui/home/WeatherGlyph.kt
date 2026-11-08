@@ -56,6 +56,26 @@ fun WeatherGlyph(icon: HeroIcon, style: WeatherIconStyle, size: Dp, night: Boole
 }
 
 /**
+ * Мелкий значок погоды для ленты, «Прогноза» и подробностей дня (решение Димы 08.11.2026: тот же набор, что на
+ * «Главной», для единого стиля). Всегда контурный, стекло в мелком размере отпало (решение 07.11.2026). [wet]: у
+ * грозы идут осадки ([io.github.dumahuch.pogodaapp.home.isStormWet]). Ясно: солнце с лучами или месяц.
+ */
+@Composable
+fun SmallWeatherGlyph(condition: Condition, isDay: Boolean, wet: Boolean, size: Dp, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    val ink = palette.ink.toArgb()
+    val tone = if (palette.darkInk) GlyphTone.Light else GlyphTone.Day
+    val px = with(LocalDensity.current) { size.roundToPx() }.coerceAtLeast(1)
+    val stroke = outlineStroke(size)
+    val bitmap = remember(condition, isDay, wet, tone, ink, px, stroke) {
+        GlyphPainter.render(
+            GlyphScenes.small(condition, isDay, wet), WeatherIconStyle.Outline, GlyphColors.of(tone, ink, small = true), px, stroke,
+        ).asImageBitmap()
+    }
+    Image(bitmap = bitmap, contentDescription = null, modifier = modifier.size(size))
+}
+
+/**
  * Значок погоды картинкой [sizePx] × [sizePx] для уведомления (0.7.0): тот же набор, что на «Главной». [onLight]: фон
  * шторки светлый (дневная тема системы), линии и стекло темнее. При ясной погоде неба за значком нет, поэтому вместо
  * пустого места солнце днём и месяц ночью (при сильном ветре ветер).
@@ -102,11 +122,15 @@ internal class GlyphColors(
 
         private val SUN = rgb(0xFFFFD84A) to rgb(0xFFFF8A1C)
         private val BOLT = rgb(0xFFFFE45A) to rgb(0xFFFFAE00)
+
+        /** Солнце и молния темнее для мелких значков на светлом небе: светло-жёлтая тонкая линия там почти пропадает. */
+        private val SUN_DEEP = rgb(0xFFE08A00) to rgb(0xFFB85000)
+        private val BOLT_DEEP = rgb(0xFFE8A800) to rgb(0xFFC27000)
         private const val WHITE = 0xFFFFFFL
         private const val MILK_LOW = 0xE2EBF8L
         private const val SHADOW = 0x2B4F8AL
 
-        fun of(tone: GlyphTone, ink: Int): GlyphColors = when (tone) {
+        fun of(tone: GlyphTone, ink: Int, small: Boolean = false): GlyphColors = when (tone) {
             GlyphTone.Day -> GlyphColors(
                 sun = SUN,
                 moon = rgb(0xFF4B7DFF) to rgb(0xFF9A4DFF),
@@ -136,9 +160,9 @@ internal class GlyphColors(
                 ink = ink,
             )
             GlyphTone.Light -> GlyphColors(
-                sun = SUN,
+                sun = if (small) SUN_DEEP else SUN,
                 moon = rgb(0xFF4B7DFF) to rgb(0xFF9A4DFF),
-                bolt = BOLT,
+                bolt = if (small) BOLT_DEEP else BOLT,
                 rain = rgb(0xFF2A6CF0) to rgb(0xFF3FB6FF),
                 snow = rgb(0xFF2A7AF0) to rgb(0xFF57C4FF),
                 wind = rgb(0xFF22AEB8) to rgb(0xFF2F7DF0),

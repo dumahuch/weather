@@ -36,6 +36,7 @@ import io.github.dumahuch.pogodaapp.forecast.UvLevel
 import io.github.dumahuch.pogodaapp.forecast.dayPrecipitationText
 import io.github.dumahuch.pogodaapp.forecast.daylight
 import io.github.dumahuch.pogodaapp.home.HomeUiState
+import io.github.dumahuch.pogodaapp.home.isStormWet
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
@@ -44,17 +45,17 @@ import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
 import io.github.dumahuch.pogodaapp.ui.components.glassButton
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
-import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.home.HourlyFrame
 import io.github.dumahuch.pogodaapp.ui.home.HourlyStrip
+import io.github.dumahuch.pogodaapp.ui.home.SmallWeatherGlyph
 import io.github.dumahuch.pogodaapp.ui.home.conditionName
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 import io.github.dumahuch.pogodaapp.weather.DayForecast
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.roundToInt
-import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 
 /**
  * Подробности одного дня: сводка, почасовой прогноз этого дня, осадки, ветер, УФ-индекс, восход и закат.
@@ -112,7 +113,7 @@ fun DayDetailScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            LineIconView(iconFor(day.condition, isDay = true), 64.dp, palette.ink, strokeWidth = 1.1f)
+            SmallWeatherGlyph(day.condition, isDay = true, wet = isStormWet(day.precipitationMm), size = 64.dp)
             Column {
                 Text(conditionName(day.condition), style = pogodaText(21f, 600, lineHeight = 1.2f))
                 Text(

@@ -26,11 +26,11 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
@@ -44,14 +44,13 @@ import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.home.HourlyGeometry
 import io.github.dumahuch.pogodaapp.home.hourLabel
+import io.github.dumahuch.pogodaapp.home.isStormWet
 import io.github.dumahuch.pogodaapp.home.precipitationText
 import io.github.dumahuch.pogodaapp.home.roundTemperature
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
-import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
-import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import java.time.ZoneId
@@ -224,10 +223,11 @@ private fun HourColumn(
             Text(label, style = labelStyle, maxLines = 1, softWrap = false, modifier = labelModifier)
         }
 
-        LineIconView(
-            icon = iconFor(point.condition, point.isDay),
+        SmallWeatherGlyph(
+            condition = point.condition,
+            isDay = point.isDay,
+            wet = isStormWet(point.precipitationMm),
             size = 24.dp,
-            color = palette.ink,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 24.dp),

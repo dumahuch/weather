@@ -52,7 +52,7 @@ internal object ExtremeTints {
     }
 
     /** Цвет с наибольшей силой оттенка не выше [wanted], при которой контраст с [backdrop] не меньше [minContrast]. */
-    private fun readable(ink: Color, hue: Color, wanted: Float, backdrop: Color, minContrast: Float): Color {
+    internal fun readable(ink: Color, hue: Color, wanted: Float, backdrop: Color, minContrast: Float): Color {
         for (step in 0..STEPS) {
             val candidate = lerp(ink, hue, wanted * (1f - step.toFloat() / STEPS))
             if (contrastRatio(candidate, backdrop) >= minContrast) return candidate

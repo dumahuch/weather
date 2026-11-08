@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
+import io.github.dumahuch.pogodaapp.ui.CaptionHue
+import io.github.dumahuch.pogodaapp.ui.CaptionTints
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.QuietInk
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
@@ -66,11 +68,13 @@ internal fun precipitationShortText(caption: PrecipitationCaption): String = whe
 
 /**
  * Один показатель строки под температурой: значок и подпись рядом. [description] читает экран вместо подписи (полная фраза
- * со словом: «Влажность 88 %»). [faded]: значок ослаблен, когда показывать нечего («Нет» у осадков). [wide]: подпись из слов,
+ * со словом: «Влажность 88 %»). [hue]: оттенок значка ([CaptionTints]). [faded]: значок ослаблен, когда показывать нечего
+ * («Нет» у осадков). [wide]: подпись из слов,
  * ей отдаётся всё оставшееся место, и она переносится на вторую строку, если не помещается.
  */
 internal class Caption(
     val icon: LineIcon,
+    val hue: CaptionHue,
     val text: String,
     val description: String,
     val faded: Boolean = false,
@@ -86,7 +90,6 @@ internal class Caption(
 internal fun CaptionRow(items: List<Caption>, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val text = QuietInk.text(palette.ink, palette.infoBackdrop)
-    val fadedIcon = QuietInk.fadedIcon(palette.ink, palette.infoBackdrop)
     Row(
         modifier.fillMaxWidth().height(IntrinsicSize.Min),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -103,7 +106,8 @@ internal fun CaptionRow(items: List<Caption>, modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                LineIconView(item.icon, 18.dp, if (item.faded) fadedIcon else text, strokeWidth = 1.7f)
+                val tint = CaptionTints.icon(palette.ink, palette.smoke, item.hue, palette.infoBackdrop)
+                LineIconView(item.icon, 18.dp, if (item.faded) QuietInk.fadedIcon(tint, palette.infoBackdrop) else tint, strokeWidth = 1.7f)
                 Text(
                     item.text,
                     style = if (item.wide) {
