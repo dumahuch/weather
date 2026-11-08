@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 class NotificationSwitches(private val activity: ComponentActivity, private val settings: AppSettings) {
     private val notifier = WeatherNotifier(activity.applicationContext)
     private val alerts = AlertNotifier(activity.applicationContext)
+    private val rain = RainNotifier(activity.applicationContext)
 
     /** Что сделать, когда разрешение выдано. */
     private var pending: (() -> Unit)? = null
@@ -78,6 +79,11 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
         if (toggle == NotificationToggle.Alerts) {
             // Включили: предупреждения запрашиваются сразу, как будет сеть. Выключили: прежние уведомления убираются.
             guarded { if (on) WeatherJobs.refreshSoon(activity) else alerts.cancelAll() }
+            return
+        }
+        if (toggle == NotificationToggle.RainSoon) {
+            // Включили: радар смотрится сразу, как будет сеть. Выключили: прежнее уведомление убирается.
+            guarded { if (on) WeatherJobs.refreshSoon(activity) else rain.cancelAll() }
             return
         }
         activity.lifecycleScope.launch(Dispatchers.Default) {

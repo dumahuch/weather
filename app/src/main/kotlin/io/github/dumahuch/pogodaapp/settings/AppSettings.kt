@@ -39,19 +39,20 @@ enum class WeatherIconStyle(val key: String) {
 /**
  * Выключатели уведомлений (0.7.0, решения Димы 07.11.2026), все по умолчанию выключены. Число в строке состояния
  * Android показывает только как значок уведомления, поэтому при нём запись в шторке тоже есть. [alerts] это
- * предупреждения DWD в фоне (шаг 2).
+ * предупреждения DWD в фоне (шаг 2), [rainSoon] «скоро дождь» по радару DWD (шаг 3).
  */
 data class NotificationPrefs(
     val inShade: Boolean = false,
     val inStatusBar: Boolean = false,
     val placeOnLockScreen: Boolean = false,
     val alerts: Boolean = false,
+    val rainSoon: Boolean = false,
 ) {
     /** Уведомление о погоде нужно, если включена шторка или строка состояния. */
     val wanted: Boolean get() = inShade || inStatusBar
 
-    /** Фоновое обновление нужно, если нужно уведомление о погоде или предупреждения. */
-    val background: Boolean get() = wanted || alerts
+    /** Фоновое обновление нужно, если нужно уведомление о погоде, предупреждения или «скоро дождь». */
+    val background: Boolean get() = wanted || alerts || rainSoon
 }
 
 /** Один выключатель уведомления и ключ, под которым он хранится. */
@@ -60,6 +61,7 @@ enum class NotificationToggle(val key: String) {
     StatusBar("notify_status_bar"),
     LockScreenPlace("notify_lock_place"),
     Alerts("notify_alerts"),
+    RainSoon("notify_rain_soon"),
 }
 
 /** Где лежат настройки: ключи и значения строками, чтобы логику можно было проверить без Android. */
@@ -75,6 +77,13 @@ class AppSettings(private val storage: SettingsStorage) {
 
     fun setNotifiedAlerts(value: String) {
         if (notifiedAlerts() != value) storage.write(NOTIFIED_ALERTS, value)
+    }
+
+    /** Сообщали ли уже о дожде, который идёт или скоро начнётся (см. RainSoon.decide); без места и времени. */
+    fun rainSoonNotified(): Boolean = storage.read(RAIN_NOTIFIED) == ON
+
+    fun setRainSoonNotified(value: Boolean) {
+        if (rainSoonNotified() != value) storage.write(RAIN_NOTIFIED, if (value) ON else OFF)
     }
 
     private val mutableCardShadow = MutableStateFlow(CardShadow.fromKey(storage.read(CARD_SHADOW)))
@@ -103,6 +112,7 @@ class AppSettings(private val storage: SettingsStorage) {
             inStatusBar = flag(NotificationToggle.StatusBar),
             placeOnLockScreen = flag(NotificationToggle.LockScreenPlace),
             alerts = flag(NotificationToggle.Alerts),
+            rainSoon = flag(NotificationToggle.RainSoon),
         ),
     )
 
@@ -115,6 +125,7 @@ class AppSettings(private val storage: SettingsStorage) {
             NotificationToggle.StatusBar -> current.copy(inStatusBar = on)
             NotificationToggle.LockScreenPlace -> current.copy(placeOnLockScreen = on)
             NotificationToggle.Alerts -> current.copy(alerts = on)
+            NotificationToggle.RainSoon -> current.copy(rainSoon = on)
         }
         if (next == current) return
         mutableNotifications.value = next
@@ -149,6 +160,7 @@ class AppSettings(private val storage: SettingsStorage) {
         const val NOTIFY_ERROR = "notify_last_error"
         const val NOTIFY_ERROR_MAX = 400
         const val NOTIFIED_ALERTS = "notified_alerts"
+        const val RAIN_NOTIFIED = "rain_soon_notified"
         private const val ON = "1"
         private const val OFF = "0"
     }
