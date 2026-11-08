@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 
 /**
- * Фоновое обновление уведомления о погоде и предупреждений DWD через JobScheduler системы (без сторонних библиотек). Раз в
+ * Фоновое обновление уведомления о погоде, предупреждений DWD и «скоро дождь» через JobScheduler системы (без сторонних библиотек). Раз в
  * полчаса, только при сети; Android сам сдвигает запуск ради батареи, ночью реже. Задача переживает перезагрузку телефона.
  */
 object WeatherJobs {
@@ -56,7 +56,7 @@ object WeatherJobs {
 }
 
 /**
- * Обновляет уведомление о погоде и предупреждения; запросы в сеть идут в фоне, система ждёт их до [jobFinished]. Сбой одного
+ * Обновляет уведомление о погоде, предупреждения и «скоро дождь»; запросы в сеть идут в фоне, система ждёт их до [jobFinished]. Сбой одного
  * не мешает другому.
  */
 class WeatherJobService : JobService() {
@@ -67,6 +67,7 @@ class WeatherJobService : JobService() {
             try {
                 guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh() }
                 guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
+                guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
             } finally {
                 jobFinished(params, false)
             }

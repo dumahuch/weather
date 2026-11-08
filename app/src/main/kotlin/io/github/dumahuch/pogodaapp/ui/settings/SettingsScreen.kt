@@ -148,6 +148,12 @@ fun SettingsScreen(
                 checked = notifications.alerts,
                 onChange = { onNotification(NotificationToggle.Alerts, it) },
             )
+            ToggleOption(
+                title = stringResource(R.string.settings_notify_rain),
+                hint = stringResource(R.string.settings_notify_rain_hint),
+                checked = notifications.rainSoon,
+                onChange = { onNotification(NotificationToggle.RainSoon, it) },
+            )
             // Ошибка уведомления (0.7.2): текст для снимка экрана, пока журнала падений у приложения нет.
             noticeError?.let {
                 Text(

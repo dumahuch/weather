@@ -116,6 +116,25 @@ class AppSettingsTest {
     }
 
     @Test
+    fun rainSoonAloneNeedsTheBackgroundJobAndRemembersWhetherItWasReported() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        settings.setNotification(NotificationToggle.RainSoon, true)
+        val restored = AppSettings(storage).notifications.value
+        assertEquals(NotificationPrefs(rainSoon = true), restored)
+        assertTrue(restored.background)
+        assertFalse(restored.wanted)
+        assertFalse(settings.rainSoonNotified())
+        settings.setRainSoonNotified(true)
+        assertTrue(AppSettings(storage).rainSoonNotified())
+        val writes = storage.writes
+        settings.setRainSoonNotified(true)
+        assertEquals(writes, storage.writes)
+        settings.setRainSoonNotified(false)
+        assertFalse(AppSettings(storage).rainSoonNotified())
+    }
+
+    @Test
     fun alertsAloneNeedTheBackgroundJobButNotTheWeatherNotification() {
         val storage = MemoryStorage()
         AppSettings(storage).setNotification(NotificationToggle.Alerts, true)
