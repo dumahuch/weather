@@ -42,12 +42,14 @@ import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.heroDigitsSize
 import io.github.dumahuch.pogodaapp.home.heroIconFor
+import io.github.dumahuch.pogodaapp.home.isStormWet
 import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
 import io.github.dumahuch.pogodaapp.ui.ExtremeTints
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.PogodaPalette
+import io.github.dumahuch.pogodaapp.ui.CaptionHue
 import io.github.dumahuch.pogodaapp.ui.QuietInk
 import io.github.dumahuch.pogodaapp.ui.components.HeroSkeleton
 import io.github.dumahuch.pogodaapp.ui.components.HourlySkeleton
@@ -320,6 +322,7 @@ internal fun ContentTop(
     val now = remember(forecast) { Instant.now() }
     val details = remember(forecast, now) { forecast.detailsAt(now) }
     val rain = remember(forecast, now) { precipitationCaption(forecast, now) }
+    val hourNow = remember(forecast, now) { forecast.strip(now, 1).firstOrNull() }
     // Идут осадки сейчас (по коду погоды), а в часовых данных их нет или слишком мало для части суток: «Нет» тут было бы ложью.
     val wetNow = current.condition == Condition.Rain || current.condition == Condition.Storm || current.condition == Condition.Snow
     val noRainAhead = rain == PrecipitationCaption.None
@@ -328,10 +331,11 @@ internal fun ContentTop(
     val humidityText = details?.humidity?.let(::percentText) ?: dash
     val windText = details?.windKmh?.let { "${it.roundToInt()}\u00A0$kmh" } ?: dash
     val captions = listOf(
-        Caption(LineIcons.Drop, humidityText, "${stringResource(R.string.tile_humidity)} $humidityText"),
-        Caption(LineIcons.Wind, windText, "${stringResource(R.string.tile_wind_now)} $windText"),
+        Caption(LineIcons.Drop, CaptionHue.Humidity, humidityText, "${stringResource(R.string.tile_humidity)} $humidityText"),
+        Caption(LineIcons.Wind, CaptionHue.Wind, windText, "${stringResource(R.string.tile_wind_now)} $windText"),
         Caption(
             LineIcons.Rain,
+            CaptionHue.Precipitation,
             if (noRainAhead && wetNow) stringResource(R.string.precip_short_now) else precipitationShortText(rain),
             if (noRainAhead && wetNow) stringResource(R.string.precip_today_now) else precipitationText(rain),
             faded = noRainAhead && !wetNow,
@@ -347,6 +351,7 @@ internal fun ContentTop(
             LocalHeroConditionOverride.current ?: current.condition,
             isDay = heroDay,
             windy = LocalHeroWindOverride.current ?: isStrongWind(details?.windKmh),
+            wet = isStormWet(hourNow?.precipitationMm),
         ),
         iconStyle = LocalWeatherIconStyle.current,
         night = !heroDay,

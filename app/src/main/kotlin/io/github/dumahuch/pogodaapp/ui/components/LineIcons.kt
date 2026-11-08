@@ -20,24 +20,6 @@ object LineIcons {
         ),
     )
 
-    val Cloud = LineIcon(
-        listOf(
-            "M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z",
-        ),
-    )
-
-    val PartlyCloudy = LineIcon(
-        listOf(
-            "M12 2v2M4.93 4.93l1.41 1.41M20 12h2M19.07 4.93l-1.41 1.41M15.947 12.65a4 4 0 0 0-5.925-4.128M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z",
-        ),
-    )
-
-    val PartlyCloudyNight = LineIcon(
-        listOf(
-            "M10.188 8.5A6 6 0 0 1 16 4a1 1 0 0 0 6 6 6 6 0 0 1-3 5.197M13 16a3 3 0 1 1 0 6H7a5 5 0 1 1 4.9-6Z",
-        ),
-    )
-
     val Rain = LineIcon(
         listOf(
             "M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M16 14v6M8 14v6M12 16v6",

@@ -29,9 +29,29 @@ internal object HeroWidth {
 
     private const val GAP_EM = DEGREE_SCALE * DEGREE_GAP_EM
 
-    /** Значок 72 dp при цифрах 124 sp; в dp, шрифт системы его не меняет, и с масштабом он не растёт (step-42). */
+    /**
+     * Значок 72 dp при цифрах 124 sp и масштабе 1; в dp, шрифт системы его не меняет. С step-44 значок растёт вместе с
+     * цифрами (при масштабе 1,3 это 94 dp; решение Димы 08.11.2026, вариант D): иначе облако выглядело приписью (0,31
+     * высоты цифр вместо 0,41).
+     */
     private const val GLYPH_DP_AT_124 = 72.0
     private const val GLYPH_BASE_DIGITS = 124.0
+
+    /**
+     * Вес значка при центровке блока (вариант D, решение Димы 08.11.2026): центруются цифры с градусом и половина
+     * ширины значка, а не весь значок. Цифры стоят ближе к центру экрана (сдвиг влево 29 dp вместо 48 dp), значок
+     * свисает вправо. Стеклянное облако лёгкое, цифры тяжёлее: так блок выглядит ровнее.
+     */
+    const val ICON_CENTER_WEIGHT = 0.5f
+
+    /** Размер значка в dp при цифрах [digitsSize] sp и масштабе блока [scale]. */
+    fun glyphDp(digitsSize: Int, scale: Float): Float = (GLYPH_DP_AT_124 * digitsSize / GLYPH_BASE_DIGITS).toFloat() * scale
+
+    /**
+     * Ширина правой колонки (градус [degree] или значок [glyph], что шире), которую учитывает центровка: градус
+     * целиком, значок с весом [ICON_CENTER_WEIGHT].
+     */
+    fun centeringSide(degree: Float, glyph: Float): Float = degree + (maxOf(degree, glyph) - degree) * ICON_CENTER_WEIGHT
 
     /** Запас до края экрана с каждой стороны. */
     private const val SIDE_MARGIN_DP = 8f
@@ -43,16 +63,22 @@ internal object HeroWidth {
     /**
      * Наибольший масштаб блока, при котором он помещается в [widthDp] (с запасом по краям). Значок считается всегда,
      * даже при ясном небе, где его нет: размер цифр не должен зависеть от погоды. Не меньше 1: при нехватке места уже
-     * на обычном размере блок решает [HeroFit].
+     * на обычном размере блок решает [HeroFit]. Цифры, градус и значок растут вместе с масштабом (с step-44); блок
+     * центрируется по [centeringSide], поэтому слева проверяется он, а справа край значка.
      */
     fun maxScale(digits: String, digitsSize: Int, widthDp: Float, fontScale: Float): Float {
         val size = digitsSize.toDouble()
         val text = fontScale * size * (digitsEm(digits) + GAP_EM)
         val degree = fontScale * size * DEGREE_EM
         val glyph = GLYPH_DP_AT_124 * size / GLYPH_BASE_DIGITS
+        val side = maxOf(degree, glyph)
+        val centering = centeringSide(degree.toFloat(), glyph.toFloat())
         val available = widthDp - 2 * SIDE_MARGIN_DP
-        // Ширина: цифры и градус растут с масштабом, значок нет; правая колонка шире из двух, поэтому нужны оба условия.
-        if (text + degree <= 0.0 || text <= 0.0) return 1f
-        return minOf(available / (text + degree), (available - glyph) / text).toFloat().coerceAtLeast(1f)
+        if (text <= 0.0) return 1f
+        val left = available / (text + centering)
+        // Правый край значка: середина экрана плюс половина цифр с зазором, плюс вся колонка без половины центровки.
+        val rightReach = text / 2 + side - centering / 2
+        val right = (widthDp / 2 - SIDE_MARGIN_DP) / rightReach
+        return minOf(left, right).toFloat().coerceAtLeast(1f)
     }
 }

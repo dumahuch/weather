@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.Dp
-import io.github.dumahuch.pogodaapp.weather.Condition
 
 /**
  * Рисует линейный значок 24×24 с заданной толщиной линии (в единицах значка).
@@ -43,14 +42,3 @@ fun LineIconView(
 }
 
 private const val ICON_VIEWPORT = 24f
-
-/** Значок вида погоды; ночью ясно и переменная облачность рисуются с луной. */
-fun iconFor(condition: Condition, isDay: Boolean): LineIcon = when (condition) {
-    Condition.Clear -> if (isDay) LineIcons.Sun else LineIcons.Moon
-    Condition.Partly -> if (isDay) LineIcons.PartlyCloudy else LineIcons.PartlyCloudyNight
-    Condition.Cloudy -> LineIcons.Cloud
-    Condition.Rain -> LineIcons.Rain
-    Condition.Storm -> LineIcons.Storm
-    Condition.Snow -> LineIcons.Snow
-    Condition.Fog -> LineIcons.Fog
-}

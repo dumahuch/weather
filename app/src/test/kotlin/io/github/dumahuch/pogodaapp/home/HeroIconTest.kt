@@ -61,4 +61,23 @@ class HeroIconTest {
         assertFalse(isStrongWind(38.9))
         assertTrue(isStrongWind(39.0))
     }
+
+    @Test
+    fun stormWithRainOnlyWhenPrecipitationIsAtLeastTheThreshold() {
+        assertEquals(HeroIcon.Storm, heroIconFor(Condition.Storm, isDay = true))
+        assertEquals(HeroIcon.Storm, heroIconFor(Condition.Storm, isDay = true, wet = false))
+        assertEquals(HeroIcon.StormRain, heroIconFor(Condition.Storm, isDay = false, wet = true))
+        assertFalse(isStormWet(null))
+        assertFalse(isStormWet(0.0))
+        assertFalse(isStormWet(STORM_RAIN_MM - 0.01))
+        assertTrue(isStormWet(STORM_RAIN_MM))
+        assertTrue(isStormWet(2.4))
+    }
+
+    @Test
+    fun wetFlagChangesNothingExceptTheStorm() {
+        for (c in Condition.entries.filter { it != Condition.Storm }) {
+            assertEquals(heroIconFor(c, isDay = true), heroIconFor(c, isDay = true, wet = true))
+        }
+    }
 }

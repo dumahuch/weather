@@ -48,20 +48,21 @@ import io.github.dumahuch.pogodaapp.forecast.RangeSpan
 import io.github.dumahuch.pogodaapp.forecast.TemperatureRange
 import io.github.dumahuch.pogodaapp.forecast.dayPrecipitationText
 import io.github.dumahuch.pogodaapp.home.HomeUiState
+import io.github.dumahuch.pogodaapp.home.isStormWet
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.DayRowsSkeleton
-import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
-import io.github.dumahuch.pogodaapp.ui.components.iconFor
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.NoPermissionTop
+import io.github.dumahuch.pogodaapp.ui.home.SmallWeatherGlyph
 import io.github.dumahuch.pogodaapp.ui.home.StateCard
 import io.github.dumahuch.pogodaapp.ui.home.StateTop
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 import io.github.dumahuch.pogodaapp.weather.DayForecast
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourPoint
@@ -69,7 +70,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
-import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 
 /** Строк в списке по дням и их плотность: 7 дней просторно, 14 дней плотно. */
 private const val COMPACT_DAYS = 14
@@ -334,7 +334,7 @@ private fun DayRow(
             }
         }
         Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) {
-            LineIconView(iconFor(day.condition, isDay = true), if (compact) 19.dp else 24.dp, palette.ink)
+            SmallWeatherGlyph(day.condition, isDay = true, wet = isStormWet(day.precipitationMm), size = if (compact) 19.dp else 24.dp)
         }
         PrecipitationCell(day, compact, locale, Modifier.width(PrecipitationColumnWidth))
         Text(

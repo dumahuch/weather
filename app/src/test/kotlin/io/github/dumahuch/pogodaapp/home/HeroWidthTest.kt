@@ -44,4 +44,34 @@ class HeroWidthTest {
         // Минус 0,54 и две цифры.
         assertEquals(0.54 + 2 * 0.62 - 3 * 0.035, HeroWidth.digitsEm("−12"), 1e-9)
     }
+
+    @Test
+    fun theIconGrowsWithTheDigitsAndKeepsTheOldSizeAtScaleOne() {
+        assertEquals(72f, HeroWidth.glyphDp(124, 1f), 1e-3f)
+        assertEquals(72f * 1.3f, HeroWidth.glyphDp(124, 1.3f), 1e-3f)
+        // Мелкие цифры «−12» (94 sp) дают значок в той же доле.
+        assertEquals(72f * 94 / 124, HeroWidth.glyphDp(94, 1f), 1e-3f)
+    }
+
+    @Test
+    fun centeringCountsTheDegreeFullyAndHalfOfTheWiderIcon() {
+        assertEquals(20f, HeroWidth.centeringSide(degree = 20f, glyph = 0f), 1e-4f)
+        assertEquals(20f, HeroWidth.centeringSide(degree = 20f, glyph = 15f), 1e-4f)
+        assertEquals(20f + (94f - 20f) * HeroWidth.ICON_CENTER_WEIGHT, HeroWidth.centeringSide(20f, 94f), 1e-4f)
+    }
+
+    @Test
+    fun theGrownBlockStillFitsOnThePhoneAtTheLimit() {
+        // Значок и цифры растут вместе: на 411 dp «66°» при предельном масштабе помещается с запасом 8 dp по краям.
+        val width = 411.0
+        val scale = HeroWidth.maxScale("66", 124, 411f, 1f).coerceAtMost(HeroFit.MAX_SCALE).toDouble()
+        val text = 124.0 * scale * (HeroWidth.digitsEm("66") + HeroWidth.DEGREE_SCALE * HeroWidth.DEGREE_GAP_EM)
+        val degree = 124.0 * scale * (0.45 * HeroWidth.DEGREE_SCALE - HeroWidth.DEGREE_PULL_EM)
+        val glyph = HeroWidth.glyphDp(124, scale.toFloat()).toDouble()
+        val centering = HeroWidth.centeringSide(degree.toFloat(), glyph.toFloat())
+        val left = (width - (text + centering)) / 2
+        val right = width - (left + text + maxOf(degree, glyph))
+        assertTrue("слева $left", left >= 8.0 - 1e-6)
+        assertTrue("справа $right", right >= 8.0 - 1e-6)
+    }
 }

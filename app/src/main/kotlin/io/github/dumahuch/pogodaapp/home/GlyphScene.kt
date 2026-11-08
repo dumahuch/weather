@@ -1,5 +1,7 @@
 package io.github.dumahuch.pogodaapp.home
 
+import io.github.dumahuch.pogodaapp.weather.Condition
+
 /**
  * Геометрия значков погоды (step-42, по образцам Димы 07.11.2026). Один рисунок на оба набора: стеклянный и контурный
  * отличаются только исполнением (стекло с размытием того, что за облаком, или линия с зазором), форма та же.
@@ -149,11 +151,33 @@ internal object GlyphScenes {
             windyWetCloud,
         )
         HeroIcon.Storm -> GlyphScene(listOf(GlyphPart.Bolt(BOLT.map { (x, y) -> x - 0.4f to y - 0.6f })), wetCloud)
+        // Гроза с дождём (решение Димы 08.11.2026): молния правее центра, два ряда штрихов слева, справа штрихов нет.
+        HeroIcon.StormRain -> GlyphScene(
+            listOf(
+                rain(listOf(Column(5.6f, 12.6f, 3), Column(8.2f, 14.4f, 2)), RAIN_SLANT),
+                GlyphPart.Bolt(BOLT.map { (x, y) -> x - 0.4f + STORM_RAIN_SHIFT to y - 0.6f }),
+            ),
+            wetCloud,
+        )
         HeroIcon.Wind -> GlyphScene(listOf(wind(-1.5f, -5.5f, 1.15f)), null)
         HeroIcon.Fog -> GlyphScene(
             listOf(GlyphPart.Fog(listOf(Segment(4f, 9.5f, 17f, 9.5f), Segment(7f, 14f, 20f, 14f), Segment(4f, 18.5f, 15.5f, 18.5f)))),
             null,
         )
+    }
+
+    /**
+     * Значок для мелких мест (лента, «Прогноз», подробности дня): та же форма, что на «Главной», но ясно рисуется
+     * солнцем с лучами или месяцем (неба за значком нет), а туман это облако с двумя полосами (три полосы без облака в
+     * списке похожи на значок меню). Ветра нет. [wet]: у грозы идут осадки ([isStormWet]).
+     */
+    fun small(condition: Condition, isDay: Boolean, wet: Boolean): GlyphScene = when (condition) {
+        Condition.Clear -> clear(isDay)
+        Condition.Fog -> GlyphScene(
+            listOf(GlyphPart.Fog(listOf(Segment(5.5f, 17.6f, 16.5f, 17.6f), Segment(8.5f, 21f, 19.5f, 21f)))),
+            wetCloud,
+        )
+        else -> of(heroIconFor(condition, isDay, windy = false, wet = wet) ?: HeroIcon.Clouds)
     }
 
     /** Ясное небо для уведомления (на «Главной» солнце и луна нарисованы на небе): солнце с лучами или месяц по центру. */
@@ -189,6 +213,7 @@ internal object GlyphScenes {
     }
 
     private const val DASH = 2.2f
+    private const val STORM_RAIN_SHIFT = 1.4f
     private const val DASH_PERIOD = 3.8f
     private const val RAIN_TOP = 11f
     private const val RAIN_SLANT = 0.25f
