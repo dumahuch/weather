@@ -74,14 +74,7 @@ object LineIcons {
         ),
     )
 
-    /** Стрелка «назад» (Lucide chevron-left). */
-    val ChevronLeft = LineIcon(
-        listOf(
-            "m15 18-6-6 6-6",
-        ),
-    )
-
-    /** Стрелка вниз у плашки места (Lucide chevron-down): плашка открывает список мест. */
+    /** Стрелка вниз (Lucide chevron-down): плашка места открывает список мест, свёрнутый раздел настроек разворачивается. */
     val ChevronDown = LineIcon(
         listOf(
             "m6 9 6 6 6-6",

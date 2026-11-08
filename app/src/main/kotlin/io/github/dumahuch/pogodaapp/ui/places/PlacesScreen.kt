@@ -61,7 +61,6 @@ import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassButton
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
-import io.github.dumahuch.pogodaapp.ui.forecast.BackButton
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 
 /** Всё, что показывает экран мест. Собирается из состояния модели главного экрана. */
@@ -104,7 +103,7 @@ fun PlacesScreen(
     modifier: Modifier = Modifier,
 ) {
     if (searching) {
-        SearchPage(ui, actions, onBack = { onSearching(false) }, onDone = onClose, modifier = modifier)
+        SearchPage(ui, actions, onDone = onClose, modifier = modifier)
     } else {
         ListPage(ui, actions, onSearch = { onSearching(true) }, onClose = onClose, modifier = modifier)
     }
@@ -129,7 +128,7 @@ private fun ListPage(
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Header(title = stringResource(R.string.places_title), onBack = onClose)
+        Header(title = stringResource(R.string.places_title))
         Column(Modifier.fillMaxWidth().glassCard(CardShape, glass)) {
             PlaceRow(
                 icon = LineIcons.Navigation,
@@ -190,7 +189,6 @@ private fun ListPage(
 private fun SearchPage(
     ui: PlacesUiState,
     actions: PlacesActions,
-    onBack: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -204,10 +202,7 @@ private fun SearchPage(
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BackButton(onBack)
-            SearchField(initial = ui.query, onQuery = actions.onQuery, modifier = Modifier.weight(1f))
-        }
+        SearchField(initial = ui.query, onQuery = actions.onQuery, modifier = Modifier.fillMaxWidth())
         WideButton(
             icon = LineIcons.Locate,
             label = stringResource(R.string.places_locate),
@@ -305,11 +300,8 @@ private fun SuggestionRow(item: PlaceSuggestion, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Header(title: String, onBack: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        BackButton(onBack)
-        Text(title, style = pogodaText(20f, 600, lineHeight = 1.2f), maxLines = 1)
-    }
+private fun Header(title: String) {
+    Text(title, style = pogodaText(20f, 600, lineHeight = 1.2f), maxLines = 1)
 }
 
 /**

@@ -1,9 +1,14 @@
 package io.github.dumahuch.pogodaapp.settings
 
+import io.github.dumahuch.pogodaapp.weather.PollenKind
+import io.github.dumahuch.pogodaapp.weather.PollenNotice
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.LocalDate
 
 class AppSettingsTest {
 
@@ -132,6 +137,39 @@ class AppSettingsTest {
         assertEquals(writes, storage.writes)
         settings.setRainSoonNotified(false)
         assertFalse(AppSettings(storage).rainSoonNotified())
+    }
+
+    @Test
+    fun pollenToggleKindsAndDatesAreStored() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        assertEquals(PollenNotice.DEFAULT_KINDS, settings.pollenKinds.value)
+        settings.setPollenKind(PollenKind.Hazel, true)
+        settings.setPollenKind(PollenKind.Birch, false)
+        val writes = storage.writes
+        settings.setPollenKind(PollenKind.Hazel, true)
+        assertEquals(writes, storage.writes)
+        assertEquals(setOf(PollenKind.Hazel, PollenKind.Grass, PollenKind.Mugwort, PollenKind.Ragweed), AppSettings(storage).pollenKinds.value)
+        PollenKind.entries.forEach { settings.setPollenKind(it, false) }
+        assertEquals(emptySet<PollenKind>(), AppSettings(storage).pollenKinds.value)
+        assertNull(settings.pollenNotifiedOn())
+        assertNull(settings.pollenCheckedAt())
+        settings.setPollenNotifiedOn(LocalDate.of(2026, 4, 20))
+        settings.setPollenCheckedAt(Instant.parse("2026-04-20T09:00:00Z"))
+        assertEquals(LocalDate.of(2026, 4, 20), AppSettings(storage).pollenNotifiedOn())
+        assertEquals(Instant.parse("2026-04-20T09:00:00Z"), AppSettings(storage).pollenCheckedAt())
+        settings.setNotification(NotificationToggle.Pollen, true)
+        val restored = AppSettings(storage).notifications.value
+        assertEquals(NotificationPrefs(pollen = true), restored)
+        assertTrue(restored.background)
+    }
+
+    @Test
+    fun enabledCountCountsEveryToggle() {
+        assertEquals(0, NotificationPrefs().enabledCount)
+        assertEquals(2, NotificationPrefs(inShade = true, pollen = true).enabledCount)
+        val all = NotificationPrefs(true, true, true, true, true, true)
+        assertEquals(NotificationPrefs.TOGGLE_COUNT, all.enabledCount)
     }
 
     @Test

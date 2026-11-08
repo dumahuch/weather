@@ -1,8 +1,13 @@
 package io.github.dumahuch.pogodaapp.ui.settings
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -10,10 +15,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,10 +25,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -38,15 +48,21 @@ import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
-import io.github.dumahuch.pogodaapp.ui.forecast.BackButton
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.weather.PollenKind
 
 private val CardShape = RoundedCornerShape(24.dp)
 
+/** Нет открытого раздела. */
+private const val NONE = -1
+private const val SECTION_VIEW = 0
+private const val SECTION_NOTIFICATIONS = 1
+
 /**
- * Экран настроек (с версии 0.5.4): «Значки погоды» (step-27) и «Тень карточек», по два варианта, и «Уведомления» (0.7.0) с тремя
- * выключателями. Карточки с выбором сами стеклянные и лежат на небе, поэтому смена видна сразу. Открывается шестерёнкой
- * на «Главной», закрывается кнопкой «назад».
+ * Экран настроек. Разделы «Вид» (значки погоды, тень карточек) и «Уведомления» (выключатели, виды пыльцы) свёрнуты в
+ * карточки с названием, строкой о состоянии и стрелкой; нажатие раскрывает раздел на месте, открыт один (08.11.2026).
+ * Карточки стеклянные и лежат на небе, поэтому смена вида видна сразу. Открывается шестерёнкой на «Главной», закрывается
+ * системным жестом «назад» (кнопки «назад» в приложении нет, решение Димы 08.11.2026).
  */
 @Composable
 fun SettingsScreen(
@@ -56,11 +72,15 @@ fun SettingsScreen(
     onIconStyle: (WeatherIconStyle) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    pollenKinds: Set<PollenKind>,
+    onPollenKind: (PollenKind, Boolean) -> Unit,
     noticeError: String?,
-    onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val glass = LocalGlass.current
+    var open by rememberSaveable { mutableIntStateOf(NONE) }
+    fun toggleSection(section: Int) {
+        open = if (open == section) NONE else section
+    }
     Column(
         modifier
             .fillMaxSize()
@@ -70,16 +90,20 @@ fun SettingsScreen(
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BackButton(onClose)
-            Text(stringResource(R.string.settings_title), style = pogodaText(20f, 600, lineHeight = 1.2f), maxLines = 1)
-        }
-        Column(Modifier.fillMaxWidth().glassCard(CardShape, glass).padding(vertical = 8.dp)) {
-            Text(
-                stringResource(R.string.settings_icons),
-                style = pogodaText(15f, 600),
-                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 2.dp),
-            )
+        Text(stringResource(R.string.settings_title), style = pogodaText(20f, 600, lineHeight = 1.2f), maxLines = 1)
+        val iconName = stringResource(
+            if (iconStyle == WeatherIconStyle.Glass) R.string.settings_icons_glass else R.string.settings_icons_outline,
+        )
+        val shadowName = stringResource(
+            if (cardShadow == CardShadow.Soft) R.string.settings_shadow_soft else R.string.settings_shadow_strong,
+        )
+        SectionCard(
+            title = stringResource(R.string.settings_section_view),
+            summary = "$iconName · $shadowName",
+            expanded = open == SECTION_VIEW,
+            onToggle = { toggleSection(SECTION_VIEW) },
+        ) {
+            SectionHeading(stringResource(R.string.settings_icons))
             Column(Modifier.selectableGroup()) {
                 ChoiceOption(
                     title = stringResource(R.string.settings_icons_glass),
@@ -94,13 +118,7 @@ fun SettingsScreen(
                     onClick = { onIconStyle(WeatherIconStyle.Outline) },
                 )
             }
-        }
-        Column(Modifier.fillMaxWidth().glassCard(CardShape, glass).padding(vertical = 8.dp)) {
-            Text(
-                stringResource(R.string.settings_card_shadow),
-                style = pogodaText(15f, 600),
-                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 2.dp),
-            )
+            SectionHeading(stringResource(R.string.settings_card_shadow))
             Column(Modifier.selectableGroup()) {
                 ChoiceOption(
                     title = stringResource(R.string.settings_shadow_soft),
@@ -116,12 +134,17 @@ fun SettingsScreen(
                 )
             }
         }
-        Column(Modifier.fillMaxWidth().glassCard(CardShape, glass).padding(vertical = 8.dp)) {
-            Text(
-                stringResource(R.string.settings_notifications),
-                style = pogodaText(15f, 600),
-                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 2.dp),
-            )
+        val enabled = notifications.enabledCount
+        SectionCard(
+            title = stringResource(R.string.settings_notifications),
+            summary = if (enabled == 0) {
+                stringResource(R.string.settings_summary_off)
+            } else {
+                stringResource(R.string.settings_summary_on, enabled, NotificationPrefs.TOGGLE_COUNT)
+            },
+            expanded = open == SECTION_NOTIFICATIONS,
+            onToggle = { toggleSection(SECTION_NOTIFICATIONS) },
+        ) {
             ToggleOption(
                 title = stringResource(R.string.settings_notify_shade),
                 hint = stringResource(R.string.settings_notify_shade_hint),
@@ -154,6 +177,24 @@ fun SettingsScreen(
                 checked = notifications.rainSoon,
                 onChange = { onNotification(NotificationToggle.RainSoon, it) },
             )
+            ToggleOption(
+                title = stringResource(R.string.settings_notify_pollen),
+                hint = stringResource(R.string.settings_notify_pollen_hint),
+                checked = notifications.pollen,
+                onChange = { onNotification(NotificationToggle.Pollen, it) },
+            )
+            // Виды пыльцы нужны только при включённом уведомлении о ней.
+            if (notifications.pollen) {
+                SectionHeading(stringResource(R.string.settings_pollen_kinds))
+                val names = stringArrayResource(R.array.pollen_kinds)
+                PollenKind.entries.forEach { kind ->
+                    CheckOption(
+                        title = names[kind.ordinal],
+                        checked = kind in pollenKinds,
+                        onChange = { onPollenKind(kind, it) },
+                    )
+                }
+            }
             // Ошибка уведомления (0.7.2): текст для снимка экрана, пока журнала падений у приложения нет.
             noticeError?.let {
                 Text(
@@ -162,6 +203,74 @@ fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
                 )
             }
+        }
+    }
+}
+
+/**
+ * Раздел настроек: свёрнутый это название, строка о состоянии и стрелка вниз, развёрнутый та же карточка, увеличенная
+ * на месте (стрелка повёрнута вверх). Нажатие по всей шапке.
+ */
+@Composable
+private fun SectionCard(
+    title: String,
+    summary: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val palette = LocalPogodaPalette.current
+    val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "settings-arrow")
+    Column(Modifier.fillMaxWidth().glassCard(CardShape, LocalGlass.current).animateContentSize()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 68.dp)
+                .clickable(role = Role.Button, onClick = onToggle)
+                .padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = pogodaText(17f, 600))
+                Text(summary, style = pogodaText(13f, 400, color = palette.ink2), maxLines = 1)
+            }
+            LineIconView(LineIcons.ChevronDown, 22.dp, palette.ink2, Modifier.rotate(angle))
+        }
+        if (expanded) {
+            Column(Modifier.padding(bottom = 10.dp), content = content)
+        }
+    }
+}
+
+/** Подзаголовок внутри развёрнутого раздела. */
+@Composable
+private fun SectionHeading(text: String) {
+    Text(
+        text,
+        style = pogodaText(15f, 600),
+        modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 2.dp),
+    )
+}
+
+/** Строка с галочкой для выбора нескольких из списка; нажатие по всей строке (высота не меньше 48 dp). */
+@Composable
+private fun CheckOption(title: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val palette = LocalPogodaPalette.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange)
+            .padding(horizontal = 18.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text(title, style = pogodaText(16f, if (checked) 600 else 500), modifier = Modifier.weight(1f))
+        if (checked) {
+            LineIconView(LineIcons.Check, 22.dp, palette.accent)
+        } else {
+            Spacer(Modifier.size(22.dp))
         }
     }
 }

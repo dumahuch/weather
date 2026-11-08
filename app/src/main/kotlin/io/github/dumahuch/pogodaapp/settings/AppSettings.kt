@@ -1,9 +1,14 @@
 package io.github.dumahuch.pogodaapp.settings
 
 import android.content.Context
+import io.github.dumahuch.pogodaapp.weather.PollenKind
+import io.github.dumahuch.pogodaapp.weather.PollenNotice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.time.Instant
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 
 /**
  * Тень карточек (решение Димы 31.10.2026): «Мягкая» это стекло как до версии 0.5.3, «Выраженная» добавляет вторую тень,
@@ -39,7 +44,7 @@ enum class WeatherIconStyle(val key: String) {
 /**
  * Выключатели уведомлений (0.7.0, решения Димы 07.11.2026), все по умолчанию выключены. Число в строке состояния
  * Android показывает только как значок уведомления, поэтому при нём запись в шторке тоже есть. [alerts] это
- * предупреждения DWD в фоне (шаг 2), [rainSoon] «скоро дождь» по радару DWD (шаг 3).
+ * предупреждения DWD в фоне (шаг 2), [rainSoon] «скоро дождь» по радару DWD (шаг 3), [pollen] пыльца по индексу DWD (шаг 4).
  */
 data class NotificationPrefs(
     val inShade: Boolean = false,
@@ -47,12 +52,20 @@ data class NotificationPrefs(
     val placeOnLockScreen: Boolean = false,
     val alerts: Boolean = false,
     val rainSoon: Boolean = false,
+    val pollen: Boolean = false,
 ) {
     /** Уведомление о погоде нужно, если включена шторка или строка состояния. */
     val wanted: Boolean get() = inShade || inStatusBar
 
     /** Фоновое обновление нужно, если нужно уведомление о погоде, предупреждения или «скоро дождь». */
-    val background: Boolean get() = wanted || alerts || rainSoon
+    val background: Boolean get() = wanted || alerts || rainSoon || pollen
+
+    /** Сколько выключателей включено (для строки раздела «Уведомления»); всего их [TOGGLE_COUNT]. */
+    val enabledCount: Int get() = listOf(inShade, inStatusBar, placeOnLockScreen, alerts, rainSoon, pollen).count { it }
+
+    companion object {
+        const val TOGGLE_COUNT = 6
+    }
 }
 
 /** Один выключатель уведомления и ключ, под которым он хранится. */
@@ -62,6 +75,7 @@ enum class NotificationToggle(val key: String) {
     LockScreenPlace("notify_lock_place"),
     Alerts("notify_alerts"),
     RainSoon("notify_rain_soon"),
+    Pollen("notify_pollen"),
 }
 
 /** Где лежат настройки: ключи и значения строками, чтобы логику можно было проверить без Android. */
@@ -84,6 +98,37 @@ class AppSettings(private val storage: SettingsStorage) {
 
     fun setRainSoonNotified(value: Boolean) {
         if (rainSoonNotified() != value) storage.write(RAIN_NOTIFIED, if (value) ON else OFF)
+    }
+
+    private val mutablePollenKinds = MutableStateFlow(PollenNotice.decodeKinds(storage.read(POLLEN_KINDS)))
+
+    /** Виды пыльцы для уведомления (решение Димы 08.11.2026: по умолчанию берёза, злаки, полынь, амброзия). */
+    val pollenKinds: StateFlow<Set<PollenKind>> = mutablePollenKinds.asStateFlow()
+
+    fun setPollenKind(kind: PollenKind, on: Boolean) {
+        val current = mutablePollenKinds.value
+        val next = if (on) current + kind else current - kind
+        if (next == current) return
+        mutablePollenKinds.value = next
+        storage.write(POLLEN_KINDS, PollenNotice.encodeKinds(next))
+    }
+
+    /** День, за который уведомление о пыльце уже было; `null`, если не было. */
+    fun pollenNotifiedOn(): LocalDate? = try {
+        storage.read(POLLEN_NOTIFIED)?.let { LocalDate.parse(it) }
+    } catch (e: DateTimeParseException) {
+        null
+    }
+
+    fun setPollenNotifiedOn(day: LocalDate) {
+        storage.write(POLLEN_NOTIFIED, day.toString())
+    }
+
+    /** Когда в последний раз успешно скачивали файл DWD с пыльцой; `null`, если ещё не качали. */
+    fun pollenCheckedAt(): Instant? = storage.read(POLLEN_CHECKED)?.toLongOrNull()?.let { Instant.ofEpochMilli(it) }
+
+    fun setPollenCheckedAt(at: Instant) {
+        storage.write(POLLEN_CHECKED, at.toEpochMilli().toString())
     }
 
     private val mutableCardShadow = MutableStateFlow(CardShadow.fromKey(storage.read(CARD_SHADOW)))
@@ -113,6 +158,7 @@ class AppSettings(private val storage: SettingsStorage) {
             placeOnLockScreen = flag(NotificationToggle.LockScreenPlace),
             alerts = flag(NotificationToggle.Alerts),
             rainSoon = flag(NotificationToggle.RainSoon),
+            pollen = flag(NotificationToggle.Pollen),
         ),
     )
 
@@ -126,6 +172,7 @@ class AppSettings(private val storage: SettingsStorage) {
             NotificationToggle.LockScreenPlace -> current.copy(placeOnLockScreen = on)
             NotificationToggle.Alerts -> current.copy(alerts = on)
             NotificationToggle.RainSoon -> current.copy(rainSoon = on)
+            NotificationToggle.Pollen -> current.copy(pollen = on)
         }
         if (next == current) return
         mutableNotifications.value = next
@@ -161,6 +208,9 @@ class AppSettings(private val storage: SettingsStorage) {
         const val NOTIFY_ERROR_MAX = 400
         const val NOTIFIED_ALERTS = "notified_alerts"
         const val RAIN_NOTIFIED = "rain_soon_notified"
+        const val POLLEN_KINDS = "pollen_kinds"
+        const val POLLEN_NOTIFIED = "pollen_notified_on"
+        const val POLLEN_CHECKED = "pollen_checked_at"
         private const val ON = "1"
         private const val OFF = "0"
     }
