@@ -1,6 +1,6 @@
 # Версии проверены 28.10.2026 по реестрам Google Maven и Maven Central (шаг 1: lifecycle, coroutines, org.json).
 [versions]
-agp = "9.5.0"
+agp = "9.5.1"
 kotlin = "2.4.21"
 composeBom = "2026.09.00"
 activityCompose = "1.13.0"
