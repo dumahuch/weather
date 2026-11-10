@@ -13,6 +13,8 @@ internal data class SkyOverride(
     val moonCycle: Double? = null,
     /** Сильный ветер для значка у температуры (step-42): `true` показывает значок с ветром. */
     val windy: Boolean? = null,
+    /** Гроза с дождём для значка у температуры (0.7.13): `true` показывает мокрую грозу, настоящих осадков не нужно. */
+    val wet: Boolean? = null,
 ) {
-    val active: Boolean get() = solarHour != null || condition != null || moonCycle != null || windy != null
+    val active: Boolean get() = solarHour != null || condition != null || moonCycle != null || windy != null || wet != null
 }

@@ -351,7 +351,7 @@ internal fun ContentTop(
             LocalHeroConditionOverride.current ?: current.condition,
             isDay = heroDay,
             windy = LocalHeroWindOverride.current ?: isStrongWind(details?.windKmh),
-            wet = isStormWet(hourNow?.precipitationMm),
+            wet = LocalHeroWetOverride.current ?: isStormWet(hourNow?.precipitationMm),
         ),
         iconStyle = LocalWeatherIconStyle.current,
         night = !heroDay,

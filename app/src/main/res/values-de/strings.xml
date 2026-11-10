@@ -254,6 +254,13 @@
     <string name="settings_notify_pollen_hint">Einmal täglich ein Hinweis, wenn die Pollenbelastung heute für eine gewählte Art mindestens mittel bis hoch ist, nach dem DWD-Index, für den Ort, an dem Sie die App zuletzt geöffnet haben. Nur in Deutschland. Zwischen 7 und 21 Uhr.</string>
     <string name="settings_pollen_kinds">Pollenarten für den Hinweis</string>
     <string name="settings_section_view">Darstellung</string>
+    <string name="settings_section_about">Über die App</string>
+    <string name="settings_about_summary">Datenquellen und Lizenzen</string>
+    <string name="about_forecast_title">Vorhersage und Luftqualität</string>
+    <string name="about_forecast_text">Open-Meteo.com, Lizenz CC BY 4.0. Luftqualität aus dem CAMS-Modell.</string>
+    <string name="about_dwd_title">Warnungen, Pollen, Regenradar</string>
+    <string name="about_places_title">Ortssuche</string>
+    <string name="about_places_text">GeoNames (geonames.org), Lizenz CC BY 4.0, über den Geocoding-Dienst von Open-Meteo.</string>
     <string name="settings_summary_off">Alles aus</string>
     <string name="settings_summary_on">%1$d von %2$d an</string>
     <string name="settings_notify_error">Fehler der Benachrichtigung: %1$s</string>

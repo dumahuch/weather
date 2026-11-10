@@ -48,6 +48,16 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
         withPermission { guarded { alerts.showSample() } }
     }
 
+    /** Кнопка экрана проверки: учебное «Скоро дождь». */
+    fun showSampleRain() {
+        withPermission { guarded { rain.showSample() } }
+    }
+
+    /** Кнопка экрана проверки: учебное уведомление о пыльце. */
+    fun showSamplePollen() {
+        withPermission { guarded { pollen.showSample() } }
+    }
+
     private fun withPermission(action: () -> Unit) {
         if (allowed()) {
             action()

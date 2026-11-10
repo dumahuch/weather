@@ -17,6 +17,23 @@ import kotlin.math.roundToInt
 class GlassTest {
 
     @Test
+    fun blurChunksCoverTheWholeHeightAndStayUnderTheLimit() {
+        listOf(0, 1, 359, 360, 361, 1000, 3120, 4725, 12000).forEach { height ->
+            val edges = chunkEdges(height, 360)
+            assertEquals("начало, высота $height", 0, edges.first())
+            assertEquals("конец, высота $height", height, edges.last())
+            edges.zipWithNext().forEach { (top, bottom) ->
+                assertTrue("кусок $top..$bottom выше предела, высота $height", bottom - top <= 360)
+                assertTrue("кусок $top..$bottom отрицательный, высота $height", bottom >= top)
+            }
+        }
+        assertEquals(listOf(0, 0), chunkEdges(0, 360))
+        assertEquals(listOf(0, 360), chunkEdges(360, 360))
+        assertEquals(listOf(0, 180, 361), chunkEdges(361, 360))
+        assertEquals(6, chunkEdges(1700, 360).size)
+    }
+
+    @Test
     fun blurNoiseAndColourFollowTheMockupFormulas() {
         assertEquals(0.10f, GlassBlur.noise(0f), 1e-6f)
         assertEquals(0.16f, GlassBlur.noise(1f), 1e-6f)

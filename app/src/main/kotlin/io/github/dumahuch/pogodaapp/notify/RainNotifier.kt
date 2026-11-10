@@ -66,6 +66,12 @@ class RainNotifier(private val context: Context) {
         settings().setRainSoonNotified(false)
     }
 
+    /** Учебное уведомление с экрана проверки: «дождь примерно через 25 минут», без записи «уже было». */
+    fun showSample() {
+        if (!manager.areNotificationsEnabled()) return
+        post(SAMPLE_MINUTES)
+    }
+
     private fun post(minutes: Int) {
         createChannel()
         val text = if (minutes <= RainSoon.STEP.toMinutes()) {
@@ -107,5 +113,6 @@ class RainNotifier(private val context: Context) {
         const val CHANNEL_ID = "weather_rain"
         const val NOTIFICATION_ID = 7301
         const val REQUEST_CODE = 300
+        const val SAMPLE_MINUTES = 25
     }
 }

@@ -1,7 +1,14 @@
 package io.github.dumahuch.pogodaapp.ui.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -44,10 +51,10 @@ import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
 import io.github.dumahuch.pogodaapp.settings.NotificationToggle
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.components.GlassCardBox
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
-import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 
@@ -57,9 +64,11 @@ private val CardShape = RoundedCornerShape(24.dp)
 private const val NONE = -1
 private const val SECTION_VIEW = 0
 private const val SECTION_NOTIFICATIONS = 1
+private const val SECTION_ABOUT = 2
 
 /**
- * Экран настроек. Разделы «Вид» (значки погоды, тень карточек) и «Уведомления» (выключатели, виды пыльцы) свёрнуты в
+ * Экран настроек. Разделы «Вид» (значки погоды, тень карточек), «Уведомления» (выключатели, виды пыльцы) и «О приложении»
+ * (источники данных и лицензии, с 0.7.13) свёрнуты в
  * карточки с названием, строкой о состоянии и стрелкой; нажатие раскрывает раздел на месте, открыт один (08.11.2026).
  * Карточки стеклянные и лежат на небе, поэтому смена вида видна сразу. Открывается шестерёнкой на «Главной», закрывается
  * системным жестом «назад» (кнопки «назад» в приложении нет, решение Димы 08.11.2026).
@@ -204,12 +213,37 @@ fun SettingsScreen(
                 )
             }
         }
+        SectionCard(
+            title = stringResource(R.string.settings_section_about),
+            summary = stringResource(R.string.settings_about_summary),
+            expanded = open == SECTION_ABOUT,
+            onToggle = { toggleSection(SECTION_ABOUT) },
+        ) {
+            SourceLine(stringResource(R.string.about_forecast_title), stringResource(R.string.about_forecast_text))
+            // Слово в слово по условию лицензии DWD (подпись нужна при любом использовании данных): не переводится.
+            SourceLine(stringResource(R.string.about_dwd_title), stringResource(R.string.about_dwd_text))
+            SourceLine(stringResource(R.string.about_places_title), stringResource(R.string.about_places_text))
+        }
+    }
+}
+
+/** Строка раздела «О приложении»: источник и условие его использования. */
+@Composable
+private fun SourceLine(title: String, text: String) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(title, style = pogodaText(16f, 500))
+        Text(text, style = pogodaText(13f, 400, color = LocalPogodaPalette.current.ink2))
     }
 }
 
 /**
  * Раздел настроек: свёрнутый это название, строка о состоянии и стрелка вниз, развёрнутый та же карточка, увеличенная
- * на месте (стрелка повёрнута вверх). Нажатие по всей шапке.
+ * на месте (стрелка повёрнута вверх). Нажатие по всей шапке. Строки раскрываются и сворачиваются вместе с высотой карточки и
+ * гаснут по пути (с 0.7.13: раньше при сворачивании они пропадали сразу, и пустая карточка секунду висела прежнего размера).
+ * Карточка выше экрана, поэтому размытие у неё нарезано кусками ([GlassCardBox]).
  */
 @Composable
 private fun SectionCard(
@@ -221,27 +255,37 @@ private fun SectionCard(
 ) {
     val palette = LocalPogodaPalette.current
     val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "settings-arrow")
-    Column(Modifier.fillMaxWidth().glassCard(CardShape, LocalGlass.current).animateContentSize()) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 68.dp)
-                .clickable(role = Role.Button, onClick = onToggle)
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, style = pogodaText(17f, 600))
-                Text(summary, style = pogodaText(13f, 400, color = palette.ink2), maxLines = 1)
+    GlassCardBox(CardShape, LocalGlass.current, Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 68.dp)
+                    .clickable(role = Role.Button, onClick = onToggle)
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, style = pogodaText(17f, 600))
+                    Text(summary, style = pogodaText(13f, 400, color = palette.ink2), maxLines = 1)
+                }
+                LineIconView(LineIcons.ChevronDown, 22.dp, palette.ink2, Modifier.rotate(angle))
             }
-            LineIconView(LineIcons.ChevronDown, 22.dp, palette.ink2, Modifier.rotate(angle))
-        }
-        if (expanded) {
-            Column(Modifier.padding(bottom = 10.dp), content = content)
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(tween(SECTION_MILLIS, easing = FastOutSlowInEasing)) + fadeIn(tween(SECTION_MILLIS)),
+                exit = shrinkVertically(tween(SECTION_MILLIS, easing = FastOutSlowInEasing)) + fadeOut(tween(SECTION_MILLIS / 2)),
+            ) {
+                // animateContentSize: строки, которые появляются внутри раздела (виды пыльцы), сдвигают низ плавно.
+                Column(Modifier.animateContentSize().padding(bottom = 10.dp), content = content)
+            }
         }
     }
 }
+
+/** Длительность раскрытия и сворачивания раздела настроек, мс. */
+private const val SECTION_MILLIS = 260
 
 /** Подзаголовок внутри развёрнутого раздела. */
 @Composable

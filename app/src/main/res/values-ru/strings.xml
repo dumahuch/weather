@@ -256,6 +256,13 @@
     <string name="settings_notify_pollen_hint">Уведомление раз в день, если сегодня нагрузка пыльцой от средней до высокой и выше у выбранного вида, по индексу DWD, для места, где вы последний раз открывали приложение. Только в Германии. Приходит с 7 до 21 часа.</string>
     <string name="settings_pollen_kinds">Виды пыльцы для уведомления</string>
     <string name="settings_section_view">Вид</string>
+    <string name="settings_section_about">О приложении</string>
+    <string name="settings_about_summary">Источники данных и лицензии</string>
+    <string name="about_forecast_title">Прогноз и воздух</string>
+    <string name="about_forecast_text">Open-Meteo.com, лицензия CC BY 4.0. Воздух по модели CAMS.</string>
+    <string name="about_dwd_title">Предупреждения, пыльца, радар дождя</string>
+    <string name="about_places_title">Поиск места</string>
+    <string name="about_places_text">GeoNames (geonames.org), лицензия CC BY 4.0, через сервис геокодирования Open-Meteo.</string>
     <string name="settings_summary_off">Всё выключено</string>
     <string name="settings_summary_on">Включено %1$d из %2$d</string>
     <string name="settings_notify_error">Ошибка уведомления: %1$s</string>

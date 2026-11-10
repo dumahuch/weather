@@ -31,6 +31,9 @@ val LocalHeroSolarHourOverride = staticCompositionLocalOf<Double?> { null }
 /** Сильный ветер, подставленный экраном проверки; `null`: по настоящему ветру. */
 val LocalHeroWindOverride = staticCompositionLocalOf<Boolean?> { null }
 
+/** Экран проверки: гроза с дождём для значка у температуры (пусто: по настоящим осадкам). */
+val LocalHeroWetOverride = staticCompositionLocalOf<Boolean?> { null }
+
 /** Толщина контура в единицах значка: тоньше на крупном значке, толще на мелком (подбирается по размеру, не в настройках). */
 internal fun outlineStroke(size: Dp): Float = if (size.value >= 40f) 1.4f else 1.7f
 
