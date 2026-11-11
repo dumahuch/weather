@@ -123,6 +123,8 @@ internal fun SkyCheckPanel(
     onPollenSample: (Boolean) -> Unit,
     onAlertSample: (Int) -> Unit,
     onSampleAlertNotice: () -> Unit,
+    onSampleRainNotice: () -> Unit,
+    onSamplePollenNotice: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -146,6 +148,8 @@ internal fun SkyCheckPanel(
             onPollenSample = onPollenSample,
             onAlertSample = onAlertSample,
             onSampleAlertNotice = onSampleAlertNotice,
+            onSampleRainNotice = onSampleRainNotice,
+            onSamplePollenNotice = onSamplePollenNotice,
             onCollapse = { collapsed = true },
             onClose = onClose,
             modifier = modifier,
@@ -202,6 +206,8 @@ private fun ExpandedPanel(
     onPollenSample: (Boolean) -> Unit,
     onAlertSample: (Int) -> Unit,
     onSampleAlertNotice: () -> Unit,
+    onSampleRainNotice: () -> Unit,
+    onSamplePollenNotice: () -> Unit,
     onCollapse: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -235,7 +241,13 @@ private fun ExpandedPanel(
             Text(stringResource(R.string.check_no_forecast), style = pogodaText(13f, 500, color = PanelTextDim))
         }
         // Сразу под шапкой: так ряд виден без прокрутки панели (на медленном эмуляторе прокрутка ненадёжна).
-        AlertSection(count = alertSample, onCount = onAlertSample, onNotice = onSampleAlertNotice)
+        AlertSection(
+            count = alertSample,
+            onCount = onAlertSample,
+            onNotice = onSampleAlertNotice,
+            onRainNotice = onSampleRainNotice,
+            onPollenNotice = onSamplePollenNotice,
+        )
 
         Caption(stringResource(R.string.check_scene_title))
         val strongest = snapshot?.weights?.maxByOrNull { it.second }?.first
@@ -266,15 +278,26 @@ private fun ExpandedPanel(
             CheckButton(
                 text = stringResource(label),
                 selected = override.condition == condition,
-                onClick = { onOverride(override.copy(condition = condition)) },
+                onClick = { onOverride(override.copy(condition = condition, wet = null)) },
                 modifier = Modifier.weight(1f),
             )
         }
-        Row(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             CheckButton(
                 text = stringResource(R.string.check_wx_wind),
                 selected = override.windy == true,
                 onClick = { onOverride(override.copy(windy = if (override.windy == true) null else true)) },
+                modifier = Modifier.weight(1f),
+            )
+            // Мокрая гроза (значок с каплями под облаком): на настоящих данных её не вызвать без осадков в этот час.
+            CheckButton(
+                text = stringResource(R.string.check_wx_storm_wet),
+                selected = override.wet == true,
+                onClick = {
+                    onOverride(
+                        if (override.wet == true) override.copy(wet = null) else override.copy(condition = Condition.Storm, wet = true),
+                    )
+                },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -326,10 +349,17 @@ private fun ExpandedPanel(
 
 /**
  * Учебные предупреждения: сколько подставить на «Главную» вместо настоящих (0: настоящие). Кнопка ниже присылает учебное
- * уведомление о предупреждении: видно, как оно приходит, звучит и открывает плашку.
+ * уведомление о предупреждении: видно, как оно приходит, звучит и открывает плашку. Ещё две кнопки присылают учебные
+ * «Скоро дождь» и уведомление о пыльце (0.7.13).
  */
 @Composable
-private fun AlertSection(count: Int, onCount: (Int) -> Unit, onNotice: () -> Unit) {
+private fun AlertSection(
+    count: Int,
+    onCount: (Int) -> Unit,
+    onNotice: () -> Unit,
+    onRainNotice: () -> Unit,
+    onPollenNotice: () -> Unit,
+) {
     Caption(stringResource(R.string.check_alerts_title))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         AlertSampleCounts.forEach { option ->
@@ -342,6 +372,10 @@ private fun AlertSection(count: Int, onCount: (Int) -> Unit, onNotice: () -> Uni
         }
     }
     CheckButton(stringResource(R.string.check_alerts_notice), selected = false, onClick = onNotice, modifier = Modifier.fillMaxWidth())
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        CheckButton(stringResource(R.string.check_notice_rain), selected = false, onClick = onRainNotice, modifier = Modifier.weight(1f))
+        CheckButton(stringResource(R.string.check_notice_pollen), selected = false, onClick = onPollenNotice, modifier = Modifier.weight(1f))
+    }
 }
 
 /** Варианты числа учебных предупреждений: ни одного, одно, три (все видны) и все (видны три и строка «Ещё N»). */

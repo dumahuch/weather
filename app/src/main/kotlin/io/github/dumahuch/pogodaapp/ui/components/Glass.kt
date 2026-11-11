@@ -6,6 +6,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
@@ -34,8 +35,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -188,17 +191,26 @@ internal val ButtonShadow = listOf(ShadowLayer(0f, 8f, 20f, -10f, 1f))
  * то же самое, кроме самого размытия. Если у стекла включена ступень «Выраженная» ([Glass.lifted]), добавляются вторая
  * тень, светлая кромка и вуаль ([CardLift]).
  */
-fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier {
+fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier = glassFrame(shape, glass).glassFill(shape, glass, blur = true)
+
+/** Снаружи карточки: тени, кромка, линия. Заливка и размытие отдельно ([glassFill]). */
+private fun Modifier.glassFrame(shape: Shape, glass: Glass): Modifier {
     val palette = glass.palette
-    val lifted = glass.lifted
     return this
-        .then(if (lifted) Modifier.rasterShadow(shape, CardLift.Shadow, inset = false, color = CardShadowColor) else Modifier)
+        .then(if (glass.lifted) Modifier.rasterShadow(shape, CardLift.Shadow, inset = false, color = CardShadowColor) else Modifier)
         .rasterShadow(shape, CardShadow, inset = false, color = CardShadowColor)
         .clip(shape)
         .rasterShadow(shape, CardRim, inset = true, color = CardRimColor)
         .topHighlight(shape, palette.glassHighlight)
         .border(1.dp, palette.glassLine, shape)
-        .hazeGlass(glass, glass.cardBlur)
+}
+
+/** Внутри карточки: размытый фон (если [blur]), заливка цвета неба, вуаль ступени «Выраженная», блик и светлая кромка. */
+private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean): Modifier {
+    val palette = glass.palette
+    val lifted = glass.lifted
+    return this
+        .then(if (blur) Modifier.hazeGlass(glass, glass.cardBlur) else Modifier)
         .background(palette.glass, shape)
         .then(if (lifted) Modifier.background(CardLift.veil(palette.smoke), shape) else Modifier)
         .background(
@@ -206,6 +218,50 @@ fun Modifier.glassCard(shape: Shape, glass: Glass): Modifier {
             shape,
         )
         .then(if (lifted) Modifier.border(1.dp, Color.White.copy(alpha = CardLift.RIM_ALPHA), shape) else Modifier)
+}
+
+/**
+ * Высокая стеклянная карточка (раскрытый раздел настроек выше экрана). Haze обрезает слой размытия по границам экрана,
+ * поэтому у карточки выше экрана ниже обрыва стекло оставалось без размытия (0.7.12). Здесь размытие делится на куски не выше
+ * [BlurChunk] и лежит под содержимым; заливка, вуаль, блик, тень и линия остаются у всей карточки, вид тот же.
+ */
+@Composable
+fun GlassCardBox(shape: Shape, glass: Glass, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Box(modifier.glassFrame(shape, glass)) {
+        ChunkedBlur(glass, Modifier.matchParentSize())
+        Box(Modifier.matchParentSize().glassFill(shape, glass, blur = false))
+        content()
+    }
+}
+
+/** Наибольшая высота одного куска размытия: заведомо ниже экрана любого из Pixel. */
+private val BlurChunk = 360.dp
+
+/**
+ * Границы кусков размытия для высоты [height] px: поровну, каждый не выше [maxChunk] px, всегда хотя бы один. Первая
+ * граница 0, последняя [height].
+ */
+internal fun chunkEdges(height: Int, maxChunk: Int): List<Int> {
+    val count = ((height + maxChunk - 1) / maxChunk).coerceAtLeast(1)
+    return (0..count).map { index -> (height.toLong() * index / count).toInt() }
+}
+
+/** Куски размытия на всю высоту родителя, поровну; число кусков считается на каждом размере заново. */
+@Composable
+private fun ChunkedBlur(glass: Glass, modifier: Modifier) {
+    if (glass.haze == null) return
+    SubcomposeLayout(modifier) { constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val edges = chunkEdges(height, BlurChunk.roundToPx())
+        val placed = (0 until edges.size - 1).map { index ->
+            val top = edges[index]
+            val bottom = edges[index + 1]
+            val measurable = subcompose(index) { Box(Modifier.hazeGlass(glass, glass.cardBlur)) }.first()
+            top to measurable.measure(Constraints.fixed(width, bottom - top))
+        }
+        layout(width, height) { placed.forEach { (top, placeable) -> placeable.place(0, top) } }
+    }
 }
 
 /** Подложка кнопок и нижней панели: молочнее карточек, своя тень, размытие с насыщением 1,6. */

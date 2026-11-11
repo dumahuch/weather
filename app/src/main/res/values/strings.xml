@@ -258,6 +258,14 @@
     <string name="settings_notify_pollen_hint">A daily notice when the pollen load today is at least moderate to high for a species you pick, from the DWD index, for the place where you last opened the app. Germany only. Sent between 7 am and 9 pm.</string>
     <string name="settings_pollen_kinds">Species to notify about</string>
     <string name="settings_section_view">Appearance</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_about_summary">Data sources and licences</string>
+    <string name="about_forecast_title">Forecast and air quality</string>
+    <string name="about_forecast_text">Open-Meteo.com, licence CC BY 4.0. Air quality from the CAMS model.</string>
+    <string name="about_dwd_title">Warnings, pollen, rain radar</string>
+    <string name="about_places_title">Place search</string>
+    <string name="about_places_text">GeoNames (geonames.org), licence CC BY 4.0, via the Open-Meteo geocoding service.</string>
+    <string name="about_dwd_text" translatable="false">Datenbasis: Deutscher Wetterdienst</string>
     <string name="settings_summary_off">All off</string>
     <string name="settings_summary_on">%1$d of %2$d on</string>
     <string name="settings_notify_error">Notification error: %1$s</string>

@@ -28,8 +28,8 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 /** Вкладки приложения в порядке нижней панели. */
 enum class AppTab(val label: Int, val icon: LineIcon, val enabled: Boolean) {
     Home(R.string.tab_home, LineIcons.Home, enabled = true),
-    Forecast(R.string.tab_forecast, LineIcons.Calendar, enabled = true),
     Details(R.string.tab_details, LineIcons.Grid, enabled = true),
+    Forecast(R.string.tab_forecast, LineIcons.Calendar, enabled = true),
     Map(R.string.tab_map, LineIcons.Map, enabled = false),
 }
 

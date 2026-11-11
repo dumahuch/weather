@@ -76,6 +76,12 @@ class PollenNotifier(private val context: Context) {
         manager.cancel(NOTIFICATION_ID)
     }
 
+    /** Учебное уведомление с экрана проверки: берёза «высокая», злаки «средняя», без записи «уже было». */
+    fun showSample() {
+        if (!manager.areNotificationsEnabled()) return
+        post(listOf(PollenKind.Birch to PollenLevel(6), PollenKind.Grass to PollenLevel(4)))
+    }
+
     private fun post(hits: List<Pair<PollenKind, PollenLevel>>) {
         createChannel()
         val locale = context.resources.configuration.locales[0]

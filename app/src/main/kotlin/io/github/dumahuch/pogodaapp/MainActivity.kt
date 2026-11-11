@@ -55,6 +55,7 @@ import io.github.dumahuch.pogodaapp.ui.PogodaTheme
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.LocalHeroConditionOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalHeroSolarHourOverride
+import io.github.dumahuch.pogodaapp.ui.home.LocalHeroWetOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalHeroWindOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalWeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
@@ -239,6 +240,7 @@ class MainActivity : ComponentActivity() {
                             LocalHeroConditionOverride provides override.condition,
                             LocalHeroSolarHourOverride provides override.solarHour,
                             LocalHeroWindOverride provides override.windy,
+                            LocalHeroWetOverride provides override.wet,
                         ) {
                             PogodaApp(
                                 state = state,
@@ -276,6 +278,8 @@ class MainActivity : ComponentActivity() {
                                 onPollenSample = skyCheck::setPollenSample,
                                 onAlertSample = skyCheck::setAlertSample,
                                 onSampleAlertNotice = notificationSwitches::showSampleAlert,
+                                onSampleRainNotice = notificationSwitches::showSampleRain,
+                                onSamplePollenNotice = notificationSwitches::showSamplePollen,
                                 onClose = skyCheck::close,
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             )
