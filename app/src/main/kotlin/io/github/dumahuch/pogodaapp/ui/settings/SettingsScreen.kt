@@ -297,7 +297,10 @@ private fun SectionHeading(text: String) {
     )
 }
 
-/** Строка с галочкой для выбора нескольких из списка; нажатие по всей строке (высота не меньше 48 dp). */
+/**
+ * Строка с галочкой для выбора нескольких из списка; нажатие по всей строке (высота не меньше 48 dp). У строк настроек нет
+ * подсветки нажатия, наведения и фокуса (0.7.15): при прокрутке длинных карточек на строках появлялись серые полосы (Дима 11.11.2026).
+ */
 @Composable
 private fun CheckOption(title: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val palette = LocalPogodaPalette.current
@@ -305,7 +308,7 @@ private fun CheckOption(title: String, checked: Boolean, onChange: (Boolean) -> 
         Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange)
+            .toggleable(value = checked, interactionSource = null, indication = null, role = Role.Checkbox, onValueChange = onChange)
             .padding(horizontal = 18.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -327,7 +330,7 @@ private fun ToggleOption(title: String, hint: String, checked: Boolean, onChange
         Modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp)
-            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, interactionSource = null, indication = null, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = 18.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -369,7 +372,7 @@ private fun ChoiceOption(title: String, hint: String, selected: Boolean, onClick
         Modifier
             .fillMaxWidth()
             .heightIn(min = 60.dp)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(selected = selected, interactionSource = null, indication = null, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
