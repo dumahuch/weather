@@ -150,10 +150,37 @@ class CloudLayoutTest {
     }
 
     @Test
-    fun cloudCoverIsIgnoredForRainSnowFogAndStorm() {
-        for (condition in listOf(Condition.Rain, Condition.Snow, Condition.Fog, Condition.Storm)) {
+    fun cloudCoverIsIgnoredForRainSnowAndStorm() {
+        for (condition in listOf(Condition.Rain, Condition.Snow, Condition.Storm)) {
             assertEquals("$condition", SkyWeather.of(condition, 1.0), SkyWeather.of(condition, 1.0, 10.0))
         }
+    }
+
+    @Test
+    fun fogLiesUnderSolidCloudWhateverTheForecastSays() {
+        // Дима 11.11.2026: при коде «туман» фон был почти ясным (три облака); туман это сплошная облачность.
+        val overcast = SkyWeather.of(Condition.Cloudy, null, 100.0)
+        val withoutCover = SkyWeather.of(Condition.Fog)
+        assertEquals(overcast.density, withoutCover.density, 1e-9)
+        assertEquals("малый процент поднимается до нижней границы тумана", SkyWeather.of(Condition.Fog, null, 90.0), SkyWeather.of(Condition.Fog, null, 20.0))
+        assertEquals(withoutCover, SkyWeather.of(Condition.Fog, null, 100.0))
+        assertTrue("туман не реже пасмурного: ${withoutCover.density}", withoutCover.density >= SkyWeather.of(Condition.Cloudy, null, 90.0).density)
+        assertTrue("у тумана есть мгла", withoutCover.fog > 0.5)
+        assertTrue("число облаков не меньше, чем при пасмурном: ${clouds(Condition.Fog).size}", clouds(Condition.Fog).size >= clouds(Condition.Cloudy).size - 1)
+    }
+
+    @Test
+    fun sunDiscFadesWithGrayAndFog() {
+        assertEquals("ясно: диск как был", 1.0, SkyWeather.of(Condition.Clear).sunAlpha, 1e-9)
+        assertTrue("при 30 % облаков диск яркий: ${SkyWeather.of(Condition.Partly, null, 30.0).sunAlpha}", SkyWeather.of(Condition.Partly, null, 30.0).sunAlpha > 0.95)
+        for (cover in listOf(50.0, 65.0, 80.0, 100.0)) {
+            val lower = SkyWeather.of(Condition.Cloudy, null, cover).sunAlpha
+            val higher = SkyWeather.of(Condition.Cloudy, null, cover - 10.0).sunAlpha
+            assertTrue("диск бледнее с облачностью: $cover % $lower, ${cover - 10.0} % $higher", lower <= higher)
+        }
+        assertTrue("сплошная облачность: бледное пятно", SkyWeather.of(Condition.Cloudy, null, 100.0).sunAlpha in 0.2..0.4)
+        assertTrue("туман: бледнее всего", SkyWeather.of(Condition.Fog).sunAlpha in 0.2..0.3)
+        assertTrue("диск не исчезает совсем", SkyWeather.of(Condition.Storm, 1.0).sunAlpha >= 0.2)
     }
 
     @Test

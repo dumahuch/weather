@@ -1,8 +1,10 @@
 package io.github.dumahuch.pogodaapp.ui
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -14,6 +16,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
+import io.github.dumahuch.pogodaapp.ui.components.SoftIndication
 
 /**
  * Цвета экрана из макета (дневной вариант). Это нейтральный вид без неба ([PogodaPalette.Neutral]):
@@ -91,8 +94,10 @@ fun PogodaTheme(content: @Composable () -> Unit) {
             surface = PogodaColors.SkyMiddle,
             onSurface = PogodaColors.Ink,
         ),
-        content = content,
-    )
+    ) {
+        // Своя подсветка нажатия вместо волны Material: без серых вспышек строк при прокрутке (0.7.14).
+        CompositionLocalProvider(LocalIndication provides SoftIndication, content = content)
+    }
 }
 
 /** Межбуквенный интервал крупных цифр в макете: −0,035 em. */

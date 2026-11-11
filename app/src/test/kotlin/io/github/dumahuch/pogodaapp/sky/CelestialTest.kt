@@ -28,6 +28,14 @@ class CelestialTest {
     }
 
     @Test
+    fun sunAlphaDimsOnlyTheSunNotTheMoon() {
+        assertEquals(1.0, Celestial.bodies(sun(26.0, 12.0), null).single().alpha, 0.0)
+        assertEquals(0.3, Celestial.bodies(sun(26.0, 12.0), null, MoonSky.DEFAULT_PEAK, 0.3).single().alpha, 1e-9)
+        val night = Celestial.bodies(sun(-30.0, 22.0), moonSky(30.0, 0.0, 0.5), MoonSky.DEFAULT_PEAK, 0.3).single()
+        assertTrue("луна своей яркости: ${night.alpha}", night.moon && night.alpha > 0.7)
+    }
+
+    @Test
     fun moonIsShownAtNightAndInTwilightButNotByDay() {
         val full = moonSky(30.0, 0.0, 0.5)
         assertTrue("днём луны нет", Celestial.bodies(sun(26.0, 12.0), full).none { it.moon })

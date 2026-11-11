@@ -34,15 +34,31 @@ internal data class SkyWeather(
      */
     val cloudLift: Double get() = 1.0 + MAX_CLOUD_LIFT * (1.0 - (gray / LIFT_GRAY_END).coerceIn(0.0, 1.0)) * (1.0 - darkShare.coerceIn(0.0, 1.0))
 
+    /**
+     * Прозрачность диска солнца (0,2…1): на ясном небе 1, с серостью неба и туманом диск бледнеет, при сплошной облачности остаётся
+     * бледное пятно (Дима 11.11.2026: в тумане и под облаками яркий диск не похож на настоящее небо). Свечение у картинки солнца
+     * общее с диском и гаснет вместе с ним.
+     */
+    val sunAlpha: Double get() = ((1.0 - SUN_GRAY_FADE * ((gray - SUN_GRAY_START) / SUN_GRAY_SPAN).coerceIn(0.0, 1.0)) * (1.0 - SUN_FOG_FADE * fog.coerceIn(0.0, 1.0))).coerceAtLeast(MIN_SUN_ALPHA)
+
     companion object {
         private const val MAX_CLOUD_LIFT = 0.14
+        private const val SUN_GRAY_START = 0.1
+        private const val SUN_GRAY_SPAN = 0.55
+        private const val SUN_GRAY_FADE = 0.7
+        private const val SUN_FOG_FADE = 0.6
+        private const val MIN_SUN_ALPHA = 0.2
+
+        /** Туман лежит под сплошной облачностью: при любом проценте из прогноза облака считаются не реже, чем при этой доле неба. */
+        private const val FOG_MIN_COVER = 0.9
         private const val LIFT_GRAY_END = 0.3
 
         /**
          * Небо для вида погоды [condition]. [precipitationMm] осадки текущего часа (мм): у дождя и снега от них зависит
          * густота облаков (морось против ливня); без них берётся средняя сила.
          * [cloudCoverPercent] облачность из прогноза: у ясного, переменного и пасмурного неба облака плавно следуют ей,
-         * а не трём ступеням кода погоды (код 2 это 50–80 % неба, код 3 от 80 %). Остальные виды погоды определяет код.
+         * а не трём ступеням кода погоды (код 2 это 50–80 % неба, код 3 от 80 %). У тумана облака считаются так же, но не реже
+         * [FOG_MIN_COVER], без процента как при сплошной облачности (с 0.7.14). Остальные виды погоды определяет код.
          */
         fun of(condition: Condition, precipitationMm: Double? = null, cloudCoverPercent: Double? = null): SkyWeather {
             if (cloudCoverPercent != null && condition in COVER_CONDITIONS) return byCover(cloudCoverPercent / 100.0)
@@ -54,9 +70,12 @@ internal data class SkyWeather(
                 Condition.Rain -> SkyWeather(cloud = 1.0, gray = 0.72, dark = 0.22, fog = 0.08, wind = 22.0, density = 0.70 + 0.27 * strength)
                 Condition.Storm -> SkyWeather(cloud = 1.0, gray = 0.80, dark = 0.46, fog = 0.0, wind = 55.0, density = 1.0)
                 Condition.Snow -> SkyWeather(cloud = 0.95, gray = 0.70, dark = 0.06, fog = 0.15, wind = 14.0, density = 0.62 + 0.28 * strength)
-                Condition.Fog -> SkyWeather(cloud = 0.30, gray = 0.55, dark = 0.0, fog = 0.9, wind = 4.0, density = 0.10)
+                Condition.Fog -> byCover(maxOf(cloudCoverPercent?.div(100.0) ?: 1.0, FOG_MIN_COVER)).copy(fog = FOG_DENSITY, wind = FOG_WIND)
             }
         }
+
+        private const val FOG_DENSITY = 0.9
+        private const val FOG_WIND = 4.0
 
         /** Виды погоды без осадков, у которых облака считаются по проценту облачности. */
         private val COVER_CONDITIONS = setOf(Condition.Clear, Condition.Partly, Condition.Cloudy)
