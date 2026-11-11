@@ -28,6 +28,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -38,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringArrayResource
@@ -331,14 +331,13 @@ private fun ToggleOption(title: String, hint: String, checked: Boolean, onChange
             .fillMaxWidth()
             .heightIn(min = 60.dp)
             .toggleable(value = checked, interactionSource = null, indication = null, enabled = enabled, role = Role.Switch, onValueChange = onChange)
-            .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .padding(horizontal = 18.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = pogodaText(16f, 500))
-            Text(hint, style = pogodaText(13f, 400, color = palette.ink2))
+            Text(title, style = pogodaText(16f, 500, color = if (enabled) Color.Unspecified else dimmed(LocalContentColor.current, false)))
+            Text(hint, style = pogodaText(13f, 400, color = dimmed(palette.ink2, enabled)))
         }
         Switch(
             checked = checked,
@@ -351,18 +350,22 @@ private fun ToggleOption(title: String, hint: String, checked: Boolean, onChange
                 uncheckedThumbColor = palette.ink2,
                 uncheckedTrackColor = Color.Transparent,
                 uncheckedBorderColor = palette.ink2,
-                disabledCheckedThumbColor = Color.White,
-                disabledCheckedTrackColor = palette.accent,
-                disabledUncheckedThumbColor = palette.ink2,
+                disabledCheckedThumbColor = dimmed(Color.White, enabled),
+                disabledCheckedTrackColor = dimmed(palette.accent, enabled),
+                disabledCheckedBorderColor = dimmed(palette.accent, enabled),
+                disabledUncheckedThumbColor = dimmed(palette.ink2, enabled),
                 disabledUncheckedTrackColor = Color.Transparent,
-                disabledUncheckedBorderColor = palette.ink2,
+                disabledUncheckedBorderColor = dimmed(palette.ink2, enabled),
             ),
         )
     }
 }
 
-/** Прозрачность недоступного выключателя (строка сама бледнеет, цвета переключателя прежние). */
+/** Прозрачность недоступного выключателя. Бледнеют цвета, а не вся строка: отдельный слой на строке давал серые полосы при прокрутке. */
 private const val DISABLED_ALPHA = 0.45f
+
+/** Цвет недоступной строки: тот же, но прозрачнее. */
+private fun dimmed(color: Color, enabled: Boolean): Color = if (enabled) color else color.copy(alpha = color.alpha * DISABLED_ALPHA)
 
 /** Один вариант: название, пояснение и галочка у выбранного. Нажатие по всей строке (высота не меньше 60 dp). */
 @Composable
