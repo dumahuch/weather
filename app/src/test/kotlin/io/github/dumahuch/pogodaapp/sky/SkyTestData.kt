@@ -20,7 +20,7 @@ internal object SkyTestData {
         val dph: Double = json.getDouble("dph")
         val cloudPosition: Double = json.getDouble("uc")
         val condition: Condition = conditionOf(json.getString("wk"))
-        val weather: SkyWeather = SkyWeather.of(condition)
+        val weather: SkyWeather = if (condition == Condition.Fog) MOCKUP_FOG else SkyWeather.of(condition)
         val label: String get() = "h=$hour ${json.getString("wk")} dph=$dph"
 
         fun weight(scene: SkyScene): Double = json.getJSONObject("sw").getDouble(scene.fileName)
@@ -53,6 +53,9 @@ internal object SkyTestData {
         val array = JSONArray(text)
         return (0 until array.length()).map { Golden(array.getJSONObject(it)) }
     }
+
+    /** Туман из таблицы макета (облачность 0,30): в приложении с 0.7.14 туман лежит под сплошными облаками, а сверка цветов неба идёт по макету. */
+    val MOCKUP_FOG = SkyWeather(cloud = 0.30, gray = 0.55, dark = 0.0, fog = 0.9, wind = 4.0, density = 0.10)
 
     fun conditionOf(key: String): Condition = when (key) {
         "clear" -> Condition.Clear

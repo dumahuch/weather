@@ -130,11 +130,12 @@ internal object Celestial {
     /**
      * Тела на небе: солнце над горизонтом и (ночью и в сумерках) луна. Список пуст, если видеть нечего.
      * [sunPeak] высота солнца в полдень этого дня: по ней высота ставится схематично ([schematic]).
+     * [sunAlpha] прозрачность диска солнца ([SkyWeather.sunAlpha]): в тумане и под сплошными облаками он бледнеет.
      */
-    fun bodies(sun: SunPosition.Sun, moon: MoonSky?, sunPeak: Double = MoonSky.DEFAULT_PEAK): List<SkyBody> {
+    fun bodies(sun: SunPosition.Sun, moon: MoonSky?, sunPeak: Double = MoonSky.DEFAULT_PEAK, sunAlpha: Double = 1.0): List<SkyBody> {
         val result = ArrayList<SkyBody>(2)
         if (sun.elevation > SUN_HIDDEN_BELOW) {
-            result += SkyBody("sun", false, schematic(sun.elevation, sunPeak), hourAngle(sun.solarHour), 1.0, 1.0, true)
+            result += SkyBody("sun", false, schematic(sun.elevation, sunPeak), hourAngle(sun.solarHour), sunAlpha, 1.0, true)
         }
         if (moon != null && (moon.forced || moon.position.elevation > MOON_HIDDEN_BELOW)) {
             val fade = if (moon.forced) 1.0 else clamp01((MOON_FADE_START - sun.elevation) / (MOON_FADE_START - MOON_FADE_END))
