@@ -58,7 +58,7 @@ internal data class SkyWeather(
          * густота облаков (морось против ливня); без них берётся средняя сила.
          * [cloudCoverPercent] облачность из прогноза: у ясного, переменного и пасмурного неба облака плавно следуют ей,
          * а не трём ступеням кода погоды (код 2 это 50–80 % неба, код 3 от 80 %). У тумана облака считаются так же, но не реже
-         * [FOG_MIN_COVER], без процента как при сплошной облачности (с 0.7.14). Остальные виды погоды определяет код.
+         * [FOG_MIN_COVER], без процента как при сплошной облачности, облака только светлые (с 0.7.14). Остальные виды погоды определяет код.
          */
         fun of(condition: Condition, precipitationMm: Double? = null, cloudCoverPercent: Double? = null): SkyWeather {
             if (cloudCoverPercent != null && condition in COVER_CONDITIONS) return byCover(cloudCoverPercent / 100.0)
@@ -70,7 +70,7 @@ internal data class SkyWeather(
                 Condition.Rain -> SkyWeather(cloud = 1.0, gray = 0.72, dark = 0.22, fog = 0.08, wind = 22.0, density = 0.70 + 0.27 * strength)
                 Condition.Storm -> SkyWeather(cloud = 1.0, gray = 0.80, dark = 0.46, fog = 0.0, wind = 55.0, density = 1.0)
                 Condition.Snow -> SkyWeather(cloud = 0.95, gray = 0.70, dark = 0.06, fog = 0.15, wind = 14.0, density = 0.62 + 0.28 * strength)
-                Condition.Fog -> byCover(maxOf(cloudCoverPercent?.div(100.0) ?: 1.0, FOG_MIN_COVER)).copy(fog = FOG_DENSITY, wind = FOG_WIND)
+                Condition.Fog -> byCover(maxOf(cloudCoverPercent?.div(100.0) ?: 1.0, FOG_MIN_COVER)).copy(fog = FOG_DENSITY, wind = FOG_WIND, darkShare = 0.0)
             }
         }
 
