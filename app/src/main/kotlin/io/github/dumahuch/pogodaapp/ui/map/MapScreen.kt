@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -68,7 +69,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /**
  * Вкладка «Карта» (0.8.0): тёмная подложка basemap.de, облака ICON-D2 и дождь DWD, метка места. Справа сверху кнопка
@@ -226,7 +226,7 @@ private fun LayerButton(layer: MapLayer, icon: LineIcon, selected: Boolean, onLa
 private fun RainLegend(modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
-    val locale = Locale.getDefault()
+    val locale = LocalLocale.current.platformLocale
     Column(
         modifier
             .glassButton(RoundedCornerShape(10.dp), glass)
@@ -258,7 +258,7 @@ private fun TimePanel(
 ) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
-    val locale = Locale.getDefault()
+    val locale = LocalLocale.current.platformLocale
     val formatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, HH:mm", locale) }
     Column(
         Modifier
