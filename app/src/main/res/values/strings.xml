@@ -352,6 +352,7 @@
     <string name="map_no_connection">No connection to DWD</string>
     <string name="map_no_data">No data for this time</string>
     <string name="map_no_clouds">No cloud data for this time</string>
+    <string name="map_loading_frames">Loading frames: %1$d of %2$d</string>
     <string name="map_base_failed">The base map did not load</string>
     <string name="about_map_title">Map</string>
     <!-- Пометки по условиям BKG и DWD (облака пересчитаны из сетки модели и перекрашены): не переводятся. -->

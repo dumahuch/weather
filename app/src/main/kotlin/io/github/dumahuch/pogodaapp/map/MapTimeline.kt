@@ -27,6 +27,9 @@ object MapTimeline {
 
     val MinorTick: Duration = Duration.ofMinutes(15)
 
+    /** Кадры в этих пределах от выбранного времени подгружаются раньше всех остальных. */
+    val FingerZone: Duration = Duration.ofMinutes(90)
+
     private val Hour: Duration = Duration.ofHours(1)
 
     fun floorTo(time: Instant, step: Duration): Instant {
@@ -91,6 +94,23 @@ object MapTimeline {
             }
         }
         return frames.toList()
+    }
+
+    /**
+     * Какой кадр из [pending] подгружать следующим. Сначала кадры рядом с шкалой (в пределах [FingerZone] от
+     * [focus]: их человек увидит первыми), потом будущее (от «сейчас» вперёд), потом прошлое; внутри группы
+     * ближайший к [focus] первым. Очередь пересчитывается при каждом выборе, поэтому она идёт за шкалой.
+     */
+    fun nextToWarm(pending: Collection<Instant>, focus: Instant, now: Instant): Instant? {
+        val anchor = anchor(now)
+        fun group(time: Instant): Int = when {
+            Duration.between(time, focus).abs() <= FingerZone -> 0
+            !time.isBefore(anchor) -> 1
+            else -> 2
+        }
+        return pending.minWithOrNull(
+            compareBy<Instant> { group(it) }.thenBy { Duration.between(it, focus).abs() }.thenBy { it },
+        )
     }
 
     /** Деления шкалы суток [day]: каждый час большое, около «сейчас» малые через 15 минут. */

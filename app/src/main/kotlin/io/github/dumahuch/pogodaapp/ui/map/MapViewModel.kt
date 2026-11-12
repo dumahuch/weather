@@ -36,6 +36,7 @@ import java.io.IOException
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Слой карты: облака и дождь вместе или только дождь. */
 enum class MapLayer { CloudsAndRain, RainOnly }
@@ -53,6 +54,9 @@ data class MapUiState(
     val clouds: FrameStatus,
     /** Дождь нарисован в наших цветах: легенда ему соответствует. */
     val legendValid: Boolean,
+    /** Сколько кадров выбранных суток уже обработано заранее и сколько их всего; поровну, когда всё готово. */
+    val framesDone: Int = 0,
+    val framesTotal: Int = 0,
 )
 
 /** Картинки текущего кадра для слоёв карты; пусто, пока не загружены. */
@@ -61,13 +65,13 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
 /**
  * Карта: выбранное время и слой, загрузка кадров дождя (радар и модель DWD) и облаков (ICON-D2), «играть».
  *
- * Кадры держатся только в оперативной памяти и только пока открыта вкладка: дождь сжатым (PNG, до [RAIN_CACHE]
- * штук), облака одной непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки
- * очищает запас; на диск телефона ничего не пишется.
+ * Кадры держатся только в оперативной памяти, пока живо приложение: дождь сжатым (PNG, до [RAIN_CACHE] штук),
+ * облака одной непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки запас не
+ * очищает (устаревшие кадры перекачиваются сами по срокам [RainLife] и [CloudLife]); на диск телефона ничего не пишется.
  *
  * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
- * ждёт ту же загрузку. Кадры выбранных суток подгружаются в фоне, ближайшие к выбранному времени первыми
- * ([warmUp]): готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился.
+ * ждёт ту же загрузку. Кадры выбранных суток подгружаются в фоне ([warmUp], порядок [MapTimeline.nextToWarm]):
+ * готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился.
  */
 class MapViewModel(userAgent: String) : ViewModel() {
 
@@ -125,13 +129,11 @@ class MapViewModel(userAgent: String) : ViewModel() {
         warmUp()
     }
 
-    /** Карту закрыли: анимация останавливается, запас кадров из памяти уходит. */
+    /** Карту закрыли: анимация и подгрузка останавливаются, запас кадров в памяти остаётся. */
     fun onHidden() {
         stopPlaying()
         showJob?.cancel()
-        warmJob?.cancel()
-        synchronized(rainCache) { rainCache.clear() }
-        synchronized(cloudCache) { cloudCache.clear() }
+        stopWarming()
     }
 
     fun selectDay(day: MapDay) {
@@ -175,7 +177,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
         if (frames.isEmpty()) return
         _state.update { it.copy(playing = true) }
         showJob?.cancel()
-        warmJob?.cancel()
+        stopWarming()
         playJob = viewModelScope.launch {
             val first = frames.indexOfFirst { !it.isBefore(s.time) }.coerceAtLeast(0)
             // Остальные кадры круга качаются заранее, по несколько сразу и в порядке показа: на экран кадр идёт из памяти.
@@ -200,14 +202,39 @@ class MapViewModel(userAgent: String) : ViewModel() {
         if (_state.value.playing) _state.update { it.copy(playing = false) }
     }
 
-    /** Подгружает в фоне все кадры выбранных суток, ближайшие к выбранному времени первыми (только в память). */
+    /**
+     * Подгружает в фоне все кадры выбранных суток (только в память). Кадры берутся по одному из общего списка
+     * [MapTimeline.nextToWarm]: рядом со шкалой, потом будущее, потом прошлое; порядок пересчитывается при каждом
+     * выборе, так что очередь идёт за пальцем. Параллельно работают [PREFETCH_PARALLEL] загрузчиков.
+     */
     private fun warmUp() {
         warmJob?.cancel()
         val s = _state.value
+        val frames = MapTimeline.dayFrames(s.day, s.now, zone)
+        val pending = frames.toMutableSet()
+        val done = AtomicInteger(0)
+        _state.update { it.copy(framesDone = 0, framesTotal = frames.size) }
         warmJob = viewModelScope.launch {
-            val frames = MapTimeline.dayFrames(s.day, s.now, zone).sortedBy { Duration.between(it, s.time).abs() }
-            for (frame in frames) launch { prefetch(frame) }
+            repeat(PREFETCH_PARALLEL) {
+                launch {
+                    while (true) {
+                        val next = synchronized(pending) {
+                            MapTimeline.nextToWarm(pending, _state.value.time, s.now)?.also { pending.remove(it) }
+                        } ?: break
+                        prefetch(next)
+                        val count = done.incrementAndGet()
+                        _state.update { it.copy(framesDone = maxOf(it.framesDone, count)) }
+                    }
+                }
+            }
         }
+    }
+
+    /** Подгрузка остановлена (карту закрыли, пошла анимация): счётчик кадров на экране не нужен. */
+    private fun stopWarming() {
+        warmJob?.cancel()
+        warmJob = null
+        _state.update { it.copy(framesDone = 0, framesTotal = 0) }
     }
 
     /** Кадр на [time] целиком в памяти (дождь и, если слой с облаками, облака) и ещё свежий. */
@@ -376,7 +403,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
         private const val SOURCE = "DWD"
         private const val RAIN_CACHE = 100
         private const val CLOUD_CACHE = 26
-        private const val PREFETCH_PARALLEL = 4
+        private const val PREFETCH_PARALLEL = 6
         private const val SCRUB_SETTLE_MS = 250L
         private const val CACHED_SETTLE_MS = 40L
         private const val FRAME_MS = 650L
