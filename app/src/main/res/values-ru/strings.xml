@@ -348,6 +348,7 @@
     <string name="map_no_connection">Нет связи с DWD</string>
     <string name="map_no_data">Нет данных на это время</string>
     <string name="map_no_clouds">Облаков на это время нет</string>
+    <string name="map_loading_frames">Загружено кадров: %1$d из %2$d</string>
     <string name="map_base_failed">Подложка карты не загрузилась</string>
     <string name="about_map_title">Карта</string>
 </resources>

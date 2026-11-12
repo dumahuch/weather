@@ -156,6 +156,7 @@ private fun statusText(state: MapUiState, baseFailed: Boolean): String? {
         state.rain == FrameStatus.Failed || clouds == FrameStatus.Failed -> stringResource(R.string.map_no_connection)
         state.rain == FrameStatus.Missing && clouds != FrameStatus.Ready -> stringResource(R.string.map_no_data)
         clouds == FrameStatus.Missing -> stringResource(R.string.map_no_clouds)
+        state.framesDone < state.framesTotal -> stringResource(R.string.map_loading_frames, state.framesDone, state.framesTotal)
         else -> null
     }
 }

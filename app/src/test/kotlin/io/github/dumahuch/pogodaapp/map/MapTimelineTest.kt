@@ -111,4 +111,32 @@ class MapTimelineTest {
         val tomorrow = MapTimeline.dayFrames(MapDay.Tomorrow, now, zone)
         assertEquals(25, tomorrow.size)
     }
+
+    @Test
+    fun warmUpTakesFingerZoneFirstThenFutureThenPast() {
+        val frames = MapTimeline.dayFrames(MapDay.Today, now, zone).toMutableSet()
+        // Палец у «сейчас»: сначала кадры рядом, потом будущее по порядку, прошлое в конце.
+        val order = generateSequence { MapTimeline.nextToWarm(frames, now, now)?.also { frames.remove(it) } }.toList()
+        val anchor = MapTimeline.anchor(now)
+        val firstPast = order.indexOfFirst { it.isBefore(anchor) && java.time.Duration.between(it, now).abs() > MapTimeline.FingerZone }
+        val lastFuture = order.indexOfLast { !it.isBefore(anchor) && java.time.Duration.between(it, now).abs() > MapTimeline.FingerZone }
+        assertTrue(lastFuture < firstPast)
+        assertEquals(local("2026-11-09T20:50"), order.first())
+        assertEquals(local("2026-11-09T00:00"), order.last())
+    }
+
+    @Test
+    fun warmUpFollowsTheFingerIntoThePast() {
+        val frames = MapTimeline.dayFrames(MapDay.Today, now, zone).toSet()
+        val finger = local("2026-11-09T09:00")
+        // Кадр у пальца в прошлом берётся раньше любого кадра будущего.
+        assertEquals(finger, MapTimeline.nextToWarm(frames, finger, now))
+        val withoutNear = frames.filter { java.time.Duration.between(it, finger).abs() > MapTimeline.FingerZone }
+        assertTrue(MapTimeline.nextToWarm(withoutNear, finger, now)!! >= MapTimeline.anchor(now))
+    }
+
+    @Test
+    fun warmUpOfEmptyQueueIsNull() {
+        assertEquals(null, MapTimeline.nextToWarm(emptyList(), now, now))
+    }
 }
