@@ -70,6 +70,7 @@ import io.github.dumahuch.pogodaapp.ui.sky.SAMPLE_ALERTS
 import io.github.dumahuch.pogodaapp.ui.sky.sampleAlerts
 import io.github.dumahuch.pogodaapp.ui.sky.samplePollen
 import io.github.dumahuch.pogodaapp.ui.sky.skyInput
+import io.github.dumahuch.pogodaapp.widget.WidgetUpdater
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -321,6 +322,8 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         notificationSwitches.onAppHidden()
+        // Приложение только что получило прогноз: виджет на рабочем столе берёт его сразу, не дожидаясь фоновой задачи.
+        WidgetUpdater.renderInBackground(this)
     }
 
     private fun pinCurrentLocation(done: () -> Unit) {

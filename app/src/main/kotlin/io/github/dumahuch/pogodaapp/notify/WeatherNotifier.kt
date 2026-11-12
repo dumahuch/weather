@@ -8,13 +8,11 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.icu.text.DateFormat
-import android.icu.text.ListFormatter
 import io.github.dumahuch.pogodaapp.AppVersion
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.data.ForecastCache
 import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoParser
-import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.home.roundTemperature
@@ -30,7 +28,6 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
-import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
@@ -101,7 +98,7 @@ class WeatherNotifier(private val context: Context) {
         val condition = context.getString(if (current.drizzle) R.string.wx_drizzle else conditionNameRes(current.condition))
         val headline = context.getString(R.string.notify_headline, temperatureText(current.temperature), condition)
         val title = place.name?.let { context.getString(R.string.notify_title, it, headline) } ?: headline
-        val precipitation = WeatherNotice.precipitationContinuation(precipitationPhrase(forecast, now, locale), locale)
+        val precipitation = WeatherNotice.precipitationContinuation(precipitationPhrase(context, precipitationCaption(forecast, now), locale), locale)
         val text = context.getString(R.string.notify_text, temperatureText(current.feelsLike), precipitation)
         val since = WeatherNotice.placeSince(placeAt, now, ZoneId.systemDefault())?.let {
             context.getString(R.string.notify_place_since, DateFormat.getInstanceForSkeleton("dMMMM", locale).format(Date.from(placeAt)))
@@ -162,19 +159,6 @@ class WeatherNotifier(private val context: Context) {
         }
         manager.createNotificationChannels(listOf(status, shade))
     }
-
-    private fun precipitationPhrase(forecast: Forecast, now: Instant, locale: Locale): String =
-        when (val caption = precipitationCaption(forecast, now)) {
-            PrecipitationCaption.None -> context.getString(R.string.precip_today_none)
-            PrecipitationCaption.TomorrowMorning -> context.getString(R.string.notify_precip_tomorrow_morning)
-            is PrecipitationCaption.Today -> if (caption.allDay) {
-                context.getString(R.string.precip_today_all_day)
-            } else {
-                val names = context.resources.getStringArray(R.array.precip_day_parts)
-                val list = ListFormatter.getInstance(locale).format(caption.parts.map { names[it.ordinal] })
-                context.getString(R.string.precip_today_parts, list)
-            }
-        }
 
     private fun largeIconPx(): Int = (LARGE_ICON_DP * context.resources.displayMetrics.density).roundToInt().coerceIn(64, 256)
 

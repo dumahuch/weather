@@ -352,4 +352,13 @@
     <string name="map_loading_frames">Bilder geladen: %1$d von %2$d</string>
     <string name="map_base_failed">Die Grundkarte wurde nicht geladen</string>
     <string name="about_map_title">Karte</string>
+    <!-- Виджет погоды (0.8.8) -->
+    <string name="widget_description">Wetter: ein Widget, das sich in der Größe anpasst. Je größer, desto mehr Angaben.</string>
+    <string name="widget_description_reading">%1$s, %2$s, %3$s</string>
+    <string name="widget_no_data">Keine Daten</string>
+    <string name="widget_config_title">Wetter-Widget</string>
+    <string name="widget_bg_glass">Glas</string>
+    <string name="widget_bg_none">Ohne Hintergrund</string>
+    <string name="widget_opacity">Hintergrund-Deckkraft: %1$d %%</string>
+    <string name="widget_done">Fertig</string>
 </resources>

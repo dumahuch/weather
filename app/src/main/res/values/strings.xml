@@ -362,4 +362,13 @@
     <string name="about_map_title">Map</string>
     <!-- Пометки по условиям BKG и DWD (облака пересчитаны из сетки модели и перекрашены): не переводятся. -->
     <string name="about_map_text" translatable="false">Grundkarte: basemap.de, © GeoBasis-DE / BKG %1$d CC BY 4.0. Regen und Wolken: Datenbasis: Deutscher Wetterdienst, Rasterdaten bildlich wiedergegeben.</string>
+    <!-- Виджет погоды (0.8.8) -->
+    <string name="widget_description">Weather: one widget that resizes. The larger it is, the more it shows.</string>
+    <string name="widget_description_reading">%1$s, %2$s, %3$s</string>
+    <string name="widget_no_data">No data</string>
+    <string name="widget_config_title">Weather widget</string>
+    <string name="widget_bg_glass">Glass</string>
+    <string name="widget_bg_none">No background</string>
+    <string name="widget_opacity">Background opacity: %1$d %%</string>
+    <string name="widget_done">Done</string>
 </resources>
