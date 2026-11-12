@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,12 +23,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -90,140 +90,179 @@ fun SettingsScreen(
     fun toggleSection(section: Int) {
         open = if (open == section) NONE else section
     }
-    Column(
+    // Прокрутка через LazyColumn (0.7.17): размытие стекла узнаёт положение карточки при каждой раскладке списка, а при
+    // обычной прокрутке (verticalScroll) фон под стеклом отставал и сдвигался на 36–54 px (измерено по записи стенда 12.11.2026).
+    LazyColumn(
         modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .navigationBarsPadding(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(stringResource(R.string.settings_title), style = pogodaText(20f, 600, lineHeight = 1.2f), maxLines = 1)
-        val iconName = stringResource(
-            if (iconStyle == WeatherIconStyle.Glass) R.string.settings_icons_glass else R.string.settings_icons_outline,
+        item { Text(stringResource(R.string.settings_title), style = pogodaText(20f, 600, lineHeight = 1.2f), maxLines = 1) }
+        item { ViewSection(cardShadow, onCardShadow, iconStyle, onIconStyle, open == SECTION_VIEW) { toggleSection(SECTION_VIEW) } }
+        item {
+            NotificationsSection(
+                notifications, onNotification, pollenKinds, onPollenKind, noticeError,
+                open == SECTION_NOTIFICATIONS,
+            ) { toggleSection(SECTION_NOTIFICATIONS) }
+        }
+        item { AboutSection(open == SECTION_ABOUT) { toggleSection(SECTION_ABOUT) } }
+    }
+}
+
+/** Раздел «Вид»: значки погоды и тень карточек. */
+@Composable
+private fun ViewSection(
+    cardShadow: CardShadow,
+    onCardShadow: (CardShadow) -> Unit,
+    iconStyle: WeatherIconStyle,
+    onIconStyle: (WeatherIconStyle) -> Unit,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val iconName = stringResource(
+        if (iconStyle == WeatherIconStyle.Glass) R.string.settings_icons_glass else R.string.settings_icons_outline,
+    )
+    val shadowName = stringResource(
+        if (cardShadow == CardShadow.Soft) R.string.settings_shadow_soft else R.string.settings_shadow_strong,
+    )
+    SectionCard(
+        title = stringResource(R.string.settings_section_view),
+        summary = "$iconName · $shadowName",
+        expanded = expanded,
+        onToggle = onToggle,
+    ) {
+        SectionHeading(stringResource(R.string.settings_icons))
+        Column(Modifier.selectableGroup()) {
+            ChoiceOption(
+                title = stringResource(R.string.settings_icons_glass),
+                hint = stringResource(R.string.settings_icons_glass_hint),
+                selected = iconStyle == WeatherIconStyle.Glass,
+                onClick = { onIconStyle(WeatherIconStyle.Glass) },
+            )
+            ChoiceOption(
+                title = stringResource(R.string.settings_icons_outline),
+                hint = stringResource(R.string.settings_icons_outline_hint),
+                selected = iconStyle == WeatherIconStyle.Outline,
+                onClick = { onIconStyle(WeatherIconStyle.Outline) },
+            )
+        }
+        SectionHeading(stringResource(R.string.settings_card_shadow))
+        Column(Modifier.selectableGroup()) {
+            ChoiceOption(
+                title = stringResource(R.string.settings_shadow_soft),
+                hint = stringResource(R.string.settings_shadow_soft_hint),
+                selected = cardShadow == CardShadow.Soft,
+                onClick = { onCardShadow(CardShadow.Soft) },
+            )
+            ChoiceOption(
+                title = stringResource(R.string.settings_shadow_strong),
+                hint = stringResource(R.string.settings_shadow_strong_hint),
+                selected = cardShadow == CardShadow.Strong,
+                onClick = { onCardShadow(CardShadow.Strong) },
+            )
+        }
+    }
+}
+
+/** Раздел «Уведомления»: выключатели и виды пыльцы. */
+@Composable
+private fun NotificationsSection(
+    notifications: NotificationPrefs,
+    onNotification: (NotificationToggle, Boolean) -> Unit,
+    pollenKinds: Set<PollenKind>,
+    onPollenKind: (PollenKind, Boolean) -> Unit,
+    noticeError: String?,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    val enabled = notifications.enabledCount
+    SectionCard(
+        title = stringResource(R.string.settings_notifications),
+        summary = if (enabled == 0) {
+            stringResource(R.string.settings_summary_off)
+        } else {
+            stringResource(R.string.settings_summary_on, enabled, NotificationPrefs.TOGGLE_COUNT)
+        },
+        expanded = expanded,
+        onToggle = onToggle,
+    ) {
+        ToggleOption(
+            title = stringResource(R.string.settings_notify_shade),
+            hint = stringResource(R.string.settings_notify_shade_hint),
+            checked = notifications.inShade,
+            onChange = { onNotification(NotificationToggle.Shade, it) },
         )
-        val shadowName = stringResource(
-            if (cardShadow == CardShadow.Soft) R.string.settings_shadow_soft else R.string.settings_shadow_strong,
+        ToggleOption(
+            title = stringResource(R.string.settings_notify_status),
+            hint = stringResource(R.string.settings_notify_status_hint),
+            checked = notifications.inStatusBar,
+            onChange = { onNotification(NotificationToggle.StatusBar, it) },
         )
-        SectionCard(
-            title = stringResource(R.string.settings_section_view),
-            summary = "$iconName · $shadowName",
-            expanded = open == SECTION_VIEW,
-            onToggle = { toggleSection(SECTION_VIEW) },
-        ) {
-            SectionHeading(stringResource(R.string.settings_icons))
-            Column(Modifier.selectableGroup()) {
-                ChoiceOption(
-                    title = stringResource(R.string.settings_icons_glass),
-                    hint = stringResource(R.string.settings_icons_glass_hint),
-                    selected = iconStyle == WeatherIconStyle.Glass,
-                    onClick = { onIconStyle(WeatherIconStyle.Glass) },
-                )
-                ChoiceOption(
-                    title = stringResource(R.string.settings_icons_outline),
-                    hint = stringResource(R.string.settings_icons_outline_hint),
-                    selected = iconStyle == WeatherIconStyle.Outline,
-                    onClick = { onIconStyle(WeatherIconStyle.Outline) },
-                )
-            }
-            SectionHeading(stringResource(R.string.settings_card_shadow))
-            Column(Modifier.selectableGroup()) {
-                ChoiceOption(
-                    title = stringResource(R.string.settings_shadow_soft),
-                    hint = stringResource(R.string.settings_shadow_soft_hint),
-                    selected = cardShadow == CardShadow.Soft,
-                    onClick = { onCardShadow(CardShadow.Soft) },
-                )
-                ChoiceOption(
-                    title = stringResource(R.string.settings_shadow_strong),
-                    hint = stringResource(R.string.settings_shadow_strong_hint),
-                    selected = cardShadow == CardShadow.Strong,
-                    onClick = { onCardShadow(CardShadow.Strong) },
-                )
-            }
-        }
-        val enabled = notifications.enabledCount
-        SectionCard(
-            title = stringResource(R.string.settings_notifications),
-            summary = if (enabled == 0) {
-                stringResource(R.string.settings_summary_off)
-            } else {
-                stringResource(R.string.settings_summary_on, enabled, NotificationPrefs.TOGGLE_COUNT)
-            },
-            expanded = open == SECTION_NOTIFICATIONS,
-            onToggle = { toggleSection(SECTION_NOTIFICATIONS) },
-        ) {
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_shade),
-                hint = stringResource(R.string.settings_notify_shade_hint),
-                checked = notifications.inShade,
-                onChange = { onNotification(NotificationToggle.Shade, it) },
-            )
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_status),
-                hint = stringResource(R.string.settings_notify_status_hint),
-                checked = notifications.inStatusBar,
-                onChange = { onNotification(NotificationToggle.StatusBar, it) },
-            )
-            // Название места на заблокированном экране бывает только у записи со значком в строке состояния.
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_lock),
-                hint = stringResource(R.string.settings_notify_lock_hint),
-                checked = notifications.placeOnLockScreen,
-                enabled = notifications.inStatusBar,
-                onChange = { onNotification(NotificationToggle.LockScreenPlace, it) },
-            )
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_alerts),
-                hint = stringResource(R.string.settings_notify_alerts_hint),
-                checked = notifications.alerts,
-                onChange = { onNotification(NotificationToggle.Alerts, it) },
-            )
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_rain),
-                hint = stringResource(R.string.settings_notify_rain_hint),
-                checked = notifications.rainSoon,
-                onChange = { onNotification(NotificationToggle.RainSoon, it) },
-            )
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_pollen),
-                hint = stringResource(R.string.settings_notify_pollen_hint),
-                checked = notifications.pollen,
-                onChange = { onNotification(NotificationToggle.Pollen, it) },
-            )
-            // Виды пыльцы нужны только при включённом уведомлении о ней.
-            if (notifications.pollen) {
-                SectionHeading(stringResource(R.string.settings_pollen_kinds))
-                val names = stringArrayResource(R.array.pollen_kinds)
-                PollenKind.entries.forEach { kind ->
-                    CheckOption(
-                        title = names[kind.ordinal],
-                        checked = kind in pollenKinds,
-                        onChange = { onPollenKind(kind, it) },
-                    )
-                }
-            }
-            // Ошибка уведомления (0.7.2): текст для снимка экрана, пока журнала падений у приложения нет.
-            noticeError?.let {
-                Text(
-                    stringResource(R.string.settings_notify_error, it),
-                    style = pogodaText(12f, 400, color = LocalPogodaPalette.current.ink2),
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+        // Название места на заблокированном экране бывает только у записи со значком в строке состояния.
+        ToggleOption(
+            title = stringResource(R.string.settings_notify_lock),
+            hint = stringResource(R.string.settings_notify_lock_hint),
+            checked = notifications.placeOnLockScreen,
+            enabled = notifications.inStatusBar,
+            onChange = { onNotification(NotificationToggle.LockScreenPlace, it) },
+        )
+        ToggleOption(
+            title = stringResource(R.string.settings_notify_alerts),
+            hint = stringResource(R.string.settings_notify_alerts_hint),
+            checked = notifications.alerts,
+            onChange = { onNotification(NotificationToggle.Alerts, it) },
+        )
+        ToggleOption(
+            title = stringResource(R.string.settings_notify_rain),
+            hint = stringResource(R.string.settings_notify_rain_hint),
+            checked = notifications.rainSoon,
+            onChange = { onNotification(NotificationToggle.RainSoon, it) },
+        )
+        ToggleOption(
+            title = stringResource(R.string.settings_notify_pollen),
+            hint = stringResource(R.string.settings_notify_pollen_hint),
+            checked = notifications.pollen,
+            onChange = { onNotification(NotificationToggle.Pollen, it) },
+        )
+        // Виды пыльцы нужны только при включённом уведомлении о ней.
+        if (notifications.pollen) {
+            SectionHeading(stringResource(R.string.settings_pollen_kinds))
+            val names = stringArrayResource(R.array.pollen_kinds)
+            PollenKind.entries.forEach { kind ->
+                CheckOption(
+                    title = names[kind.ordinal],
+                    checked = kind in pollenKinds,
+                    onChange = { onPollenKind(kind, it) },
                 )
             }
         }
-        SectionCard(
-            title = stringResource(R.string.settings_section_about),
-            summary = stringResource(R.string.settings_about_summary),
-            expanded = open == SECTION_ABOUT,
-            onToggle = { toggleSection(SECTION_ABOUT) },
-        ) {
-            SourceLine(stringResource(R.string.about_forecast_title), stringResource(R.string.about_forecast_text))
-            // Слово в слово по условию лицензии DWD (подпись нужна при любом использовании данных): не переводится.
-            SourceLine(stringResource(R.string.about_dwd_title), stringResource(R.string.about_dwd_text))
-            SourceLine(stringResource(R.string.about_places_title), stringResource(R.string.about_places_text))
+        // Ошибка уведомления (0.7.2): текст для снимка экрана, пока журнала падений у приложения нет.
+        noticeError?.let {
+            Text(
+                stringResource(R.string.settings_notify_error, it),
+                style = pogodaText(12f, 400, color = LocalPogodaPalette.current.ink2),
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
+            )
         }
+    }
+}
+
+/** Раздел «О приложении»: источники данных и лицензии. */
+@Composable
+private fun AboutSection(expanded: Boolean, onToggle: () -> Unit) {
+    SectionCard(
+        title = stringResource(R.string.settings_section_about),
+        summary = stringResource(R.string.settings_about_summary),
+        expanded = expanded,
+        onToggle = onToggle,
+    ) {
+        SourceLine(stringResource(R.string.about_forecast_title), stringResource(R.string.about_forecast_text))
+        // Слово в слово по условию лицензии DWD (подпись нужна при любом использовании данных): не переводится.
+        SourceLine(stringResource(R.string.about_dwd_title), stringResource(R.string.about_dwd_text))
+        SourceLine(stringResource(R.string.about_places_title), stringResource(R.string.about_places_text))
     }
 }
 
