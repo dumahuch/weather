@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.map
 
+import android.net.ConnectivityManager
 import android.view.WindowInsetsController
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,12 +16,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -80,16 +83,26 @@ import java.time.format.DateTimeFormatter
  * [skyDarkInk] нужен, чтобы при уходе с карты вернуть системным значкам цвет неба: на карте они всегда светлые.
  */
 @Composable
-fun MapScreen(place: Place?, skyDarkInk: Boolean, modifier: Modifier = Modifier) {
+fun MapScreen(place: Place?, skyDarkInk: Boolean, wifiOnly: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val model: MapViewModel = viewModel { MapViewModel("PogodaApp/${AppVersion.read(context).name}", mapCacheRoot(context)) }
+    val model: MapViewModel = viewModel {
+        val connectivity = context.applicationContext.getSystemService(ConnectivityManager::class.java)
+        MapViewModel(
+            userAgent = "PogodaApp/${AppVersion.read(context).name}",
+            cacheRoot = mapCacheRoot(context),
+            metered = { connectivity?.isActiveNetworkMetered ?: true },
+        )
+    }
     val state by model.state.collectAsStateWithLifecycle()
     val images by model.images.collectAsStateWithLifecycle()
     var locate by remember { mutableIntStateOf(0) }
     var baseFailed by remember { mutableStateOf(false) }
     val zone = remember { ZoneId.systemDefault() }
 
+    // Настройка ставится до onShown: по ней решается, качать ли кадры суток заранее.
+    SideEffect { model.setWifiOnly(wifiOnly) }
     DisposableEffect(model) {
+        model.setWifiOnly(wifiOnly)
         model.onShown()
         MapCacheJobs.scheduleCleanup(context)
         onDispose { model.onHidden() }
@@ -260,15 +273,21 @@ private fun RainLegend(modifier: Modifier = Modifier) {
             .glassButton(RoundedCornerShape(10.dp), glass)
             .padding(horizontal = 8.dp, vertical = 7.dp),
     ) {
-        Box(Modifier.padding(vertical = 6.dp).height(LegendHeight)) {
+        // Подписи стоят в своём столбце справа от полосы: его ширина по самой длинной подписи, рамка её вмещает.
+        Row(Modifier.padding(vertical = 6.dp).height(LegendHeight)) {
             Box(Modifier.size(width = 8.dp, height = LegendHeight).background(Brush.verticalGradient(colors), RoundedCornerShape(3.dp)))
-            for (value in RainPalette.LegendValues) {
-                val position = RainPalette.legendPosition(value).toFloat()
-                Text(
-                    NumberFormat.getNumberInstance(locale).format(value),
-                    style = pogodaText(10f, 500, color = palette.ink, tabular = true),
-                    modifier = Modifier.offset(x = 14.dp, y = LegendHeight * (1f - position) - 7.dp),
-                )
+            Spacer(Modifier.width(6.dp))
+            Box(Modifier.height(LegendHeight)) {
+                for (value in RainPalette.LegendValues) {
+                    val position = RainPalette.legendPosition(value).toFloat()
+                    Text(
+                        NumberFormat.getNumberInstance(locale).format(value),
+                        style = pogodaText(10f, 500, color = palette.ink, tabular = true),
+                        maxLines = 1,
+                        softWrap = false,
+                        modifier = Modifier.offset(y = LegendHeight * (1f - position) - 7.dp),
+                    )
+                }
             }
         }
         Text(stringResource(R.string.map_legend_unit), style = pogodaText(9f, 500, color = palette.ink2))

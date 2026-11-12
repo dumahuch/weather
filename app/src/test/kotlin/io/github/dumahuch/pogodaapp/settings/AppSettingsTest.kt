@@ -50,6 +50,16 @@ class AppSettingsTest {
     }
 
     @Test
+    fun mapPreloadIsAlwaysByDefaultAndWifiOnlyIsRemembered() {
+        val storage = MemoryStorage()
+        assertEquals(MapPreload.Always, AppSettings(storage).mapPreload.value)
+        AppSettings(storage).setMapPreload(MapPreload.WifiOnly)
+        assertEquals("wifi", storage.values[AppSettings.MAP_PRELOAD])
+        assertEquals(MapPreload.WifiOnly, AppSettings(storage).mapPreload.value)
+        assertEquals(MapPreload.Always, AppSettings(MemoryStorage(mapOf(AppSettings.MAP_PRELOAD to "banana"))).mapPreload.value)
+    }
+
+    @Test
     fun choosingTheSameShadowAgainWritesNothing() {
         val storage = MemoryStorage()
         val settings = AppSettings(storage)

@@ -68,13 +68,13 @@ object IconD2Files {
     private const val BASE = "https://opendata.dwd.de/weather/nwp/icon-d2/grib/"
     private val RunStep: Duration = Duration.ofHours(3)
 
-    /** Обычный прогон считает на 27 часов вперёд, прогон 03 UTC на 45 (описание ICON-D2 в каталоге DWD). */
-    private const val LEAD_SHORT = 27
-    private const val LEAD_LONG = 45
+    /**
+     * Сколько часов вперёд считает прогон. По описанию DWD обычные прогоны считали на 27 часов, а 03 UTC на 45, но
+     * 12.11.2026 в папках `tot_prec` прогонов 03 и 15 UTC лежали файлы до 048: срок берётся общий, а есть ли нужный
+     * час на самом деле, проверяет список папки ([listed]). Облака и осадки берут один срок.
+     */
+    const val MAX_LEAD = 48
     private const val LONG_RUN_HOUR = 3
-
-    /** Дальше прогон [run] не считает. */
-    fun maxLead(run: Instant): Int = if (run.atOffset(ZoneOffset.UTC).hour == LONG_RUN_HOUR) LEAD_LONG else LEAD_SHORT
 
     /** Сколько прогонов назад пробовать, если последний ещё не выложен. */
     private const val RUNS_BACK = 3
@@ -103,7 +103,7 @@ object IconD2Files {
         if (long !in runs) runs += long
         return runs.mapNotNull { run ->
             val lead = Duration.between(run, hour).toHours()
-            if (lead in 0..maxLead(run).toLong()) IconD2Frame(run, lead.toInt()) else null
+            if (lead in 0..MAX_LEAD.toLong()) IconD2Frame(run, lead.toInt()) else null
         }
     }
 

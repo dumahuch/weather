@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.settings.CardShadow
+import io.github.dumahuch.pogodaapp.settings.MapPreload
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
 import io.github.dumahuch.pogodaapp.settings.NotificationToggle
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
@@ -81,6 +82,8 @@ fun SettingsScreen(
     onCardShadow: (CardShadow) -> Unit,
     iconStyle: WeatherIconStyle,
     onIconStyle: (WeatherIconStyle) -> Unit,
+    mapPreload: MapPreload,
+    onMapPreload: (MapPreload) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
     pollenKinds: Set<PollenKind>,
@@ -142,6 +145,21 @@ fun SettingsScreen(
                     hint = stringResource(R.string.settings_shadow_strong_hint),
                     selected = cardShadow == CardShadow.Strong,
                     onClick = { onCardShadow(CardShadow.Strong) },
+                )
+            }
+            SectionHeading(stringResource(R.string.settings_map_preload))
+            Column(Modifier.selectableGroup()) {
+                ChoiceOption(
+                    title = stringResource(R.string.settings_map_preload_always),
+                    hint = stringResource(R.string.settings_map_preload_always_hint),
+                    selected = mapPreload == MapPreload.Always,
+                    onClick = { onMapPreload(MapPreload.Always) },
+                )
+                ChoiceOption(
+                    title = stringResource(R.string.settings_map_preload_wifi),
+                    hint = stringResource(R.string.settings_map_preload_wifi_hint),
+                    selected = mapPreload == MapPreload.WifiOnly,
+                    onClick = { onMapPreload(MapPreload.WifiOnly) },
                 )
             }
         }

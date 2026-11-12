@@ -69,20 +69,20 @@ class DwdSourcesTest {
         val now = Instant.parse("2026-11-09T19:52:00Z")
         val list = IconD2Files.candidates(Instant.parse("2026-11-10T21:00:00Z"), now)
         assertEquals(IconD2Frame(Instant.parse("2026-11-09T18:00:00Z"), 27), list[0])
-        // Остальные обычные прогоны на этот час уже не считают (27 часов), остаётся прогон 03 UTC (45 часов).
-        assertEquals(IconD2Frame(Instant.parse("2026-11-09T03:00:00Z"), 42), list[1])
-        assertEquals(2, list.size)
+        assertEquals(IconD2Frame(Instant.parse("2026-11-09T15:00:00Z"), 30), list[1])
+        // В конце прогон 03 UTC; все прогоны считают до 48 часов.
+        assertEquals(IconD2Frame(Instant.parse("2026-11-09T03:00:00Z"), 42), list.last())
+        assertEquals(5, list.size)
     }
 
     @Test
     fun tomorrowAfternoonFallsBackToTheLongRunWhenTheLatestRunIsNotOutYet() {
         val now = Instant.parse("2026-11-12T15:47:00Z")
         val list = IconD2Files.candidates(Instant.parse("2026-11-13T16:00:00Z"), now)
-        // Прогон 15 UTC (25 часов), если он уже выложен; иначе остаётся прогон 03 UTC (37 часов).
-        assertEquals(
-            listOf(IconD2Frame(Instant.parse("2026-11-12T15:00:00Z"), 25), IconD2Frame(Instant.parse("2026-11-12T03:00:00Z"), 37)),
-            list,
-        )
+        // Прогон 15 UTC (25 часов), если он уже выложен; иначе более ранние, в конце прогон 03 UTC (37 часов).
+        assertEquals(IconD2Frame(Instant.parse("2026-11-12T15:00:00Z"), 25), list.first())
+        assertEquals(IconD2Frame(Instant.parse("2026-11-12T03:00:00Z"), 37), list.last())
+        assertEquals(5, list.size)
     }
 
     @Test
@@ -93,9 +93,10 @@ class DwdSourcesTest {
     }
 
     @Test
-    fun maxLeadDependsOnRun() {
-        assertEquals(27, IconD2Files.maxLead(Instant.parse("2026-11-12T15:00:00Z")))
-        assertEquals(45, IconD2Files.maxLead(Instant.parse("2026-11-12T03:00:00Z")))
+    fun hourBeyondTwoDaysHasNoRun() {
+        val now = Instant.parse("2026-11-12T15:47:00Z")
+        assertEquals(emptyList<IconD2Frame>(), IconD2Files.candidates(Instant.parse("2026-11-14T16:00:00Z"), now))
+        assertEquals(48, IconD2Files.candidates(Instant.parse("2026-11-14T15:00:00Z"), now).first().lead)
     }
 
     @Test

@@ -42,6 +42,20 @@ enum class WeatherIconStyle(val key: String) {
 }
 
 /**
+ * Подгрузка кадров карты заранее (0.8.5, решение Димы 12.11.2026): «Всегда» (по умолчанию) или «Только по Wi-Fi».
+ * Во втором случае в сети с оплатой за трафик карта качает только кадр на экране; кнопка «играть» качает свой круг.
+ */
+enum class MapPreload(val key: String) {
+    Always("always"),
+    WifiOnly("wifi"),
+    ;
+
+    companion object {
+        fun fromKey(key: String?): MapPreload = entries.firstOrNull { it.key == key } ?: Always
+    }
+}
+
+/**
  * Выключатели уведомлений (0.7.0, решения Димы 07.11.2026), все по умолчанию выключены. Число в строке состояния
  * Android показывает только как значок уведомления, поэтому при нём запись в шторке тоже есть. [alerts] это
  * предупреждения DWD в фоне (шаг 2), [rainSoon] «скоро дождь» по радару DWD (шаг 3), [pollen] пыльца по индексу DWD (шаг 4).
@@ -198,11 +212,22 @@ class AppSettings(private val storage: SettingsStorage) {
         storage.write(NOTIFY_ERROR, value.orEmpty())
     }
 
+    private val mutableMapPreload = MutableStateFlow(MapPreload.fromKey(storage.read(MAP_PRELOAD)))
+
+    val mapPreload: StateFlow<MapPreload> = mutableMapPreload.asStateFlow()
+
+    fun setMapPreload(value: MapPreload) {
+        if (mutableMapPreload.value == value) return
+        mutableMapPreload.value = value
+        storage.write(MAP_PRELOAD, value.key)
+    }
+
     private fun flag(toggle: NotificationToggle): Boolean = storage.read(toggle.key) == ON
 
     internal companion object {
         const val CARD_SHADOW = "card_shadow"
         const val ICON_STYLE = "weather_icon_style"
+        const val MAP_PRELOAD = "map_preload"
         const val NOTIFY_ASKED = "notify_permission_asked"
         const val NOTIFY_ERROR = "notify_last_error"
         const val NOTIFY_ERROR_MAX = 400

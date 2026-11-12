@@ -1,5 +1,9 @@
 package io.github.dumahuch.pogodaapp.map
 
+import java.time.DateTimeException
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import kotlin.math.pow
 
 /** Ошибка данных карты: файл повреждён, не того вида или сервер ответил не тем. Текст для журнала. */
@@ -17,6 +21,8 @@ class LatLonGrid(
     val stepLon: Double,
     val stepLat: Double,
     val values: FloatArray,
+    /** Конец интервала накопления (шаблон 4.8, например осадки с начала прогона); у мгновенных полей null. */
+    val validEnd: Instant? = null,
 ) {
     fun at(column: Int, row: Int): Float = values[row * columns + column]
 }
@@ -24,7 +30,7 @@ class LatLonGrid(
 /**
  * Разбор одного сообщения GRIB2, ровно того вида, в каком DWD выкладывает ICON-D2 на правильной сетке:
  * сетка по шаблону 3.0 (широта-долгота), упаковка по шаблону 5.0 (простая), необязательная битовая маска.
- * Всё прочее (другие сетки, сжатие JPEG или CCSDS, несколько полей в файле) отклоняется [MapDataException]:
+ * Всё прочее (другие сетки, сжатие JPEG или CCSDS, несколько полей в одном сообщении) отклоняется [MapDataException]:
  * файл с чужого сервера не должен уронить приложение или занять всю память.
  */
 object Grib2 {
@@ -33,6 +39,30 @@ object Grib2 {
     private const val MAX_POINTS = 4_000_000
 
     private const val MICRO = 1e-6
+
+    /** Больше сообщений в одном файле не бывает: у осадков ICON-D2 их четыре (каждые 15 минут часа). */
+    private const val MAX_MESSAGES = 8
+
+    /**
+     * Все сообщения файла по очереди (у осадков ICON-D2 в файле часа четыре поля: :00, :15, :30, :45). Каждое
+     * разбирается [parse] и отдаётся [consume] сразу, чтобы в памяти не лежали все поля вместе.
+     */
+    fun parseAll(bytes: ByteArray, consume: (LatLonGrid) -> Unit): Int {
+        val reader = Reader(bytes)
+        var start = 0
+        var count = 0
+        while (start + 16 <= bytes.size) {
+            reader.require(String(bytes, start, 4, Charsets.US_ASCII) == "GRIB", "нет заголовка GRIB")
+            val total = reader.long(start + 8, 8)
+            reader.require(total in 16..(bytes.size - start).toLong(), "длина сообщения не сходится")
+            count++
+            reader.require(count <= MAX_MESSAGES, "слишком много сообщений")
+            consume(parse(bytes.copyOfRange(start, start + total.toInt())))
+            start += total.toInt()
+        }
+        reader.require(count > 0, "нет сообщений")
+        return count
+    }
 
     fun parse(bytes: ByteArray): LatLonGrid {
         val reader = Reader(bytes)
@@ -46,6 +76,7 @@ object Grib2 {
         var packing: Packing? = null
         var bitmap: Bitmap? = null
         var data: IntRange? = null
+        var validEnd: Instant? = null
         var offset = 16
         while (offset + 4 <= end) {
             if (String(bytes, offset, 4, Charsets.US_ASCII) == "7777") break
@@ -56,10 +87,11 @@ object Grib2 {
             val sectionEnd = offset + length.toInt()
             when (section) {
                 3 -> grid = readGrid(reader, offset, sectionEnd)
+                4 -> validEnd = readValidEnd(reader, offset, sectionEnd)
                 5 -> packing = readPacking(reader, offset, sectionEnd)
                 6 -> bitmap = readBitmap(reader, offset, sectionEnd)
                 7 -> {
-                    reader.require(data == null, "в файле больше одного поля")
+                    reader.require(data == null, "в сообщении больше одного поля")
                     data = (offset + 5) until sectionEnd
                 }
             }
@@ -68,7 +100,7 @@ object Grib2 {
         val g = grid ?: throw MapDataException("GRIB2: нет описания сетки")
         val p = packing ?: throw MapDataException("GRIB2: нет описания упаковки")
         val d = data ?: throw MapDataException("GRIB2: нет данных")
-        return assemble(reader, g, p, bitmap, d)
+        return assemble(reader, g, p, bitmap, d, validEnd)
     }
 
     private class GridDefinition(
@@ -109,6 +141,19 @@ object Grib2 {
         )
     }
 
+    /** Конец интервала накопления из раздела 4 по шаблону 4.8 (октеты 35–41); у других шаблонов null. */
+    private fun readValidEnd(r: Reader, at: Int, end: Int): Instant? {
+        if (end - at < 9 || r.long(at + 7, 2).toInt() != 8) return null
+        r.require(end - at >= 41, "раздел продукта короткий")
+        return try {
+            LocalDateTime.of(
+                r.long(at + 34, 2).toInt(), r.byte(at + 36), r.byte(at + 37), r.byte(at + 38), r.byte(at + 39), r.byte(at + 40),
+            ).toInstant(ZoneOffset.UTC)
+        } catch (e: DateTimeException) {
+            throw MapDataException("GRIB2: время накопления (${e.message})")
+        }
+    }
+
     /** Долгота в −180…180 (в GRIB она бывает в 0…360). */
     private fun longitude(value: Double): Double = if (value > 180.0) value - 360.0 else value
 
@@ -138,7 +183,7 @@ object Grib2 {
         }
     }
 
-    private fun assemble(r: Reader, g: GridDefinition, p: Packing, bitmap: Bitmap?, data: IntRange): LatLonGrid {
+    private fun assemble(r: Reader, g: GridDefinition, p: Packing, bitmap: Bitmap?, data: IntRange, validEnd: Instant?): LatLonGrid {
         val total = g.columns * g.rows
         r.require(g.scan and 0x20 == 0, "точки идут столбцами")
         val expected = if (bitmap == null) total else countBits(r.bytes, bitmap, total)
@@ -175,6 +220,7 @@ object Grib2 {
             stepLon = g.stepLon,
             stepLat = g.stepLat,
             values = values,
+            validEnd = validEnd,
         )
     }
 
