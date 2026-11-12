@@ -1,0 +1,103 @@
+package io.github.dumahuch.pogodaapp.map
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.IOException
+import java.time.Instant
+
+/** Загрузка кадров карты: запасные цвета DWD, отсутствие кадра, выбор прогона ICON-D2. */
+class MapLoadersTest {
+
+    private val now = Instant.parse("2026-11-09T19:52:00Z")
+    private val png = byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte(), 13, 10, 26, 10)
+    private val xml = "<?xml version=\"1.0\"?><ServiceExceptionReport/>".toByteArray()
+
+    @Test
+    fun styledFrameIsUsedWhenServerAcceptsStyle() {
+        val asked = mutableListOf<String>()
+        val loader = RainLoader { url -> asked += url; png }
+        val result = loader.load(Instant.parse("2026-11-09T19:50:00Z"), now)
+        assertTrue(result is RainResult.Image && result.styled)
+        assertEquals(1, asked.size)
+        assertTrue(asked[0].contains("LAYERS=Niederschlagsradar"))
+    }
+
+    @Test
+    fun refusedStyleFallsBackToDwdColoursAndIsNotAskedAgain() {
+        val asked = mutableListOf<String>()
+        val loader = RainLoader { url -> asked += url; if (url.contains("SLD_BODY")) xml else png }
+        val first = loader.load(Instant.parse("2026-11-09T19:50:00Z"), now)
+        assertTrue(first is RainResult.Image && !first.styled)
+        val second = loader.load(Instant.parse("2026-11-09T19:55:00Z"), now)
+        assertTrue(second is RainResult.Image && !second.styled)
+        assertEquals(3, asked.size)
+    }
+
+    @Test
+    fun missingTimeWithWorkingStyleIsMissing() {
+        var calls = 0
+        val loader = RainLoader { _ -> calls++; if (calls == 1) png else xml }
+        loader.load(Instant.parse("2026-11-09T19:50:00Z"), now)
+        assertEquals(RainResult.Missing, loader.load(Instant.parse("2026-11-09T21:00:00Z"), now))
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun laterHoursComeFromModelForTheFollowingHour() {
+        val asked = mutableListOf<String>()
+        RainLoader { url -> asked += url; png }.load(Instant.parse("2026-11-10T15:00:00Z"), now)
+        assertTrue(asked[0].contains("LAYERS=Icon-eu_reg00625_fd_sl_TOTPREC01H"))
+        assertTrue(asked[0].contains("TIME=2026-11-10T16%3A00%3A00.000Z"))
+    }
+
+    @Test
+    fun networkErrorIsPassedUp() {
+        val loader = RainLoader { _ -> throw IOException("нет сети") }
+        assertThrows(IOException::class.java) { loader.load(now, now) }
+    }
+
+    @Test
+    fun cloudsComeFromLatestRunThatHasTheHour() {
+        val hour = Instant.parse("2026-11-10T21:00:00Z")
+        val older = IconD2Frame(Instant.parse("2026-11-09T15:00:00Z"), 30)
+        val listings = mutableListOf<String>()
+        val downloads = mutableListOf<String>()
+        val grib = Grib2Test.message(columns = 2, rows = 2, raw = intArrayOf(0, 50, 100, 100), scan = 64)
+        val loader = CloudLoader(
+            text = { url ->
+                listings += url
+                // Прогон 18 UTC ещё не выложил этот час, прогон 15 UTC выложил.
+                if (url.endsWith("/15/clct_mod/")) "<a href=\"${IconD2Files.fileName(older)}\">" else ""
+            },
+            bytes = { url -> downloads += url; grib },
+            unpack = { it },
+        )
+        val grid = loader.load(hour, now)
+        assertEquals(0.5f, grid!!.at(1, 0), 1e-6f)
+        assertEquals(listOf("/18/clct_mod/", "/15/clct_mod/"), listings.map { it.takeLast(13) })
+        assertEquals(listOf(IconD2Files.runFolder(older.run) + IconD2Files.fileName(older)), downloads)
+        // Список папки держится 10 минут: второй раз не просится.
+        loader.load(hour, now.plusSeconds(60))
+        assertEquals(2, listings.size)
+    }
+
+    @Test
+    fun noRunWithTheHourGivesNothing() {
+        val loader = CloudLoader(text = { "" }, bytes = { error("не должно скачиваться") }, unpack = { it })
+        assertNull(loader.load(Instant.parse("2026-11-10T21:00:00Z"), now))
+    }
+
+    @Test
+    fun brokenFileIsDataError() {
+        val frame = IconD2Frame(Instant.parse("2026-11-09T18:00:00Z"), 27)
+        val loader = CloudLoader(
+            text = { "<a href=\"${IconD2Files.fileName(frame)}\">" },
+            bytes = { "<html>".toByteArray() },
+            unpack = { it },
+        )
+        assertThrows(MapDataException::class.java) { loader.load(Instant.parse("2026-11-10T21:00:00Z"), now) }
+    }
+}

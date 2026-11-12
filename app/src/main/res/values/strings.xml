@@ -337,4 +337,22 @@
     <string name="alert_period_open">%1$s, from %2$s</string>
     <string name="alert_close">Close</string>
     <string name="alert_source" translatable="false">Deutscher Wetterdienst</string>
+    <!-- Карта (0.8.0) -->
+    <string name="map_layer_clouds_rain">Clouds and rain</string>
+    <string name="map_layer_rain">Rain only</string>
+    <string name="map_day_now">Now</string>
+    <string name="map_day_tomorrow">Tomorrow</string>
+    <string name="map_day_after">Day after tomorrow</string>
+    <string name="map_forecast">Forecast</string>
+    <string name="map_play">Play</string>
+    <string name="map_pause">Pause</string>
+    <string name="map_locate">Show my place</string>
+    <string name="map_legend_unit">mm/h</string>
+    <string name="map_time_scale">Time scale</string>
+    <string name="map_no_connection">No connection to DWD</string>
+    <string name="map_no_data">No data for this time</string>
+    <string name="map_base_failed">The base map did not load</string>
+    <string name="about_map_title">Map</string>
+    <!-- Пометки по условиям BKG и DWD (облака пересчитаны из сетки модели и перекрашены): не переводятся. -->
+    <string name="about_map_text" translatable="false">Grundkarte: basemap.de, © GeoBasis-DE / BKG %1$d CC BY 4.0. Regen und Wolken: Datenbasis: Deutscher Wetterdienst, Rasterdaten bildlich wiedergegeben.</string>
 </resources>

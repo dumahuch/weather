@@ -9,7 +9,7 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URI
 
-/** Скачивание ответа одним запросом: общее для прогноза и качества воздуха (Open-Meteo) и пыльцы (DWD). */
+/** Скачивание ответа одним запросом: общее для прогноза и качества воздуха (Open-Meteo), пыльцы и карты (DWD). */
 internal object HttpJson {
 
     private const val CONNECT_TIMEOUT_MS = 10_000
@@ -24,6 +24,34 @@ internal object HttpJson {
     private const val CHUNK_BYTES = 8 * 1024
 
     fun get(url: String, userAgent: String, source: String = "Open-Meteo"): String {
+        val (status, body) = fetch(url, userAgent, source, "application/json", MAX_BODY_BYTES)
+        val text = String(body, Charsets.UTF_8)
+        if (status !in 200..299) {
+            throw ForecastException("$source ответил кодом $status: ${reasonOf(text)}")
+        }
+        return text
+    }
+
+    /**
+     * Ответ целиком байтами (картинки и файлы карты), не больше [maxBytes]. Код ответа не 2xx даёт [ForecastException]
+     * (текст ответа сервера в сообщение не идёт: это могут быть мегабайты HTML). С [allowClientErrors] ответ с кодом 4xx
+     * отдаётся как есть: сервер карт присылает так описание ошибки (WMS), его разбирает вызывающий.
+     */
+    fun bytes(
+        url: String,
+        userAgent: String,
+        source: String,
+        accept: String,
+        maxBytes: Int = MAX_BODY_BYTES,
+        allowClientErrors: Boolean = false,
+    ): ByteArray {
+        val (status, body) = fetch(url, userAgent, source, accept, maxBytes)
+        val ok = status in 200..299 || (allowClientErrors && status in 400..499)
+        if (!ok) throw ForecastException("$source ответил кодом $status")
+        return body
+    }
+
+    private fun fetch(url: String, userAgent: String, source: String, accept: String, maxBytes: Int): Pair<Int, ByteArray> {
         val address = URI(url)
         // Только https. Исключение одно: адрес самого устройства (127.0.0.1), на нём в тестах работает пробный сервер.
         if (address.scheme != "https" && !(address.scheme == "http" && address.host == LOOPBACK)) {
@@ -34,16 +62,13 @@ internal object HttpJson {
         try {
             connection.connectTimeout = CONNECT_TIMEOUT_MS
             connection.readTimeout = READ_TIMEOUT_MS
-            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Accept", accept)
             connection.setRequestProperty("User-Agent", userAgent)
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            if (connection.contentLengthLong > MAX_BODY_BYTES) throw ForecastException("$source: ответ слишком большой")
-            val body = stream?.use { String(readBounded(it, MAX_BODY_BYTES, deadline), Charsets.UTF_8) }.orEmpty()
-            if (status !in 200..299) {
-                throw ForecastException("$source ответил кодом $status: ${reasonOf(body)}")
-            }
-            return body
+            if (connection.contentLengthLong > maxBytes) throw ForecastException("$source: ответ слишком большой")
+            val body = stream?.use { readBounded(it, maxBytes, deadline) } ?: ByteArray(0)
+            return status to body
         } catch (e: IOException) {
             throw ForecastException("Нет связи с $source: ${e.message}", e)
         } finally {

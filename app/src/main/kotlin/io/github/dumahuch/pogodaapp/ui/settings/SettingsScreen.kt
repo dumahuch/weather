@@ -58,6 +58,7 @@ import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.PollenKind
+import java.time.LocalDate
 
 private val CardShape = RoundedCornerShape(24.dp)
 
@@ -224,6 +225,11 @@ fun SettingsScreen(
             // Слово в слово по условию лицензии DWD (подпись нужна при любом использовании данных): не переводится.
             SourceLine(stringResource(R.string.about_dwd_title), stringResource(R.string.about_dwd_text))
             SourceLine(stringResource(R.string.about_places_title), stringResource(R.string.about_places_text))
+            // Подложка BKG и пометка DWD о переработке (облака пересчитаны и перекрашены): по условиям, не переводится.
+            SourceLine(
+                stringResource(R.string.about_map_title),
+                stringResource(R.string.about_map_text, LocalDate.now().year),
+            )
         }
     }
 }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Прогноз из интернета. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -14,6 +15,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Чтобы обновление уведомления пережило перезагрузку телефона (JobInfo.setPersisted). Само ничего не запускает. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Библиотека карты (MapLibre) просит ещё состояние Wi-Fi; её код его не читает (сверено 12.11.2026 по исходникам
+         android-v13.7.1), поэтому право убрано из готового приложения. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
 
     <application
         android:allowBackup="false"

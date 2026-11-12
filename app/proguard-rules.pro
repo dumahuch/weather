@@ -8,3 +8,11 @@
     public static int d(...);
     public static int i(...);
 }
+
+# Apache Commons Compress (распаковка bzip2 для карты): необязательные зависимости других форматов в приложении не нужны,
+# их классов в APK нет. Нужен только BZip2CompressorInputStream.
+-dontwarn org.tukaani.xz.**
+-dontwarn com.github.luben.zstd.**
+-dontwarn org.brotli.dec.**
+-dontwarn org.objectweb.asm.**
+-dontwarn org.osgi.**

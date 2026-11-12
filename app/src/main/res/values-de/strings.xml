@@ -329,4 +329,20 @@
     <string name="alert_period_span">%1$s %2$s – %3$s %4$s</string>
     <string name="alert_period_open">%1$s, ab %2$s</string>
     <string name="alert_close">Schließen</string>
+    <!-- Карта (0.8.0) -->
+    <string name="map_layer_clouds_rain">Wolken und Regen</string>
+    <string name="map_layer_rain">Nur Regen</string>
+    <string name="map_day_now">Jetzt</string>
+    <string name="map_day_tomorrow">Morgen</string>
+    <string name="map_day_after">Übermorgen</string>
+    <string name="map_forecast">Vorhersage</string>
+    <string name="map_play">Abspielen</string>
+    <string name="map_pause">Pause</string>
+    <string name="map_locate">Meinen Ort zeigen</string>
+    <string name="map_legend_unit">mm/h</string>
+    <string name="map_time_scale">Zeitleiste</string>
+    <string name="map_no_connection">Keine Verbindung zum DWD</string>
+    <string name="map_no_data">Keine Daten für diese Zeit</string>
+    <string name="map_base_failed">Die Grundkarte wurde nicht geladen</string>
+    <string name="about_map_title">Karte</string>
 </resources>

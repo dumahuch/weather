@@ -212,4 +212,18 @@ object LineIcons {
             "M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z",
         ),
     )
+
+    /** Треугольник «играть» (Lucide play, прежний вид): шкала времени карты. */
+    val Play = LineIcon(
+        listOf(
+            "M6 3l14 9-14 9V3z",
+        ),
+    )
+
+    /** Пауза (Lucide pause, прежний вид). */
+    val Pause = LineIcon(
+        listOf(
+            "M6 4h4v16H6zM14 4h4v16h-4z",
+        ),
+    )
 }

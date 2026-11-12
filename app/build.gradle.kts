@@ -37,6 +37,11 @@ android {
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
+        // Библиотека карты (MapLibre) несёт машинный код. Pixel это arm64; x86_64 только для эмулятора на ПК (стенд),
+        // в выпуск он не идёт (см. androidComponents ниже).
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     // Только три языка интерфейса: библиотеки не тянут лишние переводы в APK.
@@ -98,6 +103,13 @@ android {
     }
 }
 
+// Выпуск ставится только на Pixel (arm64): машинный код для эмулятора в выпускной APK не кладётся.
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.packaging.jniLibs.excludes.add("lib/x86_64/**")
+    }
+}
+
 kotlin {
     compilerOptions {
         allWarningsAsErrors = true
@@ -115,6 +127,8 @@ dependencies {
     implementation(libs.haze)
     implementation(libs.haze.blur)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.maplibre.android)
+    implementation(libs.commons.compress)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
