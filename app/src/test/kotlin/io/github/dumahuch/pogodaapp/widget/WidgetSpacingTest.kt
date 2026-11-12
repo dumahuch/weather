@@ -9,7 +9,7 @@ class WidgetSpacingTest {
     @Test
     fun slackIsSplitBetweenBlocks() {
         val tops = WidgetSpacing.tops(start = 10f, total = 100f, heights = listOf(20f, 20f, 20f))
-        assertEquals(listOf(10f, 60f, 110f), tops)
+        assertEquals(listOf(10f, 50f, 90f), tops)
     }
 
     @Test
