@@ -32,7 +32,8 @@ private val HourWidth = 44.dp
 /**
  * Часовая шкала-линейка: большие деления каждый час с подписью, около «сейчас» малые через 15 минут, метка выбранного
  * времени посередине. Шкалу листают пальцем (время меняется вместе с ней) или нажимают на деление. Прошедшее белым,
- * прогноз голубым.
+ * прогноз голубым. [onTime] вызывается на каждый сдвиг, [onSettled] когда палец отпущен или нажатие закончено
+ * (по нему заказывается кадр, не на каждое промежуточное время).
  */
 @Composable
 fun TimeRuler(
@@ -42,6 +43,7 @@ fun TimeRuler(
     zone: ZoneId,
     description: String,
     onTime: (Instant) -> Unit,
+    onSettled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPogodaPalette.current
@@ -54,6 +56,7 @@ fun TimeRuler(
     var dragTime by remember { mutableStateOf<Instant?>(null) }
     val selected by rememberUpdatedState(time)
     val report by rememberUpdatedState(onTime)
+    val settled by rememberUpdatedState(onSettled)
 
     Canvas(
         modifier
@@ -62,8 +65,8 @@ fun TimeRuler(
                 val hourPx = HourWidth.toPx()
                 detectHorizontalDragGestures(
                     onDragStart = { dragTime = selected },
-                    onDragEnd = { dragTime = null },
-                    onDragCancel = { dragTime = null },
+                    onDragEnd = { dragTime = null; settled() },
+                    onDragCancel = { dragTime = null; settled() },
                 ) { change, dx ->
                     change.consume()
                     val moved = (dragTime ?: selected).minus(Duration.ofMillis((dx / hourPx * HOUR_MS).toLong()))
@@ -77,6 +80,7 @@ fun TimeRuler(
                 detectTapGestures { offset ->
                     val shift = (offset.x - size.width / 2f) / hourPx * HOUR_MS
                     report(selected.plus(Duration.ofMillis(shift.toLong())))
+                    settled()
                 }
             },
     ) {

@@ -71,9 +71,11 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * Вкладка «Карта» (0.8.0): тёмная подложка basemap.de, облака ICON-D2 и дождь DWD, метка места. Справа сверху кнопка
- * «моё место» и два слоя, слева плашка с названием слоя, слева внизу легенда дождя, внизу стеклянная панель со временем,
- * сутками, кнопкой «играть» и часовой шкалой. Цвета свои, тёмные ([MapPalette]): их задаёт тот, кто показывает экран.
+ * Вкладка «Карта» (0.8.0): тёмная подложка basemap.de, облака ICON-D2 и дождь DWD, метка места. Слева сверху плашка
+ * с названием слоя. Над панелью времени слева легенда дождя, справа (от нижнего края вверх, чтобы дотягиваться на
+ * больших экранах) кнопка «моё место», отделённая просветом, и над ней два слоя. Внизу стеклянная панель со
+ * временем, сутками, кнопкой «играть» и часовой шкалой. Цвета свои, тёмные ([MapPalette]): их задаёт тот, кто
+ * показывает экран.
  *
  * [skyDarkInk] нужен, чтобы при уходе с карты вернуть системным значкам цвет неба: на карте они всегда светлые.
  */
@@ -103,11 +105,8 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, modifier: Modifier = Modifier)
             onFailed = { baseFailed = true },
             modifier = Modifier.fillMaxSize(),
         )
-        TopControls(
+        LayerName(
             layer = state.layer,
-            canLocate = place != null,
-            onLocate = { locate++ },
-            onLayer = model::selectLayer,
             modifier = Modifier.statusBarsPadding().padding(horizontal = 14.dp, vertical = 8.dp),
         )
         Column(
@@ -115,7 +114,16 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, modifier: Modifier = Modifier)
                 .align(Alignment.BottomStart)
                 .padding(start = 8.dp, end = 8.dp, bottom = bottomContentPadding()),
         ) {
-            if (state.legendValid) RainLegend(Modifier.padding(start = 6.dp, bottom = 8.dp))
+            Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
+                if (state.legendValid) RainLegend(Modifier.padding(start = 6.dp, bottom = 4.dp))
+                Spacer(Modifier.weight(1f))
+                MapButtons(
+                    layer = state.layer,
+                    canLocate = place != null,
+                    onLocate = { locate++ },
+                    onLayer = model::selectLayer,
+                )
+            }
             TimePanel(
                 state = state,
                 zone = zone,
@@ -123,6 +131,7 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, modifier: Modifier = Modifier)
                 onDay = model::selectDay,
                 onPlay = model::togglePlay,
                 onTime = model::scrubTo,
+                onSettled = model::scrubEnd,
             )
         }
     }
@@ -150,17 +159,12 @@ private fun statusText(state: MapUiState, baseFailed: Boolean): String? {
     }
 }
 
+/** Плашка с названием слоя, слева сверху. */
 @Composable
-private fun TopControls(
-    layer: MapLayer,
-    canLocate: Boolean,
-    onLocate: () -> Unit,
-    onLayer: (MapLayer) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun LayerName(layer: MapLayer, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+    Row(modifier.fillMaxWidth()) {
         Text(
             stringResource(layer.label()),
             style = pogodaText(12f, 600, color = palette.ink),
@@ -168,26 +172,40 @@ private fun TopControls(
                 .glassButton(RoundedCornerShape(14.dp), glass)
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         )
-        Spacer(Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val locateLabel = stringResource(R.string.map_locate)
-            Box(
-                Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable(enabled = canLocate, role = Role.Button, onClick = onLocate)
-                    .semantics { contentDescription = locateLabel },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(Modifier.size(36.dp).glassButton(CircleShape, glass), contentAlignment = Alignment.Center) {
-                    LineIconView(LineIcons.Locate, 18.dp, if (canLocate) palette.ink else palette.ink2)
-                }
+    }
+}
+
+/**
+ * Кнопки справа над панелью времени: два слоя, под ними с просветом [LocateGap] кнопка «моё место», самая нижняя,
+ * чтобы она выделялась и до неё было проще дотянуться.
+ */
+@Composable
+private fun MapButtons(layer: MapLayer, canLocate: Boolean, onLocate: () -> Unit, onLayer: (MapLayer) -> Unit) {
+    val palette = LocalPogodaPalette.current
+    val glass = LocalGlass.current
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        LayerButton(MapLayer.CloudsAndRain, LineIcons.Rain, selected = layer == MapLayer.CloudsAndRain, onLayer)
+        Spacer(Modifier.height(8.dp))
+        LayerButton(MapLayer.RainOnly, LineIcons.Drop, selected = layer == MapLayer.RainOnly, onLayer)
+        Spacer(Modifier.height(LocateGap))
+        val locateLabel = stringResource(R.string.map_locate)
+        Box(
+            Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .clickable(enabled = canLocate, role = Role.Button, onClick = onLocate)
+                .semantics { contentDescription = locateLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(36.dp).glassButton(CircleShape, glass), contentAlignment = Alignment.Center) {
+                LineIconView(LineIcons.Locate, 18.dp, if (canLocate) palette.ink else palette.ink2)
             }
-            LayerButton(MapLayer.CloudsAndRain, LineIcons.Rain, selected = layer == MapLayer.CloudsAndRain, onLayer)
-            LayerButton(MapLayer.RainOnly, LineIcons.Drop, selected = layer == MapLayer.RainOnly, onLayer)
         }
     }
 }
+
+/** Просвет между кнопками слоёв и кнопкой «моё место». */
+private val LocateGap = 16.dp
 
 private fun MapLayer.label(): Int = when (this) {
     MapLayer.CloudsAndRain -> R.string.map_layer_clouds_rain
@@ -255,6 +273,7 @@ private fun TimePanel(
     onDay: (MapDay) -> Unit,
     onPlay: () -> Unit,
     onTime: (Instant) -> Unit,
+    onSettled: () -> Unit,
 ) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
@@ -305,6 +324,7 @@ private fun TimePanel(
                 zone = zone,
                 description = stringResource(R.string.map_time_scale),
                 onTime = onTime,
+                onSettled = onSettled,
                 modifier = Modifier.weight(1f).height(44.dp),
             )
         }

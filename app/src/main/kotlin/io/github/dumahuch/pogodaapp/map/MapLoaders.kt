@@ -2,6 +2,7 @@ package io.github.dumahuch.pogodaapp.map
 
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 
 /** Кадр дождя: картинка PNG и признак, что она в наших цветах (тогда легенда верна), либо данных на это время нет. */
 sealed interface RainResult {
@@ -13,14 +14,14 @@ sealed interface RainResult {
 /**
  * Загрузка кадра дождя. До 2 часов вперёд радар, дальше модель ([MapTimeline.fromRadar]). Сначала просится кадр
  * в наших цветах; если сервер стиль не принял (ответ не картинка), кадр берётся в цветах DWD, и для этого слоя
- * больше стиль не просится. Ошибка сети уходит наверх исключением из [fetch].
+ * больше стиль не просится. Ошибка сети уходит наверх исключением из [fetch]. Загрузки разных кадров идут
+ * одновременно (каждая со своим запросом), общая у них только память о стиле.
  */
 class RainLoader(private val fetch: (url: String) -> ByteArray) {
 
     /** Принимает ли сервер наш стиль для слоя: пока не знаем, null. */
-    private val styleAccepted = HashMap<RainSource, Boolean>()
+    private val styleAccepted = ConcurrentHashMap<RainSource, Boolean>()
 
-    @Synchronized
     fun load(time: Instant, now: Instant): RainResult {
         val source = if (MapTimeline.fromRadar(time, now)) RainSource.Radar else RainSource.Model
         val frame = if (source == RainSource.Radar) MapTimeline.radarFrame(time) else MapTimeline.modelRainFrame(time)
@@ -44,7 +45,7 @@ class RainLoader(private val fetch: (url: String) -> ByteArray) {
 /**
  * Загрузка облачности ICON-D2 на час: список файлов папки прогона показывает, выложен ли нужный час (список
  * держится 10 минут), файл скачивается, распаковывается ([unpack], bzip2) и разбирается. Нет ни в одном
- * подходящем прогоне: null.
+ * подходящем прогоне: null. Разные часы грузятся одновременно; одновременно только список папки берётся один раз.
  */
 class CloudLoader(
     private val text: (url: String) -> String,
@@ -55,7 +56,6 @@ class CloudLoader(
 
     private val listings = HashMap<String, Listing>()
 
-    @Synchronized
     fun load(hour: Instant, now: Instant): LatLonGrid? {
         for (frame in IconD2Files.candidates(hour, now)) {
             val folder = IconD2Files.runFolder(frame.run)
@@ -66,6 +66,8 @@ class CloudLoader(
         return null
     }
 
+    /** Список папки качается под замком: несколько часов, начатых вместе, спрашивают его один раз. */
+    @Synchronized
     private fun listing(folder: String, now: Instant): String {
         val cached = listings[folder]
         if (cached != null && Duration.between(cached.fetched, now) < ListingLife && !cached.fetched.isAfter(now)) {

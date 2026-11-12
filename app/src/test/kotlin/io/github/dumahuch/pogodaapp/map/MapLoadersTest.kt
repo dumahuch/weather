@@ -7,6 +7,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /** Загрузка кадров карты: запасные цвета DWD, отсутствие кадра, выбор прогона ICON-D2. */
 class MapLoadersTest {
@@ -99,5 +102,51 @@ class MapLoadersTest {
             unpack = { it },
         )
         assertThrows(MapDataException::class.java) { loader.load(Instant.parse("2026-11-10T21:00:00Z"), now) }
+    }
+
+    @Test
+    fun rainFramesAreLoadedAtTheSameTimeNotOneByOne() {
+        // Каждая загрузка ждёт, пока начнётся вторая: при общей очереди (замке) этого не случилось бы.
+        val bothStarted = CountDownLatch(2)
+        var waitedInTime = true
+        val loader = RainLoader { _ ->
+            bothStarted.countDown()
+            if (!bothStarted.await(5, TimeUnit.SECONDS)) waitedInTime = false
+            png
+        }
+        val a = thread { loader.load(Instant.parse("2026-11-09T19:45:00Z"), now) }
+        val b = thread { loader.load(Instant.parse("2026-11-09T19:50:00Z"), now) }
+        a.join(10_000)
+        b.join(10_000)
+        assertTrue("кадры дождя грузятся по очереди", waitedInTime)
+    }
+
+    @Test
+    fun cloudHoursAreLoadedAtTheSameTimeAndFolderListingIsAskedOnce() {
+        val grib = Grib2Test.message(columns = 2, rows = 2, raw = intArrayOf(0, 50, 100, 100), scan = 64)
+        val bothStarted = CountDownLatch(2)
+        var waitedInTime = true
+        var listings = 0
+        val first = Instant.parse("2026-11-10T19:00:00Z")
+        val second = Instant.parse("2026-11-10T20:00:00Z")
+        val run = Instant.parse("2026-11-09T18:00:00Z")
+        val names = listOf(first, second).map { hour ->
+            IconD2Files.fileName(IconD2Frame(run, (hour.epochSecond - run.epochSecond).toInt() / 3600))
+        }
+        val loader = CloudLoader(
+            text = { synchronized(this) { listings++ }; names.joinToString("") { "<a href=\"$it\">" } },
+            bytes = {
+                bothStarted.countDown()
+                if (!bothStarted.await(5, TimeUnit.SECONDS)) waitedInTime = false
+                grib
+            },
+            unpack = { it },
+        )
+        val a = thread { loader.load(first, now) }
+        val b = thread { loader.load(second, now) }
+        a.join(10_000)
+        b.join(10_000)
+        assertTrue("часы облаков грузятся по очереди", waitedInTime)
+        assertEquals(1, listings)
     }
 }
