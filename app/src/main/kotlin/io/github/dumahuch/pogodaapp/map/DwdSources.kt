@@ -16,25 +16,17 @@ enum class RainSource(val layer: String) {
     Model("Icon-eu_reg00625_fd_sl_TOTPREC01H"),
 }
 
-/** Пороги легенды дождя, мм/ч, и цвета ступеней (от слабого к сильному). */
-object RainScale {
-    val Thresholds = doubleArrayOf(0.1, 1.0, 5.0, 20.0)
-
-    /** Цвета ступеней «от 0,1», «от 1», «от 5», «от 20», как в легенде. */
-    val Colors = listOf("#8FD3FF", "#4AA3FF", "#3D56FF", "#9A4DFF")
-}
-
 /**
  * Карта осадков с сервера DWD (WMS, https://maps.dwd.de/geoserver/dwd/wms): одна картинка PNG на всю область
- * [MapArea.Overlay] в проекции карты. Цвета задаёт наш стиль (SLD), чтобы они совпадали с легендой; если сервер стиль
- * не примет, кадр просится в стиле DWD, а легенда прячется ([styled] = false).
+ * [MapArea.Overlay] в проекции карты, в стиле самого DWD. Свои стили сервер запрещает («Dynamic style usage is
+ * forbidden», проверено 12.11.2026), поэтому цвета ступеней меняет на телефоне [RainPalette].
  */
 object DwdWms {
     private const val BASE = "https://maps.dwd.de/geoserver/dwd/wms"
 
     private val TimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC)
 
-    fun mapUrl(source: RainSource, time: Instant, styled: Boolean, width: Int = MapArea.RAIN_WIDTH): String {
+    fun mapUrl(source: RainSource, time: Instant, width: Int = MapArea.RAIN_WIDTH): String {
         val box = MapArea.Overlay
         val bbox = listOf(Mercator.x(box.west), Mercator.y(box.south), Mercator.x(box.east), Mercator.y(box.north))
             .joinToString(",") { String.format(Locale.ROOT, "%.1f", it) }
@@ -53,33 +45,8 @@ object DwdWms {
             "EXCEPTIONS" to "XML",
             "TIME" to TimeFormat.format(time),
         )
-        if (styled) params["SLD_BODY"] = sld(source)
         return BASE + "?" + params.entries.joinToString("&") { (k, v) -> k + "=" + encode(v) }
     }
-
-    /**
-     * Стиль слоя: значения меньше 0,1 мм прозрачны, дальше четыре ступени легенды. У ColorMap вида «intervals» запись
-     * красит значения ниже своего порога (и не ниже предыдущего).
-     */
-    fun sld(source: RainSource): String {
-        val t = RainScale.Thresholds
-        val c = RainScale.Colors
-        val entries = buildString {
-            append(entry("#000000", t[0], 0.0))
-            for (k in 1 until t.size) append(entry(c[k - 1], t[k], OPACITY))
-            append(entry(c.last(), TOP, OPACITY))
-        }
-        return "<StyledLayerDescriptor version=\"1.0.0\" xmlns=\"http://www.opengis.net/sld\">" +
-            "<NamedLayer><Name>${source.layer}</Name><UserStyle><FeatureTypeStyle><Rule><RasterSymbolizer>" +
-            "<ColorMap type=\"intervals\">$entries</ColorMap>" +
-            "</RasterSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>"
-    }
-
-    private const val OPACITY = 0.85
-    private const val TOP = 100_000.0
-
-    private fun entry(color: String, quantity: Double, opacity: Double): String =
-        "<ColorMapEntry color=\"$color\" quantity=\"$quantity\" opacity=\"$opacity\"/>"
 
     private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8).replace("+", "%20")
 

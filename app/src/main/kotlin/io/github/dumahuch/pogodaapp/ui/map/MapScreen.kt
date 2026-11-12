@@ -1,6 +1,5 @@
 package io.github.dumahuch.pogodaapp.ui.map
 
-import android.graphics.Color as AndroidColor
 import android.view.WindowInsetsController
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,10 +11,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
@@ -53,7 +53,7 @@ import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.sentenceCase
 import io.github.dumahuch.pogodaapp.map.MapDay
 import io.github.dumahuch.pogodaapp.map.MapTimeline
-import io.github.dumahuch.pogodaapp.map.RainScale
+import io.github.dumahuch.pogodaapp.map.RainPalette
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
@@ -82,7 +82,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun MapScreen(place: Place?, skyDarkInk: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val model: MapViewModel = viewModel { MapViewModel("PogodaApp/${AppVersion.read(context).name}") }
+    val model: MapViewModel = viewModel { MapViewModel("PogodaApp/${AppVersion.read(context).name}", mapCacheRoot(context)) }
     val state by model.state.collectAsStateWithLifecycle()
     val images by model.images.collectAsStateWithLifecycle()
     var locate by remember { mutableIntStateOf(0) }
@@ -91,6 +91,7 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, modifier: Modifier = Modifier)
 
     DisposableEffect(model) {
         model.onShown()
+        MapCacheJobs.scheduleCleanup(context)
         onDispose { model.onHidden() }
     }
     LightBarIcons(restoreDark = skyDarkInk)
@@ -115,7 +116,7 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, modifier: Modifier = Modifier)
                 .padding(start = 8.dp, end = 8.dp, bottom = bottomContentPadding()),
         ) {
             Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
-                if (state.legendValid) RainLegend(Modifier.padding(start = 6.dp, bottom = 4.dp))
+                RainLegend(Modifier.padding(start = 6.dp, bottom = 4.dp))
                 Spacer(Modifier.weight(1f))
                 MapButtons(
                     layer = state.layer,
@@ -241,31 +242,41 @@ private fun LayerButton(layer: MapLayer, icon: LineIcon, selected: Boolean, onLa
     }
 }
 
-/** Легенда дождя сверху вниз от сильного к слабому: 20, 5, 1, 0,1 мм/ч. */
+/** Легенда дождя: полоса цвета от слабого (внизу) к сильному (вверху), отметки 0,1 / 1 / 5 / 20 / 100 мм/ч по логарифмической шкале. */
 @Composable
 private fun RainLegend(modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
     val locale = LocalLocale.current.platformLocale
+    val colors = remember {
+        List(LEGEND_SAMPLES) { k ->
+            val position = 1.0 - k.toDouble() / (LEGEND_SAMPLES - 1)
+            val mm = 0.1 * Math.pow(RainPalette.LegendValues.last() / RainPalette.LegendValues.first(), position)
+            Color(0xFF000000.toInt() or RainPalette.legendColor(mm))
+        }
+    }
     Column(
         modifier
             .glassButton(RoundedCornerShape(10.dp), glass)
             .padding(horizontal = 8.dp, vertical = 7.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        for (k in RainScale.Thresholds.indices.reversed()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(width = 8.dp, height = 12.dp).background(Color(AndroidColor.parseColor(RainScale.Colors[k])), RoundedCornerShape(3.dp)))
-                Spacer(Modifier.width(6.dp))
+        Box(Modifier.padding(vertical = 6.dp).height(LegendHeight)) {
+            Box(Modifier.size(width = 8.dp, height = LegendHeight).background(Brush.verticalGradient(colors), RoundedCornerShape(3.dp)))
+            for (value in RainPalette.LegendValues) {
+                val position = RainPalette.legendPosition(value).toFloat()
                 Text(
-                    NumberFormat.getNumberInstance(locale).format(RainScale.Thresholds[k]),
+                    NumberFormat.getNumberInstance(locale).format(value),
                     style = pogodaText(10f, 500, color = palette.ink, tabular = true),
+                    modifier = Modifier.offset(x = 14.dp, y = LegendHeight * (1f - position) - 7.dp),
                 )
             }
         }
         Text(stringResource(R.string.map_legend_unit), style = pogodaText(9f, 500, color = palette.ink2))
     }
 }
+
+private val LegendHeight = 96.dp
+private const val LEGEND_SAMPLES = 24
 
 @Composable
 private fun TimePanel(

@@ -44,6 +44,12 @@
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <!-- Стирает кадры карты на диске около 23:55; запускает только система (JobScheduler). -->
+        <service
+            android:name=".ui.map.MapCacheJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
     </application>
 
 </manifest>

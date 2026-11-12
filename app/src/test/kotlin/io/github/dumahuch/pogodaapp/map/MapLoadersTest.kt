@@ -11,7 +11,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
-/** Загрузка кадров карты: запасные цвета DWD, отсутствие кадра, выбор прогона ICON-D2. */
+/** Загрузка кадров карты: отсутствие кадра, выбор слоя и времени, выбор прогона ICON-D2. */
 class MapLoadersTest {
 
     private val now = Instant.parse("2026-11-09T19:52:00Z")
@@ -19,33 +19,20 @@ class MapLoadersTest {
     private val xml = "<?xml version=\"1.0\"?><ServiceExceptionReport/>".toByteArray()
 
     @Test
-    fun styledFrameIsUsedWhenServerAcceptsStyle() {
+    fun radarFrameIsAskedOnceWithoutOwnStyle() {
         val asked = mutableListOf<String>()
         val loader = RainLoader { url -> asked += url; png }
         val result = loader.load(Instant.parse("2026-11-09T19:50:00Z"), now)
-        assertTrue(result is RainResult.Image && result.styled)
+        assertTrue(result is RainResult.Image)
         assertEquals(1, asked.size)
         assertTrue(asked[0].contains("LAYERS=Niederschlagsradar"))
+        assertTrue(!asked[0].contains("SLD_BODY"))
     }
 
     @Test
-    fun refusedStyleFallsBackToDwdColoursAndIsNotAskedAgain() {
-        val asked = mutableListOf<String>()
-        val loader = RainLoader { url -> asked += url; if (url.contains("SLD_BODY")) xml else png }
-        val first = loader.load(Instant.parse("2026-11-09T19:50:00Z"), now)
-        assertTrue(first is RainResult.Image && !first.styled)
-        val second = loader.load(Instant.parse("2026-11-09T19:55:00Z"), now)
-        assertTrue(second is RainResult.Image && !second.styled)
-        assertEquals(3, asked.size)
-    }
-
-    @Test
-    fun missingTimeWithWorkingStyleIsMissing() {
-        var calls = 0
-        val loader = RainLoader { _ -> calls++; if (calls == 1) png else xml }
-        loader.load(Instant.parse("2026-11-09T19:50:00Z"), now)
+    fun answerWithoutPictureMeansNoFrame() {
+        val loader = RainLoader { _ -> xml }
         assertEquals(RainResult.Missing, loader.load(Instant.parse("2026-11-09T21:00:00Z"), now))
-        assertEquals(2, calls)
     }
 
     @Test
