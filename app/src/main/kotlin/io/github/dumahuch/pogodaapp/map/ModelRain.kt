@@ -8,6 +8,8 @@ import java.util.Locale
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.FutureTask
 import java.util.concurrent.Semaphore
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
@@ -66,22 +68,28 @@ object IconD2Rain {
 /**
  * Дождь модели ICON-D2 на 15-минутный кадр: сила дождя за 15 минут, которые кончаются в [load]`(time)`, как разность
  * двух накоплений, в уровнях [RainPalette.levelOf] на картинку [width] × [height] по области [MapArea.Overlay].
+ * Между узлами сетки (около 2 км) сила дождя сглаживается кубически (Катмулл — Ром): значения в узлах те же, что у
+ * модели, а пятна мягкие, без квадратов. Картинка шириной как у радара ([MapArea.RAIN_WIDTH]), полтора пикселя на клетку.
  * Нужный прогон выбирается так же, как для облаков ([IconD2Files.candidates]); есть ли файл, показывает список папки.
  * Нет ни в одном прогоне: null (тогда дождь берётся из ICON-EU).
  *
- * Скачанные файлы держатся разобранными в небольшом запасе ([FILE_CACHE]): у четырёх кадров часа один файл, а кадр на
- * :00 берёт ещё последнее поле предыдущего файла. Одновременно скачивается и разбирается не больше [PARALLEL] файлов,
- * чтобы не занять слишком много памяти (файл около 2,4 МБ, распакованный около 6,5 МБ).
+ * Скачанные файлы держатся разобранными в небольшом запасе ([FILE_CACHE]), только вырезка сетки под область карты:
+ * у четырёх кадров часа один файл, а кадр на :00 берёт ещё последнее поле предыдущего файла. Одновременно
+ * скачивается и разбирается не больше [PARALLEL] файлов, чтобы не занять слишком много памяти (файл около 2,4 МБ,
+ * распакованный около 6,5 МБ).
  */
 class ModelRainLoader(
     private val listings: FolderListings,
     private val bytes: (url: String) -> ByteArray,
     private val unpack: (ByteArray) -> ByteArray,
-    private val width: Int = MapArea.CLOUD_WIDTH,
-    private val height: Int = MapArea.heightFor(MapArea.CLOUD_WIDTH),
+    private val width: Int = MapArea.RAIN_WIDTH,
+    private val height: Int = MapArea.heightFor(MapArea.RAIN_WIDTH),
 ) {
-    /** Накопления файла по моментам: на каждый пиксель картинки в 1/[UNITS] мм, [GAP] вне сетки. */
-    private class FileData(val fields: Map<Instant, CharArray>)
+    /** Вырезка сетки: столбцы и строки узлов, которые нужны картинке, и где пиксели картинки лежат между ними. */
+    private class Window(val key: String, val columns: Int, val rows: Int, val firstColumn: Int, val firstRow: Int, val gx: DoubleArray, val gy: DoubleArray)
+
+    /** Накопления файла по моментам: на каждый узел вырезки в 1/[UNITS] мм, [GAP] где у модели пропуск. */
+    private class FileData(val window: Window, val fields: Map<Instant, CharArray>)
 
     private val files = object : LinkedHashMap<String, FutureTask<FileData>>(FILE_CACHE * 2, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, FutureTask<FileData>>?): Boolean = size > FILE_CACHE
@@ -89,9 +97,8 @@ class ModelRainLoader(
 
     private val slots = Semaphore(PARALLEL)
 
-    /** Какой узел сетки берёт каждый пиксель картинки; строится один раз на вид сетки. */
     @Volatile
-    private var projection: Pair<String, IntArray>? = null
+    private var window: Window? = null
 
     fun load(time: Instant, now: Instant): ByteArray? {
         val start = time.minus(IconD2Rain.Step)
@@ -104,23 +111,58 @@ class ModelRainLoader(
             val folder = IconD2Rain.folder(run)
             val listing = listings.get(folder, now)
             if (!listed(listing, run, leadBefore) || !listed(listing, run, leadAfter)) continue
-            val before = file(folder, run, leadBefore).fields[start] ?: continue
-            val after = file(folder, run, leadAfter).fields[time] ?: continue
-            return levels(before, after)
+            val first = file(folder, run, leadBefore)
+            val second = file(folder, run, leadAfter)
+            if (first.window !== second.window) continue
+            val before = first.fields[start] ?: continue
+            val after = second.fields[time] ?: continue
+            return levels(first.window, before, after)
         }
         return null
     }
 
     private fun listed(listing: String, run: Instant, lead: Int) = listing.contains("\"" + IconD2Rain.fileName(run, lead) + "\"")
 
-    private fun levels(before: CharArray, after: CharArray): ByteArray = ByteArray(before.size) { i ->
-        val a = before[i].code
-        val b = after[i].code
-        if (a == GAP || b == GAP || b <= a) {
-            0
-        } else {
-            RainPalette.levelOf(IconD2Rain.rate(a / UNITS, b / UNITS)).toByte()
+    /** Сила дождя в узлах вырезки, сглаженная на пиксели картинки, в уровнях палитры. */
+    private fun levels(window: Window, before: CharArray, after: CharArray): ByteArray {
+        val rate = FloatArray(before.size) { i ->
+            val a = before[i].code
+            val b = after[i].code
+            if (a == GAP || b == GAP || b <= a) 0f else IconD2Rain.rate(a / UNITS, b / UNITS).toFloat()
         }
+        // Сначала вдоль строк сетки на столбцы картинки, потом вдоль столбцов на строки картинки.
+        val across = FloatArray(window.rows * width)
+        for (row in 0 until window.rows) {
+            val base = row * window.columns
+            for (x in 0 until width) {
+                val gx = window.gx[x]
+                across[row * width + x] = if (gx < 0) 0f else cubic(gx, window.columns) { rate[base + it] }
+            }
+        }
+        val out = ByteArray(width * height)
+        for (y in 0 until height) {
+            val gy = window.gy[y]
+            if (gy < 0) continue
+            for (x in 0 until width) {
+                if (window.gx[x] < 0) continue
+                val mm = cubic(gy, window.rows) { across[it * width + x] }
+                out[y * width + x] = RainPalette.levelOf(mm.toDouble()).toByte()
+            }
+        }
+        return out
+    }
+
+    /** Значение в дробной точке [at] ряда из [size] узлов [value] по Катмуллу — Рому; не меньше 0 (без отрицательного дождя). */
+    private inline fun cubic(at: Double, size: Int, value: (Int) -> Float): Float {
+        val i = floor(at).toInt()
+        val t = (at - i).toFloat()
+        val last = size - 1
+        val p0 = value((i - 1).coerceIn(0, last))
+        val p1 = value(i.coerceIn(0, last))
+        val p2 = value((i + 1).coerceIn(0, last))
+        val p3 = value((i + 2).coerceIn(0, last))
+        val result = p1 + 0.5f * t * (p2 - p0 + t * (2f * p0 - 5f * p1 + 4f * p2 - p3 + t * (3f * (p1 - p2) + p3 - p0)))
+        return if (result > 0f) result else 0f
     }
 
     /** Файл из запаса или скачанный; второй спрос того же файла ждёт ту же загрузку. Неудача из запаса убирается. */
@@ -147,47 +189,51 @@ class ModelRainLoader(
         try {
             val grib = unpack(bytes(url))
             val fields = HashMap<Instant, CharArray>()
+            var window: Window? = null
             Grib2.parseAll(grib) { grid ->
                 val end = grid.validEnd ?: throw MapDataException("GRIB2: у осадков нет времени накопления")
-                fields[end] = project(grid)
+                val own = windowFor(grid)
+                if (window != null && window !== own) throw MapDataException("GRIB2: у полей осадков разные сетки")
+                window = own
+                fields[end] = cut(grid, own)
             }
-            return FileData(fields)
+            return FileData(window ?: throw MapDataException("GRIB2: в файле осадков нет полей"), fields)
         } finally {
             slots.release()
         }
     }
 
-    /** Поле в пиксели картинки (ближайший узел сетки, широта по проекции карты), 1/[UNITS] мм. */
-    private fun project(grid: LatLonGrid): CharArray {
-        val map = indexFor(grid)
-        return CharArray(map.size) { p ->
-            val n = map[p]
-            val value = if (n < 0) Float.NaN else grid.values[n]
-            if (value.isNaN()) GAP.toChar() else (value * UNITS).roundToInt().coerceIn(0, GAP - 1).toChar()
-        }
+    /** Узлы вырезки в 1/[UNITS] мм. */
+    private fun cut(grid: LatLonGrid, window: Window): CharArray = CharArray(window.columns * window.rows) { n ->
+        val value = grid.at(window.firstColumn + n % window.columns, window.firstRow + n / window.columns)
+        if (value.isNaN()) GAP.toChar() else (value * UNITS).roundToInt().coerceIn(0, GAP - 1).toChar()
     }
 
-    private fun indexFor(grid: LatLonGrid): IntArray {
+    /** Вырезка под картинку (с запасом в два узла для сглаживания); строится один раз на вид сетки. */
+    private fun windowFor(grid: LatLonGrid): Window {
         val key = "${grid.columns} ${grid.rows} ${grid.west} ${grid.south} ${grid.stepLon} ${grid.stepLat}"
-        projection?.let { if (it.first == key) return it.second }
+        window?.let { if (it.key == key) return it }
         val box = MapArea.Overlay
         val top = Mercator.y(box.north)
         val bottom = Mercator.y(box.south)
-        val columns = IntArray(width) { x ->
-            val lon = box.west + (box.east - box.west) * (x + 0.5) / width
-            ((lon - grid.west) / grid.stepLon).roundToInt().let { if (it in 0 until grid.columns) it else -1 }
-        }
-        val map = IntArray(width * height)
-        for (y in 0 until height) {
-            val lat = Mercator.lat(top + (bottom - top) * (y + 0.5) / height)
-            val row = ((lat - grid.south) / grid.stepLat).roundToInt()
-            for (x in 0 until width) {
-                val column = columns[x]
-                map[y * width + x] = if (row in 0 until grid.rows && column >= 0) row * grid.columns + column else -1
-            }
-        }
-        projection = key to map
-        return map
+        val columnAt = DoubleArray(width) { x -> (box.west + (box.east - box.west) * (x + 0.5) / width - grid.west) / grid.stepLon }
+        val rowAt = DoubleArray(height) { y -> (Mercator.lat(top + (bottom - top) * (y + 0.5) / height) - grid.south) / grid.stepLat }
+        fun inside(at: Double, size: Int) = at >= 0 && at <= size - 1
+        val firstColumn = (floor(columnAt.filter { inside(it, grid.columns) }.minOrNull() ?: 0.0).toInt() - MARGIN).coerceAtLeast(0)
+        val lastColumn = (ceil(columnAt.filter { inside(it, grid.columns) }.maxOrNull() ?: 0.0).toInt() + MARGIN).coerceAtMost(grid.columns - 1)
+        val firstRow = (floor(rowAt.filter { inside(it, grid.rows) }.minOrNull() ?: 0.0).toInt() - MARGIN).coerceAtLeast(0)
+        val lastRow = (ceil(rowAt.filter { inside(it, grid.rows) }.maxOrNull() ?: 0.0).toInt() + MARGIN).coerceAtMost(grid.rows - 1)
+        val built = Window(
+            key = key,
+            columns = lastColumn - firstColumn + 1,
+            rows = lastRow - firstRow + 1,
+            firstColumn = firstColumn,
+            firstRow = firstRow,
+            gx = DoubleArray(width) { x -> if (inside(columnAt[x], grid.columns)) columnAt[x] - firstColumn else -1.0 },
+            gy = DoubleArray(height) { y -> if (inside(rowAt[y], grid.rows)) rowAt[y] - firstRow else -1.0 },
+        )
+        window = built
+        return built
     }
 
     private companion object {
@@ -196,5 +242,8 @@ class ModelRainLoader(
         const val GAP = 0xFFFF
         const val FILE_CACHE = 4
         const val PARALLEL = 2
+
+        /** Запас узлов вокруг картинки: кубическому сглаживанию нужны соседи с обеих сторон. */
+        const val MARGIN = 2
     }
 }

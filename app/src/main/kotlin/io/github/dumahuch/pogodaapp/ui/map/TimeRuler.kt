@@ -18,7 +18,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
-import io.github.dumahuch.pogodaapp.map.MapDay
 import io.github.dumahuch.pogodaapp.map.MapTimeline
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -30,14 +29,13 @@ import java.time.ZoneId
 private val HourWidth = 44.dp
 
 /**
- * Часовая шкала-линейка: большие деления каждый час с подписью, около «сейчас» малые через 15 минут, метка выбранного
- * времени посередине. Шкалу листают пальцем (время меняется вместе с ней) или нажимают на деление. Прошедшее белым,
- * прогноз голубым. [onTime] вызывается на каждый сдвиг, [onSettled] когда палец отпущен или нажатие закончено
+ * Часовая шкала-линейка на трое суток сплошь (через полночь): большие деления каждый час с подписью (в полночь 0),
+ * малые через 15 минут там, где кадры чаще часа ([MapTimeline.ticks]), метка выбранного времени посередине.
+ * Шкалу листают пальцем (время меняется вместе с ней) или нажимают на деление. Прошедшее белым, прогноз голубым. [onTime] вызывается на каждый сдвиг, [onSettled] когда палец отпущен или нажатие закончено
  * (по нему заказывается кадр, не на каждое промежуточное время).
  */
 @Composable
 fun TimeRuler(
-    day: MapDay,
     time: Instant,
     now: Instant,
     zone: ZoneId,
@@ -49,9 +47,9 @@ fun TimeRuler(
     val palette = LocalPogodaPalette.current
     val measurer = rememberTextMeasurer()
     val labelStyle = pogodaText(10f, 500, tabular = true)
-    val ticks = remember(day, now, zone) { MapTimeline.ticks(day, now, zone) }
+    val ticks = remember(now, zone) { MapTimeline.ticks(now, zone) }
     val anchor = remember(now) { MapTimeline.anchor(now) }
-    val range = remember(day, now, zone) { MapTimeline.range(day, now, zone) }
+    val range = remember(now, zone) { MapTimeline.range(now, zone) }
     // Пока палец ведёт шкалу, она идёт за пальцем плавно; выбранное время (с шагом) приходит снаружи.
     var dragTime by remember { mutableStateOf<Instant?>(null) }
     val selected by rememberUpdatedState(time)
@@ -75,7 +73,7 @@ fun TimeRuler(
                     report(moved)
                 }
             }
-            .pointerInput(day, now) {
+            .pointerInput(now) {
                 val hourPx = HourWidth.toPx()
                 detectTapGestures { offset ->
                     val shift = (offset.x - size.width / 2f) / hourPx * HOUR_MS
@@ -101,7 +99,7 @@ fun TimeRuler(
                     strokeWidth = 1.dp.toPx(),
                 )
                 if (tick.major) {
-                    val label = tick.time.atZone(zone).hour.let { if (it == 0 && tick.time != ticks.first().time) 24 else it }
+                    val label = tick.time.atZone(zone).hour.let { if (it == 0 && tick.time == ticks.last().time) 24 else it }
                     val layout = measurer.measure(label.toString(), labelStyle.copy(color = color.copy(alpha = 0.8f)))
                     drawText(layout, topLeft = Offset(x - layout.size.width / 2f, baseline + 3.dp.toPx()))
                 }
