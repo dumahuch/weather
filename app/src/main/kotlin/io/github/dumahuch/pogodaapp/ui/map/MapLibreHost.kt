@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.map
 
+import android.content.Context
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -16,6 +17,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.dumahuch.pogodaapp.map.MapArea
+import io.github.dumahuch.pogodaapp.map.MapLabels
 import io.github.dumahuch.pogodaapp.weather.Place
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -27,6 +29,7 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.offline.OfflineManager
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
@@ -38,7 +41,7 @@ import java.util.Locale
 
 /**
  * Подложка basemap.de (BKG, тёмный стиль) и наши слои: облака под дождём, оба под подписями городов, сверху метка места.
- * Карта живёт, пока экран на месте: её жизненный цикл идёт за экраном приложения, при уходе с вкладки она закрывается.
+ * Из подписей подложки остаются только города и общины ([MapLabels]). Карта живёт, пока экран на месте: её жизненный цикл идёт за экраном приложения, при уходе с вкладки она закрывается.
  */
 @Composable
 fun MapLibreHost(
@@ -55,6 +58,7 @@ fun MapLibreHost(
     val failed by rememberUpdatedState(onFailed)
     val mapView = remember {
         MapLibre.getInstance(context)
+        keepNothingOnDisk(context)
         val options = MapLibreMapOptions.createFromAttributes(context)
             .textureMode(true)
             .logoEnabled(false)
@@ -142,10 +146,29 @@ private const val START_ZOOM = 5.0
 private const val LOCATE_ZOOM = 7.5
 private const val LOCATE_MS = 600
 
+/**
+ * Библиотека карты по умолчанию складывает скачанные плитки подложки на диск телефона (до 50 МБ). Здесь это выключено,
+ * а накопленное стирается: подложка при каждом открытии грузится заново. Вызывать до создания карты.
+ */
+private fun keepNothingOnDisk(context: Context) {
+    val offline = OfflineManager.getInstance(context.applicationContext)
+    offline.setMaximumAmbientCacheSize(0L, null)
+    offline.clearAmbientCache(null)
+}
+
+/** Скрывает подписи подложки, кроме городов и общин; слои остаются в стиле (наши слои встают под первым из них). */
+private fun hideExtraLabels(style: Style) {
+    val ids = style.layers.filterIsInstance<SymbolLayer>().map { it.id }
+    for (id in MapLabels.hidden(ids)) {
+        style.getLayer(id)?.setProperties(PropertyFactory.visibility(Property.NONE))
+    }
+}
+
 private fun emptyBitmap(): Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
 
 /** Слои облаков и дождя под первым слоем подписей стиля (подписи городов остаются читаемыми), метка места сверху. */
 private fun addOverlays(style: Style) {
+    hideExtraLabels(style)
     val box = MapArea.Overlay
     val quad = LatLngQuad(
         LatLng(box.north, box.west),

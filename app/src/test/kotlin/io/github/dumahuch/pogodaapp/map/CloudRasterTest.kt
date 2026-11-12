@@ -51,4 +51,15 @@ class CloudRasterTest {
         val bottom = pixels[98 * 4 + 1] ushr 24
         assertTrue(top > bottom)
     }
+
+    @Test
+    fun alphaOnlyKeepsTheImageAndShrinksItFourTimes() {
+        val g = grid(floatArrayOf(0f, 0.5f, 1f, 0.25f), 2, 2)
+        val box = GeoBox(west = 0.0, south = 40.0, east = 10.0, north = 50.0)
+        val pixels = CloudRaster.render(g, box, 16, 16)
+        val alpha = CloudRaster.alphaOnly(pixels)
+        assertEquals(pixels.size, alpha.size)
+        assertTrue(pixels.any { it != 0 })
+        assertTrue(CloudRaster.fromAlpha(alpha).contentEquals(pixels))
+    }
 }

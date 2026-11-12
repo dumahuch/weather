@@ -63,6 +63,18 @@ object CloudRaster {
         return pixels
     }
 
+    /**
+     * Только непрозрачность пикселей: цвет у облаков один, поэтому запас кадров держит байт на пиксель, а не четыре
+     * (сутки облаков по часам занимают около 16 МБ вместо 65).
+     */
+    fun alphaOnly(pixels: IntArray): ByteArray = ByteArray(pixels.size) { (pixels[it] ushr 24).toByte() }
+
+    /** Обратно из [alphaOnly] в цвета ARGB. */
+    fun fromAlpha(alpha: ByteArray): IntArray = IntArray(alpha.size) { i ->
+        val a = alpha[i].toInt() and 0xFF
+        if (a == 0) 0 else (a shl 24) or CLOUD_RGB
+    }
+
     /** Значение сетки в дробной точке (столбец [gx], строка [gy]); пропуски в узлах дают NaN. */
     internal fun sample(grid: LatLonGrid, gx: Double, gy: Double): Float {
         val i = floor(gx).toInt().coerceIn(0, grid.columns - 2)

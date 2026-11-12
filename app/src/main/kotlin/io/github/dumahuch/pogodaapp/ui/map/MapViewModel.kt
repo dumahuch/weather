@@ -16,6 +16,7 @@ import io.github.dumahuch.pogodaapp.map.MapTimeline
 import io.github.dumahuch.pogodaapp.map.RainLoader
 import io.github.dumahuch.pogodaapp.map.RainResult
 import io.github.dumahuch.pogodaapp.weather.ForecastException
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -27,6 +28,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
@@ -57,8 +60,14 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
 
 /**
  * Карта: выбранное время и слой, загрузка кадров дождя (радар и модель DWD) и облаков (ICON-D2), «играть».
- * Кадры держатся в памяти: картинки дождя сжатыми (PNG, до [RAIN_CACHE] штук), облака готовыми пикселями (до
- * [CLOUD_CACHE] часов). На телефон ничего не пишется.
+ *
+ * Кадры держатся только в оперативной памяти и только пока открыта вкладка: дождь сжатым (PNG, до [RAIN_CACHE]
+ * штук), облака одной непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки
+ * очищает запас; на диск телефона ничего не пишется.
+ *
+ * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
+ * ждёт ту же загрузку. Пока палец ведёт шкалу, кадры не заказываются: загрузка начинается, когда палец остановился
+ * или отпустил шкалу.
  */
 class MapViewModel(userAgent: String) : ViewModel() {
 
@@ -76,7 +85,14 @@ class MapViewModel(userAgent: String) : ViewModel() {
     private class Cached<T>(val value: T, val fetched: Instant)
 
     private val rainCache = lru<String, Cached<RainResult>>(RAIN_CACHE)
-    private val cloudCache = lru<Instant, Cached<IntArray?>>(CLOUD_CACHE)
+    private val cloudCache = lru<Instant, Cached<ByteArray?>>(CLOUD_CACHE)
+
+    /** Кадры, которые качаются сейчас; запись живёт, пока идёт загрузка. */
+    private val rainLoads = HashMap<String, Deferred<RainResult>>()
+    private val cloudLoads = HashMap<Instant, Deferred<ByteArray?>>()
+
+    /** Заранее кадры качаются по несколько сразу, чтобы не завалить сервер DWD запросами. */
+    private val prefetchSlots = Semaphore(PREFETCH_PARALLEL)
 
     private val _state = MutableStateFlow(initialState(Instant.now()))
     val state: StateFlow<MapUiState> = _state.asStateFlow()
@@ -107,8 +123,13 @@ class MapViewModel(userAgent: String) : ViewModel() {
         show()
     }
 
-    /** Карту закрыли: анимация останавливается. */
-    fun onHidden() = stopPlaying()
+    /** Карту закрыли: анимация останавливается, запас кадров из памяти уходит. */
+    fun onHidden() {
+        stopPlaying()
+        showJob?.cancel()
+        synchronized(rainCache) { rainCache.clear() }
+        synchronized(cloudCache) { cloudCache.clear() }
+    }
 
     fun selectDay(day: MapDay) {
         stopPlaying()
@@ -117,15 +138,21 @@ class MapViewModel(userAgent: String) : ViewModel() {
         show()
     }
 
-    /** Время со шкалы (пока палец ведёт её, и после отпускания): ставится ближайшее допустимое. */
+    /**
+     * Время со шкалы, пока палец ведёт её: ставится ближайшее допустимое. Кадр заказывается, когда палец
+     * постоял [SCRUB_SETTLE_MS] (или сразу после [scrubEnd]), а не на каждое промежуточное время.
+     */
     fun scrubTo(time: Instant) {
         stopPlaying()
         val s = _state.value
         val snapped = MapTimeline.snap(time, s.day, s.now, zone)
         if (snapped == s.time) return
         _state.update { it.copy(time = snapped) }
-        show()
+        show(SCRUB_SETTLE_MS)
     }
+
+    /** Палец оторвали от шкалы (или нажали на неё): кадр на выбранное время заказывается сразу. */
+    fun scrubEnd() = show()
 
     fun selectLayer(layer: MapLayer) {
         _state.update { it.copy(layer = layer) }
@@ -143,12 +170,17 @@ class MapViewModel(userAgent: String) : ViewModel() {
         _state.update { it.copy(playing = true) }
         showJob?.cancel()
         playJob = viewModelScope.launch {
-            var index = frames.indexOfFirst { !it.isBefore(s.time) }.coerceAtLeast(0)
+            val first = frames.indexOfFirst { !it.isBefore(s.time) }.coerceAtLeast(0)
+            // Остальные кадры круга качаются заранее, по несколько сразу и в порядке показа: на экран кадр идёт из памяти.
+            for (step in 1 until frames.size) {
+                val frame = frames[(first + step) % frames.size]
+                launch { prefetch(frame) }
+            }
+            var index = first
             while (isActive) {
                 val time = frames[index]
                 _state.update { it.copy(time = time) }
                 withTimeoutOrNull(FRAME_WAIT_MS) { render(time) }
-                frames.getOrNull(index + 1)?.let { next -> launch { prefetch(next) } }
                 delay(FRAME_MS)
                 index = (index + 1) % frames.size
             }
@@ -161,45 +193,65 @@ class MapViewModel(userAgent: String) : ViewModel() {
         if (_state.value.playing) _state.update { it.copy(playing = false) }
     }
 
-    private fun show() {
+    private fun show(settleMs: Long = 0) {
         showJob?.cancel()
-        val time = _state.value.time
-        showJob = viewModelScope.launch { render(time) }
+        showJob = viewModelScope.launch {
+            if (settleMs > 0) delay(settleMs)
+            render(_state.value.time)
+        }
     }
 
-    /** Загружает и показывает кадр на [time]; прежние картинки остаются на экране, пока новые не готовы. */
+    /**
+     * Загружает и показывает кадр на [time]. Дождь и облака показываются каждый, как только готов, прежние картинки
+     * остаются на экране, пока новые не пришли; кадр, на который время уже ушло, не показывается.
+     */
     private suspend fun render(time: Instant) {
         val s = _state.value
         val withClouds = s.layer == MapLayer.CloudsAndRain
         _state.update { it.copy(rain = FrameStatus.Loading, clouds = if (withClouds) FrameStatus.Loading else it.clouds) }
-        val (rainFrame, cloudFrame) = coroutineScope {
-            val rain = async(Dispatchers.Default) { rainImage(time, s.now) }
-            val clouds = if (withClouds) async(Dispatchers.Default) { cloudImage(time, s.now) } else null
-            rain.await() to clouds?.await()
+        if (!withClouds) _images.update { MapImages(it.rain, null) }
+        coroutineScope {
+            launch { showRain(time, s.now) }
+            if (withClouds) launch { showClouds(time, s.now) }
         }
-        val (rainStatus, rainBitmap, styled) = rainFrame
-        val (cloudStatus, cloudBitmap) = cloudFrame ?: (s.clouds to _images.value.clouds)
+    }
+
+    private suspend fun showRain(time: Instant, now: Instant) {
+        val frame = rainImage(time, now)
         if (_state.value.time != time) return
-        _images.value = MapImages(rainBitmap, if (withClouds) cloudBitmap else null)
-        _state.update {
-            it.copy(rain = rainStatus, clouds = cloudStatus, legendValid = styled ?: it.legendValid)
-        }
+        _images.update { MapImages(frame.bitmap, it.clouds) }
+        _state.update { it.copy(rain = frame.status, legendValid = frame.styled ?: it.legendValid) }
     }
 
-    private suspend fun prefetch(time: Instant) {
+    private suspend fun showClouds(time: Instant, now: Instant) {
+        val (status, bitmap) = cloudImage(time, now)
+        if (_state.value.time != time) return
+        _images.update { MapImages(it.rain, bitmap) }
+        _state.update { it.copy(clouds = status) }
+    }
+
+    /** Заранее кладёт кадр в запас (для «играть»); ошибка загрузки здесь не важна, кадр спросят ещё раз при показе. */
+    private suspend fun prefetch(time: Instant) = prefetchSlots.withPermit {
         val now = _state.value.now
-        withContext(Dispatchers.IO) {
-            runCatching { rainResult(time, now) }
-            if (_state.value.layer == MapLayer.CloudsAndRain) runCatching { cloudPixels(time, now) }
+        quietly { rainResult(time, now) }
+        if (_state.value.layer == MapLayer.CloudsAndRain) quietly { cloudPixels(time, now) }
+    }
+
+    private suspend fun quietly(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (e: Exception) {
+            if (!e.isLoadFailure()) throw e
         }
     }
 
-    private data class RainFrame(val status: FrameStatus, val bitmap: Bitmap?, val styled: Boolean?)
+    private class RainFrame(val status: FrameStatus, val bitmap: Bitmap?, val styled: Boolean?)
 
     private suspend fun rainImage(time: Instant, now: Instant): RainFrame = try {
-        when (val result = withContext(Dispatchers.IO) { rainResult(time, now) }) {
+        when (val result = rainResult(time, now)) {
             RainResult.Missing -> RainFrame(FrameStatus.Missing, null, null)
-            is RainResult.Image -> decodePng(result.png)?.let { RainFrame(FrameStatus.Ready, it, result.styled) }
+            is RainResult.Image -> withContext(Dispatchers.Default) { decodePng(result.png) }
+                ?.let { RainFrame(FrameStatus.Ready, it, result.styled) }
                 ?: RainFrame(FrameStatus.Failed, null, null)
         }
     } catch (e: Exception) {
@@ -209,11 +261,14 @@ class MapViewModel(userAgent: String) : ViewModel() {
     }
 
     private suspend fun cloudImage(time: Instant, now: Instant): Pair<FrameStatus, Bitmap?> = try {
-        val pixels = withContext(Dispatchers.IO) { cloudPixels(time, now) }
-        if (pixels == null) {
+        val alpha = cloudPixels(time, now)
+        if (alpha == null) {
             FrameStatus.Missing to null
         } else {
-            FrameStatus.Ready to Bitmap.createBitmap(pixels, MapArea.CLOUD_WIDTH, cloudHeight, Bitmap.Config.ARGB_8888)
+            val bitmap = withContext(Dispatchers.Default) {
+                Bitmap.createBitmap(CloudRaster.fromAlpha(alpha), MapArea.CLOUD_WIDTH, cloudHeight, Bitmap.Config.ARGB_8888)
+            }
+            FrameStatus.Ready to bitmap
         }
     } catch (e: Exception) {
         if (!e.isLoadFailure()) throw e
@@ -221,32 +276,51 @@ class MapViewModel(userAgent: String) : ViewModel() {
         FrameStatus.Failed to null
     }
 
-    private fun rainResult(time: Instant, now: Instant): RainResult {
+    private suspend fun rainResult(time: Instant, now: Instant): RainResult {
         val radar = MapTimeline.fromRadar(time, now)
         val frame = if (radar) MapTimeline.radarFrame(time) else MapTimeline.modelRainFrame(time)
         // Радар и модель могут дать кадр на одно и то же время: ключ различает источник.
         val key = (if (radar) "radar " else "model ") + frame
-        val fetchedNow = Instant.now()
         synchronized(rainCache) { rainCache[key] }?.let { cached ->
-            if (fresh(cached.fetched, fetchedNow, frame, now)) return cached.value
+            if (fresh(cached.fetched, Instant.now(), frame, now)) return cached.value
         }
-        val result = rainLoader.load(time, now)
-        synchronized(rainCache) { rainCache[key] = Cached(result, fetchedNow) }
-        return result
+        return sharedLoad(rainLoads, key) {
+            val result = rainLoader.load(time, now)
+            synchronized(rainCache) { rainCache[key] = Cached(result, Instant.now()) }
+            result
+        }.await()
     }
 
-    private fun cloudPixels(time: Instant, now: Instant): IntArray? {
+    /** Облачность часа как непрозрачность пикселей ([CloudRaster.alphaOnly]); null, если на этот час данных нет. */
+    private suspend fun cloudPixels(time: Instant, now: Instant): ByteArray? {
         val hour = MapTimeline.cloudHour(time)
-        val fetchedNow = Instant.now()
         synchronized(cloudCache) { cloudCache[hour] }?.let { cached ->
-            if (Duration.between(cached.fetched, fetchedNow) < CloudLife) return cached.value
+            if (Duration.between(cached.fetched, Instant.now()) < CloudLife) return cached.value
         }
-        val pixels = cloudLoader.load(hour, now)?.let { grid ->
-            CloudRaster.render(grid, MapArea.Overlay, MapArea.CLOUD_WIDTH, cloudHeight)
-        }
-        synchronized(cloudCache) { cloudCache[hour] = Cached(pixels, fetchedNow) }
-        return pixels
+        return sharedLoad(cloudLoads, hour) {
+            val alpha = cloudLoader.load(hour, now)?.let { grid ->
+                CloudRaster.alphaOnly(CloudRaster.render(grid, MapArea.Overlay, MapArea.CLOUD_WIDTH, cloudHeight))
+            }
+            synchronized(cloudCache) { cloudCache[hour] = Cached(alpha, Instant.now()) }
+            alpha
+        }.await()
     }
+
+    /**
+     * Загрузка кадра [key] идёт на своём потоке и не зависит от того, кто её ждёт: если ждущего отменили (палец ушёл
+     * дальше, «играть» остановили), загрузка дойдёт до конца и кадр попадёт в запас. Второй спрос того же кадра
+     * ждёт ту же загрузку.
+     */
+    private fun <K, V> sharedLoad(loads: MutableMap<K, Deferred<V>>, key: K, block: () -> V): Deferred<V> =
+        synchronized(loads) {
+            loads[key] ?: viewModelScope.async(Dispatchers.IO) {
+                try {
+                    block()
+                } finally {
+                    synchronized(loads) { loads.remove(key) }
+                }
+            }.also { loads[key] = it }
+        }
 
     /** Прошедшие кадры радара не меняются; недавние и будущие (прогноз) обновляются каждые 5 минут. */
     private fun fresh(fetched: Instant, at: Instant, frame: Instant, now: Instant): Boolean =
@@ -269,7 +343,9 @@ class MapViewModel(userAgent: String) : ViewModel() {
         private const val TAG = "PogodaMap"
         private const val SOURCE = "DWD"
         private const val RAIN_CACHE = 40
-        private const val CLOUD_CACHE = 6
+        private const val CLOUD_CACHE = 26
+        private const val PREFETCH_PARALLEL = 4
+        private const val SCRUB_SETTLE_MS = 250L
         private const val FRAME_MS = 650L
         private const val FRAME_WAIT_MS = 6_000L
         private const val MAX_SIDE = 2048
