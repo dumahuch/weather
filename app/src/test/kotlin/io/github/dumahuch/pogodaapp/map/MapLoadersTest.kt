@@ -65,22 +65,22 @@ class MapLoadersTest {
     @Test
     fun cloudsComeFromLatestRunThatHasTheHour() {
         val hour = Instant.parse("2026-11-10T21:00:00Z")
-        val older = IconD2Frame(Instant.parse("2026-11-09T15:00:00Z"), 30)
+        val older = IconD2Frame(Instant.parse("2026-11-09T03:00:00Z"), 42)
         val listings = mutableListOf<String>()
         val downloads = mutableListOf<String>()
         val grib = Grib2Test.message(columns = 2, rows = 2, raw = intArrayOf(0, 50, 100, 100), scan = 64)
         val loader = CloudLoader(
             text = { url ->
                 listings += url
-                // Прогон 18 UTC ещё не выложил этот час, прогон 15 UTC выложил.
-                if (url.endsWith("/15/clct_mod/")) "<a href=\"${IconD2Files.fileName(older)}\">" else ""
+                // Прогон 18 UTC ещё не выложил этот час, прогон 03 UTC (он считает на 45 часов) выложил.
+                if (url.endsWith("/03/clct_mod/")) "<a href=\"${IconD2Files.fileName(older)}\">" else ""
             },
             bytes = { url -> downloads += url; grib },
             unpack = { it },
         )
         val grid = loader.load(hour, now)
         assertEquals(0.5f, grid!!.at(1, 0), 1e-6f)
-        assertEquals(listOf("/18/clct_mod/", "/15/clct_mod/"), listings.map { it.takeLast(13) })
+        assertEquals(listOf("/18/clct_mod/", "/03/clct_mod/"), listings.map { it.takeLast(13) })
         assertEquals(listOf(IconD2Files.runFolder(older.run) + IconD2Files.fileName(older)), downloads)
         // Список папки держится 10 минут: второй раз не просится.
         loader.load(hour, now.plusSeconds(60))

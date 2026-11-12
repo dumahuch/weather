@@ -75,8 +75,33 @@ class DwdSourcesTest {
         val now = Instant.parse("2026-11-09T19:52:00Z")
         val list = IconD2Files.candidates(Instant.parse("2026-11-10T21:00:00Z"), now)
         assertEquals(IconD2Frame(Instant.parse("2026-11-09T18:00:00Z"), 27), list[0])
-        assertEquals(IconD2Frame(Instant.parse("2026-11-09T15:00:00Z"), 30), list[1])
-        assertEquals(4, list.size)
+        // Остальные обычные прогоны на этот час уже не считают (27 часов), остаётся прогон 03 UTC (45 часов).
+        assertEquals(IconD2Frame(Instant.parse("2026-11-09T03:00:00Z"), 42), list[1])
+        assertEquals(2, list.size)
+    }
+
+    @Test
+    fun tomorrowAfternoonFallsBackToTheLongRunWhenTheLatestRunIsNotOutYet() {
+        val now = Instant.parse("2026-11-12T15:47:00Z")
+        val list = IconD2Files.candidates(Instant.parse("2026-11-13T16:00:00Z"), now)
+        // Прогон 15 UTC (25 часов), если он уже выложен; иначе остаётся прогон 03 UTC (37 часов).
+        assertEquals(
+            listOf(IconD2Frame(Instant.parse("2026-11-12T15:00:00Z"), 25), IconD2Frame(Instant.parse("2026-11-12T03:00:00Z"), 37)),
+            list,
+        )
+    }
+
+    @Test
+    fun longRunBeforeThreeInTheMorningIsYesterdaysRun() {
+        val now = Instant.parse("2026-11-12T01:30:00Z")
+        val list = IconD2Files.candidates(Instant.parse("2026-11-12T23:00:00Z"), now)
+        assertEquals(IconD2Frame(Instant.parse("2026-11-11T03:00:00Z"), 44), list.last())
+    }
+
+    @Test
+    fun maxLeadDependsOnRun() {
+        assertEquals(27, IconD2Files.maxLead(Instant.parse("2026-11-12T15:00:00Z")))
+        assertEquals(45, IconD2Files.maxLead(Instant.parse("2026-11-12T03:00:00Z")))
     }
 
     @Test

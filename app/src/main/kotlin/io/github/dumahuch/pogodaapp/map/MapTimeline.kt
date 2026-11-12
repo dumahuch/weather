@@ -70,6 +70,29 @@ object MapTimeline {
         return roundTo(clamped, Hour).coerceIn(start, end)
     }
 
+    /**
+     * Все времена, на которые шкала суток [day] может остановиться (см. [snap]): каждый час, сегодня около «сейчас»
+     * ещё и каждые 5 минут. По ним кадры дня грузятся заранее.
+     */
+    fun dayFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
+        val (start, end) = range(day, now, zone)
+        val frames = sortedSetOf<Instant>()
+        var time = start
+        while (!time.isAfter(end)) {
+            frames += snap(time, day, now, zone)
+            time = time.plus(Hour)
+        }
+        if (day == MapDay.Today) {
+            val (fineStart, fineEnd) = fineWindow(now)
+            var fine = floorTo(fineStart, RadarStep)
+            while (!fine.isAfter(fineEnd)) {
+                frames += snap(fine, day, now, zone)
+                fine = fine.plus(RadarStep)
+            }
+        }
+        return frames.toList()
+    }
+
     /** Деления шкалы суток [day]: каждый час большое, около «сейчас» малые через 15 минут. */
     fun ticks(day: MapDay, now: Instant, zone: ZoneId): List<RulerTick> {
         val (start, end) = range(day, now, zone)

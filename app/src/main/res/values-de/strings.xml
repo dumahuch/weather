@@ -343,6 +343,7 @@
     <string name="map_time_scale">Zeitleiste</string>
     <string name="map_no_connection">Keine Verbindung zum DWD</string>
     <string name="map_no_data">Keine Daten für diese Zeit</string>
+    <string name="map_no_clouds">Keine Wolkendaten für diese Zeit</string>
     <string name="map_base_failed">Die Grundkarte wurde nicht geladen</string>
     <string name="about_map_title">Karte</string>
 </resources>
