@@ -2,6 +2,7 @@ package io.github.dumahuch.pogodaapp.map
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Duration
 import java.time.Instant
@@ -73,5 +74,34 @@ class ModelRainTest {
         assertEquals(0.0, IconD2Rain.rate(1.0, 0.9), 0.0)
         assertEquals(2.0, IconD2Rain.rate(1.0, 1.5), 1e-9)
         assertEquals(7, IconD2Rain.leadOf(run, Instant.parse("2026-11-12T22:45:00Z")))
+    }
+
+    @Test
+    fun singleWetNodeBecomesSoftSpotNotSquare() {
+        // Дождь только в одном узле (11° в.д., 51° с.ш.): 1 мм за 15 минут, 4 мм/ч.
+        val node = 4 * 25 + 15
+        val hour = LocalDateTime.ofInstant(run.plus(Duration.ofHours(7)), ZoneOffset.UTC)
+        val bytes = listOf(0, 0, 100, 100).mapIndexed { k, v ->
+            Grib2Test.message(columns = 25, rows = 12, raw = IntArray(25 * 12) { if (it == node) v else 0 }, scan = 64, validEnd = hour.plusMinutes(15L * k))
+        }.reduce { a, b -> a + b }
+        val name = IconD2Rain.fileName(run, 7)
+        // 8 пикселей на градус по долготе: узел 11° попадает между пикселями 67 и 68.
+        val model = ModelRainLoader(
+            listings = FolderListings { "<a href=\"$name\">" },
+            bytes = { bytes },
+            unpack = { it },
+            width = 128,
+            height = 12,
+        )
+        val levels = model.load(Instant.parse("2026-11-12T22:30:00Z"), now)!!
+        // Строка картинки около 51° с.ш.
+        val row = (0 until 12).maxByOrNull { y -> levels[y * 128 + 67].toInt() and 0xFF }!!
+        val line = IntArray(128) { levels[row * 128 + it].toInt() and 0xFF }
+        val peak = line.indices.maxByOrNull { line[it] }!!
+        assertEquals(67.0, peak.toDouble(), 1.0)
+        // От пика дождь слабеет плавно, без ступеньки: соседние пиксели разные, а через клетку уже сухо.
+        assertTrue(line[peak] > line[peak + 3] && line[peak + 3] > line[peak + 6] && line[peak + 6] > 0)
+        assertEquals(0, line[peak + 12])
+        assertEquals(0, line[peak - 12])
     }
 }

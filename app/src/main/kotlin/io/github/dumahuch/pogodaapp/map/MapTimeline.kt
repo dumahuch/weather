@@ -8,14 +8,15 @@ import java.time.ZoneId
 /** Сутки на шкале карты: «Сейчас» (сегодня), «Завтра», «Послезавтра». */
 enum class MapDay { Today, Tomorrow, DayAfter }
 
-/** Деление шкалы: большое (час, с подписью) или малое (15 минут, только около «сейчас»). */
+/** Деление шкалы: большое (час, с подписью) или малое (15 минут, там, где кадры чаще часа). */
 data class RulerTick(val time: Instant, val major: Boolean)
 
 /**
- * Время на карте. Сегодня шкала идёт с 00:00 до 24:00 (или до конца прогноза радара, если он уходит за полночь);
- * около «сейчас» (два часа назад и два вперёд, пока есть радар с шагом 5 минут) время выбирается с шагом 5 минут,
- * прошедшие часы раньше этого по часам, а прогноз после радара с шагом 15 минут, как дождь модели ICON-D2 ([ModelStep]).
- * Завтра и послезавтра тоже по 15 минут. Деления шкалы от шага не зависят: малые только около «сейчас».
+ * Время на карте. Шкала одна, сплошная: с сегодняшних 00:00 до конца «Послезавтра»; палец ведёт её через полночь,
+ * а кнопки суток только прыгают и подсвечиваются по тому, на каких сутках стоит шкала ([dayOf]).
+ * Шаг выбора: около «сейчас» (два часа назад и два вперёд, пока есть радар) 5 минут; прошедшие часы раньше этого
+ * по часам; после радара 15 минут, как дождь ICON-D2 ([ModelStep]), пока его прогноз достаёт ([modelEnd]); дальше
+ * по часам (ICON-EU). Малые деления через 15 минут там, где шаг мельче часа.
  */
 object MapTimeline {
     val RadarStep: Duration = Duration.ofMinutes(5)
@@ -34,6 +35,11 @@ object MapTimeline {
     /** Кадры в этих пределах от выбранного времени подгружаются раньше всех остальных. */
     val FingerZone: Duration = Duration.ofMinutes(90)
 
+    /** Через сколько после начала прогон ICON-D2 с запасом лежит на сервере (обычно через 1 ч 20 мин). */
+    private val ModelDelay: Duration = Duration.ofHours(2)
+
+    private val ModelRuns: Duration = Duration.ofHours(3)
+
     private val Hour: Duration = Duration.ofHours(1)
 
     fun floorTo(time: Instant, step: Duration): Instant {
@@ -49,59 +55,68 @@ object MapTimeline {
     fun dayStart(day: MapDay, now: Instant, zone: ZoneId): Instant =
         LocalDate.ofInstant(now, zone).plusDays(day.ordinal.toLong()).atStartOfDay(zone).toInstant()
 
-    /** Начало и конец шкалы суток [day]. */
-    fun range(day: MapDay, now: Instant, zone: ZoneId): Pair<Instant, Instant> {
-        val start = dayStart(day, now, zone)
-        val end = LocalDate.ofInstant(start, zone).plusDays(1).atStartOfDay(zone).toInstant()
-        if (day != MapDay.Today) return start to end
-        val radarEnd = radarEnd(now)
-        return start to if (radarEnd.isAfter(end)) radarEnd else end
-    }
+    private fun dayEnd(day: MapDay, now: Instant, zone: ZoneId): Instant =
+        LocalDate.ofInstant(now, zone).plusDays(day.ordinal + 1L).atStartOfDay(zone).toInstant()
+
+    /** Начало и конец всей шкалы: с сегодняшних 00:00 до конца «Послезавтра». */
+    fun range(now: Instant, zone: ZoneId): Pair<Instant, Instant> =
+        dayStart(MapDay.Today, now, zone) to dayEnd(MapDay.DayAfter, now, zone)
+
+    /** Сутки [day] на шкале: от их 00:00 до следующих 00:00 (полночь уже следующие сутки, кроме конца шкалы). */
+    fun dayRange(day: MapDay, now: Instant, zone: ZoneId): Pair<Instant, Instant> = dayStart(day, now, zone) to dayEnd(day, now, zone)
+
+    /** На каких сутках стоит [time]: их кнопка подсвечена. */
+    fun dayOf(time: Instant, now: Instant, zone: ZoneId): MapDay =
+        MapDay.entries.firstOrNull { time.isBefore(dayEnd(it, now, zone)) } ?: MapDay.DayAfter
 
     /** Последний момент, на который радар даёт прогноз. */
     fun radarEnd(now: Instant): Instant = anchor(now).plus(RadarAhead)
 
-    /** Отрезок, где сегодня шкала идёт шагом радара. */
+    /**
+     * До какого времени есть дождь ICON-D2 по 15 минут: последний прогон, который уже должен лежать на сервере,
+     * плюс [IconD2Files.MAX_LEAD] часов. Дальше дождь только по часам из ICON-EU.
+     */
+    fun modelEnd(now: Instant): Instant = floorTo(now.minus(ModelDelay), ModelRuns).plus(Duration.ofHours(IconD2Files.MAX_LEAD.toLong()))
+
+    /** Отрезок, где шкала идёт шагом радара. */
     fun fineWindow(now: Instant): Pair<Instant, Instant> = anchor(now).minus(FineBack) to radarEnd(now)
 
-    /** Ближайшее допустимое время к [time] на шкале суток [day]. */
-    fun snap(time: Instant, day: MapDay, now: Instant, zone: ZoneId): Instant {
-        val (start, end) = range(day, now, zone)
+    /** Ближайшее допустимое время к [time] на шкале. */
+    fun snap(time: Instant, now: Instant, zone: ZoneId): Instant {
+        val (start, end) = range(now, zone)
         val clamped = time.coerceIn(start, end)
-        if (day != MapDay.Today) return roundTo(clamped, ModelStep).coerceIn(start, end)
         val (fineStart, fineEnd) = fineWindow(now)
-        return when {
-            clamped.isBefore(fineStart) -> roundTo(clamped, Hour).coerceIn(start, end)
-            !clamped.isAfter(fineEnd) -> roundTo(clamped, RadarStep).coerceIn(start, end)
-            else -> {
+        val result = when {
+            clamped.isBefore(fineStart) -> roundTo(clamped, Hour)
+            !clamped.isAfter(fineEnd) -> roundTo(clamped, RadarStep)
+            !clamped.isAfter(modelEnd(now)) -> {
                 // После радара шаг 15 минут; ближайшая к пальцу четверть часа может оказаться ещё на радаре.
-                val quarter = roundTo(clamped, ModelStep).coerceIn(start, end)
+                val quarter = roundTo(clamped, ModelStep)
                 if (quarter.isAfter(fineEnd)) quarter else fineEnd
             }
+            else -> roundTo(clamped, Hour)
         }
+        return result.coerceIn(start, end)
+    }
+
+    /** Все времена от [from] до [to], на которые шкала может остановиться (см. [snap]). */
+    fun frames(from: Instant, to: Instant, now: Instant, zone: ZoneId): List<Instant> {
+        val frames = sortedSetOf<Instant>()
+        var time = floorTo(from, RadarStep)
+        while (!time.isAfter(to)) {
+            snap(time, now, zone).let { if (!it.isBefore(from) && !it.isAfter(to)) frames += it }
+            time = time.plus(RadarStep)
+        }
+        return frames.toList()
     }
 
     /**
-     * Все времена, на которые шкала суток [day] может остановиться (см. [snap]). По ним кадры дня грузятся заранее.
+     * Что подгружать заранее, пока шкала стоит на сутках [day]: их кадры и ещё [FingerZone] по краям, чтобы
+     * за полночь палец уходил на готовые кадры.
      */
-    fun dayFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
-        val (start, end) = range(day, now, zone)
-        val frames = sortedSetOf<Instant>()
-        var time = start
-        while (!time.isAfter(end)) {
-            frames += snap(time, day, now, zone)
-            time = time.plus(ModelStep)
-        }
-        frames += snap(end, day, now, zone)
-        if (day == MapDay.Today) {
-            val (fineStart, fineEnd) = fineWindow(now)
-            var fine = floorTo(fineStart, RadarStep)
-            while (!fine.isAfter(fineEnd)) {
-                frames += snap(fine, day, now, zone)
-                fine = fine.plus(RadarStep)
-            }
-        }
-        return frames.toList()
+    fun warmFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
+        val (start, end) = dayRange(day, now, zone)
+        return frames(start.minus(FingerZone), end.plus(FingerZone), now, zone)
     }
 
     /**
@@ -121,15 +136,16 @@ object MapTimeline {
         )
     }
 
-    /** Деления шкалы суток [day]: каждый час большое, около «сейчас» малые через 15 минут. */
-    fun ticks(day: MapDay, now: Instant, zone: ZoneId): List<RulerTick> {
-        val (start, end) = range(day, now, zone)
-        val (fineStart, fineEnd) = fineWindow(now)
+    /** Деления всей шкалы: каждый час большое, малые через 15 минут там, где шаг мельче часа (радар и ICON-D2). */
+    fun ticks(now: Instant, zone: ZoneId): List<RulerTick> {
+        val (start, end) = range(now, zone)
+        val fineStart = fineWindow(now).first
+        val fineEnd = modelEnd(now)
         val result = mutableListOf<RulerTick>()
         var time = start
         while (!time.isAfter(end)) {
             val major = time.atZone(zone).minute == 0
-            val fine = day == MapDay.Today && !time.isBefore(fineStart) && !time.isAfter(fineEnd)
+            val fine = !time.isBefore(fineStart) && !time.isAfter(fineEnd)
             if (major || fine) result += RulerTick(time, major)
             time = time.plus(MinorTick)
         }
@@ -144,12 +160,12 @@ object MapTimeline {
         if (day == MapDay.Today) return anchor(now)
         val local = roundTo(current, Hour).atZone(zone).toLocalTime()
         val target = LocalDate.ofInstant(now, zone).plusDays(day.ordinal.toLong()).atTime(local).atZone(zone).toInstant()
-        return snap(target, day, now, zone)
+        return snap(target, now, zone)
     }
 
     /** Кадры кнопки «играть»: сегодня два часа назад и прогноз радара через 15 минут, другие сутки по часам. */
     fun playFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
-        val (start, end) = range(day, now, zone)
+        val (start, end) = dayRange(day, now, zone)
         val step: Duration
         var time: Instant
         val last: Instant

@@ -7,7 +7,10 @@ import org.junit.Test
 import java.time.Instant
 import java.time.ZoneId
 
-/** Шкала времени карты: «Сейчас» шагом 5 минут около настоящего времени, прошлое по часам, прогноз модели по 15 минут. */
+/**
+ * Шкала времени карты: одна на трое суток; «Сейчас» шагом 5 минут около настоящего времени, прошлое по часам,
+ * прогноз ICON-D2 по 15 минут, дальше по часам.
+ */
 class MapTimelineTest {
 
     private val zone = ZoneId.of("Europe/Berlin")
@@ -17,41 +20,60 @@ class MapTimelineTest {
 
     private fun local(text: String) = java.time.LocalDateTime.parse(text).atZone(zone).toInstant()
 
+    /** Кадры суток [day]: полночь в конце уже следующие сутки, кроме конца всей шкалы. */
+    private fun dayFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
+        val (start, end) = MapTimeline.dayRange(day, now, zone)
+        return MapTimeline.frames(start, end, now, zone).filter { it.isBefore(end) || it == MapTimeline.range(now, zone).second }
+    }
+
     @Test
     fun anchorIsLastRadarFrame() {
         assertEquals(local("2026-11-09T20:50"), MapTimeline.anchor(now))
     }
 
     @Test
-    fun todayRunsFromMidnightToMidnight() {
-        val (start, end) = MapTimeline.range(MapDay.Today, now, zone)
+    fun rulerRunsFromTodayMidnightToEndOfDayAfter() {
+        val (start, end) = MapTimeline.range(now, zone)
         assertEquals(local("2026-11-09T00:00"), start)
-        assertEquals(local("2026-11-10T00:00"), end)
+        assertEquals(local("2026-11-12T00:00"), end)
+        val (todayStart, todayEnd) = MapTimeline.dayRange(MapDay.Today, now, zone)
+        assertEquals(local("2026-11-09T00:00"), todayStart)
+        assertEquals(local("2026-11-10T00:00"), todayEnd)
     }
 
     @Test
-    fun lateEveningRangeReachesEndOfRadarForecast() {
-        val late = local("2026-11-09T23:31")
-        val (_, end) = MapTimeline.range(MapDay.Today, late, zone)
-        assertEquals(local("2026-11-10T01:30"), end)
+    fun dayButtonFollowsTheRuler() {
+        assertEquals(MapDay.Today, MapTimeline.dayOf(local("2026-11-09T23:45"), now, zone))
+        assertEquals(MapDay.Tomorrow, MapTimeline.dayOf(local("2026-11-10T00:00"), now, zone))
+        assertEquals(MapDay.DayAfter, MapTimeline.dayOf(local("2026-11-11T13:00"), now, zone))
+        assertEquals(MapDay.DayAfter, MapTimeline.dayOf(local("2026-11-12T00:00"), now, zone))
+    }
+
+    @Test
+    fun modelEndIsLatestRunPlusTwoDays() {
+        // 19:52 UTC: прогон 15 UTC уже лежит (18 UTC ещё нет), его прогноз до 15 UTC послезавтра (16:00 по Берлину).
+        assertEquals(Instant.parse("2026-11-11T15:00:00Z"), MapTimeline.modelEnd(now))
     }
 
     @Test
     fun nearNowSnapsToFiveMinutesElsewhereToHours() {
-        assertEquals(local("2026-11-09T21:10"), MapTimeline.snap(local("2026-11-09T21:11"), MapDay.Today, now, zone))
-        assertEquals(local("2026-11-09T13:00"), MapTimeline.snap(local("2026-11-09T13:20"), MapDay.Today, now, zone))
-        assertEquals(local("2026-11-10T00:00"), MapTimeline.snap(local("2026-11-10T03:00"), MapDay.Today, now, zone))
-        assertEquals(local("2026-11-10T07:15"), MapTimeline.snap(local("2026-11-10T07:20"), MapDay.Tomorrow, now, zone))
+        assertEquals(local("2026-11-09T21:10"), MapTimeline.snap(local("2026-11-09T21:11"), now, zone))
+        assertEquals(local("2026-11-09T13:00"), MapTimeline.snap(local("2026-11-09T13:20"), now, zone))
+        assertEquals(local("2026-11-10T07:15"), MapTimeline.snap(local("2026-11-10T07:20"), now, zone))
+        // После прогноза ICON-D2 (16:00 послезавтра) по часам; за концом шкалы её конец.
+        assertEquals(local("2026-11-11T15:45"), MapTimeline.snap(local("2026-11-11T15:50"), now, zone))
+        assertEquals(local("2026-11-11T17:00"), MapTimeline.snap(local("2026-11-11T16:40"), now, zone))
+        assertEquals(local("2026-11-12T00:00"), MapTimeline.snap(local("2026-11-12T03:00"), now, zone))
     }
 
     @Test
     fun afterRadarSnapsToQuarterHours() {
         // Радар до 22:50, дальше шаг ICON-D2 15 минут.
-        assertEquals(local("2026-11-09T23:00"), MapTimeline.snap(local("2026-11-09T23:07"), MapDay.Today, now, zone))
-        assertEquals(local("2026-11-09T23:15"), MapTimeline.snap(local("2026-11-09T23:09"), MapDay.Today, now, zone))
-        assertEquals(local("2026-11-09T23:00"), MapTimeline.snap(local("2026-11-09T22:56"), MapDay.Today, now, zone))
+        assertEquals(local("2026-11-09T23:00"), MapTimeline.snap(local("2026-11-09T23:07"), now, zone))
+        assertEquals(local("2026-11-09T23:15"), MapTimeline.snap(local("2026-11-09T23:09"), now, zone))
+        assertEquals(local("2026-11-09T23:00"), MapTimeline.snap(local("2026-11-09T22:56"), now, zone))
         // Ближайшая четверть часа ещё на радаре: остаётся последний кадр радара.
-        assertEquals(local("2026-11-09T22:50"), MapTimeline.snap(local("2026-11-09T22:52"), MapDay.Today, now, zone))
+        assertEquals(local("2026-11-09T22:50"), MapTimeline.snap(local("2026-11-09T22:52"), now, zone))
     }
 
     @Test
@@ -68,14 +90,16 @@ class MapTimelineTest {
     }
 
     @Test
-    fun ticksAreHourlyWithQuarterHoursNearNow() {
-        val ticks = MapTimeline.ticks(MapDay.Today, now, zone)
-        assertEquals(25, ticks.count { it.major })
+    fun ticksAreHourlyWithQuarterHoursWhereFramesAreFiner() {
+        val ticks = MapTimeline.ticks(now, zone)
+        assertEquals(73, ticks.count { it.major })
         val minor = ticks.filter { !it.major }.map { it.time }
         assertTrue(local("2026-11-09T19:15") in minor)
-        assertTrue(local("2026-11-09T22:45") in minor)
+        assertTrue(local("2026-11-09T23:15") in minor)
+        assertTrue(local("2026-11-10T07:45") in minor)
+        assertTrue(local("2026-11-11T15:45") in minor)
         assertFalse(local("2026-11-09T12:15") in minor)
-        assertTrue(MapTimeline.ticks(MapDay.Tomorrow, now, zone).all { it.major })
+        assertFalse(local("2026-11-11T16:15") in minor)
     }
 
     @Test
@@ -101,34 +125,46 @@ class MapTimelineTest {
     @Test
     fun dayFramesAreExactlyThePlacesTheRulerCanStopOn() {
         for (day in MapDay.entries) {
-            val frames = MapTimeline.dayFrames(day, now, zone)
+            val frames = dayFrames(day, now, zone)
             assertEquals(frames.sorted(), frames)
             assertEquals(frames.size, frames.toSet().size)
             // Каждое из этих времён шкала оставляет как есть, а любое другое округляется к одному из них.
-            assertTrue(frames.all { MapTimeline.snap(it, day, now, zone) == it })
-            val (start, end) = MapTimeline.range(day, now, zone)
+            assertTrue(frames.all { MapTimeline.snap(it, now, zone) == it })
+            val (start, end) = MapTimeline.dayRange(day, now, zone)
             assertEquals(start, frames.first())
-            assertEquals(end, frames.last())
+            assertTrue(frames.last().isBefore(end) || day == MapDay.DayAfter)
         }
+        // Конец шкалы (полночь после «Послезавтра») тоже кадр.
+        assertEquals(local("2026-11-12T00:00"), dayFrames(MapDay.DayAfter, now, zone).last())
+    }
+
+    @Test
+    fun warmFramesReachOverMidnight() {
+        val frames = MapTimeline.warmFrames(MapDay.Today, now, zone)
+        assertTrue(local("2026-11-10T01:15") in frames)
+        assertFalse(local("2026-11-10T01:45") in frames)
+        assertEquals(local("2026-11-09T00:00"), frames.first())
     }
 
     @Test
     fun todayHasFiveMinuteFramesNearNowHourlyPastAndQuarterHoursAhead() {
-        val today = MapTimeline.dayFrames(MapDay.Today, now, zone)
+        val today = dayFrames(MapDay.Today, now, zone)
         assertTrue(local("2026-11-09T20:55") in today)
         assertTrue(local("2026-11-09T12:00") in today)
         assertFalse(local("2026-11-09T12:05") in today)
         assertFalse(local("2026-11-09T12:15") in today)
         assertTrue(local("2026-11-09T23:15") in today)
         assertFalse(local("2026-11-09T23:05") in today)
-        val tomorrow = MapTimeline.dayFrames(MapDay.Tomorrow, now, zone)
-        assertEquals(97, tomorrow.size)
+        val tomorrow = dayFrames(MapDay.Tomorrow, now, zone)
+        assertEquals(96, tomorrow.size)
         assertTrue(local("2026-11-10T07:45") in tomorrow)
+        // Послезавтра: по 15 минут до 16:00, дальше по часам (8 часов) и полночь в конце.
+        assertEquals(64 + 8 + 1, dayFrames(MapDay.DayAfter, now, zone).size)
     }
 
     @Test
     fun warmUpTakesFingerZoneFirstThenFutureThenPast() {
-        val frames = MapTimeline.dayFrames(MapDay.Today, now, zone).toMutableSet()
+        val frames = dayFrames(MapDay.Today, now, zone).toMutableSet()
         // Палец у «сейчас»: сначала кадры рядом, потом будущее по порядку, прошлое в конце.
         val order = generateSequence { MapTimeline.nextToWarm(frames, now, now)?.also { frames.remove(it) } }.toList()
         val anchor = MapTimeline.anchor(now)
@@ -141,7 +177,7 @@ class MapTimelineTest {
 
     @Test
     fun warmUpFollowsTheFingerIntoThePast() {
-        val frames = MapTimeline.dayFrames(MapDay.Today, now, zone).toSet()
+        val frames = dayFrames(MapDay.Today, now, zone).toSet()
         val finger = local("2026-11-09T09:00")
         // Кадр у пальца в прошлом берётся раньше любого кадра будущего.
         assertEquals(finger, MapTimeline.nextToWarm(frames, finger, now))

@@ -79,8 +79,8 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
  * ([FrameDiskCache]); больше на диск ничего не пишется. Цвета дождя меняет [RainPalette].
  *
  * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
- * ждёт ту же загрузку. Кадры выбранных суток подгружаются в фоне ([warmUp], порядок [MapTimeline.nextToWarm]):
- * готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился. При выборе
+ * ждёт ту же загрузку. Кадры суток, на которых стоит шкала, подгружаются в фоне ([warmUp], порядок
+ * [MapTimeline.nextToWarm]): готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился. При выборе
  * «Только по Wi-Fi» ([setWifiOnly]) в сети с оплатой за трафик ([metered]) заранее не качается ничего, только кадр,
  * который показан; «играть» качает свой круг всегда (его включают нарочно).
  */
@@ -150,8 +150,9 @@ class MapViewModel(
         }
         val now = Instant.now()
         val old = _state.value
-        val time = if (old.day == MapDay.Today && old.time == MapTimeline.anchor(old.now)) MapTimeline.anchor(now) else old.time
-        _state.update { it.copy(now = now, time = MapTimeline.snap(time, it.day, now, zone)) }
+        val time = if (old.time == MapTimeline.anchor(old.now)) MapTimeline.anchor(now) else old.time
+        val snapped = MapTimeline.snap(time, now, zone)
+        _state.update { it.copy(now = now, time = snapped, day = MapTimeline.dayOf(snapped, now, zone)) }
         show()
         warmUp()
     }
@@ -173,7 +174,8 @@ class MapViewModel(
     fun selectDay(day: MapDay) {
         stopPlaying()
         val now = Instant.now()
-        _state.update { it.copy(now = now, day = day, time = MapTimeline.sameTimeOn(day, it.time, now, zone)) }
+        val time = MapTimeline.sameTimeOn(day, _state.value.time, now, zone)
+        _state.update { it.copy(now = now, day = MapTimeline.dayOf(time, now, zone), time = time) }
         show()
         warmUp()
     }
@@ -186,10 +188,13 @@ class MapViewModel(
     fun scrubTo(time: Instant) {
         stopPlaying()
         val s = _state.value
-        val snapped = MapTimeline.snap(time, s.day, s.now, zone)
+        val snapped = MapTimeline.snap(time, s.now, zone)
         if (snapped == s.time) return
-        _state.update { it.copy(time = snapped) }
+        val day = MapTimeline.dayOf(snapped, s.now, zone)
+        _state.update { it.copy(time = snapped, day = day) }
         show(if (isCached(snapped, s)) CACHED_SETTLE_MS else SCRUB_SETTLE_MS)
+        // Шкала ушла через полночь на другие сутки: подгрузка переходит на них.
+        if (day != s.day) warmUp()
     }
 
     /** Палец оторвали от шкалы (или нажали на неё): кадр на выбранное время заказывается сразу. */
@@ -222,7 +227,7 @@ class MapViewModel(
             var index = first
             while (isActive) {
                 val time = frames[index]
-                _state.update { it.copy(time = time) }
+                _state.update { it.copy(time = time, day = MapTimeline.dayOf(time, s.now, zone)) }
                 withTimeoutOrNull(FRAME_WAIT_MS) { render(time) }
                 delay(FRAME_MS)
                 index = (index + 1) % frames.size
@@ -237,7 +242,8 @@ class MapViewModel(
     }
 
     /**
-     * Подгружает в фоне все кадры выбранных суток (только в память). Кадры берутся по одному из общего списка
+     * Подгружает в фоне все кадры суток, на которых стоит шкала, и полтора часа по их краям (только в память;
+     * ушла шкала за полночь, подгрузка начинается заново на новые сутки). Кадры берутся по одному из общего списка
      * [MapTimeline.nextToWarm]: рядом со шкалой, потом будущее, потом прошлое; порядок пересчитывается при каждом
      * выборе, так что очередь идёт за пальцем. Параллельно работают [PREFETCH_PARALLEL] загрузчиков.
      */
@@ -248,7 +254,7 @@ class MapViewModel(
             return
         }
         val s = _state.value
-        val frames = MapTimeline.dayFrames(s.day, s.now, zone)
+        val frames = MapTimeline.warmFrames(s.day, s.now, zone)
         val pending = frames.toMutableSet()
         val done = AtomicInteger(0)
         _state.update { it.copy(framesDone = 0, framesTotal = frames.size) }
@@ -477,10 +483,12 @@ class MapViewModel(
     private val cloudHeight = MapArea.heightFor(MapArea.CLOUD_WIDTH)
     private val cloudPixelCount = MapArea.CLOUD_WIDTH * cloudHeight
 
-    /** Уровни дождя ICON-D2 картинкой в наших цветах; картинка того же размера, что облака. */
+    private val rainHeight = MapArea.heightFor(MapArea.RAIN_WIDTH)
+
+    /** Уровни дождя ICON-D2 картинкой в наших цветах; картинка того же размера, что у радара. */
     private fun levelsBitmap(packed: ByteArray): Bitmap? {
-        val levels = FrameDiskCache.inflate(packed, cloudPixelCount) ?: return null
-        return Bitmap.createBitmap(RainPalette.colorize(levels), MapArea.CLOUD_WIDTH, cloudHeight, Bitmap.Config.ARGB_8888)
+        val levels = FrameDiskCache.inflate(packed, MapArea.RAIN_WIDTH * rainHeight) ?: return null
+        return Bitmap.createBitmap(RainPalette.colorize(levels), MapArea.RAIN_WIDTH, rainHeight, Bitmap.Config.ARGB_8888)
     }
 
     /** Картинка DWD как Bitmap в наших цветах ([RainPalette.recolor]); null, если размер не тот. */

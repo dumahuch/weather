@@ -350,7 +350,6 @@ private fun TimePanel(
                 }
             }
             TimeRuler(
-                day = state.day,
                 time = state.time,
                 now = state.now,
                 zone = zone,

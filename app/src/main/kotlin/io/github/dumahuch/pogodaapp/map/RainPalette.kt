@@ -168,8 +168,21 @@ object RainPalette {
         return LEVEL_LOW * Math.pow(LEVEL_HIGH / LEVEL_LOW, t)
     }
 
-    /** Цвет каждого уровня (ARGB); у уровня 0 прозрачный. */
-    private val LevelColors = IntArray(LEVELS + 1) { if (it == 0) 0 else mapColor(mmOfLevel(it)) }
+    /**
+     * Цвет каждого уровня (ARGB); у уровня 0 прозрачный. Самый слабый дождь (от [LEVEL_LOW] до [FADE_TO] мм/ч)
+     * проявляется плавно, от [FADE_FROM] плотности: у пятна модели мягкий край, а не обрыв на пороге.
+     */
+    private val LevelColors = IntArray(LEVELS + 1) { level ->
+        if (level == 0) return@IntArray 0
+        val mm = mmOfLevel(level)
+        val color = mapColor(mm)
+        val fade = FADE_FROM + (1 - FADE_FROM) * (ln(mm / LEVEL_LOW) / ln(FADE_TO / LEVEL_LOW)).coerceIn(0.0, 1.0)
+        val alpha = ((color ushr 24) * fade).roundToInt()
+        (alpha shl 24) or (color and 0xFFFFFF)
+    }
+
+    private const val FADE_TO = 0.5
+    private const val FADE_FROM = 0.2
 
     /** Кадр уровней в цвета ARGB для картинки на карте. */
     fun colorize(levels: ByteArray): IntArray = IntArray(levels.size) { LevelColors[levels[it].toInt() and 0xFF] }
