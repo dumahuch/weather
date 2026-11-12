@@ -235,7 +235,7 @@ fun GlassCardBox(shape: Shape, glass: Glass, modifier: Modifier = Modifier, cont
 }
 
 /** Наибольшая высота одного куска размытия: заведомо ниже экрана любого из Pixel. */
-private val BlurChunk = 360.dp
+private val BlurChunk = 4000.dp  // ОПЫТ step-52: один кусок на карточку, проверка сдвига фона на стенде
 
 /**
  * Границы кусков размытия для высоты [height] px: поровну, каждый не выше [maxChunk] px, всегда хотя бы один. Первая
