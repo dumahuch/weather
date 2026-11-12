@@ -9,12 +9,15 @@ import io.github.dumahuch.pogodaapp.data.Bzip2
 import io.github.dumahuch.pogodaapp.data.HttpJson
 import io.github.dumahuch.pogodaapp.map.CloudLoader
 import io.github.dumahuch.pogodaapp.map.CloudRaster
+import io.github.dumahuch.pogodaapp.map.FrameDiskCache
 import io.github.dumahuch.pogodaapp.map.MapArea
 import io.github.dumahuch.pogodaapp.map.MapDataException
 import io.github.dumahuch.pogodaapp.map.MapDay
 import io.github.dumahuch.pogodaapp.map.MapTimeline
 import io.github.dumahuch.pogodaapp.map.RainLoader
+import io.github.dumahuch.pogodaapp.map.RainPalette
 import io.github.dumahuch.pogodaapp.map.RainResult
+import io.github.dumahuch.pogodaapp.map.RainSource
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -32,9 +35,11 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
 import java.io.IOException
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -52,8 +57,6 @@ data class MapUiState(
     val playing: Boolean,
     val rain: FrameStatus,
     val clouds: FrameStatus,
-    /** Дождь нарисован в наших цветах: легенда ему соответствует. */
-    val legendValid: Boolean,
     /** Сколько кадров выбранных суток уже обработано заранее и сколько их всего; поровну, когда всё готово. */
     val framesDone: Int = 0,
     val framesTotal: Int = 0,
@@ -65,15 +68,17 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
 /**
  * Карта: выбранное время и слой, загрузка кадров дождя (радар и модель DWD) и облаков (ICON-D2), «играть».
  *
- * Кадры держатся только в оперативной памяти, пока живо приложение: дождь сжатым (PNG, до [RAIN_CACHE] штук),
- * облака одной непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки запас не
- * очищает (устаревшие кадры перекачиваются сами по срокам [RainLife] и [CloudLife]); на диск телефона ничего не пишется.
+ * Кадры держатся в оперативной памяти, пока живо приложение: дождь сжатым (PNG, до [RAIN_CACHE] штук), облака одной
+ * непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки запас не очищает
+ * (устаревшие кадры перекачиваются сами по срокам [RainLife] и [CloudLife]). Кадры, которые уже не меняются
+ * (прошедший радар и облака прошедших часов сегодняшних суток), ещё и лежат на диске в кэше приложения до 23:55
+ * ([FrameDiskCache]); больше на диск ничего не пишется. Цвета дождя меняет [RainPalette].
  *
  * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
  * ждёт ту же загрузку. Кадры выбранных суток подгружаются в фоне ([warmUp], порядок [MapTimeline.nextToWarm]):
  * готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился.
  */
-class MapViewModel(userAgent: String) : ViewModel() {
+class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel() {
 
     private val zone: ZoneId = ZoneId.systemDefault()
 
@@ -116,11 +121,13 @@ class MapViewModel(userAgent: String) : ViewModel() {
         playing = false,
         rain = FrameStatus.Loading,
         clouds = FrameStatus.Loading,
-        legendValid = true,
     )
 
     /** Карту открыли: если время стояло на «сейчас», оно сдвигается на новое «сейчас». */
     fun onShown() {
+        viewModelScope.launch(Dispatchers.IO) {
+            FrameDiskCache.purgeOtherDays(cacheRoot, LocalDate.now(zone))
+        }
         val now = Instant.now()
         val old = _state.value
         val time = if (old.day == MapDay.Today && old.time == MapTimeline.anchor(old.now)) MapTimeline.anchor(now) else old.time
@@ -268,7 +275,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
         val frame = rainImage(time, now)
         if (_state.value.time != time) return
         _images.update { MapImages(frame.bitmap, it.clouds) }
-        _state.update { it.copy(rain = frame.status, legendValid = frame.styled ?: it.legendValid) }
+        _state.update { it.copy(rain = frame.status) }
     }
 
     private suspend fun showClouds(time: Instant, now: Instant) {
@@ -293,19 +300,22 @@ class MapViewModel(userAgent: String) : ViewModel() {
         }
     }
 
-    private class RainFrame(val status: FrameStatus, val bitmap: Bitmap?, val styled: Boolean?)
+    private class RainFrame(val status: FrameStatus, val bitmap: Bitmap?)
 
     private suspend fun rainImage(time: Instant, now: Instant): RainFrame = try {
         when (val result = rainResult(time, now)) {
-            RainResult.Missing -> RainFrame(FrameStatus.Missing, null, null)
-            is RainResult.Image -> withContext(Dispatchers.Default) { decodePng(result.png) }
-                ?.let { RainFrame(FrameStatus.Ready, it, result.styled) }
-                ?: RainFrame(FrameStatus.Failed, null, null)
+            RainResult.Missing -> RainFrame(FrameStatus.Missing, null)
+            is RainResult.Image -> {
+                val source = if (MapTimeline.fromRadar(time, now)) RainSource.Radar else RainSource.Model
+                withContext(Dispatchers.Default) { decodeRain(result.png, source) }
+                    ?.let { RainFrame(FrameStatus.Ready, it) }
+                    ?: RainFrame(FrameStatus.Failed, null)
+            }
         }
     } catch (e: Exception) {
         if (!e.isLoadFailure()) throw e
         Log.w(TAG, "Дождь на карте: ${e.message}")
-        RainFrame(FrameStatus.Failed, null, null)
+        RainFrame(FrameStatus.Failed, null)
     }
 
     private suspend fun cloudImage(time: Instant, now: Instant): Pair<FrameStatus, Bitmap?> = try {
@@ -346,10 +356,30 @@ class MapViewModel(userAgent: String) : ViewModel() {
         cachedRain(time, now)?.let { return it.value }
         val key = rainKey(time, now).first
         return sharedLoad(rainLoads, key) {
-            val result = rainLoader.load(time, now)
+            val name = rainDiskName(time, now)
+            val disk = todayDisk(now)
+            val result = name?.let { disk.readRain(it) }?.let { RainResult.Image(it) }
+                ?: rainLoader.load(time, now).also { loaded ->
+                    if (name != null && loaded is RainResult.Image) disk.writeRain(name, loaded.png)
+                }
             synchronized(rainCache) { rainCache[key] = Cached(result, Instant.now()) }
             result
         }.await()
+    }
+
+    /** Папка кадров на диске для суток, в которые попадает [now]. */
+    private fun todayDisk(now: Instant): FrameDiskCache =
+        FrameDiskCache(FrameDiskCache.dayDir(cacheRoot, LocalDate.ofInstant(now, zone)))
+
+    /**
+     * Имя файла на диске для кадра дождя на [time], если он уже не меняется и относится к сегодняшним суткам
+     * (прошедший кадр радара, старше [SettledAfter]); иначе null.
+     */
+    private fun rainDiskName(time: Instant, now: Instant): String? {
+        if (!MapTimeline.fromRadar(time, now)) return null
+        val frame = MapTimeline.radarFrame(time)
+        val today = MapTimeline.dayStart(MapDay.Today, now, zone)
+        return if (frame.isBefore(now.minus(SettledAfter)) && !frame.isBefore(today)) FrameDiskCache.rainName(frame) else null
     }
 
     /** Облачность часа как непрозрачность пикселей ([CloudRaster.alphaOnly]); null, если на этот час данных нет. */
@@ -357,13 +387,20 @@ class MapViewModel(userAgent: String) : ViewModel() {
         cachedClouds(time)?.let { return it.value }
         val hour = MapTimeline.cloudHour(time)
         return sharedLoad(cloudLoads, hour) {
-            val alpha = cloudLoader.load(hour, now)?.let { grid ->
-                CloudRaster.alphaOnly(CloudRaster.render(grid, MapArea.Overlay, MapArea.CLOUD_WIDTH, cloudHeight))
-            }
+            val disk = if (cloudSettled(hour, now)) todayDisk(now) else null
+            val alpha = disk?.readClouds(hour, cloudPixelCount)
+                ?: cloudLoader.load(hour, now)?.let { grid ->
+                    CloudRaster.alphaOnly(CloudRaster.render(grid, MapArea.Overlay, MapArea.CLOUD_WIDTH, cloudHeight))
+                }?.also { disk?.writeClouds(hour, it) }
             synchronized(cloudCache) { cloudCache[hour] = Cached(alpha, Instant.now()) }
             alpha
         }.await()
     }
+
+    /** Час облаков уже прошёл (с запасом) и относится к сегодняшним суткам: его данные больше не меняются. */
+    private fun cloudSettled(hour: Instant, now: Instant): Boolean =
+        hour.isBefore(MapTimeline.anchor(now).minus(CloudSettledAfter)) &&
+            !hour.isBefore(MapTimeline.dayStart(MapDay.Today, now, zone))
 
     /**
      * Загрузка кадра [key] идёт на своём потоке и не зависит от того, кто её ждёт: если ждущего отменили (палец ушёл
@@ -386,13 +423,23 @@ class MapViewModel(userAgent: String) : ViewModel() {
         frame.isBefore(now.minus(SettledAfter)) || Duration.between(fetched, at) < RainLife
 
     private val cloudHeight = MapArea.heightFor(MapArea.CLOUD_WIDTH)
+    private val cloudPixelCount = MapArea.CLOUD_WIDTH * cloudHeight
 
-    private fun decodePng(png: ByteArray): Bitmap? {
+    /** Картинка DWD как Bitmap в наших цветах ([RainPalette.recolor]); null, если размер не тот. */
+    private fun decodeRain(png: ByteArray, source: RainSource): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(png, 0, png.size, bounds)
         if (bounds.outWidth !in 1..MAX_SIDE || bounds.outHeight !in 1..MAX_SIDE) return null
-        val options = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 }
-        return BitmapFactory.decodeByteArray(png, 0, png.size, options)
+        val options = BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+            inMutable = true
+        }
+        val bitmap = BitmapFactory.decodeByteArray(png, 0, png.size, options) ?: return null
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        RainPalette.recolor(source, pixels)
+        bitmap.setPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        return bitmap
     }
 
     private fun Exception.isLoadFailure(): Boolean =
@@ -412,6 +459,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
         private val RainLife: Duration = Duration.ofMinutes(5)
         private val CloudLife: Duration = Duration.ofMinutes(30)
         private val SettledAfter: Duration = Duration.ofMinutes(15)
+        private val CloudSettledAfter: Duration = Duration.ofHours(1)
 
         private fun <K, V> lru(size: Int): LinkedHashMap<K, V> = object : LinkedHashMap<K, V>(size, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, V>?): Boolean = this.size > size

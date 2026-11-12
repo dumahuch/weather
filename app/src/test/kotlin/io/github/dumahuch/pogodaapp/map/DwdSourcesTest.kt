@@ -18,7 +18,7 @@ class DwdSourcesTest {
 
     @Test
     fun radarRequestAsksForPngInMapProjection() {
-        val url = DwdWms.mapUrl(RainSource.Radar, Instant.parse("2026-11-09T19:50:00Z"), styled = true)
+        val url = DwdWms.mapUrl(RainSource.Radar, Instant.parse("2026-11-09T19:50:00Z"))
         assertTrue(url.startsWith("https://maps.dwd.de/geoserver/dwd/wms?"))
         val p = params(url)
         assertEquals("Niederschlagsradar", p["LAYERS"])
@@ -27,23 +27,17 @@ class DwdSourcesTest {
         assertEquals("image/png", p["FORMAT"])
         assertEquals(MapArea.RAIN_WIDTH.toString(), p["WIDTH"])
         assertEquals(MapArea.heightFor(MapArea.RAIN_WIDTH).toString(), p["HEIGHT"])
-        assertTrue(p.getValue("SLD_BODY").contains("<Name>Niederschlagsradar</Name>"))
+        assertEquals("", p["STYLES"])
         assertEquals(4, p.getValue("BBOX").split(',').size)
     }
 
     @Test
-    fun unstyledRequestHasNoStyle() {
-        val p = params(DwdWms.mapUrl(RainSource.Model, Instant.parse("2026-11-10T16:00:00Z"), styled = false))
+    fun requestNeverCarriesOwnStyle() {
+        // Сервер DWD запрещает свои стили («Dynamic style usage is forbidden»), цвета меняет RainPalette.
+        val p = params(DwdWms.mapUrl(RainSource.Model, Instant.parse("2026-11-10T16:00:00Z")))
         assertEquals("Icon-eu_reg00625_fd_sl_TOTPREC01H", p["LAYERS"])
         assertFalse(p.containsKey("SLD_BODY"))
-    }
-
-    @Test
-    fun styleHasTransparentBottomAndFourSteps() {
-        val sld = DwdWms.sld(RainSource.Radar)
-        assertTrue(sld.contains("quantity=\"0.1\" opacity=\"0.0\""))
-        assertEquals(5, Regex("<ColorMapEntry").findAll(sld).count())
-        RainScale.Colors.forEach { assertTrue(sld.contains(it)) }
+        assertEquals("", p["STYLES"])
     }
 
     @Test

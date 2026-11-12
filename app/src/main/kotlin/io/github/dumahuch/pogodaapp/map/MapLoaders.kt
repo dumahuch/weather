@@ -2,43 +2,26 @@ package io.github.dumahuch.pogodaapp.map
 
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
 
-/** Кадр дождя: картинка PNG и признак, что она в наших цветах (тогда легенда верна), либо данных на это время нет. */
+/** Кадр дождя: картинка PNG в стиле DWD (цвета меняет [RainPalette]) либо данных на это время нет. */
 sealed interface RainResult {
-    class Image(val png: ByteArray, val styled: Boolean) : RainResult
+    class Image(val png: ByteArray) : RainResult
 
     data object Missing : RainResult
 }
 
 /**
- * Загрузка кадра дождя. До 2 часов вперёд радар, дальше модель ([MapTimeline.fromRadar]). Сначала просится кадр
- * в наших цветах; если сервер стиль не принял (ответ не картинка), кадр берётся в цветах DWD, и для этого слоя
- * больше стиль не просится. Ошибка сети уходит наверх исключением из [fetch]. Загрузки разных кадров идут
- * одновременно (каждая со своим запросом), общая у них только память о стиле.
+ * Загрузка кадра дождя. До 2 часов вперёд радар, дальше модель ([MapTimeline.fromRadar]). Ответ без картинки
+ * (сервер вернул XML с ошибкой: на это время нет прогона или кадра) значит, что данных нет. Ошибка сети уходит наверх
+ * исключением из [fetch]. Загрузки разных кадров идут одновременно, каждая со своим запросом.
  */
 class RainLoader(private val fetch: (url: String) -> ByteArray) {
-
-    /** Принимает ли сервер наш стиль для слоя: пока не знаем, null. */
-    private val styleAccepted = ConcurrentHashMap<RainSource, Boolean>()
 
     fun load(time: Instant, now: Instant): RainResult {
         val source = if (MapTimeline.fromRadar(time, now)) RainSource.Radar else RainSource.Model
         val frame = if (source == RainSource.Radar) MapTimeline.radarFrame(time) else MapTimeline.modelRainFrame(time)
-        val accepted = styleAccepted[source]
-        if (accepted != false) {
-            val styled = fetch(DwdWms.mapUrl(source, frame, styled = true))
-            if (DwdWms.isPng(styled)) {
-                styleAccepted[source] = true
-                return RainResult.Image(styled, styled = true)
-            }
-            // Стиль уже работал: значит, на это время у сервера просто нет кадра.
-            if (accepted == true) return RainResult.Missing
-        }
-        val plain = fetch(DwdWms.mapUrl(source, frame, styled = false))
-        if (!DwdWms.isPng(plain)) return RainResult.Missing
-        if (accepted == null) styleAccepted[source] = false
-        return RainResult.Image(plain, styled = false)
+        val png = fetch(DwdWms.mapUrl(source, frame))
+        return if (DwdWms.isPng(png)) RainResult.Image(png) else RainResult.Missing
     }
 }
 
