@@ -3,7 +3,9 @@ package io.github.dumahuch.pogodaapp.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -25,6 +27,8 @@ import io.github.dumahuch.pogodaapp.settings.NotificationToggle
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.components.AppTab
 import io.github.dumahuch.pogodaapp.ui.components.BottomBar
+import io.github.dumahuch.pogodaapp.ui.components.Glass
+import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.details.DetailsScreen
 import io.github.dumahuch.pogodaapp.ui.forecast.DayDetailScreen
 import io.github.dumahuch.pogodaapp.ui.forecast.ForecastScreen
@@ -32,6 +36,8 @@ import io.github.dumahuch.pogodaapp.ui.home.AlertSheet
 import io.github.dumahuch.pogodaapp.ui.home.AlertSheetHost
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
+import io.github.dumahuch.pogodaapp.ui.map.MapPalette
+import io.github.dumahuch.pogodaapp.ui.map.MapScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
@@ -199,78 +205,90 @@ fun PogodaApp(
         return
     }
 
-    Box(modifier.fillMaxSize()) {
-        when (tab) {
-            AppTab.Home -> HomeScreen(
-                state = state,
-                refreshing = refreshing,
-                permanentlyDenied = permanentlyDenied,
-                actions = linked,
-                pinnedName = chosenName,
-                preview = previewing,
-            )
+    // На карте свои тёмные цвета и стекло без размытия (под стеклом карта, а не небо), вместе с панелью вкладок.
+    val skyPalette = LocalPogodaPalette.current
+    val onMap = tab == AppTab.Map
+    val mapGlass = remember { Glass.flat(MapPalette) }
+    CompositionLocalProvider(
+        LocalPogodaPalette provides if (onMap) MapPalette else skyPalette,
+        LocalGlass provides if (onMap) mapGlass else LocalGlass.current,
+        LocalContentColor provides if (onMap) MapPalette.ink else LocalContentColor.current,
+    ) {
+        Box(modifier.fillMaxSize()) {
+            when (tab) {
+                AppTab.Home -> HomeScreen(
+                    state = state,
+                    refreshing = refreshing,
+                    permanentlyDenied = permanentlyDenied,
+                    actions = linked,
+                    pinnedName = chosenName,
+                    preview = previewing,
+                )
 
-            AppTab.Forecast -> {
-                val day = openDay
-                if (day != null && state is HomeUiState.Content) {
-                    DayDetailScreen(
-                        state = state,
-                        date = LocalDate.ofEpochDay(day),
-                        onBack = { openDay = null },
-                    )
-                } else {
-                    ForecastScreen(
-                        state = state,
-                        permanentlyDenied = permanentlyDenied,
-                        dayCount = dayCount,
-                        actions = linked,
-                        onDayCount = { dayCount = it },
-                        onOpenDay = { openDay = it.toEpochDay() },
-                    )
+                AppTab.Forecast -> {
+                    val day = openDay
+                    if (day != null && state is HomeUiState.Content) {
+                        DayDetailScreen(
+                            state = state,
+                            date = LocalDate.ofEpochDay(day),
+                            onBack = { openDay = null },
+                        )
+                    } else {
+                        ForecastScreen(
+                            state = state,
+                            permanentlyDenied = permanentlyDenied,
+                            dayCount = dayCount,
+                            actions = linked,
+                            onDayCount = { dayCount = it },
+                            onOpenDay = { openDay = it.toEpochDay() },
+                        )
+                    }
                 }
+
+                AppTab.Details -> DetailsScreen(
+                    state = state,
+                    permanentlyDenied = permanentlyDenied,
+                    actions = linked,
+                )
+
+                AppTab.Map -> MapScreen(
+                    place = (state as? HomeUiState.Content)?.place,
+                    skyDarkInk = skyPalette.darkInk,
+                )
             }
-
-            AppTab.Details -> DetailsScreen(
-                state = state,
-                permanentlyDenied = permanentlyDenied,
-                actions = linked,
+            BottomBar(
+                selected = tab,
+                onSelect = {
+                    tab = it
+                    openDay = null
+                    closeAlerts()
+                },
+                versionLabel = versionLabel,
+                showAttribution = state is HomeUiState.Content,
+                onVersionTap = onVersionTap,
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
-
-            // Эта вкладка ещё не сделана: кнопка в панели недоступна, сюда попасть нельзя.
-            AppTab.Map -> Unit
+            val content = state as? HomeUiState.Content
+            val now = remember(content) { Instant.now() }
+            val sheet = when {
+                openAlert != null -> AlertSheet.One(openAlert.orEmpty(), alertFromList)
+                alertsListOpen -> AlertSheet.All
+                else -> null
+            }
+            AlertSheetHost(
+                sheet = if (tab == AppTab.Home) sheet else null,
+                alerts = remember(content, now) { content?.alerts?.shownAt(now).orEmpty() },
+                area = content?.alerts?.area,
+                zone = content?.forecast?.zone ?: ZoneId.systemDefault(),
+                now = now,
+                onOpen = { opened ->
+                    if (opened is AlertSheet.One) {
+                        openAlert = opened.id
+                        alertFromList = opened.fromList
+                    }
+                },
+                onClose = ::closeAlerts,
+            )
         }
-        BottomBar(
-            selected = tab,
-            onSelect = {
-                tab = it
-                openDay = null
-                closeAlerts()
-            },
-            versionLabel = versionLabel,
-            showAttribution = state is HomeUiState.Content,
-            onVersionTap = onVersionTap,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
-        val content = state as? HomeUiState.Content
-        val now = remember(content) { Instant.now() }
-        val sheet = when {
-            openAlert != null -> AlertSheet.One(openAlert.orEmpty(), alertFromList)
-            alertsListOpen -> AlertSheet.All
-            else -> null
-        }
-        AlertSheetHost(
-            sheet = if (tab == AppTab.Home) sheet else null,
-            alerts = remember(content, now) { content?.alerts?.shownAt(now).orEmpty() },
-            area = content?.alerts?.area,
-            zone = content?.forecast?.zone ?: ZoneId.systemDefault(),
-            now = now,
-            onOpen = { opened ->
-                if (opened is AlertSheet.One) {
-                    openAlert = opened.id
-                    alertFromList = opened.fromList
-                }
-            },
-            onClose = ::closeAlerts,
-        )
     }
 }

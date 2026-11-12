@@ -333,4 +333,20 @@
     <string name="alert_period_span">%1$s %2$s – %3$s %4$s</string>
     <string name="alert_period_open">%1$s, с %2$s</string>
     <string name="alert_close">Закрыть</string>
+    <!-- Карта (0.8.0) -->
+    <string name="map_layer_clouds_rain">Облака и дождь</string>
+    <string name="map_layer_rain">Только дождь</string>
+    <string name="map_day_now">Сейчас</string>
+    <string name="map_day_tomorrow">Завтра</string>
+    <string name="map_day_after">Послезавтра</string>
+    <string name="map_forecast">Прогноз</string>
+    <string name="map_play">Играть</string>
+    <string name="map_pause">Пауза</string>
+    <string name="map_locate">Показать моё место</string>
+    <string name="map_legend_unit">мм/ч</string>
+    <string name="map_time_scale">Шкала времени</string>
+    <string name="map_no_connection">Нет связи с DWD</string>
+    <string name="map_no_data">Нет данных на это время</string>
+    <string name="map_base_failed">Подложка карты не загрузилась</string>
+    <string name="about_map_title">Карта</string>
 </resources>

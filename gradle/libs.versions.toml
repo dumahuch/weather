@@ -9,6 +9,10 @@ lifecycle = "2.11.0"
 kotlinxCoroutines = "1.11.0"
 orgJson = "20260814"
 haze = "2.0.1"
+# Карта (0.8.0, 12.11.2026): версии по меткам на GitHub (maplibre-native android-v13.7.1, commons-compress rel/1.28.0);
+# реестр Maven Central из сессии недоступен, наличие артефактов подтверждает сборка.
+maplibre = "13.7.1"
+commonsCompress = "1.28.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
@@ -20,6 +24,10 @@ androidx-compose-ui = { module = "androidx.compose.ui:ui" }
 # (Compose 1.12.1, как наш BOM); реестр Maven Central из сессии недоступен, наличие артефактов подтверждает сборка.
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
+# Карта: показ подложки и слоёв (MapLibre Native, лицензия BSD-2-Clause).
+maplibre-android = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre" }
+# Распаковка файлов облачности DWD (bzip2; Apache Commons Compress, лицензия Apache 2.0).
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 junit = { module = "junit:junit", version.ref = "junit" }

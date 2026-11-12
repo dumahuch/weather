@@ -30,7 +30,7 @@ enum class AppTab(val label: Int, val icon: LineIcon, val enabled: Boolean) {
     Home(R.string.tab_home, LineIcons.Home, enabled = true),
     Details(R.string.tab_details, LineIcons.Grid, enabled = true),
     Forecast(R.string.tab_forecast, LineIcons.Calendar, enabled = true),
-    Map(R.string.tab_map, LineIcons.Map, enabled = false),
+    Map(R.string.tab_map, LineIcons.Map, enabled = true),
 }
 
 /** Высота нижней панели (кнопка 48 и по 6 отступа). */
