@@ -188,7 +188,8 @@ object RainPalette {
     fun colorize(levels: ByteArray): IntArray = IntArray(levels.size) { LevelColors[levels[it].toInt() and 0xFF] }
 
     private const val LEVELS = 255
-    private const val LEVEL_LOW = 0.1
+    /** Слабее этого дождь на карте не показывается, мм/ч. */
+    const val LEVEL_LOW = 0.1
     private const val LEVEL_HIGH = 200.0
 
     /** Начиная с этой силы дождь рисуется самым плотным. */

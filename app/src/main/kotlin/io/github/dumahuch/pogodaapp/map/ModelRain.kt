@@ -70,6 +70,7 @@ object IconD2Rain {
  * двух накоплений, в уровнях [RainPalette.levelOf] на картинку [width] × [height] по области [MapArea.Overlay].
  * Между узлами сетки (около 2 км) сила дождя сглаживается кубически (Катмулл — Ром): значения в узлах те же, что у
  * модели, а пятна мягкие, без квадратов. Картинка шириной как у радара ([MapArea.RAIN_WIDTH]), полтора пикселя на клетку.
+ * Пятна дождя в один-два узла не показываются ([RainSpots]): на картинке они выходят квадратиками в 3–4 пикселя.
  * Нужный прогон выбирается так же, как для облаков ([IconD2Files.candidates]); есть ли файл, показывает список папки.
  * Нет ни в одном прогоне: null (тогда дождь берётся из ICON-EU).
  *
@@ -78,6 +79,55 @@ object IconD2Rain {
  * скачивается и разбирается не больше [PARALLEL] файлов, чтобы не занять слишком много памяти (файл около 2,4 МБ,
  * распакованный около 6,5 МБ).
  */
+/**
+ * Мелкие пятна дождя модели. Пятно в один или два узла сетки (около 2 км) модель по-настоящему не разрешает, а на
+ * картинке оно выходит квадратиком в 3–4 пикселя (одиночный узел 3 × 4, два узла 4 × 4 при ширине 1200; измерено
+ * 12.11.2026), который при приближении карты виден жёстким пятнышком. Такие пятна убираются целиком.
+ */
+internal object RainSpots {
+    /** Пятна меньше этого числа узлов не показываются. */
+    const val MIN_NODES = 3
+
+    /**
+     * Обнуляет в [rate] (мм/ч, [columns] × [rows] узлов) пятна дождя, видимые на карте (от [RainPalette.LEVEL_LOW]),
+     * меньше [MIN_NODES] узлов; узлы пятна соседи по стороне или по углу.
+     */
+    fun dropSmall(rate: FloatArray, columns: Int, rows: Int) {
+        val wet = RainPalette.LEVEL_LOW.toFloat()
+        val seen = BooleanArray(rate.size)
+        val stack = IntArray(rate.size)
+        val spot = IntArray(MIN_NODES)
+        for (startNode in rate.indices) {
+            if (seen[startNode] || rate[startNode] < wet) continue
+            seen[startNode] = true
+            var top = 0
+            stack[top++] = startNode
+            var size = 0
+            while (top > 0) {
+                val node = stack[--top]
+                if (size < MIN_NODES) spot[size] = node
+                size++
+                val x = node % columns
+                val y = node / columns
+                for (dy in -1..1) {
+                    val ny = y + dy
+                    if (ny < 0 || ny >= rows) continue
+                    for (dx in -1..1) {
+                        val nx = x + dx
+                        if (nx < 0 || nx >= columns) continue
+                        val next = ny * columns + nx
+                        if (!seen[next] && rate[next] >= wet) {
+                            seen[next] = true
+                            stack[top++] = next
+                        }
+                    }
+                }
+            }
+            if (size < MIN_NODES) for (k in 0 until size) rate[spot[k]] = 0f
+        }
+    }
+}
+
 class ModelRainLoader(
     private val listings: FolderListings,
     private val bytes: (url: String) -> ByteArray,
@@ -100,23 +150,40 @@ class ModelRainLoader(
     @Volatile
     private var window: Window? = null
 
-    fun load(time: Instant, now: Instant): ByteArray? {
+    /** Кадр дождя модели: прогон, из которого он посчитан, и уровни [RainPalette.levelOf] на пиксели картинки. */
+    class Frame(val run: Instant, val levels: ByteArray)
+
+    /** Откуда берётся кадр на [time]: прогон, его папка и номера двух файлов с накоплениями. */
+    private class Source(val run: Instant, val folder: String, val leadBefore: Int, val leadAfter: Int)
+
+    /** Подходящие прогоны по порядку, у которых в списке папки есть оба нужных файла. */
+    private fun sources(time: Instant, now: Instant): Sequence<Source> {
         val start = time.minus(IconD2Rain.Step)
-        for (frame in IconD2Files.candidates(MapTimeline.floorTo(start, Duration.ofHours(1)), now)) {
+        return IconD2Files.candidates(MapTimeline.floorTo(start, Duration.ofHours(1)), now).asSequence().mapNotNull { frame ->
             val run = frame.run
-            if (start.isBefore(run)) continue
-            val leadBefore = IconD2Rain.leadOf(run, start)
-            val leadAfter = IconD2Rain.leadOf(run, time)
-            if (leadAfter > IconD2Files.MAX_LEAD) continue
-            val folder = IconD2Rain.folder(run)
-            val listing = listings.get(folder, now)
-            if (!listed(listing, run, leadBefore) || !listed(listing, run, leadAfter)) continue
-            val first = file(folder, run, leadBefore)
-            val second = file(folder, run, leadAfter)
+            if (start.isBefore(run)) return@mapNotNull null
+            val source = Source(run, IconD2Rain.folder(run), IconD2Rain.leadOf(run, start), IconD2Rain.leadOf(run, time))
+            if (source.leadAfter > IconD2Files.MAX_LEAD) return@mapNotNull null
+            val listing = listings.get(source.folder, now)
+            source.takeIf { listed(listing, run, it.leadBefore) && listed(listing, run, it.leadAfter) }
+        }
+    }
+
+    /**
+     * Прогон, из которого сейчас берётся кадр на [time] (по спискам папок, без скачивания файлов); null, если ICON-D2
+     * на это время нет. Кадр одного прогона не меняется, поэтому по прогону его можно хранить на диске.
+     */
+    fun runFor(time: Instant, now: Instant): Instant? = sources(time, now).firstOrNull()?.run
+
+    fun load(time: Instant, now: Instant): Frame? {
+        val start = time.minus(IconD2Rain.Step)
+        for (source in sources(time, now)) {
+            val first = file(source.folder, source.run, source.leadBefore)
+            val second = file(source.folder, source.run, source.leadAfter)
             if (first.window !== second.window) continue
             val before = first.fields[start] ?: continue
             val after = second.fields[time] ?: continue
-            return levels(first.window, before, after)
+            return Frame(source.run, levels(first.window, before, after))
         }
         return null
     }
@@ -130,6 +197,7 @@ class ModelRainLoader(
             val b = after[i].code
             if (a == GAP || b == GAP || b <= a) 0f else IconD2Rain.rate(a / UNITS, b / UNITS).toFloat()
         }
+        RainSpots.dropSmall(rate, window.columns, window.rows)
         // Сначала вдоль строк сетки на столбцы картинки, потом вдоль столбцов на строки картинки.
         val across = FloatArray(window.rows * width)
         for (row in 0 until window.rows) {
