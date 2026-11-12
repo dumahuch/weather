@@ -87,4 +87,28 @@ class MapTimelineTest {
         assertTrue(MapTimeline.isForecast(local("2026-11-09T20:55"), now))
         assertFalse(MapTimeline.isForecast(local("2026-11-09T20:50"), now))
     }
+
+    @Test
+    fun dayFramesAreExactlyThePlacesTheRulerCanStopOn() {
+        for (day in MapDay.entries) {
+            val frames = MapTimeline.dayFrames(day, now, zone)
+            assertEquals(frames.sorted(), frames)
+            assertEquals(frames.size, frames.toSet().size)
+            // Каждое из этих времён шкала оставляет как есть, а любое другое округляется к одному из них.
+            assertTrue(frames.all { MapTimeline.snap(it, day, now, zone) == it })
+            val (start, end) = MapTimeline.range(day, now, zone)
+            assertEquals(start, frames.first())
+            assertEquals(end, frames.last())
+        }
+    }
+
+    @Test
+    fun todayHasFiveMinuteFramesNearNowAndTomorrowOnlyHourly() {
+        val today = MapTimeline.dayFrames(MapDay.Today, now, zone)
+        assertTrue(local("2026-11-09T20:55") in today)
+        assertTrue(local("2026-11-09T12:00") in today)
+        assertFalse(local("2026-11-09T12:05") in today)
+        val tomorrow = MapTimeline.dayFrames(MapDay.Tomorrow, now, zone)
+        assertEquals(25, tomorrow.size)
+    }
 }

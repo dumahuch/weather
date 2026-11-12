@@ -56,6 +56,9 @@ fun MapLibreHost(
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val failed by rememberUpdatedState(onFailed)
+    val placeNow by rememberUpdatedState(place)
+    // Карта открывается на месте человека; если место стало известно уже после открытия, камера переходит один раз.
+    var centered by remember { mutableStateOf(false) }
     val mapView = remember {
         MapLibre.getInstance(context)
         keepNothingOnDisk(context)
@@ -100,7 +103,9 @@ fun MapLibreHost(
             ready.setMaxZoomPreference(MAX_ZOOM)
             val target = MapArea.CameraTarget
             ready.setLatLngBoundsForCameraTarget(LatLngBounds.from(target.north, target.east, target.south, target.west))
-            ready.cameraPosition = CameraPosition.Builder().target(LatLng(START_LAT, START_LON)).zoom(START_ZOOM).build()
+            val start = placeNow?.let { LatLng(it.latitude, it.longitude) }
+            ready.cameraPosition = CameraPosition.Builder().target(start ?: LatLng(START_LAT, START_LON)).zoom(START_ZOOM).build()
+            if (start != null) centered = true
             ready.setStyle(Style.Builder().fromUri(STYLE_URL)) { loaded ->
                 addOverlays(loaded)
                 style = loaded
@@ -123,6 +128,12 @@ fun MapLibreHost(
     LaunchedEffect(style, place) {
         style?.getSourceAs<GeoJsonSource>(PLACE_SOURCE)?.setGeoJson(placeJson(place))
     }
+    LaunchedEffect(map, place) {
+        val ready = map ?: return@LaunchedEffect
+        if (centered || place == null) return@LaunchedEffect
+        ready.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(place.latitude, place.longitude), START_ZOOM))
+        centered = true
+    }
     LaunchedEffect(map, locateRequests) {
         val ready = map ?: return@LaunchedEffect
         if (locateRequests == 0 || place == null) return@LaunchedEffect
@@ -142,7 +153,7 @@ private const val MIN_ZOOM = 4.6
 private const val MAX_ZOOM = 10.0
 private const val START_LAT = 51.2
 private const val START_LON = 10.4
-private const val START_ZOOM = 5.0
+private const val START_ZOOM = 7.0
 private const val LOCATE_ZOOM = 7.5
 private const val LOCATE_MS = 600
 

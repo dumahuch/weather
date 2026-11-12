@@ -66,8 +66,8 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
  * очищает запас; на диск телефона ничего не пишется.
  *
  * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
- * ждёт ту же загрузку. Пока палец ведёт шкалу, кадры не заказываются: загрузка начинается, когда палец остановился
- * или отпустил шкалу.
+ * ждёт ту же загрузку. Кадры выбранных суток подгружаются в фоне, ближайшие к выбранному времени первыми
+ * ([warmUp]): готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился.
  */
 class MapViewModel(userAgent: String) : ViewModel() {
 
@@ -102,6 +102,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
 
     private var showJob: Job? = null
     private var playJob: Job? = null
+    private var warmJob: Job? = null
 
     private fun initialState(now: Instant) = MapUiState(
         now = now,
@@ -121,12 +122,14 @@ class MapViewModel(userAgent: String) : ViewModel() {
         val time = if (old.day == MapDay.Today && old.time == MapTimeline.anchor(old.now)) MapTimeline.anchor(now) else old.time
         _state.update { it.copy(now = now, time = MapTimeline.snap(time, it.day, now, zone)) }
         show()
+        warmUp()
     }
 
     /** Карту закрыли: анимация останавливается, запас кадров из памяти уходит. */
     fun onHidden() {
         stopPlaying()
         showJob?.cancel()
+        warmJob?.cancel()
         synchronized(rainCache) { rainCache.clear() }
         synchronized(cloudCache) { cloudCache.clear() }
     }
@@ -136,11 +139,13 @@ class MapViewModel(userAgent: String) : ViewModel() {
         val now = Instant.now()
         _state.update { it.copy(now = now, day = day, time = MapTimeline.sameTimeOn(day, it.time, now, zone)) }
         show()
+        warmUp()
     }
 
     /**
-     * Время со шкалы, пока палец ведёт её: ставится ближайшее допустимое. Кадр заказывается, когда палец
-     * постоял [SCRUB_SETTLE_MS] (или сразу после [scrubEnd]), а не на каждое промежуточное время.
+     * Время со шкалы, пока палец ведёт её: ставится ближайшее допустимое. Готовый в памяти кадр показывается сразу
+     * (с малой выдержкой [CACHED_SETTLE_MS], чтобы не разбирать картинку на каждый пиксель сдвига), ещё не
+     * загруженный заказывается, когда палец постоял [SCRUB_SETTLE_MS] (или сразу после [scrubEnd]).
      */
     fun scrubTo(time: Instant) {
         stopPlaying()
@@ -148,7 +153,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
         val snapped = MapTimeline.snap(time, s.day, s.now, zone)
         if (snapped == s.time) return
         _state.update { it.copy(time = snapped) }
-        show(SCRUB_SETTLE_MS)
+        show(if (isCached(snapped, s)) CACHED_SETTLE_MS else SCRUB_SETTLE_MS)
     }
 
     /** Палец оторвали от шкалы (или нажали на неё): кадр на выбранное время заказывается сразу. */
@@ -157,6 +162,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
     fun selectLayer(layer: MapLayer) {
         _state.update { it.copy(layer = layer) }
         show()
+        warmUp()
     }
 
     fun togglePlay() {
@@ -169,6 +175,7 @@ class MapViewModel(userAgent: String) : ViewModel() {
         if (frames.isEmpty()) return
         _state.update { it.copy(playing = true) }
         showJob?.cancel()
+        warmJob?.cancel()
         playJob = viewModelScope.launch {
             val first = frames.indexOfFirst { !it.isBefore(s.time) }.coerceAtLeast(0)
             // Остальные кадры круга качаются заранее, по несколько сразу и в порядке показа: на экран кадр идёт из памяти.
@@ -192,6 +199,20 @@ class MapViewModel(userAgent: String) : ViewModel() {
         playJob = null
         if (_state.value.playing) _state.update { it.copy(playing = false) }
     }
+
+    /** Подгружает в фоне все кадры выбранных суток, ближайшие к выбранному времени первыми (только в память). */
+    private fun warmUp() {
+        warmJob?.cancel()
+        val s = _state.value
+        warmJob = viewModelScope.launch {
+            val frames = MapTimeline.dayFrames(s.day, s.now, zone).sortedBy { Duration.between(it, s.time).abs() }
+            for (frame in frames) launch { prefetch(frame) }
+        }
+    }
+
+    /** Кадр на [time] целиком в памяти (дождь и, если слой с облаками, облака) и ещё свежий. */
+    private fun isCached(time: Instant, s: MapUiState): Boolean =
+        cachedRain(time, s.now) != null && (s.layer != MapLayer.CloudsAndRain || cachedClouds(time) != null)
 
     private fun show(settleMs: Long = 0) {
         showJob?.cancel()
@@ -276,14 +297,27 @@ class MapViewModel(userAgent: String) : ViewModel() {
         FrameStatus.Failed to null
     }
 
-    private suspend fun rainResult(time: Instant, now: Instant): RainResult {
+    private fun cachedRain(time: Instant, now: Instant): Cached<RainResult>? {
+        val (key, frame) = rainKey(time, now)
+        val cached = synchronized(rainCache) { rainCache[key] } ?: return null
+        return cached.takeIf { fresh(it.fetched, Instant.now(), frame, now) }
+    }
+
+    private fun cachedClouds(time: Instant): Cached<ByteArray?>? {
+        val cached = synchronized(cloudCache) { cloudCache[MapTimeline.cloudHour(time)] } ?: return null
+        return cached.takeIf { Duration.between(it.fetched, Instant.now()) < CloudLife }
+    }
+
+    /** Ключ кадра дождя и его время; радар и модель могут дать кадр на одно и то же время, ключ различает источник. */
+    private fun rainKey(time: Instant, now: Instant): Pair<String, Instant> {
         val radar = MapTimeline.fromRadar(time, now)
         val frame = if (radar) MapTimeline.radarFrame(time) else MapTimeline.modelRainFrame(time)
-        // Радар и модель могут дать кадр на одно и то же время: ключ различает источник.
-        val key = (if (radar) "radar " else "model ") + frame
-        synchronized(rainCache) { rainCache[key] }?.let { cached ->
-            if (fresh(cached.fetched, Instant.now(), frame, now)) return cached.value
-        }
+        return (if (radar) "radar " else "model ") + frame to frame
+    }
+
+    private suspend fun rainResult(time: Instant, now: Instant): RainResult {
+        cachedRain(time, now)?.let { return it.value }
+        val key = rainKey(time, now).first
         return sharedLoad(rainLoads, key) {
             val result = rainLoader.load(time, now)
             synchronized(rainCache) { rainCache[key] = Cached(result, Instant.now()) }
@@ -293,10 +327,8 @@ class MapViewModel(userAgent: String) : ViewModel() {
 
     /** Облачность часа как непрозрачность пикселей ([CloudRaster.alphaOnly]); null, если на этот час данных нет. */
     private suspend fun cloudPixels(time: Instant, now: Instant): ByteArray? {
+        cachedClouds(time)?.let { return it.value }
         val hour = MapTimeline.cloudHour(time)
-        synchronized(cloudCache) { cloudCache[hour] }?.let { cached ->
-            if (Duration.between(cached.fetched, Instant.now()) < CloudLife) return cached.value
-        }
         return sharedLoad(cloudLoads, hour) {
             val alpha = cloudLoader.load(hour, now)?.let { grid ->
                 CloudRaster.alphaOnly(CloudRaster.render(grid, MapArea.Overlay, MapArea.CLOUD_WIDTH, cloudHeight))
@@ -342,10 +374,11 @@ class MapViewModel(userAgent: String) : ViewModel() {
     companion object {
         private const val TAG = "PogodaMap"
         private const val SOURCE = "DWD"
-        private const val RAIN_CACHE = 40
+        private const val RAIN_CACHE = 100
         private const val CLOUD_CACHE = 26
         private const val PREFETCH_PARALLEL = 4
         private const val SCRUB_SETTLE_MS = 250L
+        private const val CACHED_SETTLE_MS = 40L
         private const val FRAME_MS = 650L
         private const val FRAME_WAIT_MS = 6_000L
         private const val MAX_SIDE = 2048
