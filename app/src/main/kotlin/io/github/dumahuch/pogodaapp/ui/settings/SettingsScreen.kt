@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -243,7 +244,7 @@ private fun SourceLine(title: String, text: String) {
  * Раздел настроек: свёрнутый это название, строка о состоянии и стрелка вниз, развёрнутый та же карточка, увеличенная
  * на месте (стрелка повёрнута вверх). Нажатие по всей шапке. Строки раскрываются и сворачиваются вместе с высотой карточки и
  * гаснут по пути (с 0.7.13: раньше при сворачивании они пропадали сразу, и пустая карточка секунду висела прежнего размера).
- * Карточка выше экрана, поэтому размытие у неё нарезано кусками ([GlassCardBox]).
+ * Стекло без размытия: на прокручиваемой высокой карточке размытие давало серые полосы (0.7.17).
  */
 @Composable
 private fun SectionCard(
@@ -255,7 +256,10 @@ private fun SectionCard(
 ) {
     val palette = LocalPogodaPalette.current
     val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "settings-arrow")
-    GlassCardBox(CardShape, LocalGlass.current, Modifier.fillMaxWidth()) {
+    // Без размытия: при прокрутке высокой карточки Haze догонял видимую часть с опозданием, и снизу вылезала серая полоса.
+    val glass = LocalGlass.current
+    val flatGlass = remember(glass) { glass.withoutBlur() }
+    GlassCardBox(CardShape, flatGlass, Modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth()) {
             Row(
                 Modifier
