@@ -7,7 +7,7 @@ import org.junit.Test
 import java.time.Instant
 import java.time.ZoneId
 
-/** Шкала времени карты: «Сейчас» шагом 5 минут около настоящего времени, остальное по часам. */
+/** Шкала времени карты: «Сейчас» шагом 5 минут около настоящего времени, прошлое по часам, прогноз модели по 15 минут. */
 class MapTimelineTest {
 
     private val zone = ZoneId.of("Europe/Berlin")
@@ -41,7 +41,17 @@ class MapTimelineTest {
         assertEquals(local("2026-11-09T21:10"), MapTimeline.snap(local("2026-11-09T21:11"), MapDay.Today, now, zone))
         assertEquals(local("2026-11-09T13:00"), MapTimeline.snap(local("2026-11-09T13:20"), MapDay.Today, now, zone))
         assertEquals(local("2026-11-10T00:00"), MapTimeline.snap(local("2026-11-10T03:00"), MapDay.Today, now, zone))
-        assertEquals(local("2026-11-10T07:00"), MapTimeline.snap(local("2026-11-10T07:20"), MapDay.Tomorrow, now, zone))
+        assertEquals(local("2026-11-10T07:15"), MapTimeline.snap(local("2026-11-10T07:20"), MapDay.Tomorrow, now, zone))
+    }
+
+    @Test
+    fun afterRadarSnapsToQuarterHours() {
+        // Радар до 22:50, дальше шаг ICON-D2 15 минут.
+        assertEquals(local("2026-11-09T23:00"), MapTimeline.snap(local("2026-11-09T23:07"), MapDay.Today, now, zone))
+        assertEquals(local("2026-11-09T23:15"), MapTimeline.snap(local("2026-11-09T23:09"), MapDay.Today, now, zone))
+        assertEquals(local("2026-11-09T23:00"), MapTimeline.snap(local("2026-11-09T22:56"), MapDay.Today, now, zone))
+        // Ближайшая четверть часа ещё на радаре: остаётся последний кадр радара.
+        assertEquals(local("2026-11-09T22:50"), MapTimeline.snap(local("2026-11-09T22:52"), MapDay.Today, now, zone))
     }
 
     @Test
@@ -103,13 +113,17 @@ class MapTimelineTest {
     }
 
     @Test
-    fun todayHasFiveMinuteFramesNearNowAndTomorrowOnlyHourly() {
+    fun todayHasFiveMinuteFramesNearNowHourlyPastAndQuarterHoursAhead() {
         val today = MapTimeline.dayFrames(MapDay.Today, now, zone)
         assertTrue(local("2026-11-09T20:55") in today)
         assertTrue(local("2026-11-09T12:00") in today)
         assertFalse(local("2026-11-09T12:05") in today)
+        assertFalse(local("2026-11-09T12:15") in today)
+        assertTrue(local("2026-11-09T23:15") in today)
+        assertFalse(local("2026-11-09T23:05") in today)
         val tomorrow = MapTimeline.dayFrames(MapDay.Tomorrow, now, zone)
-        assertEquals(25, tomorrow.size)
+        assertEquals(97, tomorrow.size)
+        assertTrue(local("2026-11-10T07:45") in tomorrow)
     }
 
     @Test

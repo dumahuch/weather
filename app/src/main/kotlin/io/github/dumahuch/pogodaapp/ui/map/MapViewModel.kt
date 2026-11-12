@@ -9,11 +9,13 @@ import io.github.dumahuch.pogodaapp.data.Bzip2
 import io.github.dumahuch.pogodaapp.data.HttpJson
 import io.github.dumahuch.pogodaapp.map.CloudLoader
 import io.github.dumahuch.pogodaapp.map.CloudRaster
+import io.github.dumahuch.pogodaapp.map.FolderListings
 import io.github.dumahuch.pogodaapp.map.FrameDiskCache
 import io.github.dumahuch.pogodaapp.map.MapArea
 import io.github.dumahuch.pogodaapp.map.MapDataException
 import io.github.dumahuch.pogodaapp.map.MapDay
 import io.github.dumahuch.pogodaapp.map.MapTimeline
+import io.github.dumahuch.pogodaapp.map.ModelRainLoader
 import io.github.dumahuch.pogodaapp.map.RainLoader
 import io.github.dumahuch.pogodaapp.map.RainPalette
 import io.github.dumahuch.pogodaapp.map.RainResult
@@ -66,9 +68,11 @@ data class MapUiState(
 class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
 
 /**
- * Карта: выбранное время и слой, загрузка кадров дождя (радар и модель DWD) и облаков (ICON-D2), «играть».
+ * Карта: выбранное время и слой, загрузка кадров дождя (радар DWD, после него осадки ICON-D2 по 15 минут, где их нет,
+ * ICON-EU по часам) и облаков (ICON-D2), «играть».
  *
- * Кадры держатся в оперативной памяти, пока живо приложение: дождь сжатым (PNG, до [RAIN_CACHE] штук), облака одной
+ * Кадры держатся в оперативной памяти, пока живо приложение: дождь сжатым (PNG радара или уровни модели, сжатые
+ * deflate, до [RAIN_CACHE] штук), облака одной
  * непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки запас не очищает
  * (устаревшие кадры перекачиваются сами по срокам [RainLife] и [CloudLife]). Кадры, которые уже не меняются
  * (прошедший радар и облака прошедших часов сегодняшних суток), ещё и лежат на диске в кэше приложения до 23:55
@@ -76,20 +80,36 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
  *
  * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
  * ждёт ту же загрузку. Кадры выбранных суток подгружаются в фоне ([warmUp], порядок [MapTimeline.nextToWarm]):
- * готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился.
+ * готовый кадр шкала показывает сразу, а ещё не загруженный заказывается, когда палец остановился. При выборе
+ * «Только по Wi-Fi» ([setWifiOnly]) в сети с оплатой за трафик ([metered]) заранее не качается ничего, только кадр,
+ * который показан; «играть» качает свой круг всегда (его включают нарочно).
  */
-class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel() {
+class MapViewModel(
+    userAgent: String,
+    private val cacheRoot: File,
+    private val metered: () -> Boolean,
+) : ViewModel() {
 
     private val zone: ZoneId = ZoneId.systemDefault()
 
     private val rainLoader = RainLoader { url ->
         HttpJson.bytes(url, userAgent, SOURCE, "image/png", allowClientErrors = true)
     }
+    private val listings = FolderListings { url -> HttpJson.get(url, userAgent, SOURCE) }
     private val cloudLoader = CloudLoader(
-        text = { url -> HttpJson.get(url, userAgent, SOURCE) },
+        listings = listings,
         bytes = { url -> HttpJson.bytes(url, userAgent, SOURCE, "application/octet-stream") },
         unpack = Bzip2::unpack,
     )
+    private val modelRainLoader = ModelRainLoader(
+        listings = listings,
+        bytes = { url -> HttpJson.bytes(url, userAgent, SOURCE, "application/octet-stream") },
+        unpack = Bzip2::unpack,
+    )
+
+    /** Подгружать кадры заранее только без оплаты за трафик (настройка «Подгрузка карты»). */
+    @Volatile
+    private var wifiOnly = false
 
     private class Cached<T>(val value: T, val fetched: Instant)
 
@@ -135,6 +155,13 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
         show()
         warmUp()
     }
+
+    /** Настройка «Подгрузка карты»: заранее только по Wi-Fi или всегда. Действует со следующей подгрузки. */
+    fun setWifiOnly(value: Boolean) {
+        wifiOnly = value
+    }
+
+    private fun mayPrefetch(): Boolean = !wifiOnly || !metered()
 
     /** Карту закрыли: анимация и подгрузка останавливаются, запас кадров в памяти остаётся. */
     fun onHidden() {
@@ -216,6 +243,10 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
      */
     private fun warmUp() {
         warmJob?.cancel()
+        if (!mayPrefetch()) {
+            stopWarming()
+            return
+        }
         val s = _state.value
         val frames = MapTimeline.dayFrames(s.day, s.now, zone)
         val pending = frames.toMutableSet()
@@ -224,7 +255,7 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
         warmJob = viewModelScope.launch {
             repeat(PREFETCH_PARALLEL) {
                 launch {
-                    while (true) {
+                    while (mayPrefetch()) {
                         val next = synchronized(pending) {
                             MapTimeline.nextToWarm(pending, _state.value.time, s.now)?.also { pending.remove(it) }
                         } ?: break
@@ -311,6 +342,9 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
                     ?.let { RainFrame(FrameStatus.Ready, it) }
                     ?: RainFrame(FrameStatus.Failed, null)
             }
+            is RainResult.Levels -> withContext(Dispatchers.Default) { levelsBitmap(result.packed) }
+                ?.let { RainFrame(FrameStatus.Ready, it) }
+                ?: RainFrame(FrameStatus.Failed, null)
         }
     } catch (e: Exception) {
         if (!e.isLoadFailure()) throw e
@@ -337,7 +371,8 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
     private fun cachedRain(time: Instant, now: Instant): Cached<RainResult>? {
         val (key, frame) = rainKey(time, now)
         val cached = synchronized(rainCache) { rainCache[key] } ?: return null
-        return cached.takeIf { fresh(it.fetched, Instant.now(), frame, now) }
+        val life = if (MapTimeline.fromRadar(time, now)) RainLife else ModelLife
+        return cached.takeIf { fresh(it.fetched, Instant.now(), frame, now, life) }
     }
 
     private fun cachedClouds(time: Instant): Cached<ByteArray?>? {
@@ -345,10 +380,14 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
         return cached.takeIf { Duration.between(it.fetched, Instant.now()) < CloudLife }
     }
 
-    /** Ключ кадра дождя и его время; радар и модель могут дать кадр на одно и то же время, ключ различает источник. */
+    /**
+     * Ключ кадра дождя и его время; радар и модель могут дать кадр на одно и то же время, ключ различает источник.
+     * Кадр модели свой на каждые 15 минут (ICON-D2); если на это время есть только ICON-EU, у четырёх четвертей часа
+     * одна картинка, но её запрашивает один раз сам [RainLoader].
+     */
     private fun rainKey(time: Instant, now: Instant): Pair<String, Instant> {
         val radar = MapTimeline.fromRadar(time, now)
-        val frame = if (radar) MapTimeline.radarFrame(time) else MapTimeline.modelRainFrame(time)
+        val frame = if (radar) MapTimeline.radarFrame(time) else time
         return (if (radar) "radar " else "model ") + frame to frame
     }
 
@@ -359,12 +398,25 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
             val name = rainDiskName(time, now)
             val disk = todayDisk(now)
             val result = name?.let { disk.readRain(it) }?.let { RainResult.Image(it) }
+                ?: modelRain(time, now)
                 ?: rainLoader.load(time, now).also { loaded ->
                     if (name != null && loaded is RainResult.Image) disk.writeRain(name, loaded.png)
                 }
             synchronized(rainCache) { rainCache[key] = Cached(result, Instant.now()) }
             result
         }.await()
+    }
+
+    /** Дождь ICON-D2 на 15-минутный кадр после радара (сжатые уровни); null на радаре, без ICON-D2 и при испорченном файле. */
+    private fun modelRain(time: Instant, now: Instant): RainResult? {
+        if (MapTimeline.fromRadar(time, now)) return null
+        return try {
+            modelRainLoader.load(time, now)?.let { RainResult.Levels(FrameDiskCache.deflate(it)) }
+        } catch (e: MapDataException) {
+            // Файл не того вида: дождь берётся из ICON-EU, причина в журнал.
+            Log.w(TAG, "Осадки ICON-D2: ${e.message}")
+            null
+        }
     }
 
     /** Папка кадров на диске для суток, в которые попадает [now]. */
@@ -418,12 +470,18 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
             }.also { loads[key] = it }
         }
 
-    /** Прошедшие кадры радара не меняются; недавние и будущие (прогноз) обновляются каждые 5 минут. */
-    private fun fresh(fetched: Instant, at: Instant, frame: Instant, now: Instant): Boolean =
-        frame.isBefore(now.minus(SettledAfter)) || Duration.between(fetched, at) < RainLife
+    /** Прошедшие кадры радара не меняются; недавние и будущие (прогноз) обновляются, когда им исполнится [life]. */
+    private fun fresh(fetched: Instant, at: Instant, frame: Instant, now: Instant, life: Duration): Boolean =
+        frame.isBefore(now.minus(SettledAfter)) || Duration.between(fetched, at) < life
 
     private val cloudHeight = MapArea.heightFor(MapArea.CLOUD_WIDTH)
     private val cloudPixelCount = MapArea.CLOUD_WIDTH * cloudHeight
+
+    /** Уровни дождя ICON-D2 картинкой в наших цветах; картинка того же размера, что облака. */
+    private fun levelsBitmap(packed: ByteArray): Bitmap? {
+        val levels = FrameDiskCache.inflate(packed, cloudPixelCount) ?: return null
+        return Bitmap.createBitmap(RainPalette.colorize(levels), MapArea.CLOUD_WIDTH, cloudHeight, Bitmap.Config.ARGB_8888)
+    }
 
     /** Картинка DWD как Bitmap в наших цветах ([RainPalette.recolor]); null, если размер не тот. */
     private fun decodeRain(png: ByteArray, source: RainSource): Bitmap? {
@@ -448,7 +506,7 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
     companion object {
         private const val TAG = "PogodaMap"
         private const val SOURCE = "DWD"
-        private const val RAIN_CACHE = 100
+        private const val RAIN_CACHE = 260
         private const val CLOUD_CACHE = 26
         private const val PREFETCH_PARALLEL = 6
         private const val SCRUB_SETTLE_MS = 250L
@@ -457,6 +515,9 @@ class MapViewModel(userAgent: String, private val cacheRoot: File) : ViewModel()
         private const val FRAME_WAIT_MS = 6_000L
         private const val MAX_SIDE = 2048
         private val RainLife: Duration = Duration.ofMinutes(5)
+
+        /** Прогон модели меняется раз в три часа, список папки держится 10 минут. */
+        private val ModelLife: Duration = Duration.ofMinutes(10)
         private val CloudLife: Duration = Duration.ofMinutes(30)
         private val SettledAfter: Duration = Duration.ofMinutes(15)
         private val CloudSettledAfter: Duration = Duration.ofHours(1)

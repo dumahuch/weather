@@ -44,6 +44,20 @@ class Grib2Test {
     }
 
     @Test
+    fun readsEveryMessageOfFileWithAccumulationTime() {
+        val times = listOf("2026-11-12T22:00", "2026-11-12T22:15")
+        val file = times.mapIndexed { k, t ->
+            message(columns = 2, rows = 2, raw = IntArray(4) { 100 * (k + 1) }, scan = 64, validEnd = java.time.LocalDateTime.parse(t))
+        }.reduce { a, b -> a + b }
+        val grids = mutableListOf<LatLonGrid>()
+        assertEquals(2, Grib2.parseAll(file) { grids += it })
+        assertEquals(java.time.Instant.parse("2026-11-12T22:15:00Z"), grids[1].validEnd)
+        assertEquals(2f, grids[1].at(0, 0), 1e-6f)
+        // У мгновенного поля (облачность, шаблон 4.0) времени накопления нет.
+        assertEquals(null, Grib2.parse(message(columns = 2, rows = 2, raw = IntArray(4), scan = 64)).validEnd)
+    }
+
+    @Test
     fun rejectsGarbage() {
         assertThrows(MapDataException::class.java) { Grib2.parse(ByteArray(0)) }
         assertThrows(MapDataException::class.java) { Grib2.parse("<html>Not found</html>".toByteArray()) }
@@ -86,6 +100,7 @@ class Grib2Test {
             gridTemplate: Int = 0,
             packingTemplate: Int = 0,
             declaredColumns: Int = columns,
+            validEnd: java.time.LocalDateTime? = null,
         ): ByteArray {
             val south = 47_000_000
             val north = 47_000_000 + (rows - 1) * 1_000_000
@@ -103,7 +118,13 @@ class Grib2Test {
                         int(1_000_000, 4) + int(1_000_000, 4) + bytes(scan),
                 ),
             )
-            sections.write(section(4, ByteArray(30)))
+            if (validEnd == null) {
+                sections.write(section(4, ByteArray(30)))
+            } else {
+                // Шаблон 4.8 (накопление): конец интервала в октетах 35–41, дальше описание интервала.
+                val end = int(validEnd.year, 2) + bytes(validEnd.monthValue, validEnd.dayOfMonth, validEnd.hour, validEnd.minute, validEnd.second)
+                sections.write(section(4, bytes(0, 0) + int(8, 2) + bytes(1, 52) + ByteArray(23) + end + ByteArray(22)))
+            }
             sections.write(
                 section(
                     5,

@@ -89,7 +89,8 @@ class FrameDiskCache(private val dir: File) {
             return Duration.between(now, at)
         }
 
-        private fun deflate(bytes: ByteArray): ByteArray {
+        /** Сжатие кадра (deflate, быстро): дождь и облака почти везде нули и жмутся в десятки раз. */
+        fun deflate(bytes: ByteArray): ByteArray {
             val deflater = Deflater(Deflater.BEST_SPEED)
             deflater.setInput(bytes)
             deflater.finish()
@@ -101,7 +102,7 @@ class FrameDiskCache(private val dir: File) {
         }
 
         /** Распаковка ровно в [length] байт; null, если данные испорчены или короче. */
-        private fun inflate(bytes: ByteArray, length: Int): ByteArray? {
+        fun inflate(bytes: ByteArray, length: Int): ByteArray? {
             val inflater = Inflater()
             return try {
                 inflater.setInput(bytes)

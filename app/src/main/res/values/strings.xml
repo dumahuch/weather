@@ -236,6 +236,11 @@
     <string name="settings_shadow_soft_hint">A light shadow: cards blend into the sky more gently.</string>
     <string name="settings_shadow_strong">Strong</string>
     <string name="settings_shadow_strong_hint">A stronger shadow and a light edge: cards stand out on a grey sky.</string>
+    <string name="settings_map_preload">Map preloading</string>
+    <string name="settings_map_preload_always">Always</string>
+    <string name="settings_map_preload_always_hint">Frames for the selected day are loaded in advance, also over mobile data.</string>
+    <string name="settings_map_preload_wifi">Wi-Fi only</string>
+    <string name="settings_map_preload_wifi_hint">On mobile data the map loads only the frame on screen.</string>
     <string name="settings_icons">Weather icons</string>
     <string name="settings_icons_glass">Glass</string>
     <string name="settings_icons_glass_hint">Frosted glass with coloured drops, lightning and snow. Home screen only.</string>

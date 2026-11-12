@@ -234,6 +234,11 @@
     <string name="settings_shadow_soft_hint">Лёгкая тень: карточки мягче вписываются в небо.</string>
     <string name="settings_shadow_strong">Выраженная</string>
     <string name="settings_shadow_strong_hint">Тень сильнее и светлая кромка: карточки заметнее на сером небе.</string>
+    <string name="settings_map_preload">Подгрузка карты</string>
+    <string name="settings_map_preload_always">Всегда</string>
+    <string name="settings_map_preload_always_hint">Кадры выбранного дня качаются заранее, в том числе по мобильной сети.</string>
+    <string name="settings_map_preload_wifi">Только по Wi-Fi</string>
+    <string name="settings_map_preload_wifi_hint">По мобильной сети карта качает только кадр на экране.</string>
     <string name="settings_icons">Значки погоды</string>
     <string name="settings_icons_glass">Стеклянные</string>
     <string name="settings_icons_glass_hint">Матовое стекло с цветными каплями, молнией и снегом. Только на главном экране.</string>

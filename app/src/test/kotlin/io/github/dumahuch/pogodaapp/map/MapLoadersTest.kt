@@ -57,9 +57,9 @@ class MapLoadersTest {
         val downloads = mutableListOf<String>()
         val grib = Grib2Test.message(columns = 2, rows = 2, raw = intArrayOf(0, 50, 100, 100), scan = 64)
         val loader = CloudLoader(
-            text = { url ->
+            listings = FolderListings { url ->
                 listings += url
-                // Прогон 18 UTC ещё не выложил этот час, прогон 03 UTC (он считает на 45 часов) выложил.
+                // Прогоны 18…09 UTC ещё не выложили этот час, прогон 03 UTC выложил.
                 if (url.endsWith("/03/clct_mod/")) "<a href=\"${IconD2Files.fileName(older)}\">" else ""
             },
             bytes = { url -> downloads += url; grib },
@@ -67,16 +67,19 @@ class MapLoadersTest {
         )
         val grid = loader.load(hour, now)
         assertEquals(0.5f, grid!!.at(1, 0), 1e-6f)
-        assertEquals(listOf("/18/clct_mod/", "/03/clct_mod/"), listings.map { it.takeLast(13) })
+        assertEquals(
+            listOf("/18/clct_mod/", "/15/clct_mod/", "/12/clct_mod/", "/09/clct_mod/", "/03/clct_mod/"),
+            listings.map { it.takeLast(13) },
+        )
         assertEquals(listOf(IconD2Files.runFolder(older.run) + IconD2Files.fileName(older)), downloads)
         // Список папки держится 10 минут: второй раз не просится.
         loader.load(hour, now.plusSeconds(60))
-        assertEquals(2, listings.size)
+        assertEquals(5, listings.size)
     }
 
     @Test
     fun noRunWithTheHourGivesNothing() {
-        val loader = CloudLoader(text = { "" }, bytes = { error("не должно скачиваться") }, unpack = { it })
+        val loader = CloudLoader(listings = FolderListings { "" }, bytes = { error("не должно скачиваться") }, unpack = { it })
         assertNull(loader.load(Instant.parse("2026-11-10T21:00:00Z"), now))
     }
 
@@ -84,7 +87,7 @@ class MapLoadersTest {
     fun brokenFileIsDataError() {
         val frame = IconD2Frame(Instant.parse("2026-11-09T18:00:00Z"), 27)
         val loader = CloudLoader(
-            text = { "<a href=\"${IconD2Files.fileName(frame)}\">" },
+            listings = FolderListings { "<a href=\"${IconD2Files.fileName(frame)}\">" },
             bytes = { "<html>".toByteArray() },
             unpack = { it },
         )
@@ -121,7 +124,7 @@ class MapLoadersTest {
             IconD2Files.fileName(IconD2Frame(run, (hour.epochSecond - run.epochSecond).toInt() / 3600))
         }
         val loader = CloudLoader(
-            text = { synchronized(this) { listings++ }; names.joinToString("") { "<a href=\"$it\">" } },
+            listings = FolderListings { synchronized(this) { listings++ }; names.joinToString("") { "<a href=\"$it\">" } },
             bytes = {
                 bothStarted.countDown()
                 if (!bothStarted.await(5, TimeUnit.SECONDS)) waitedInTime = false

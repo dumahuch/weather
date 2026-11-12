@@ -219,6 +219,7 @@ class MainActivity : ComponentActivity() {
                 val glassBlur by skyCheck.glassBlur.collectAsStateWithLifecycle()
                 val cardShadow by settings.cardShadow.collectAsStateWithLifecycle()
                 val iconStyle by settings.iconStyle.collectAsStateWithLifecycle()
+                val mapPreload by settings.mapPreload.collectAsStateWithLifecycle()
                 val notifications by settings.notifications.collectAsStateWithLifecycle()
                 val noticeError by settings.noticeError.collectAsStateWithLifecycle()
                 val pollenKinds by settings.pollenKinds.collectAsStateWithLifecycle()
@@ -255,6 +256,8 @@ class MainActivity : ComponentActivity() {
                                 onCardShadow = settings::setCardShadow,
                                 iconStyle = iconStyle,
                                 onIconStyle = settings::setIconStyle,
+                                mapPreload = mapPreload,
+                                onMapPreload = settings::setMapPreload,
                                 notifications = notifications,
                                 onNotification = notificationSwitches::set,
                                 pollenKinds = pollenKinds,

@@ -102,4 +102,17 @@ class RainPaletteTest {
         assertEquals(1.0 / 3.0, RainPalette.legendPosition(1.0), 1e-9)
         assertEquals(0.0, RainPalette.legendPosition(0.01), 1e-9)
     }
+
+    @Test
+    fun levelsOfModelRainGoFromWeakToStrong() {
+        assertEquals(0, RainPalette.levelOf(0.05))
+        assertEquals(1, RainPalette.levelOf(0.1))
+        assertEquals(255, RainPalette.levelOf(500.0))
+        for (mm in doubleArrayOf(0.3, 2.0, 17.0)) {
+            assertEquals(mm, RainPalette.mmOfLevel(RainPalette.levelOf(mm)), mm * 0.02)
+        }
+        val colors = RainPalette.colorize(byteArrayOf(0, RainPalette.levelOf(5.0).toByte()))
+        assertEquals(0, colors[0])
+        assertEquals(RainPalette.mapColor(RainPalette.mmOfLevel(RainPalette.levelOf(5.0))), colors[1])
+    }
 }

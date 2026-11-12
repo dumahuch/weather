@@ -14,7 +14,8 @@ data class RulerTick(val time: Instant, val major: Boolean)
 /**
  * Время на карте. Сегодня шкала идёт с 00:00 до 24:00 (или до конца прогноза радара, если он уходит за полночь);
  * около «сейчас» (два часа назад и два вперёд, пока есть радар с шагом 5 минут) время выбирается с шагом 5 минут,
- * дальше по часам. Завтра и послезавтра только по часам: облака и дождь там модельные, часовые.
+ * прошедшие часы раньше этого по часам, а прогноз после радара с шагом 15 минут, как дождь модели ICON-D2 ([ModelStep]).
+ * Завтра и послезавтра тоже по 15 минут. Деления шкалы от шага не зависят: малые только около «сейчас».
  */
 object MapTimeline {
     val RadarStep: Duration = Duration.ofMinutes(5)
@@ -26,6 +27,9 @@ object MapTimeline {
     val FineBack: Duration = Duration.ofHours(2)
 
     val MinorTick: Duration = Duration.ofMinutes(15)
+
+    /** Шаг шкалы на прогнозе после радара: так часто ICON-D2 выкладывает осадки ([IconD2Rain.Step]). */
+    val ModelStep: Duration = IconD2Rain.Step
 
     /** Кадры в этих пределах от выбранного времени подгружаются раньше всех остальных. */
     val FingerZone: Duration = Duration.ofMinutes(90)
@@ -64,18 +68,21 @@ object MapTimeline {
     fun snap(time: Instant, day: MapDay, now: Instant, zone: ZoneId): Instant {
         val (start, end) = range(day, now, zone)
         val clamped = time.coerceIn(start, end)
-        if (day == MapDay.Today) {
-            val (fineStart, fineEnd) = fineWindow(now)
-            if (!clamped.isBefore(fineStart) && !clamped.isAfter(fineEnd)) {
-                return roundTo(clamped, RadarStep).coerceIn(start, end)
+        if (day != MapDay.Today) return roundTo(clamped, ModelStep).coerceIn(start, end)
+        val (fineStart, fineEnd) = fineWindow(now)
+        return when {
+            clamped.isBefore(fineStart) -> roundTo(clamped, Hour).coerceIn(start, end)
+            !clamped.isAfter(fineEnd) -> roundTo(clamped, RadarStep).coerceIn(start, end)
+            else -> {
+                // После радара шаг 15 минут; ближайшая к пальцу четверть часа может оказаться ещё на радаре.
+                val quarter = roundTo(clamped, ModelStep).coerceIn(start, end)
+                if (quarter.isAfter(fineEnd)) quarter else fineEnd
             }
         }
-        return roundTo(clamped, Hour).coerceIn(start, end)
     }
 
     /**
-     * Все времена, на которые шкала суток [day] может остановиться (см. [snap]): каждый час, сегодня около «сейчас»
-     * ещё и каждые 5 минут. По ним кадры дня грузятся заранее.
+     * Все времена, на которые шкала суток [day] может остановиться (см. [snap]). По ним кадры дня грузятся заранее.
      */
     fun dayFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
         val (start, end) = range(day, now, zone)
@@ -83,8 +90,9 @@ object MapTimeline {
         var time = start
         while (!time.isAfter(end)) {
             frames += snap(time, day, now, zone)
-            time = time.plus(Hour)
+            time = time.plus(ModelStep)
         }
+        frames += snap(end, day, now, zone)
         if (day == MapDay.Today) {
             val (fineStart, fineEnd) = fineWindow(now)
             var fine = floorTo(fineStart, RadarStep)
@@ -166,14 +174,14 @@ object MapTimeline {
     /** Время позже «сейчас»: на шкале это прогноз (голубым и с пометкой «Прогноз»). */
     fun isForecast(time: Instant, now: Instant): Boolean = time.isAfter(anchor(now))
 
-    /** Дождь на [time] берётся из радара (иначе из модели ICON-EU, по часам). */
+    /** Дождь на [time] берётся из радара (иначе из модели: ICON-D2 по 15 минут, где её нет, ICON-EU по часам). */
     fun fromRadar(time: Instant, now: Instant): Boolean = !time.isAfter(radarEnd(now))
 
     /** Кадр радара для [time]: шаг 5 минут. */
     fun radarFrame(time: Instant): Instant = floorTo(time, RadarStep)
 
     /**
-     * Кадр модели осадков для [time]: слой DWD показывает сумму за час, который кончается в своё время, поэтому
+     * Кадр ICON-EU для [time]: слой DWD показывает сумму за час, который кончается в своё время, поэтому
      * для 15:00 берётся кадр 16:00 (дождь с 15 до 16).
      */
     fun modelRainFrame(time: Instant): Instant = floorTo(time, Hour).plus(Hour)

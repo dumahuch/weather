@@ -1,6 +1,8 @@
 package io.github.dumahuch.pogodaapp.map
 
+import kotlin.math.ln
 import kotlin.math.log10
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
@@ -148,6 +150,33 @@ object RainPalette {
             pixels[i] = out
         }
     }
+
+    /**
+     * Дождь модели ICON-D2 приходит числом (мм/ч), а не картинкой: кадр держится байтом на пиксель, уровнем 0…255.
+     * 0 значит «дождя нет» (слабее [LEVEL_LOW]), 1…255 логарифмически от [LEVEL_LOW] до [LEVEL_HIGH] мм/ч.
+     */
+    fun levelOf(mmPerHour: Double): Int {
+        if (mmPerHour.isNaN() || mmPerHour < LEVEL_LOW) return 0
+        val t = ln(mmPerHour.coerceAtMost(LEVEL_HIGH) / LEVEL_LOW) / ln(LEVEL_HIGH / LEVEL_LOW)
+        return 1 + (t * (LEVELS - 1)).roundToInt()
+    }
+
+    /** Сила дождя (мм/ч) для уровня [levelOf]; у уровня 0 это 0. */
+    fun mmOfLevel(level: Int): Double {
+        if (level <= 0) return 0.0
+        val t = (level.coerceAtMost(LEVELS) - 1).toDouble() / (LEVELS - 1)
+        return LEVEL_LOW * Math.pow(LEVEL_HIGH / LEVEL_LOW, t)
+    }
+
+    /** Цвет каждого уровня (ARGB); у уровня 0 прозрачный. */
+    private val LevelColors = IntArray(LEVELS + 1) { if (it == 0) 0 else mapColor(mmOfLevel(it)) }
+
+    /** Кадр уровней в цвета ARGB для картинки на карте. */
+    fun colorize(levels: ByteArray): IntArray = IntArray(levels.size) { LevelColors[levels[it].toInt() and 0xFF] }
+
+    private const val LEVELS = 255
+    private const val LEVEL_LOW = 0.1
+    private const val LEVEL_HIGH = 200.0
 
     /** Начиная с этой силы дождь рисуется самым плотным. */
     private const val FULL_ALPHA_AT = 5.0
