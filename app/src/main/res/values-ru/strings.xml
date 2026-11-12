@@ -356,4 +356,13 @@
     <string name="map_loading_frames">Загружено кадров: %1$d из %2$d</string>
     <string name="map_base_failed">Подложка карты не загрузилась</string>
     <string name="about_map_title">Карта</string>
+    <!-- Виджет погоды (0.8.8) -->
+    <string name="widget_description">Погода: один виджет, который растягивается. Чем больше размер, тем больше сведений.</string>
+    <string name="widget_description_reading">%1$s, %2$s, %3$s</string>
+    <string name="widget_no_data">Нет данных</string>
+    <string name="widget_config_title">Виджет погоды</string>
+    <string name="widget_bg_glass">Стекло</string>
+    <string name="widget_bg_none">Без фона</string>
+    <string name="widget_opacity">Непрозрачность фона: %1$d %%</string>
+    <string name="widget_done">Готово</string>
 </resources>

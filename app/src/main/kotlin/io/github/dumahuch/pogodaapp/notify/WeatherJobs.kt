@@ -10,6 +10,7 @@ import android.util.Log
 import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
+import io.github.dumahuch.pogodaapp.widget.WidgetUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,7 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 
 /**
- * Фоновое обновление уведомления о погоде, предупреждений DWD, «скоро дождь» и пыльцы через JobScheduler системы (без сторонних библиотек). Раз в
+ * Фоновое обновление виджета и уведомления о погоде, предупреждений DWD, «скоро дождь» и пыльцы через JobScheduler системы (без сторонних библиотек). Раз в
  * полчаса, только при сети; Android сам сдвигает запуск ради батареи, ночью реже. Задача переживает перезагрузку телефона.
  */
 object WeatherJobs {
@@ -29,10 +30,13 @@ object WeatherJobs {
     private val PERIOD: Duration = Duration.ofMinutes(30)
     private val FLEX: Duration = Duration.ofMinutes(10)
 
-    /** Включает или снимает периодическое обновление по выключателям; повторный вызов ничего не дублирует. */
+    /**
+     * Включает или снимает периодическое обновление по выключателям и по виджетам (пока на рабочем столе есть виджет
+     * погоды, обновление нужно ему); повторный вызов ничего не дублирует.
+     */
     fun sync(context: Context, prefs: NotificationPrefs) {
         val scheduler = context.getSystemService(JobScheduler::class.java)
-        if (!prefs.background) {
+        if (!prefs.background && !WidgetUpdater(context).hasWidgets()) {
             scheduler.cancel(PERIODIC_ID)
             scheduler.cancel(NOW_ID)
             return
@@ -56,7 +60,7 @@ object WeatherJobs {
 }
 
 /**
- * Обновляет уведомление о погоде, предупреждения, «скоро дождь» и пыльцу; запросы в сеть идут в фоне, система ждёт их до [jobFinished]. Сбой одного
+ * Обновляет виджет, уведомление о погоде, предупреждения, «скоро дождь» и пыльцу; запросы в сеть идут в фоне, система ждёт их до [jobFinished]. Сбой одного
  * не мешает другому.
  */
 class WeatherJobService : JobService() {
@@ -65,6 +69,7 @@ class WeatherJobService : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
         scope.launch {
             try {
+                guarded("виджет не обновлён") { WidgetUpdater(applicationContext).refresh() }
                 guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh() }
                 guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
                 guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }

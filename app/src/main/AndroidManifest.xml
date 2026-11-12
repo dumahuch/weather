@@ -38,6 +38,27 @@
             </intent-filter>
         </activity>
 
+        <!-- Виджет погоды (0.8.8): события приходят только от системы, поэтому не экспортируется. -->
+        <receiver
+            android:name=".widget.WeatherWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weather_widget_info" />
+        </receiver>
+
+        <!-- Окно настройки виджета открывает лаунчер, поэтому доступно снаружи, но только по действию настройки виджета. -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <!-- Фоновое обновление уведомления о погоде; запускает только система (JobScheduler). -->
         <service
             android:name=".notify.WeatherJobService"
