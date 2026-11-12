@@ -44,7 +44,7 @@ class ModelRainTest {
     @Test
     fun quarterInsideHourComesFromOneFile() {
         val downloads = mutableListOf<String>()
-        val levels = loader(downloads).load(Instant.parse("2026-11-12T22:30:00Z"), now)!!
+        val levels = loader(downloads).load(Instant.parse("2026-11-12T22:30:00Z"), now)!!.levels
         // 1,50 − 1,20 мм за 15 минут = 1,2 мм/ч.
         assertEquals(RainPalette.levelOf(1.2).toDouble(), middle(levels).toDouble(), 1.0)
         assertEquals(listOf(IconD2Rain.folder(run) + IconD2Rain.fileName(run, 7)), downloads)
@@ -54,7 +54,7 @@ class ModelRainTest {
     fun quarterOnTheHourTakesLastFieldOfPreviousFile() {
         val downloads = mutableListOf<String>()
         val model = loader(downloads)
-        val levels = model.load(Instant.parse("2026-11-12T22:00:00Z"), now)!!
+        val levels = model.load(Instant.parse("2026-11-12T22:00:00Z"), now)!!.levels
         // 1,00 − 0,90 мм за 15 минут = 0,4 мм/ч.
         assertEquals(RainPalette.levelOf(0.4).toDouble(), middle(levels).toDouble(), 1.0)
         assertEquals(2, downloads.size)
@@ -76,32 +76,54 @@ class ModelRainTest {
         assertEquals(7, IconD2Rain.leadOf(run, Instant.parse("2026-11-12T22:45:00Z")))
     }
 
-    @Test
-    fun singleWetNodeBecomesSoftSpotNotSquare() {
-        // Дождь только в одном узле (11° в.д., 51° с.ш.): 1 мм за 15 минут, 4 мм/ч.
-        val node = 4 * 25 + 15
+    /** Загрузчик с одним файлом, где дождь (1 мм за 15 минут, 4 мм/ч) только в узлах [wet] сетки 25 × 12 по 1°. */
+    private fun spotLoader(wet: Set<Int>): ModelRainLoader {
         val hour = LocalDateTime.ofInstant(run.plus(Duration.ofHours(7)), ZoneOffset.UTC)
         val bytes = listOf(0, 0, 100, 100).mapIndexed { k, v ->
-            Grib2Test.message(columns = 25, rows = 12, raw = IntArray(25 * 12) { if (it == node) v else 0 }, scan = 64, validEnd = hour.plusMinutes(15L * k))
+            Grib2Test.message(columns = 25, rows = 12, raw = IntArray(25 * 12) { if (it in wet) v else 0 }, scan = 64, validEnd = hour.plusMinutes(15L * k))
         }.reduce { a, b -> a + b }
         val name = IconD2Rain.fileName(run, 7)
         // 8 пикселей на градус по долготе: узел 11° попадает между пикселями 67 и 68.
-        val model = ModelRainLoader(
+        return ModelRainLoader(
             listings = FolderListings { "<a href=\"$name\">" },
             bytes = { bytes },
             unpack = { it },
             width = 128,
             height = 12,
         )
-        val levels = model.load(Instant.parse("2026-11-12T22:30:00Z"), now)!!
+    }
+
+    /** Узел сетки 25 × 12: 11° в.д. и 51° с.ш. */
+    private val middleNode = 4 * 25 + 15
+
+    @Test
+    fun spotOfOneOrTwoNodesIsNotShown() {
+        val at = Instant.parse("2026-11-12T22:30:00Z")
+        assertTrue(spotLoader(setOf(middleNode)).load(at, now)!!.levels.all { it.toInt() == 0 })
+        assertTrue(spotLoader(setOf(middleNode, middleNode + 26)).load(at, now)!!.levels.all { it.toInt() == 0 })
+    }
+
+    @Test
+    fun smallSpotStaysSoftNotSquare() {
+        // Пятно в три узла по долготе с серединой в 11° в.д.
+        val frame = spotLoader(setOf(middleNode - 1, middleNode, middleNode + 1)).load(Instant.parse("2026-11-12T22:30:00Z"), now)!!
+        assertEquals(run, frame.run)
+        val levels = frame.levels
         // Строка картинки около 51° с.ш.
         val row = (0 until 12).maxByOrNull { y -> levels[y * 128 + 67].toInt() and 0xFF }!!
         val line = IntArray(128) { levels[row * 128 + it].toInt() and 0xFF }
-        val peak = line.indices.maxByOrNull { line[it] }!!
-        assertEquals(67.0, peak.toDouble(), 1.0)
-        // От пика дождь слабеет плавно, без ступеньки: соседние пиксели разные, а через клетку уже сухо.
-        assertTrue(line[peak] > line[peak + 3] && line[peak + 3] > line[peak + 6] && line[peak + 6] > 0)
-        assertEquals(0, line[peak + 12])
-        assertEquals(0, line[peak - 12])
+        // Край пятна за последним мокрым узлом (12° в.д., пиксель 75…76): дождь слабеет плавно, без ступеньки.
+        val edge = 76
+        assertTrue(line[edge] > line[edge + 3] && line[edge + 3] > line[edge + 6] && line[edge + 6] > 0)
+        assertEquals(0, line[edge + 12])
+        assertTrue(line[67] > 0)
+    }
+
+    @Test
+    fun runForNamesRunWithoutDownloading() {
+        val downloads = mutableListOf<String>()
+        assertEquals(run, loader(downloads).runFor(Instant.parse("2026-11-12T22:30:00Z"), now))
+        assertTrue(downloads.isEmpty())
+        assertNull(loader(downloads, listing = "").runFor(Instant.parse("2026-11-12T22:30:00Z"), now))
     }
 }

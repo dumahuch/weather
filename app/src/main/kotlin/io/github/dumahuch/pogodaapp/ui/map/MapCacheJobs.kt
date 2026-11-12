@@ -15,6 +15,9 @@ import kotlin.concurrent.thread
 /** Где лежат кадры карты на диске (кэш приложения). */
 fun mapCacheRoot(context: Context): File = File(context.cacheDir, "map")
 
+/** Где лежат кадры дождя ICON-D2 по прогонам (отдельно: их не стирают ни полночь, ни задача в 23:55). */
+fun mapModelRoot(context: Context): File = File(context.cacheDir, "map-model")
+
 /**
  * Разовая задача системы, которая стирает сегодняшние кадры карты около 23:55 (см. [FrameDiskCache]). Ставится при
  * открытии карты; Android может сдвинуть запуск на несколько минут, разрешений это не требует. Если телефон в это

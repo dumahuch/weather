@@ -11,6 +11,8 @@ import io.github.dumahuch.pogodaapp.map.CloudLoader
 import io.github.dumahuch.pogodaapp.map.CloudRaster
 import io.github.dumahuch.pogodaapp.map.FolderListings
 import io.github.dumahuch.pogodaapp.map.FrameDiskCache
+import io.github.dumahuch.pogodaapp.map.LevelPacking
+import io.github.dumahuch.pogodaapp.map.ModelFrameDisk
 import io.github.dumahuch.pogodaapp.map.MapArea
 import io.github.dumahuch.pogodaapp.map.MapDataException
 import io.github.dumahuch.pogodaapp.map.MapDay
@@ -72,11 +74,12 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
  * ICON-EU по часам) и облаков (ICON-D2), «играть».
  *
  * Кадры держатся в оперативной памяти, пока живо приложение: дождь сжатым (PNG радара или уровни модели, сжатые
- * deflate, до [RAIN_CACHE] штук), облака одной
+ * [LevelPacking], до [RAIN_CACHE] штук), облака одной
  * непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки запас не очищает
  * (устаревшие кадры перекачиваются сами по срокам [RainLife] и [CloudLife]). Кадры, которые уже не меняются
  * (прошедший радар и облака прошедших часов сегодняшних суток), ещё и лежат на диске в кэше приложения до 23:55
- * ([FrameDiskCache]); больше на диск ничего не пишется. Цвета дождя меняет [RainPalette].
+ * ([FrameDiskCache]). Кадры дождя ICON-D2 лежат на диске по прогонам, пока прогон не сменился ([ModelFrameDisk]).
+ * Цвета дождя меняет [RainPalette].
  *
  * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
  * ждёт ту же загрузку. Кадры суток, на которых стоит шкала, подгружаются в фоне ([warmUp], порядок
@@ -87,6 +90,7 @@ class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
 class MapViewModel(
     userAgent: String,
     private val cacheRoot: File,
+    modelRoot: File,
     private val metered: () -> Boolean,
 ) : ViewModel() {
 
@@ -106,6 +110,9 @@ class MapViewModel(
         bytes = { url -> HttpJson.bytes(url, userAgent, SOURCE, "application/octet-stream") },
         unpack = Bzip2::unpack,
     )
+
+    /** Кадры дождя ICON-D2 по прогонам: лежат, пока прогон не сменился, и через полночь тоже. */
+    private val modelDisk = ModelFrameDisk(modelRoot)
 
     /** Подгружать кадры заранее только без оплаты за трафик (настройка «Подгрузка карты»). */
     @Volatile
@@ -147,6 +154,7 @@ class MapViewModel(
     fun onShown() {
         viewModelScope.launch(Dispatchers.IO) {
             FrameDiskCache.purgeOtherDays(cacheRoot, LocalDate.now(zone))
+            modelDisk.tidy(Instant.now())
         }
         val now = Instant.now()
         val old = _state.value
@@ -413,11 +421,21 @@ class MapViewModel(
         }.await()
     }
 
-    /** Дождь ICON-D2 на 15-минутный кадр после радара (сжатые уровни); null на радаре, без ICON-D2 и при испорченном файле. */
+    /**
+     * Дождь ICON-D2 на 15-минутный кадр после радара (сжатые уровни); null на радаре, без ICON-D2 и при испорченном файле.
+     * Какой прогон нужен, показывает список папки; кадр этого прогона уже на диске берётся оттуда, иначе считается из
+     * файлов DWD и записывается на диск.
+     */
     private fun modelRain(time: Instant, now: Instant): RainResult? {
         if (MapTimeline.fromRadar(time, now)) return null
         return try {
-            modelRainLoader.load(time, now)?.let { RainResult.Levels(FrameDiskCache.deflate(it)) }
+            val run = modelRainLoader.runFor(time, now) ?: return null
+            modelDisk.read(run, time, MapArea.RAIN_WIDTH, rainHeight)?.let { return RainResult.Levels(it) }
+            modelRainLoader.load(time, now)?.let { frame ->
+                val packed = LevelPacking.pack(frame.levels, MapArea.RAIN_WIDTH)
+                modelDisk.write(frame.run, time, packed, now)
+                RainResult.Levels(packed)
+            }
         } catch (e: MapDataException) {
             // Файл не того вида: дождь берётся из ICON-EU, причина в журнал.
             Log.w(TAG, "Осадки ICON-D2: ${e.message}")
@@ -487,7 +505,7 @@ class MapViewModel(
 
     /** Уровни дождя ICON-D2 картинкой в наших цветах; картинка того же размера, что у радара. */
     private fun levelsBitmap(packed: ByteArray): Bitmap? {
-        val levels = FrameDiskCache.inflate(packed, MapArea.RAIN_WIDTH * rainHeight) ?: return null
+        val levels = LevelPacking.unpack(packed, MapArea.RAIN_WIDTH, rainHeight) ?: return null
         return Bitmap.createBitmap(RainPalette.colorize(levels), MapArea.RAIN_WIDTH, rainHeight, Bitmap.Config.ARGB_8888)
     }
 

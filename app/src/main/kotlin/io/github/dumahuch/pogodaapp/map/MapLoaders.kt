@@ -5,7 +5,7 @@ import java.time.Instant
 
 /**
  * Кадр дождя: картинка PNG в стиле DWD (радар и ICON-EU, цвета меняет [RainPalette]), уровни дождя ICON-D2
- * ([RainPalette.levelOf], сжатые [FrameDiskCache.deflate]) либо данных на это время нет.
+ * ([RainPalette.levelOf], сжатые [LevelPacking]) либо данных на это время нет.
  */
 sealed interface RainResult {
     class Image(val png: ByteArray) : RainResult

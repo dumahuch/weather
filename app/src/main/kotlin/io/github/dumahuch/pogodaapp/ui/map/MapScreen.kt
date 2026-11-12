@@ -90,6 +90,7 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, wifiOnly: Boolean, modifier: M
         MapViewModel(
             userAgent = "PogodaApp/${AppVersion.read(context).name}",
             cacheRoot = mapCacheRoot(context),
+            modelRoot = mapModelRoot(context),
             metered = { connectivity?.isActiveNetworkMetered ?: true },
         )
     }
