@@ -50,7 +50,13 @@ internal object GlassFog {
  * разное время; даже самая чистая середина остаётся слегка влажной ([MAX_CLEAR]). В 0.8.20 след был резкой нашлёпкой и
  * бледнел целиком (Дима 13.11: «след слишком резкий, обратное запотевание неестественное»).
  */
-internal class FogWipe(val widthDp: Double, val heightDp: Double) {
+internal class FogWipe(
+    val widthDp: Double,
+    val heightDp: Double,
+    /** Сколько секунд след держится и за сколько затягивается: у тумана [HOLD_SECONDS] и [RETURN_SECONDS], у инея дольше. */
+    private val holdSeconds: Float = HOLD_SECONDS,
+    private val returnSeconds: Float = RETURN_SECONDS,
+) {
     /** Сторона клетки: не меньше [MIN_CELL_DP], у большой карточки крупнее, чтобы клеток было не больше [MAX_CELLS]. */
     val cell: Double = max(MIN_CELL_DP, sqrt(widthDp * heightDp / MAX_CELLS))
     val cols: Int = max(1, ceil(widthDp / cell).toInt())
@@ -77,7 +83,7 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
 
     /** Сколько плёнки уже вернулось через [seconds] после стирания: первые [HOLD_SECONDS] ничего, потом плавно до 1. */
     private fun returned(seconds: Float): Float =
-        smooth(HOLD_SECONDS.toDouble(), (HOLD_SECONDS + RETURN_SECONDS).toDouble(), seconds.toDouble()).toFloat()
+        smooth(holdSeconds.toDouble(), (holdSeconds + returnSeconds).toDouble(), seconds.toDouble()).toFloat()
 
     /** Палец прошёл от ([x1], [y1]) до ([x2], [y2]): клетки вдоль пути стираются, к краю следа мягче. */
     fun wipe(x1: Double, y1: Double, x2: Double, y2: Double) {
@@ -110,7 +116,7 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
         for (i in strength.indices) {
             if (strength[i] <= 0f) continue
             age[i] += d
-            if (age[i] >= HOLD_SECONDS + RETURN_SECONDS) strength[i] = 0f else any = true
+            if (age[i] >= holdSeconds + returnSeconds) strength[i] = 0f else any = true
         }
         active = any
         return any
@@ -150,7 +156,7 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
         /** Даже самая чистая середина остаётся слегка влажной: доля плёнки, которую можно убрать. */
         const val MAX_CLEAR = 0.9f
 
-        /** Плёнка начинает возвращаться через [HOLD_SECONDS] и возвращается целиком за [RETURN_SECONDS]. */
+        /** Туман начинает возвращаться через [HOLD_SECONDS] и возвращается целиком за [RETURN_SECONDS]. */
         const val HOLD_SECONDS = 3f
         const val RETURN_SECONDS = 17f
         private const val MAX_DT = 0.1

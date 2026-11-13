@@ -74,6 +74,8 @@ class Glass internal constructor(
     internal val rain: RainOnGlass? = null,
     /** Густота запотевания стекла (0…1), пусто без тумана и сырости; см. [glassFog]. */
     internal val fog: State<Float>? = null,
+    /** Доля стекла под инеем (0…1), пусто без мороза; см. [glassFrost]. */
+    internal val frost: State<Float>? = null,
 ) {
     /**
      * То же стекло без размытия. Нужно экрану настроек: у высокой прокручиваемой карточки Haze считает размытие только
@@ -81,7 +83,7 @@ class Glass internal constructor(
      * серой полосой (записи стенда 12.11.2026). Заливка, тень, кромка, снег, капли и туман остаются прежними. Число капель
      * считается по площади с потолком, поэтому высокие карточки настроек не держат тысячи капель.
      */
-    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow, rain, fog)
+    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow, rain, fog, frost)
 
     companion object {
         /** Стекло без размытия: пока неба нет и в проверках. */
@@ -103,10 +105,11 @@ fun rememberGlass(
     snow: State<Float>? = null,
     rain: RainOnGlass? = null,
     fog: State<Float>? = null,
+    frost: State<Float>? = null,
 ): Glass {
     val step = (palette.smoke.coerceIn(0f, 1f) * SMOKE_STEPS).roundToInt()
     val cardBlur = remember(step) { GlassBlur.card(step / SMOKE_STEPS.toFloat()) }
-    return remember(palette, haze, cardBlur, lifted, snow, rain, fog) { Glass(palette, haze, cardBlur, lifted, snow, rain, fog) }
+    return remember(palette, haze, cardBlur, lifted, snow, rain, fog, frost) { Glass(palette, haze, cardBlur, lifted, snow, rain, fog, frost) }
 }
 
 /**
@@ -231,9 +234,9 @@ private fun Modifier.glassFrame(shape: Shape, glass: Glass): Modifier {
 
 /**
  * Внутри карточки: размытый фон (если [blur]), заливка цвета неба, вуаль ступени «Выраженная», блик и светлая кромка, туман
- * и капли. С [fogPatch] палец для тумана ловит внешняя коробка ([GlassCardBox]).
+ * и капли. С [fogPatch] и [frostPatch] палец для тумана и инея ловит внешняя коробка ([GlassCardBox]).
  */
-private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean, fogPatch: FogPatch? = null): Modifier {
+private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean, fogPatch: FogPatch? = null, frostPatch: FogPatch? = null): Modifier {
     val palette = glass.palette
     val lifted = glass.lifted
     return this
@@ -246,6 +249,7 @@ private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean, fogPat
         )
         .then(if (lifted) Modifier.border(1.dp, Color.White.copy(alpha = CardLift.RIM_ALPHA), shape) else Modifier)
         .glassFog(glass.fog, palette.glass, fogPatch)
+        .glassFrost(glass.frost, palette.glass, frostPatch)
         .glassDrops(glass.rain)
 }
 
@@ -257,9 +261,10 @@ private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean, fogPat
 @Composable
 fun GlassCardBox(shape: Shape, glass: Glass, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val fogPatch = remember { FogPatch() }
-    Box(modifier.glassFrame(shape, glass).fogWiping(glass.fog, fogPatch)) {
+    val frostPatch = remember { FogPatch() }
+    Box(modifier.glassFrame(shape, glass).fogWiping(glass.fog, fogPatch).frostWiping(glass.frost, frostPatch)) {
         ChunkedBlur(glass, Modifier.matchParentSize())
-        Box(Modifier.matchParentSize().glassFill(shape, glass, blur = false, fogPatch = fogPatch))
+        Box(Modifier.matchParentSize().glassFill(shape, glass, blur = false, fogPatch = fogPatch, frostPatch = frostPatch))
         content()
     }
 }
@@ -310,6 +315,7 @@ fun Modifier.glassButton(shape: Shape, glass: Glass): Modifier {
         .hazeGlass(glass, GlassBlur.Button)
         .background(palette.buttonBackground, shape)
         .glassFog(glass.fog, palette.glass)
+        .glassFrost(glass.frost, palette.glass)
         .glassDrops(glass.rain)
 }
 

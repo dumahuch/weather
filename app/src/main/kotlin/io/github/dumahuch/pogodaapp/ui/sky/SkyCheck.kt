@@ -85,6 +85,9 @@ private val Weathers = listOf(
     Condition.Fog to R.string.check_wx_fog,
 )
 
+/** Мороз для проверки инея: кайма и почти матовое стекло. */
+private val Frosts = listOf(-5.0 to R.string.check_frost_light, -15.0 to R.string.check_frost_hard)
+
 /** Луна на экране проверки: пусто это настоящая луна, число это доля лунного месяца (луна показывается всегда). */
 private val Moons = listOf<Pair<Double?, Int>>(
     null to R.string.check_moon_real,
@@ -300,6 +303,17 @@ private fun ExpandedPanel(
                 },
                 modifier = Modifier.weight(1f),
             )
+        }
+        // Иней на стекле (0.8.22): мороз без ожидания зимы, повторное нажатие возвращает настоящую температуру.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for ((celsius, label) in Frosts) {
+                CheckButton(
+                    text = stringResource(label),
+                    selected = override.frostC == celsius,
+                    onClick = { onOverride(override.copy(frostC = if (override.frostC == celsius) null else celsius)) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
         Caption(stringResource(R.string.check_moon_title))
         ButtonGrid(columns = 2, items = Moons) { (cycle, label) ->
