@@ -56,9 +56,12 @@ internal class FogWipe(
     /** Сколько секунд след держится и за сколько затягивается: у тумана [HOLD_SECONDS] и [RETURN_SECONDS], у инея дольше. */
     private val holdSeconds: Float = HOLD_SECONDS,
     private val returnSeconds: Float = RETURN_SECONDS,
+    /** Сторона клетки не меньше этой (dp), клеток не больше [maxCells]: у инея сетка мельче, на ней же рисуется узор. */
+    minCellDp: Double = MIN_CELL_DP,
+    maxCells: Double = MAX_CELLS,
 ) {
-    /** Сторона клетки: не меньше [MIN_CELL_DP], у большой карточки крупнее, чтобы клеток было не больше [MAX_CELLS]. */
-    val cell: Double = max(MIN_CELL_DP, sqrt(widthDp * heightDp / MAX_CELLS))
+    /** Сторона клетки: не меньше minCellDp, у большой карточки крупнее, чтобы клеток было не больше maxCells. */
+    val cell: Double = max(minCellDp, sqrt(widthDp * heightDp / maxCells))
     val cols: Int = max(1, ceil(widthDp / cell).toInt())
     val rows: Int = max(1, ceil(heightDp / cell).toInt())
 
