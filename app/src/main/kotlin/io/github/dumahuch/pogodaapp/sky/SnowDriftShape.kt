@@ -14,9 +14,9 @@ internal object SnowDriftShape {
     const val MAX_HEIGHT_DP = 12.0
     const val MELT_DP_PER_SECOND = 0.5
 
-    /** За сколько секунд сугроб вырастает от нуля до предела: при слабом снеге и при сильном (решение Димы 13.11: «хочу, чтобы сугроб рос»). */
-    private const val LIGHT_GROW_SECONDS = 90.0
-    private const val HEAVY_GROW_SECONDS = 25.0
+    /** За сколько секунд сугроб вырастает от нуля до предела: при слабом снеге и при сильном (решение Димы 13.11: «хочу, чтобы сугроб рос», 13.11 вечером: «чтобы быстрее нарастал»: было 90 и 25). */
+    private const val LIGHT_GROW_SECONDS = 40.0
+    private const val HEAVY_GROW_SECONDS = 12.0
 
     /** Ширина, на которой сугроб набирает полную высоту от края карточки, и доля высоты у самого края. */
     private const val TAPER_DP = 44.0

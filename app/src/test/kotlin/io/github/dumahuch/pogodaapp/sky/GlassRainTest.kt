@@ -34,6 +34,24 @@ class GlassRainTest {
     }
 
     @Test
+    fun waterRunsDownFromTheTopEdgeAndSoonerWhenTheRainIsHeavy() {
+        fun fromEdge(strength: Double): Int {
+            val glass = GlassRain(350.0, 250.0, 4)
+            var count = 0
+            var t = 0.0
+            while (t < 20.0) {
+                val before = glass.runners.toSet()
+                glass.step(0.03, strength)
+                count += glass.runners.count { it !in before && it.y < 8.0 }
+                t += 0.03
+            }
+            return count
+        }
+        assertTrue(fromEdge(1.0) >= 6)
+        assertTrue(fromEdge(1.0) > fromEdge(0.0))
+    }
+
+    @Test
     fun aTallCardIsCappedSoTheFrameStaysCheap() {
         assertTrue(GlassRain(360.0, 2000.0, 1).capacity(1.0) <= GlassRain.MAX_BEADS * 3 / 2)
     }
