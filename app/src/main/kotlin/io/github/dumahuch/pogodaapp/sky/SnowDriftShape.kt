@@ -6,24 +6,28 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Форма сугроба на верхней кромке карточки (всё в dp). Высота берётся по силе снега, верх неровный и к краям
+ * Форма сугроба на верхней кромке карточки (всё в dp). Растёт, пока идёт снег (быстрее при сильном), верх неровный и к краям
  * тоньше, низ повторяет скруглённые углы карточки. Рисует [io.github.dumahuch.pogodaapp.ui.components.snowDrift].
  */
 internal object SnowDriftShape {
-    const val MIN_HEIGHT_DP = 1.5
-    const val MAX_HEIGHT_DP = 10.0
-
-    /** За сколько секунд сугроб вырастает до своей высоты (в макете около 12 с) и сколько сходит, когда снег прекратился (dp в секунду). */
-    const val GROW_SECONDS = 12.0
+    /** Сугроб растёт, пока идёт снег, до этой высоты (dp); когда снег прекратился, сходит с такой скоростью (dp в секунду). */
+    const val MAX_HEIGHT_DP = 12.0
     const val MELT_DP_PER_SECOND = 0.5
+
+    /** За сколько секунд сугроб вырастает от нуля до предела: при слабом снеге и при сильном (решение Димы 13.11: «хочу, чтобы сугроб рос»). */
+    private const val LIGHT_GROW_SECONDS = 90.0
+    private const val HEAVY_GROW_SECONDS = 25.0
 
     /** Ширина, на которой сугроб набирает полную высоту от края карточки, и доля высоты у самого края. */
     private const val TAPER_DP = 44.0
     private const val EDGE_SHARE = 0.12
     private const val MIN_PROFILE = 0.25
 
-    /** Высота сугроба по силе снега (0…1). */
-    fun heightDp(strength: Double): Double = MIN_HEIGHT_DP + (MAX_HEIGHT_DP - MIN_HEIGHT_DP) * strength.coerceIn(0.0, 1.0)
+    /** Скорость роста сугроба (dp в секунду) по силе снега (0…1): чем сильнее снег, тем быстрее. */
+    fun growDpPerSecond(strength: Double): Double {
+        val s = strength.coerceIn(0.0, 1.0)
+        return MAX_HEIGHT_DP / (LIGHT_GROW_SECONDS + (HEAVY_GROW_SECONDS - LIGHT_GROW_SECONDS) * s)
+    }
 
     /** Доля высоты на расстоянии [x] от левого края карточки шириной [width]: у краёв тоньше. */
     fun taper(x: Double, width: Double): Double =

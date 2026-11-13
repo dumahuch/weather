@@ -202,15 +202,17 @@ internal fun SkyHost(
     val sky = remember(input, override, now) { input?.let { buildSky(it, override, now) } }
     val precip = remember(sky, input, override) { precipSpec(sky, input, override) }
     val snowLevel = remember { Animatable(0f) }
-    val snowTarget = precip?.takeIf { it.kind == PrecipKind.Snow }?.let { SnowDriftShape.heightDp(it.strength).toFloat() } ?: 0f
-    LaunchedEffect(snowTarget, animationsOn, started) {
+    // Пока идёт снег, сугроб растёт до предела со скоростью по силе снега; снег кончился, сходит. С открытием приложения растёт с нуля.
+    val snowGrow = precip?.takeIf { it.kind == PrecipKind.Snow }?.let { SnowDriftShape.growDpPerSecond(it.strength).toFloat() }
+    val snowTarget = if (snowGrow != null) SnowDriftShape.MAX_HEIGHT_DP.toFloat() else 0f
+    LaunchedEffect(snowTarget, snowGrow, animationsOn, started) {
         if (!started) return@LaunchedEffect
         if (!animationsOn) {
             snowLevel.snapTo(snowTarget)
             return@LaunchedEffect
         }
         val distance = snowTarget - snowLevel.value
-        val rate = if (distance > 0f) SnowDriftShape.MAX_HEIGHT_DP / SnowDriftShape.GROW_SECONDS else SnowDriftShape.MELT_DP_PER_SECOND
+        val rate = if (distance > 0f && snowGrow != null) snowGrow.toDouble() else SnowDriftShape.MELT_DP_PER_SECOND
         snowLevel.animateTo(snowTarget, tween((abs(distance) / rate * MILLIS_PER_SECOND).toInt(), easing = LinearEasing))
     }
     // Сугроб перерисовывает карточки, поэтому высота отдаётся ступенями в четверть dp, а не каждый кадр.
