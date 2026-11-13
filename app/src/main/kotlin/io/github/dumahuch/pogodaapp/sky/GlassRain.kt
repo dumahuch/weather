@@ -38,6 +38,7 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long) 
     val runners = ArrayList<Runner>()
     val trails = ArrayList<Trail>()
     private var spawnDebt = 0.0
+    private var feedDebt = 0.0
     private var runnerClock = 0.0
 
     /** Сколько капель может держать стекло при силе [strength]: на площадь карточки и меньше при слабом дожде. */
@@ -49,6 +50,7 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long) 
         if (d == 0.0) return
         val s = strength.coerceIn(0.0, 1.0)
         spawn(d, s)
+        feedFromEdge(d, s)
         for (b in beads) if (b.r < GROW_LIMIT) b.r += GROW_RATE * d
         release(d)
         for (runner in runners) move(runner, d)
@@ -67,6 +69,22 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long) 
             spawnDebt -= 1
             if (beads.size < cap) {
                 beads += Bead(random.nextDouble() * widthDp, heightDp * random.nextDouble().pow(1.35), 1.0 + 2.6 * random.nextDouble().pow(2.4))
+            }
+        }
+    }
+
+    /**
+     * Вода, попавшая на верхнюю кромку (в неё бьют брызги [EdgeSplash]), стекает на стекло: у самой кромки появляются
+     * стекающие капли, чаще при сильном дожде и у широкого стекла. Им оставлен запас сверх обычного числа стекающих.
+     */
+    private fun feedFromEdge(d: Double, s: Double) {
+        feedDebt += d * EDGE_FEED_PER_100DP * widthDp / 100.0 * (MIN_SHARE + (1 - MIN_SHARE) * s)
+        val limit = max(1, (MAX_RUNNERS * area).toInt()) + EDGE_RUNNERS_EXTRA
+        while (feedDebt >= 1) {
+            feedDebt -= 1
+            if (runners.size < limit) {
+                val margin = min(EDGE_MARGIN, widthDp / 4)
+                runners += runner(margin + random.nextDouble() * (widthDp - 2 * margin), 1.0, 3.8 + random.nextDouble() * 1.4)
             }
         }
     }
@@ -133,6 +151,11 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long) 
         /** Карточка больше полутора образцов держит капель как полтора образца: число капель на кадр ограничено. */
         private const val MAX_AREA = 1.5
         private const val MAX_RUNNERS = 9
+
+        /** Стекающих капель с кромки в секунду на 100 dp ширины при сильном дожде, запас сверх обычного числа и отступ от углов (dp). */
+        private const val EDGE_FEED_PER_100DP = 0.28
+        private const val EDGE_RUNNERS_EXTRA = 2
+        private const val EDGE_MARGIN = 10.0
         private const val SPAWN_PER_SECOND = 34.0
 
         /** При самом слабом дожде капель и прилёта меньше в такой доле. */

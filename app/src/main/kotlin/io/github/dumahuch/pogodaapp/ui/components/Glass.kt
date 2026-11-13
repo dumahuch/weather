@@ -219,6 +219,7 @@ private fun Modifier.glassFrame(shape: Shape, glass: Glass): Modifier {
         .then(if (glass.lifted) Modifier.rasterShadow(shape, CardLift.Shadow, inset = false, color = CardShadowColor) else Modifier)
         .rasterShadow(shape, CardShadow, inset = false, color = CardShadowColor)
         .snowDrift(shape, glass.snow, palette.glass)
+        .rainSplash(glass.rain)
         .clip(shape)
         .rasterShadow(shape, CardRim, inset = true, color = CardRimColor)
         .topHighlight(shape, palette.glassHighlight)
@@ -294,6 +295,7 @@ fun Modifier.glassButton(shape: Shape, glass: Glass): Modifier {
     return this
         .rasterShadow(shape, ButtonShadow, inset = false, color = palette.shadow)
         .snowDrift(shape, glass.snow, palette.glass, BUTTON_SNOW_SHARE)
+        .rainSplash(glass.rain)
         .clip(shape)
         .topHighlight(shape, palette.buttonHighlight)
         .border(1.dp, palette.glassLine, shape)
