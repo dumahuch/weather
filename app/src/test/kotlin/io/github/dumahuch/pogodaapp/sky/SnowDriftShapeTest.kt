@@ -67,10 +67,4 @@ class SnowDriftShapeTest {
         assertEquals(0.0, SnowDriftShape.edgeDrop(0.0, 100.0, 0.0), 1e-9)
         assertEquals(22.0, SnowDriftShape.edgeDrop(-5.0, 100.0, 22.0), 1e-9)
     }
-
-    @Test
-    fun growingAndMeltingTakeAboutAsLongAsTheMockupSays() {
-        assertEquals(12.0, SnowDriftShape.GROW_SECONDS, 1e-9)
-        assertEquals(20.0, SnowDriftShape.MAX_HEIGHT_DP / SnowDriftShape.MELT_DP_PER_SECOND, 1e-9)
-    }
 }

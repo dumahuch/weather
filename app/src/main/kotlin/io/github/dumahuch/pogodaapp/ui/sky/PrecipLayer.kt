@@ -2,13 +2,10 @@ package io.github.dumahuch.pogodaapp.ui.sky
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -36,15 +33,8 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/**
- * Не чаще: слой лежит под размытием стекла (Haze), и каждое его обновление заставляет пересчитать размытие под карточками.
- * 30 мс: на 60 Гц обновление через кадр, на 120 Гц через четыре. Размытые штрихи и мягкие снежинки при 30 кадрах в секунду
- * выглядят плавно; если на Pixel время кадра не уложится, это число единственная ручка (см. claude/topics/weather-fx.md).
- */
-private const val FRAME_INTERVAL_NANOS = 30_000_000L
-
-/** Момент, на котором стоит слой, пока анимации выключены (энергосбережение, «убрать анимацию»): кадр как на фотографии. */
-private const val STILL_SECONDS = 3.0
+/** Момент, на котором стоит слой: осадки не движутся, это один кадр, как на фотографии (решение Димы 13.11.2026). */
+private const val MOMENT_SECONDS = 3.0
 
 /** Поле частиц пересоздаётся, только когда размер изменился больше чем на эту величину (dp). */
 private const val SIZE_STEP_DP = 10
@@ -81,35 +71,18 @@ private const val CRYSTAL_ARM_LENGTH = 0.85f
 private const val CRYSTAL_WIDTH_DP = 0.8f
 
 /**
- * Дождь или снег поверх неба. Свои часы, небо при этом не перерисовывается; когда анимации выключены системой,
- * стоит один кадр. Лежит внутри источника размытия, поэтому стекло карточек размывает и осадки.
+ * Дождь или снег поверх неба одной неподвижной картинкой. Лежит внутри источника размытия, поэтому стекло карточек
+ * размывает и осадки; ничего не перерисовывается, пока не изменится размер или погода.
  */
 @Composable
 internal fun PrecipLayer(
     spec: PrecipSpec?,
-    animate: Boolean,
-    started: Boolean,
     lightSky: Boolean,
     modifier: Modifier = Modifier,
 ) {
     if (spec == null) return
     val density = LocalDensity.current.density
     var size by remember { mutableStateOf(IntSize.Zero) }
-    val clock = remember { mutableDoubleStateOf(STILL_SECONDS) }
-    LaunchedEffect(animate, started) {
-        if (!animate || !started) return@LaunchedEffect
-        var first = -1L
-        var last = Long.MIN_VALUE
-        while (true) {
-            withFrameNanos { now ->
-                if (first < 0) first = now
-                if (now - last >= FRAME_INTERVAL_NANOS) {
-                    last = now
-                    clock.doubleValue = STILL_SECONDS + (now - first) / NANOS_PER_SECOND
-                }
-            }
-        }
-    }
     val widthDp = size.width / density / SIZE_STEP_DP
     val heightDp = size.height / density / SIZE_STEP_DP
     val stepWidth = widthDp.roundToInt() * SIZE_STEP_DP.toDouble()
@@ -128,7 +101,7 @@ internal fun PrecipLayer(
         modifier
             .onSizeChanged { size = it }
             .drawBehind {
-                val t = clock.doubleValue
+                val t = MOMENT_SECONDS
                 if (rain != null) {
                     drawRain(rain, spec, t, lightSky, pose)
                 } else if (snow != null && sprites != null) {
@@ -137,8 +110,6 @@ internal fun PrecipLayer(
             },
     )
 }
-
-private const val NANOS_PER_SECOND = 1e9
 
 private fun DrawScope.drawRain(field: RainField, spec: PrecipSpec, t: Double, lightSky: Boolean, pose: Pose) {
     val px = density

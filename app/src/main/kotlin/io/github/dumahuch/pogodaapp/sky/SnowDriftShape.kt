@@ -13,10 +13,6 @@ internal object SnowDriftShape {
     const val MIN_HEIGHT_DP = 1.5
     const val MAX_HEIGHT_DP = 10.0
 
-    /** За сколько секунд сугроб вырастает до своей высоты (в макете около 12 с) и сколько сходит, когда снег прекратился (dp в секунду). */
-    const val GROW_SECONDS = 12.0
-    const val MELT_DP_PER_SECOND = 0.5
-
     /** Ширина, на которой сугроб набирает полную высоту от края карточки, и доля высоты у самого края. */
     private const val TAPER_DP = 44.0
     private const val EDGE_SHARE = 0.12

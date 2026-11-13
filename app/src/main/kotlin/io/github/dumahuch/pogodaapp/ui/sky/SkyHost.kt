@@ -3,8 +3,6 @@ package io.github.dumahuch.pogodaapp.ui.sky
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -14,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -22,8 +19,8 @@ import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -78,7 +75,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import kotlin.math.abs
 import kotlin.math.roundToInt
 import java.time.Instant
 import kotlin.math.PI
@@ -201,20 +197,9 @@ internal fun SkyHost(
     val now by rememberNow(started)
     val sky = remember(input, override, now) { input?.let { buildSky(it, override, now) } }
     val precip = remember(sky, input, override) { precipSpec(sky, input, override) }
-    val snowLevel = remember { Animatable(0f) }
     val snowTarget = precip?.takeIf { it.kind == PrecipKind.Snow }?.let { SnowDriftShape.heightDp(it.strength).toFloat() } ?: 0f
-    LaunchedEffect(snowTarget, animationsOn, started) {
-        if (!started) return@LaunchedEffect
-        if (!animationsOn) {
-            snowLevel.snapTo(snowTarget)
-            return@LaunchedEffect
-        }
-        val distance = snowTarget - snowLevel.value
-        val rate = if (distance > 0f) SnowDriftShape.MAX_HEIGHT_DP / SnowDriftShape.GROW_SECONDS else SnowDriftShape.MELT_DP_PER_SECOND
-        snowLevel.animateTo(snowTarget, tween((abs(distance) / rate * MILLIS_PER_SECOND).toInt(), easing = LinearEasing))
-    }
-    // Сугроб перерисовывает карточки, поэтому высота отдаётся ступенями в четверть dp, а не каждый кадр.
-    val snowDrift = remember(snowLevel) { derivedStateOf { (snowLevel.value * DRIFT_STEPS_PER_DP).roundToInt() / DRIFT_STEPS_PER_DP } }
+    // Сугроб без роста и таяния: сразу нужной высоты, пока идёт снег.
+    val snowDrift = rememberUpdatedState(snowTarget)
 
     // Картины в памяти: ровно те, что нужны сейчас; когда приложение ушло с экрана надолго, память освобождается.
     val scenes = remember(sky) { sky?.weights?.visible()?.toSet().orEmpty() }
@@ -346,8 +331,6 @@ internal fun SkyHost(
                 snapshotAlpha = { snapshotAlpha },
                 phase = { phase },
                 precip = precip,
-                animate = animationsOn,
-                started = started,
                 lightSky = palette.darkInk,
                 reveal = { reveal },
                 scrim = palette.scrim,
@@ -371,8 +354,6 @@ private fun SkyBackground(
     snapshotAlpha: () -> Float,
     phase: () -> Double,
     precip: PrecipSpec?,
-    animate: Boolean,
-    started: Boolean,
     lightSky: Boolean,
     reveal: () -> Float,
     scrim: Color,
@@ -409,8 +390,6 @@ private fun SkyBackground(
             // Дождь и снег лежат на небе и под подложкой не нужны: они вместе с небом проявляются и вместе с ним размываются стеклом.
             PrecipLayer(
                 spec = precip,
-                animate = animate,
-                started = started,
                 lightSky = lightSky,
                 modifier = Modifier.matchParentSize().graphicsLayer { alpha = reveal() },
             )
@@ -494,11 +473,6 @@ private fun precipSpec(sky: SkyState?, input: SkyInput?, override: SkyOverride):
         windFromDegrees = if (measured) input.windFromDegrees else null,
     )
 }
-
-private const val MILLIS_PER_SECOND = 1000f
-
-/** Шагов высоты сугроба на dp: ступень в четверть dp, чтобы за рост на 10 dp карточки перерисовались не больше сорока раз. */
-private const val DRIFT_STEPS_PER_DP = 4f
 
 private fun loadRaster(context: Context): SkyRaster? = try {
     context.assets.open(DiMaps.ASSET_PATH).use { DiRaster(DiMaps.read(it)) }
