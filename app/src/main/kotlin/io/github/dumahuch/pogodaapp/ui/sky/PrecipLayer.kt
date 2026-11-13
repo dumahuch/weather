@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.IntSize
 import io.github.dumahuch.pogodaapp.sky.Flake
 import io.github.dumahuch.pogodaapp.sky.Gusts
 import io.github.dumahuch.pogodaapp.sky.Pose
+import io.github.dumahuch.pogodaapp.sky.PrecipClock
 import io.github.dumahuch.pogodaapp.sky.PrecipKind
 import io.github.dumahuch.pogodaapp.sky.PrecipSpec
 import io.github.dumahuch.pogodaapp.sky.RainField
@@ -98,17 +99,8 @@ internal fun PrecipLayer(
     val clock = remember { mutableDoubleStateOf(STILL_SECONDS) }
     LaunchedEffect(animate, started) {
         if (!animate || !started) return@LaunchedEffect
-        var first = -1L
-        var last = Long.MIN_VALUE
-        while (true) {
-            withFrameNanos { now ->
-                if (first < 0) first = now
-                if (now - last >= FRAME_INTERVAL_NANOS) {
-                    last = now
-                    clock.doubleValue = STILL_SECONDS + (now - first) / NANOS_PER_SECOND
-                }
-            }
-        }
+        val timer = PrecipClock(FRAME_INTERVAL_NANOS, STILL_SECONDS)
+        while (true) withFrameNanos { now -> timer.seconds(now)?.let { clock.doubleValue = it } }
     }
     val widthDp = size.width / density / SIZE_STEP_DP
     val heightDp = size.height / density / SIZE_STEP_DP
@@ -137,8 +129,6 @@ internal fun PrecipLayer(
             },
     )
 }
-
-private const val NANOS_PER_SECOND = 1e9
 
 private fun DrawScope.drawRain(field: RainField, spec: PrecipSpec, t: Double, lightSky: Boolean, pose: Pose) {
     val px = density
