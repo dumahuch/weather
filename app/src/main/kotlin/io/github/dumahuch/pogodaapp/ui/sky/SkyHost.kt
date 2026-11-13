@@ -352,8 +352,9 @@ internal fun SkyHost(
             delay(LENS_REPEAT_MILLIS)
         }
     }
-    val rainOnGlass = remember(raining, precip?.strength, animationsOn) {
-        if (raining) RainOnGlass(precipClock, precip?.strength ?: 0.0, lensSky, animationsOn) else null
+    val rainStrength = precip?.takeIf { it.kind == PrecipKind.Rain }?.strength
+    val rainOnGlass = remember(rainStrength, animationsOn) {
+        rainStrength?.let { RainOnGlass(precipClock, it, lensSky, animationsOn) }
     }
 
     // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
