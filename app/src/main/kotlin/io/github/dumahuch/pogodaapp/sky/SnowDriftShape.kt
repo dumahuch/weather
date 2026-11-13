@@ -35,9 +35,9 @@ internal object SnowDriftShape {
         return MAX_HEIGHT_DP / (LIGHT_GROW_SECONDS + (HEAVY_GROW_SECONDS - LIGHT_GROW_SECONDS) * s)
     }
 
-    /** Доля высоты на расстоянии [x] от левого края карточки шириной [width]: у краёв тоньше. */
+    /** Доля высоты на расстоянии [x] от левого края карточки шириной [width]: у краёв тоньше. У узкой кнопки полная высота ровно посередине. */
     fun taper(x: Double, width: Double): Double =
-        EDGE_SHARE + (1 - EDGE_SHARE) * smooth(0.0, 1.0, min(x, width - x) / TAPER_DP)
+        EDGE_SHARE + (1 - EDGE_SHARE) * smooth(0.0, 1.0, min(x, width - x) / min(TAPER_DP, width / 2))
 
     /** Неровность верха в точке [x] (0,25…1,0), у каждой карточки своя по [seed]. */
     fun profile(x: Double, seed: Int): Double {
