@@ -95,6 +95,9 @@ internal data class SkyInput(
     /** Ветер в этот час: скорость (км/ч) и откуда дует (градусы); от них зависят наклон дождя и снос снега. */
     val windKmh: Double? = null,
     val windFromDegrees: Int? = null,
+    /** Влажность (%) и видимость (м) в этот час: от них зависит, насколько запотевает стекло. */
+    val humidity: Int? = null,
+    val visibilityM: Double? = null,
 )
 
 /** Небо показывается только когда есть прогноз; вид погоды берётся из первого часа ленты. */
@@ -109,6 +112,8 @@ internal fun HomeUiState.skyInput(): SkyInput? {
         cloudCoverPercent = content.strip.firstOrNull()?.cloudCover?.toDouble(),
         windKmh = details?.windKmh,
         windFromDegrees = details?.windDirection,
+        humidity = details?.humidity,
+        visibilityM = details?.visibilityM,
     )
 }
 
@@ -357,10 +362,12 @@ internal fun SkyHost(
         rainStrength?.let { RainOnGlass(precipClock, it, lensSky, animationsOn) }
     }
 
+    val fog = rememberGlassFog(input, override, animationsOn, started)
+
     // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
     val hazeState = rememberHazeState()
     // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
-    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass)
+    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass, fog = fog)
 
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,
