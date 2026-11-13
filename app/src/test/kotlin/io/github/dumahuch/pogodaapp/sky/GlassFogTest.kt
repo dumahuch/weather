@@ -26,39 +26,65 @@ class GlassFogTest {
     }
 
     @Test
-    fun aFingerClearsItsPathButNotTheRestOfTheGlass() {
+    fun aFingerClearsItsPathSoftlyButNotTheRestOfTheGlass() {
         val glass = FogWipe(350.0, 250.0)
         glass.wipe(50.0, 100.0, 250.0, 100.0)
         assertTrue(glass.active)
-        assertEquals(0f, glass.cover(index(glass, 150.0, 100.0)), 1e-6f)
-        assertEquals(0f, glass.cover(index(glass, 60.0, 102.0)), 1e-6f)
+        val clearest = 1f - FogWipe.MAX_CLEAR
+        assertEquals(clearest, glass.cover(index(glass, 150.0, 100.0)), 1e-6f)
+        assertEquals(clearest, glass.cover(index(glass, 60.0, 102.0)), 1e-6f)
         assertEquals(1f, glass.cover(index(glass, 150.0, 200.0)), 1e-6f)
         assertEquals(1f, glass.cover(index(glass, 320.0, 100.0)), 1e-6f)
-        // Край следа мягкий: между чистым и нетронутым.
-        val edge = glass.cover(index(glass, 150.0, 100.0 + FogWipe.BRUSH_DP * 0.75))
-        assertTrue("$edge", edge > 0f && edge < 1f)
+        // След широкий: чисто на 5 dp от середины, а к краю плёнка густеет плавно, не обрывом.
+        assertEquals(clearest, glass.cover(index(glass, 150.0, 100.0 + 5.0)), 1e-6f)
+        val covers = (0..8).map { glass.cover(index(glass, 150.0, 100.0 + it * FogWipe.BRUSH_DP / 8)) }
+        assertTrue(covers.zipWithNext().all { (a, b) -> b >= a - 0.12f })
+        assertTrue("$covers", covers.zipWithNext().maxOf { (a, b) -> abs(b - a) } < 0.4f)
+        assertTrue("$covers", covers.count { it in 0.2f..0.9f } >= 3)
+        assertEquals(1f, covers.last(), 0.05f)
+        // Граница неровная: на одном расстоянии от середины клетки вдоль следа не одинаковы.
+        val edge = (60..240 step 2).map { glass.cover(index(glass, it.toDouble(), 100.0 + FogWipe.BRUSH_DP * 0.8)) }
+        assertTrue(edge.max() - edge.min() > 0.05f)
     }
 
     @Test
-    fun theWipedPathStaysClearForAFewSecondsThenFogsUpAgainWhollyAndSmoothly() {
+    fun theWipedPathHoldsThenFogsUpFromTheEdgesInwardAndSmoothly() {
         val glass = FogWipe(350.0, 250.0)
         glass.wipe(100.0, 100.0, 200.0, 100.0)
         val centre = index(glass, 150.0, 100.0)
-        val nearEdge = index(glass, 150.0, 100.0 + FogWipe.BRUSH_DP * 0.4)
-        run(glass, 4.0)
-        assertEquals(0f, glass.cover(centre), 1e-6f)
-        // Середина возврата: плёнка проступает по всему следу сразу, а не сужает след от краёв.
-        run(glass, 8.5)
-        assertTrue("${glass.cover(centre)}", glass.cover(centre) in 0.3f..0.7f)
-        assertTrue("${glass.cover(nearEdge)}", glass.cover(nearEdge) in 0.3f..0.8f)
-        // Плавно: за кадр плёнка меняется на доли процента.
+        val edge = index(glass, 150.0, 100.0 + FogWipe.BRUSH_DP * 0.5)
+        val clearest = 1f - FogWipe.MAX_CLEAR
+        run(glass, 2.0)
+        assertEquals(clearest, glass.cover(centre), 1e-6f)
+        val edgeAtStart = glass.cover(edge)
+        // Дальше плёнка наползает с краёв: край затягивается раньше середины, след сужается.
+        run(glass, 7.0)
+        assertTrue("${glass.cover(edge)} ${glass.cover(centre)}", glass.cover(edge) > glass.cover(centre) + 0.2f)
+        assertTrue(glass.cover(edge) > edgeAtStart)
+        // Середина затягивается последней и плавно: за кадр меняется на доли процента.
+        run(glass, 5.0)
+        assertTrue("${glass.cover(centre)}", glass.cover(centre) > clearest)
         val before = glass.cover(centre)
         glass.step(0.016)
         assertTrue(abs(glass.cover(centre) - before) < 0.01f)
+        assertTrue(glass.cover(centre) > before - 1e-6f)
         run(glass, 10.0)
         assertEquals(1f, glass.cover(centre), 1e-6f)
+        assertEquals(1f, glass.cover(edge), 1e-6f)
         assertFalse(glass.active)
         assertFalse(glass.step(0.03))
+    }
+
+    @Test
+    fun wipingAgainOverARecoveringTrailClearsItAgain() {
+        val glass = FogWipe(350.0, 250.0)
+        glass.wipe(100.0, 100.0, 200.0, 100.0)
+        run(glass, 15.0)
+        val centre = index(glass, 150.0, 100.0)
+        val faded = glass.cover(centre)
+        assertTrue(faded > 0.5f)
+        glass.wipe(100.0, 100.0, 200.0, 100.0)
+        assertEquals(1f - FogWipe.MAX_CLEAR, glass.cover(centre), 1e-6f)
     }
 
     @Test
