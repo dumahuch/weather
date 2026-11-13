@@ -15,6 +15,8 @@ internal data class SkyOverride(
     val windy: Boolean? = null,
     /** Гроза с дождём для значка у температуры (0.7.13): `true` показывает мокрую грозу, настоящих осадков не нужно. */
     val wet: Boolean? = null,
+    /** Температура воздуха для инея на стекле (0.8.22): мороз без ожидания зимы. */
+    val frostC: Double? = null,
 ) {
-    val active: Boolean get() = solarHour != null || condition != null || moonCycle != null || windy != null || wet != null
+    val active: Boolean get() = solarHour != null || condition != null || moonCycle != null || windy != null || wet != null || frostC != null
 }

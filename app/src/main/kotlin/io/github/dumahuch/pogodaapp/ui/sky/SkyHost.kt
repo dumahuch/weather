@@ -98,6 +98,8 @@ internal data class SkyInput(
     /** Влажность (%) и видимость (м) в этот час: от них зависит, насколько запотевает стекло. */
     val humidity: Int? = null,
     val visibilityM: Double? = null,
+    /** Температура воздуха сейчас (°C): от неё зависит иней на стекле. */
+    val temperatureC: Double? = null,
 )
 
 /** Небо показывается только когда есть прогноз; вид погоды берётся из первого часа ленты. */
@@ -114,6 +116,7 @@ internal fun HomeUiState.skyInput(): SkyInput? {
         windFromDegrees = details?.windDirection,
         humidity = details?.humidity,
         visibilityM = details?.visibilityM,
+        temperatureC = content.forecast.current.temperature,
     )
 }
 
@@ -358,16 +361,19 @@ internal fun SkyHost(
         }
     }
     val rainStrength = precip?.takeIf { it.kind == PrecipKind.Rain }?.strength
-    val rainOnGlass = remember(rainStrength, animationsOn) {
-        rainStrength?.let { RainOnGlass(precipClock, it, lensSky, animationsOn) }
+    // В мороз капли на стекле замерзают: вместо них иней.
+    val frosty = frostTarget(input, override) > 0f
+    val rainOnGlass = remember(rainStrength, animationsOn, frosty) {
+        rainStrength?.takeUnless { frosty }?.let { RainOnGlass(precipClock, it, lensSky, animationsOn) }
     }
 
     val fog = rememberGlassFog(input, override, animationsOn, started)
+    val frost = rememberGlassFrost(input, override, animationsOn, started)
 
     // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
     val hazeState = rememberHazeState()
     // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
-    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass, fog = fog)
+    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass, fog = fog, frost = frost)
 
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,

@@ -26,6 +26,8 @@
     <string name="check_wx_snow" translatable="false">Снег</string>
     <string name="check_wx_fog" translatable="false">Туман</string>
     <string name="check_wx_wind" translatable="false">Сильный ветер</string>
+    <string name="check_frost_light" translatable="false">Мороз −5</string>
+    <string name="check_frost_hard" translatable="false">Мороз −15</string>
 
     <string name="check_moon_title" translatable="false">Луна</string>
     <string name="check_moon_real" translatable="false">Как есть</string>
