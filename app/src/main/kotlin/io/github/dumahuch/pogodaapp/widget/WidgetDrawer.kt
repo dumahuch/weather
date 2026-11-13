@@ -118,6 +118,13 @@ internal class WidgetDrawer(
     fun hiLoWidth(high: String, low: String, pen: TextPaint): Float =
         arrowTextWidth(high, pen) + pen.textSize * HI_LO_GAP + arrowTextWidth(low, pen)
 
+    /** Колечко (значок градуса) с центром в ([cx], [cy]), радиус по оси линии [radius], толщина [strokeWidth]. */
+    fun ring(cx: Float, cy: Float, radius: Float, strokeWidth: Float) {
+        linePaint.color = Color.WHITE
+        linePaint.strokeWidth = strokeWidth
+        canvas.drawCircle(cx, cy, radius, linePaint)
+    }
+
     /** Тонкая линия-разделитель. */
     fun rule(x0: Float, y: Float, x1: Float) {
         linePaint.color = Color.argb(RULE_ALPHA, 255, 255, 255)
