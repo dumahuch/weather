@@ -8,12 +8,15 @@ import org.junit.Test
 class SnowDriftShapeTest {
 
     @Test
-    fun heightGrowsWithStrengthBetweenTheLimits() {
-        assertEquals(1.5, SnowDriftShape.heightDp(0.0), 1e-9)
-        assertEquals(10.0, SnowDriftShape.heightDp(1.0), 1e-9)
-        assertEquals(10.0, SnowDriftShape.heightDp(3.0), 1e-9)
-        assertEquals(1.5, SnowDriftShape.heightDp(-1.0), 1e-9)
-        assertTrue(SnowDriftShape.heightDp(0.3) < SnowDriftShape.heightDp(0.6))
+    fun heavierSnowGrowsTheDriftFasterAndItTakesFromHalfAMinuteToAMinuteAndAHalf() {
+        assertEquals(90.0, SnowDriftShape.MAX_HEIGHT_DP / SnowDriftShape.growDpPerSecond(0.0), 1e-9)
+        assertEquals(25.0, SnowDriftShape.MAX_HEIGHT_DP / SnowDriftShape.growDpPerSecond(1.0), 1e-9)
+        assertEquals(SnowDriftShape.growDpPerSecond(1.0), SnowDriftShape.growDpPerSecond(3.0), 1e-9)
+        assertEquals(SnowDriftShape.growDpPerSecond(0.0), SnowDriftShape.growDpPerSecond(-1.0), 1e-9)
+        assertTrue(SnowDriftShape.growDpPerSecond(0.3) < SnowDriftShape.growDpPerSecond(0.6))
+        // Средний снег (как на экране проверки): около минуты.
+        val middle = SnowDriftShape.MAX_HEIGHT_DP / SnowDriftShape.growDpPerSecond(0.5)
+        assertTrue(middle in 50.0..65.0)
     }
 
     @Test
@@ -69,8 +72,7 @@ class SnowDriftShapeTest {
     }
 
     @Test
-    fun growingAndMeltingTakeAboutAsLongAsTheMockupSays() {
-        assertEquals(12.0, SnowDriftShape.GROW_SECONDS, 1e-9)
-        assertEquals(20.0, SnowDriftShape.MAX_HEIGHT_DP / SnowDriftShape.MELT_DP_PER_SECOND, 1e-9)
+    fun meltingIsFasterThanTheSlowestGrowth() {
+        assertTrue(SnowDriftShape.MELT_DP_PER_SECOND > SnowDriftShape.growDpPerSecond(0.0))
     }
 }
