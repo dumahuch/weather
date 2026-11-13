@@ -38,6 +38,13 @@ class SnowDriftShapeTest {
     }
 
     @Test
+    fun aNarrowButtonStillGetsFullHeightInTheMiddle() {
+        assertEquals(1.0, SnowDriftShape.taper(18.0, 36.0), 1e-9)
+        assertTrue(SnowDriftShape.taper(9.0, 36.0) in 0.5..0.9)
+        assertEquals(SnowDriftShape.taper(5.0, 36.0), SnowDriftShape.taper(31.0, 36.0), 1e-9)
+    }
+
+    @Test
     fun theTopIsUnevenButNeverFlatOrAboveTheLimit() {
         for (seed in 0..20) {
             val values = (0..350).map { SnowDriftShape.profile(it.toDouble(), seed) }

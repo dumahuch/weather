@@ -76,10 +76,10 @@ class Glass internal constructor(
     /**
      * То же стекло без размытия. Нужно экрану настроек: у высокой прокручиваемой карточки Haze считает размытие только
      * для видимой части и догоняет её с опозданием, из-за чего въезжающая снизу часть на доли секунды рисовалась
-     * серой полосой (записи стенда 12.11.2026). Заливка, тень и кромка остаются прежними. Капель дождя у такого стекла
-     * нет: высокие карточки настроек держали бы тысячи капель.
+     * серой полосой (записи стенда 12.11.2026). Заливка, тень, кромка, снег и капли остаются прежними. Число капель
+     * считается по площади с потолком, поэтому высокие карточки настроек не держат тысячи капель.
      */
-    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow, null)
+    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow, rain)
 
     companion object {
         /** Стекло без размытия: пока неба нет и в проверках. */
@@ -285,16 +285,21 @@ private fun ChunkedBlur(glass: Glass, modifier: Modifier) {
     }
 }
 
-/** Подложка кнопок и нижней панели: молочнее карточек, своя тень, размытие с насыщением 1,6. */
+/** Сугроб на кнопке и нижней панели не выше этой доли их высоты. */
+private const val BUTTON_SNOW_SHARE = 0.25f
+
+/** Подложка кнопок и нижней панели: молочнее карточек, своя тень, размытие с насыщением 1,6; снег и капли как у карточек. */
 fun Modifier.glassButton(shape: Shape, glass: Glass): Modifier {
     val palette = glass.palette
     return this
         .rasterShadow(shape, ButtonShadow, inset = false, color = palette.shadow)
+        .snowDrift(shape, glass.snow, palette.glass, BUTTON_SNOW_SHARE)
         .clip(shape)
         .topHighlight(shape, palette.buttonHighlight)
         .border(1.dp, palette.glassLine, shape)
         .hazeGlass(glass, GlassBlur.Button)
         .background(palette.buttonBackground, shape)
+        .glassDrops(glass.rain)
 }
 
 /** Только размытый фон карточек, без заливки, тени и кромки: у плоского стекла плашек предупреждений. */
