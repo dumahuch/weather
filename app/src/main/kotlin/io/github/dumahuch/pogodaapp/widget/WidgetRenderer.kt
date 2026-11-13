@@ -9,6 +9,7 @@ import android.graphics.RectF
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.dayPrecipitationText
 import io.github.dumahuch.pogodaapp.home.hourLabel
+import io.github.dumahuch.pogodaapp.home.temperatureDigits
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.forecast.dayName
@@ -77,22 +78,20 @@ internal class WidgetRenderer(private val context: Context) {
      * сужаются, пока не влезут в [maxWidth], но не крупнее [maxSize].
      */
     private fun cornerIcon(d: WidgetDrawer, m: WidgetModel, w: Float, h: Float, maxSize: Float, icon: Float, maxWidth: Float) {
-        val temp = temperatureText(m.temperature)
-        val size = fitSize(d, temp, maxSize, maxWidth)
-        val pen = d.pen(size, HERO_WEIGHT)
-        val textWidth = d.width(temp, pen)
+        val digits = temperatureDigits(m.temperature)
+        val size = fitSize(d, digits, maxSize, maxWidth)
+        val textWidth = heroWidth(d, digits, size)
         val cap = size * DIGIT_HEIGHT
-        val iconSpace = icon * ICON_SPACE
-        val top = (h - (iconSpace + cap)) / 2
+        val top = (h - (icon + cap)) / 2
         val left = (w - textWidth) / 2
         d.glyph(m.condition, m.isDay, m.windy, left + textWidth - icon, top, icon)
-        d.text(temp, left, top + iconSpace + cap, pen)
+        heroTemp(d, digits, size, left, top + icon + cap)
     }
 
     // ---- 1×1 и 2×1: только крупная температура и значок над её углом, по краям воздух.
-    private fun tiny(d: WidgetDrawer, m: WidgetModel, w: Float, h: Float) = cornerIcon(d, m, w, h, 172f, 72f, w - 2 * TINY_SIDE)
+    private fun tiny(d: WidgetDrawer, m: WidgetModel, w: Float, h: Float) = cornerIcon(d, m, w, h, 150f, 66f, w - 2 * TINY_SIDE)
 
-    private fun narrow(d: WidgetDrawer, m: WidgetModel, w: Float, h: Float) = cornerIcon(d, m, w, h, 176f, 72f, w * NARROW_SHARE)
+    private fun narrow(d: WidgetDrawer, m: WidgetModel, w: Float, h: Float) = cornerIcon(d, m, w, h, 160f, 70f, w * NARROW_SHARE)
 
     // ---- 4×1: слева город, значок и температура, справа часы.
     private fun strip(d: WidgetDrawer, m: WidgetModel, w: Float, h: Float) {
@@ -100,14 +99,14 @@ internal class WidgetRenderer(private val context: Context) {
         val leftWidth = 330f
         val cityPen = d.pen(40f, 500)
         val cityCap = 40f * DIGIT_HEIGHT
-        val temp = temperatureText(m.temperature)
+        val temp = temperatureDigits(m.temperature)
         val size = fitSize(d, temp, 150f, leftWidth - icon - 14f)
         val cap = size * DIGIT_HEIGHT
         val top = (h - (cityCap + 14f + cap)) / 2
         d.text(d.fit(m.placeName.orEmpty(), cityPen, leftWidth), PAD, top + cityCap, cityPen)
         val tempBase = top + cityCap + 14f + cap
         d.glyph(m.condition, m.isDay, m.windy, PAD, tempBase - cap / 2 - icon / 2, icon)
-        d.text(temp, PAD + icon + 14f, tempBase, d.pen(size, HERO_WEIGHT))
+        heroTemp(d, temp, size, PAD + icon + 14f, tempBase)
         val dividerX = PAD + leftWidth + 14f
         d.verticalRule(dividerX, 28f, h - 28f)
         val x0 = dividerX + 14f
@@ -127,18 +126,17 @@ internal class WidgetRenderer(private val context: Context) {
         hours(d, m, columns, PAD, w - PAD, hoursTop, HOUR_LABEL, 52f, HOUR_TEMP)
         val icon = 88f
         val gap = 12f
-        val temp = temperatureText(m.temperature)
+        val temp = temperatureDigits(m.temperature)
         val size = fitSize(d, temp, 148f, w - 2 * PAD - icon - gap)
-        val tempPen = d.pen(size, HERO_WEIGHT)
         val hiLoPen = d.pen(40f, 400, 0.92f)
         val cap = size * DIGIT_HEIGHT
         val hiLoCap = 40f * DIGIT_HEIGHT
         val blockHeight = cap + 10f + hiLoCap
         val areaTop = cityBase + 8f
         val rowTop = areaTop + (ruleY - 10f - areaTop - blockHeight) / 2
-        val left = (w - (icon + gap + d.width(temp, tempPen))) / 2
+        val left = (w - (icon + gap + heroWidth(d, temp, size))) / 2
         d.glyph(m.condition, m.isDay, m.windy, left, rowTop + cap / 2 - icon / 2, icon)
-        d.text(temp, left + icon + gap, rowTop + cap, tempPen)
+        heroTemp(d, temp, size, left + icon + gap, rowTop + cap)
         val high = temperatureText(m.high)
         val low = temperatureText(m.low)
         d.hiLo((w - d.hiLoWidth(high, low, hiLoPen)) / 2, rowTop + cap + 10f + hiLoCap, high, low, hiLoPen)
@@ -161,12 +159,12 @@ internal class WidgetRenderer(private val context: Context) {
         d.hiLo(PAD, hiLoBase, temperatureText(m.high), temperatureText(m.low), hiLoPen)
         val icon = 96f
         val gap = 12f
-        val temp = temperatureText(m.temperature)
+        val temp = temperatureDigits(m.temperature)
         val size = fitSize(d, temp, 170f, leftWidth - icon - gap)
         val cap = size * DIGIT_HEIGHT
         val midY = (descBase + 12f + hiLoBase - 44f * DIGIT_HEIGHT) / 2
         d.glyph(m.condition, m.isDay, m.windy, PAD, midY - icon / 2, icon)
-        d.text(temp, PAD + icon + gap, midY + cap / 2, d.pen(size, HERO_WEIGHT))
+        heroTemp(d, temp, size, PAD + icon + gap, midY + cap / 2)
         val dividerX = PAD + leftWidth + 14f
         d.verticalRule(dividerX, PAD + 6f, h - PAD - 6f)
         val x0 = dividerX + 14f
@@ -207,12 +205,11 @@ internal class WidgetRenderer(private val context: Context) {
     private fun hero(d: WidgetDrawer, m: WidgetModel, w: Float, top: Float, height: Float) {
         val icon = 150f
         val gap = 18f
-        val temp = temperatureText(m.temperature)
+        val temp = temperatureDigits(m.temperature)
         val size = fitSize(d, temp, 215f, (w - 2 * PAD - icon - gap) * 0.6f)
-        val tempPen = d.pen(size, HERO_WEIGHT)
-        val tempWidth = d.width(temp, tempPen)
+        val tempWidth = heroWidth(d, temp, size)
         d.glyph(m.condition, m.isDay, m.windy, PAD, top + (height - icon) / 2, icon)
-        d.text(temp, PAD + icon + gap, top + height / 2 + size * DIGIT_HEIGHT / 2, tempPen)
+        heroTemp(d, temp, size, PAD + icon + gap, top + height / 2 + size * DIGIT_HEIGHT / 2)
         val right = w - PAD
         val maxWidth = w - 2 * PAD - icon - gap - tempWidth - 20f
         val cityPen = d.pen(48f, 500)
@@ -230,10 +227,27 @@ internal class WidgetRenderer(private val context: Context) {
         d.hiLo(right - d.hiLoWidth(high, low, hiLoPen), base, high, low, hiLoPen)
     }
 
-    /** Размер крупных цифр: не больше [maxSize] и такой, чтобы [text] занимал не больше [maxWidth]. */
-    private fun fitSize(d: WidgetDrawer, text: String, maxSize: Float, maxWidth: Float): Float {
-        val natural = d.width(text, d.pen(MEASURE_SIZE, HERO_WEIGHT))
-        return min(maxSize, (MEASURE_SIZE * maxWidth / natural).toInt().toFloat())
+    /** Размер крупных цифр: не больше [maxSize] и такой, чтобы [digits] со значком градуса занимали не больше [maxWidth]. */
+    private fun fitSize(d: WidgetDrawer, digits: String, maxSize: Float, maxWidth: Float): Float {
+        val perSize = d.width(digits, d.pen(MEASURE_SIZE, HERO_WEIGHT)) / MEASURE_SIZE + DEGREE_GAP + DEGREE_DIAMETER
+        return min(maxSize, (maxWidth / perSize).toInt().toFloat())
+    }
+
+    /** Ширина крупной температуры: цифры, зазор и небольшое колечко градуса. */
+    private fun heroWidth(d: WidgetDrawer, digits: String, size: Float): Float =
+        d.width(digits, d.pen(size, HERO_WEIGHT)) + size * (DEGREE_GAP + DEGREE_DIAMETER)
+
+    /**
+     * Крупная температура: цифры и своё колечко градуса вместо знака шрифта (в Manrope он слишком большой). Колечко
+     * вровень с верхом цифр, [x] слева, [baseline] нижняя линия цифр.
+     */
+    private fun heroTemp(d: WidgetDrawer, digits: String, size: Float, x: Float, baseline: Float) {
+        val pen = d.pen(size, HERO_WEIGHT)
+        d.text(digits, x, baseline, pen)
+        val digitsWidth = d.width(digits, pen)
+        val radius = size * DEGREE_DIAMETER / 2
+        val stroke = size * DEGREE_STROKE
+        d.ring(x + digitsWidth + size * DEGREE_GAP + radius, baseline - size * DIGIT_HEIGHT + radius + stroke / 2, radius - stroke / 2, stroke)
     }
 
     private fun hoursHeight(labelSize: Float, iconSize: Float, tempSize: Float): Float =
@@ -310,7 +324,9 @@ internal class WidgetRenderer(private val context: Context) {
         const val HOUR_TEMP = 44f
         const val HERO_WEIGHT = 300
         const val MEASURE_SIZE = 100f
-        const val ICON_SPACE = 0.8f
+        const val DEGREE_GAP = 0.06f
+        const val DEGREE_DIAMETER = 0.22f
+        const val DEGREE_STROKE = 0.045f
         const val TINY_SIDE = 14f
         const val NARROW_SHARE = 0.62f
         const val DASH = "–"
