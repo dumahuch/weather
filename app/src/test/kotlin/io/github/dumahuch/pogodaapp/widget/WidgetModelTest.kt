@@ -1,6 +1,5 @@
 package io.github.dumahuch.pogodaapp.widget
 
-import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.CurrentWeather
 import io.github.dumahuch.pogodaapp.weather.DayForecast
@@ -65,7 +64,6 @@ class WidgetModelTest {
         assertEquals(Condition.Partly, model.condition)
         assertEquals(9.0, model.high, 0.0)
         assertEquals(3.0, model.low, 0.0)
-        assertEquals(PrecipitationCaption.None, model.precipitation)
     }
 
     @Test
@@ -90,9 +88,7 @@ class WidgetModelTest {
         val model = WidgetModels.of(place, forecast(listOf(day(0, 9.0, 3.0, mm = 0.4))), now)
         assertEquals(12.0, model.windKmh!!, 0.0)
         assertEquals(78, model.humidity)
-        assertEquals(1012.0, model.pressureHpa!!, 0.0)
         assertEquals(0.4, model.precipitationMm!!, 0.0)
-        assertEquals(Instant.parse("2026-11-12T06:41:00Z"), model.sunrise)
     }
 
     @Test
@@ -100,7 +96,6 @@ class WidgetModelTest {
         val model = WidgetModels.of(place, forecast(emptyList(), windKmh = null), now)
         assertTrue(model.days.isEmpty())
         assertNull(model.precipitationMm)
-        assertNull(model.sunrise)
         assertNull(model.windKmh)
     }
 

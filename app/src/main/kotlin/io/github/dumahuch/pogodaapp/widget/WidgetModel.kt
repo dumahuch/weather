@@ -1,9 +1,7 @@
 package io.github.dumahuch.pogodaapp.widget
 
-import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.RangeSpan
 import io.github.dumahuch.pogodaapp.forecast.TemperatureRange
-import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.DayForecast
@@ -28,7 +26,6 @@ data class WidgetModel(
     val windy: Boolean,
     val high: Double,
     val low: Double,
-    val precipitation: PrecipitationCaption,
     /** Часы ленты, первый «сейчас». */
     val hours: List<HourPoint>,
     /** Следующие сутки после сегодняшних. */
@@ -37,11 +34,8 @@ data class WidgetModel(
     val ranges: List<RangeSpan>,
     val windKmh: Double?,
     val humidity: Int?,
-    val pressureHpa: Double?,
     /** Осадки за сегодняшние сутки, мм. */
     val precipitationMm: Double?,
-    val sunrise: Instant?,
-    val sunset: Instant?,
 )
 
 object WidgetModels {
@@ -66,16 +60,12 @@ object WidgetModels {
             windy = isStrongWind(details?.windKmh),
             high = forecast.today.max,
             low = forecast.today.min,
-            precipitation = precipitationCaption(forecast, now),
             hours = forecast.strip(now, HOURS),
             days = days,
             ranges = TemperatureRange.layout(days),
             windKmh = details?.windKmh,
             humidity = details?.humidity,
-            pressureHpa = details?.pressureHpa,
             precipitationMm = todayForecast?.precipitationMm,
-            sunrise = todayForecast?.sunrise,
-            sunset = todayForecast?.sunset,
         )
     }
 }
