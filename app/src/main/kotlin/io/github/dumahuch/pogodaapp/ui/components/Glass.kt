@@ -70,13 +70,16 @@ class Glass internal constructor(
     internal val lifted: Boolean = false,
     /** Высота сугроба на верхней кромке карточек в dp (0 без снега), пусто у стекла без неба; см. [snowDrift]. */
     internal val snow: State<Float>? = null,
+    /** Капли дождя на стекле карточек, пусто без дождя; см. [glassDrops]. */
+    internal val rain: RainOnGlass? = null,
 ) {
     /**
      * То же стекло без размытия. Нужно экрану настроек: у высокой прокручиваемой карточки Haze считает размытие только
      * для видимой части и догоняет её с опозданием, из-за чего въезжающая снизу часть на доли секунды рисовалась
-     * серой полосой (записи стенда 12.11.2026). Заливка, тень и кромка остаются прежними.
+     * серой полосой (записи стенда 12.11.2026). Заливка, тень и кромка остаются прежними. Капель дождя у такого стекла
+     * нет: высокие карточки настроек держали бы тысячи капель.
      */
-    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow)
+    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow, null)
 
     companion object {
         /** Стекло без размытия: пока неба нет и в проверках. */
@@ -91,10 +94,16 @@ private const val SMOKE_STEPS = 20
 
 /** Стекло для палитры [palette] и состояния размытия [haze] (пустое, пока размывать нечего). */
 @Composable
-fun rememberGlass(palette: PogodaPalette, haze: HazeState?, lifted: Boolean = false, snow: State<Float>? = null): Glass {
+fun rememberGlass(
+    palette: PogodaPalette,
+    haze: HazeState?,
+    lifted: Boolean = false,
+    snow: State<Float>? = null,
+    rain: RainOnGlass? = null,
+): Glass {
     val step = (palette.smoke.coerceIn(0f, 1f) * SMOKE_STEPS).roundToInt()
     val cardBlur = remember(step) { GlassBlur.card(step / SMOKE_STEPS.toFloat()) }
-    return remember(palette, haze, cardBlur, lifted, snow) { Glass(palette, haze, cardBlur, lifted, snow) }
+    return remember(palette, haze, cardBlur, lifted, snow, rain) { Glass(palette, haze, cardBlur, lifted, snow, rain) }
 }
 
 /**
@@ -229,6 +238,7 @@ private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean): Modif
             shape,
         )
         .then(if (lifted) Modifier.border(1.dp, Color.White.copy(alpha = CardLift.RIM_ALPHA), shape) else Modifier)
+        .glassDrops(glass.rain)
 }
 
 /**
