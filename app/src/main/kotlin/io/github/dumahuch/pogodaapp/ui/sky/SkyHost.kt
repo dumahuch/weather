@@ -215,7 +215,7 @@ internal fun SkyHost(
         val rate = if (distance > 0f && snowGrow != null) snowGrow.toDouble() else SnowDriftShape.MELT_DP_PER_SECOND
         snowLevel.animateTo(snowTarget, tween((abs(distance) / rate * MILLIS_PER_SECOND).toInt(), easing = LinearEasing))
     }
-    // Сугроб перерисовывает карточки, поэтому высота отдаётся ступенями в четверть dp, а не каждый кадр.
+    // Сугроб перерисовывает карточки, поэтому высота отдаётся ступенями в десятую долю dp, а не каждый кадр.
     val snowDrift = remember(snowLevel) { derivedStateOf { (snowLevel.value * DRIFT_STEPS_PER_DP).roundToInt() / DRIFT_STEPS_PER_DP } }
 
     // Картины в памяти: ровно те, что нужны сейчас; когда приложение ушло с экрана надолго, память освобождается.
@@ -499,8 +499,8 @@ private fun precipSpec(sky: SkyState?, input: SkyInput?, override: SkyOverride):
 
 private const val MILLIS_PER_SECOND = 1000f
 
-/** Шагов высоты сугроба на dp: ступень в четверть dp, чтобы за рост на 10 dp карточки перерисовались не больше сорока раз. */
-private const val DRIFT_STEPS_PER_DP = 4f
+/** Шагов высоты сугроба на dp: ступень 0,1 dp, рост виден плавным, а карточки перерисовываются 2–5 раз в секунду, не каждый кадр. */
+private const val DRIFT_STEPS_PER_DP = 10f
 
 private fun loadRaster(context: Context): SkyRaster? = try {
     context.assets.open(DiMaps.ASSET_PATH).use { DiRaster(DiMaps.read(it)) }

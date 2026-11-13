@@ -23,6 +23,12 @@ internal object SnowDriftShape {
     private const val EDGE_SHARE = 0.12
     private const val MIN_PROFILE = 0.25
 
+    /** Пока сугроб ниже этой высоты (dp), он проявляется из прозрачного: иначе первая полоска появлялась бы внезапно. */
+    const val FADE_IN_DP = 3.0
+
+    /** Непрозрачность сугроба высотой [heightDp]: от 0 у пустой кромки плавно до 1 к [FADE_IN_DP]. */
+    fun visibility(heightDp: Double): Double = smooth(0.0, FADE_IN_DP, heightDp)
+
     /** Скорость роста сугроба (dp в секунду) по силе снега (0…1): чем сильнее снег, тем быстрее. */
     fun growDpPerSecond(strength: Double): Double {
         val s = strength.coerceIn(0.0, 1.0)

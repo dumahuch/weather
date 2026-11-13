@@ -19,8 +19,8 @@ import androidx.compose.ui.platform.InspectorInfo
 import io.github.dumahuch.pogodaapp.sky.SnowDriftShape
 import java.util.Random
 
-/** Ниже этой высоты (dp) сугроб не рисуется: тонкая линия была бы похожа на ошибку, а не на снег. */
-private const val MIN_VISIBLE_DP = 0.75f
+/** Ниже этой высоты (dp) сугроб не рисуется совсем: он ещё полностью прозрачный. */
+private const val MIN_VISIBLE_DP = 0.05f
 
 /** Шаг по ширине карточки, на котором строится верх сугроба, и отступ от края, где он начинается (dp). */
 private const val STEP_DP = 2.0
@@ -121,26 +121,31 @@ private class SnowDriftNode(
             startY = (-h * px).toFloat(),
             endY = SINK_DP * px,
         )
-        drawPath(body, brush)
-        drawPath(rim, Color.White.copy(alpha = 0.9f), style = Stroke(width = RIM_WIDTH_DP * px, cap = StrokeCap.Round))
-        drawGrain(h, width, px, ::top)
+        // Молодой сугроб проявляется из прозрачного, кромка тоньше самого сугроба.
+        val fade = SnowDriftShape.visibility(h).toFloat()
+        drawPath(body, brush, alpha = fade)
+        val rimWidth = minOf(RIM_WIDTH_DP, heightDp) * px
+        drawPath(rim, Color.White.copy(alpha = 0.9f * fade), style = Stroke(width = rimWidth, cap = StrokeCap.Round))
+        drawGrain(h, width, px, fade, ::top)
     }
 
     /** Зерно: тёмные и светлые крупинки внутри сугроба и несколько ярких искорок. */
-    private fun ContentDrawScope.drawGrain(h: Double, width: Double, px: Float, top: (Double) -> Double) {
+    private fun ContentDrawScope.drawGrain(h: Double, width: Double, px: Float, fade: Float, top: (Double) -> Double) {
         val random = Random(seed * GRAIN_SEED.toLong() + 1)
         repeat(GRAINS) {
             val x = GRAIN_EDGE_DP + random.nextDouble() * (width - 2 * GRAIN_EDGE_DP)
             val y = top(x) + random.nextDouble() * h * SnowDriftShape.taper(x, width)
-            val alpha = 0.12f + random.nextFloat() * 0.18f
+            val alpha = (0.12f + random.nextFloat() * 0.18f) * fade
             val color = if (random.nextBoolean()) Color(0xFF96ACCC).copy(alpha = alpha) else Color.White.copy(alpha = alpha * 2)
             drawCircle(color, (0.5f + random.nextFloat() * 0.5f) * px, Offset((x * px).toFloat(), (y * px).toFloat()))
         }
-        if (h < SPECK_MIN_DP) return
+        if (h <= SPECK_MIN_DP) return
+        // Искорки тоже проявляются постепенно, начиная с SPECK_MIN_DP.
+        val speck = 0.8f * SnowDriftShape.visibility(h - SPECK_MIN_DP).toFloat()
         repeat(SPECKS) {
             val x = GRAIN_EDGE_DP + random.nextDouble() * (width - 2 * GRAIN_EDGE_DP)
             val y = top(x) + random.nextDouble() * h * SPECK_DEPTH
-            drawCircle(Color.White.copy(alpha = 0.8f), 0.9f * px, Offset((x * px).toFloat(), (y * px).toFloat()))
+            drawCircle(Color.White.copy(alpha = speck), 0.9f * px, Offset((x * px).toFloat(), (y * px).toFloat()))
         }
     }
 
