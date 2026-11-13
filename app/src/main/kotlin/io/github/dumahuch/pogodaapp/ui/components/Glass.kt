@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -67,13 +68,15 @@ class Glass internal constructor(
     internal val cardBlur: HazeBlurStyle,
     /** Тень карточек «Выраженная» (настройка): вторая тень, светлая кромка и вуаль у всех стеклянных карточек, см. [CardLift]. */
     internal val lifted: Boolean = false,
+    /** Высота сугроба на верхней кромке карточек в dp (0 без снега), пусто у стекла без неба; см. [snowDrift]. */
+    internal val snow: State<Float>? = null,
 ) {
     /**
      * То же стекло без размытия. Нужно экрану настроек: у высокой прокручиваемой карточки Haze считает размытие только
      * для видимой части и догоняет её с опозданием, из-за чего въезжающая снизу часть на доли секунды рисовалась
      * серой полосой (записи стенда 12.11.2026). Заливка, тень и кромка остаются прежними.
      */
-    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted)
+    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow)
 
     companion object {
         /** Стекло без размытия: пока неба нет и в проверках. */
@@ -88,10 +91,10 @@ private const val SMOKE_STEPS = 20
 
 /** Стекло для палитры [palette] и состояния размытия [haze] (пустое, пока размывать нечего). */
 @Composable
-fun rememberGlass(palette: PogodaPalette, haze: HazeState?, lifted: Boolean = false): Glass {
+fun rememberGlass(palette: PogodaPalette, haze: HazeState?, lifted: Boolean = false, snow: State<Float>? = null): Glass {
     val step = (palette.smoke.coerceIn(0f, 1f) * SMOKE_STEPS).roundToInt()
     val cardBlur = remember(step) { GlassBlur.card(step / SMOKE_STEPS.toFloat()) }
-    return remember(palette, haze, cardBlur, lifted) { Glass(palette, haze, cardBlur, lifted) }
+    return remember(palette, haze, cardBlur, lifted, snow) { Glass(palette, haze, cardBlur, lifted, snow) }
 }
 
 /**
@@ -206,6 +209,7 @@ private fun Modifier.glassFrame(shape: Shape, glass: Glass): Modifier {
     return this
         .then(if (glass.lifted) Modifier.rasterShadow(shape, CardLift.Shadow, inset = false, color = CardShadowColor) else Modifier)
         .rasterShadow(shape, CardShadow, inset = false, color = CardShadowColor)
+        .snowDrift(shape, glass.snow, palette.glass)
         .clip(shape)
         .rasterShadow(shape, CardRim, inset = true, color = CardRimColor)
         .topHighlight(shape, palette.glassHighlight)
