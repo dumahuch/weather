@@ -70,6 +70,8 @@ import io.github.dumahuch.pogodaapp.sky.SunPosition
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.PogodaColors
 import io.github.dumahuch.pogodaapp.ui.PogodaPalette
+import io.github.dumahuch.pogodaapp.ui.components.LensSky
+import io.github.dumahuch.pogodaapp.ui.components.RainOnGlass
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.rememberGlass
 import io.github.dumahuch.pogodaapp.ui.mixWith
@@ -322,10 +324,43 @@ internal fun SkyHost(
         }
     }
 
+    // Часы дождя и снега общие для неба и капель на стекле карточек.
+    val precipClock = rememberPrecipClock(precip != null && animationsOn && started)
+    // Небо для линз капель: тот же маленький снимок, раз в 10 с, пока идёт дождь (и на экране проверки тоже).
+    val raining = precip?.kind == PrecipKind.Rain
+    val lensLayer = rememberGraphicsLayer()
+    val lensSky = remember { mutableStateOf<LensSky?>(null) }
+    LaunchedEffect(raining, ready, started) {
+        if (!raining || !ready || !started) return@LaunchedEffect
+        while (true) {
+            val state = latestSky
+            val colors = latestPalette
+            if (state != null && colors != null && hostSize.width > 0) {
+                val lift = DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble())
+                try {
+                    val image = recordSky(
+                        lensLayer, snapshotPainter, state.look(SkyDrift.position(state.pan, phase), lift), colors,
+                        density, layoutDirection, hostSize, scrimRegions.bands(hostTop, density.density),
+                    )
+                    lensSky.value = LensSky(image, hostTop, hostSize.width)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Не удалось снять небо для капель", e)
+                }
+            }
+            delay(LENS_REPEAT_MILLIS)
+        }
+    }
+    val rainStrength = precip?.takeIf { it.kind == PrecipKind.Rain }?.strength
+    val rainOnGlass = remember(rainStrength, animationsOn) {
+        rainStrength?.let { RainOnGlass(precipClock, it, lensSky, animationsOn) }
+    }
+
     // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
     val hazeState = rememberHazeState()
     // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
-    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift)
+    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass)
 
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,
@@ -348,8 +383,7 @@ internal fun SkyHost(
                 snapshotAlpha = { snapshotAlpha },
                 phase = { phase },
                 precip = precip,
-                animate = animationsOn,
-                started = started,
+                precipClock = precipClock,
                 lightSky = palette.darkInk,
                 reveal = { reveal },
                 scrim = palette.scrim,
@@ -373,8 +407,7 @@ private fun SkyBackground(
     snapshotAlpha: () -> Float,
     phase: () -> Double,
     precip: PrecipSpec?,
-    animate: Boolean,
-    started: Boolean,
+    precipClock: State<Double>,
     lightSky: Boolean,
     reveal: () -> Float,
     scrim: Color,
@@ -411,8 +444,7 @@ private fun SkyBackground(
             // Дождь и снег лежат на небе и под подложкой не нужны: они вместе с небом проявляются и вместе с ним размываются стеклом.
             PrecipLayer(
                 spec = precip,
-                animate = animate,
-                started = started,
+                clock = precipClock,
                 lightSky = lightSky,
                 modifier = Modifier.matchParentSize().graphicsLayer { alpha = reveal() },
             )
@@ -445,12 +477,7 @@ private suspend fun captureSnapshot(
     bands: ScrimShape.Bands?,
 ) {
     try {
-        val height = (SNAPSHOT_WIDTH * host.height.toFloat() / host.width).roundToInt().coerceAtLeast(1)
-        layer.record(density, layoutDirection, IntSize(SNAPSHOT_WIDTH, height)) {
-            painter.draw(this, look)
-            SkyEffects.drawScrim(this, colors.scrim, colors.infoScrim, bands, host.height.toFloat())
-        }
-        val image = layer.toImageBitmap().asAndroidBitmap()
+        val image = recordSky(layer, painter, look, colors, density, layoutDirection, host, bands).asAndroidBitmap()
         withContext(Dispatchers.IO) {
             val soft = image.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
             SkySnapshotStorage.save(context, soft, colors)
@@ -461,6 +488,28 @@ private suspend fun captureSnapshot(
         Log.w(TAG, "Не удалось снять снимок неба", e)
     }
 }
+
+/** Маленький снимок неба с подложкой текста, как оно видно на экране шириной [host]: для диска и для линз капель. */
+private suspend fun recordSky(
+    layer: GraphicsLayer,
+    painter: DiPainter,
+    look: SkyLook,
+    colors: PogodaPalette,
+    density: Density,
+    layoutDirection: LayoutDirection,
+    host: IntSize,
+    bands: ScrimShape.Bands?,
+): ImageBitmap {
+    val height = (SNAPSHOT_WIDTH * host.height.toFloat() / host.width).roundToInt().coerceAtLeast(1)
+    layer.record(density, layoutDirection, IntSize(SNAPSHOT_WIDTH, height)) {
+        painter.draw(this, look)
+        SkyEffects.drawScrim(this, colors.scrim, colors.infoScrim, bands, host.height.toFloat())
+    }
+    return layer.toImageBitmap()
+}
+
+/** Как часто обновляется небо в линзах капель: облака плывут медленно, чаще не нужно. */
+private const val LENS_REPEAT_MILLIS = 10_000L
 
 /** Облачность, с которой экран проверки рисует «Пасмурно»: сплошная, как у плотных облаков в прогнозе. */
 private const val OVERCAST_COVER_PERCENT = 100.0

@@ -3,6 +3,7 @@ package io.github.dumahuch.pogodaapp.ui.sky
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,26 +83,34 @@ private const val CRYSTAL_ARM_LENGTH = 0.85f
 private const val CRYSTAL_WIDTH_DP = 0.8f
 
 /**
- * Дождь или снег поверх неба. Свои часы, небо при этом не перерисовывается; когда анимации выключены системой,
- * стоит один кадр. Лежит внутри источника размытия, поэтому стекло карточек размывает и осадки.
+ * Часы осадков в секундах: общие для неба и капель на стекле. Идут, пока [running] (есть осадки, приложение на виду,
+ * анимации не выключены системой); иначе стоят на одном моменте.
+ */
+@Composable
+internal fun rememberPrecipClock(running: Boolean): State<Double> {
+    val clock = remember { mutableDoubleStateOf(STILL_SECONDS) }
+    LaunchedEffect(running) {
+        if (!running) return@LaunchedEffect
+        val timer = PrecipClock(FRAME_INTERVAL_NANOS, clock.doubleValue)
+        while (true) withFrameNanos { now -> timer.seconds(now)?.let { clock.doubleValue = it } }
+    }
+    return clock
+}
+
+/**
+ * Дождь или снег поверх неба по часам [clock]; небо при этом не перерисовывается. Лежит внутри источника размытия,
+ * поэтому стекло карточек размывает и осадки.
  */
 @Composable
 internal fun PrecipLayer(
     spec: PrecipSpec?,
-    animate: Boolean,
-    started: Boolean,
+    clock: State<Double>,
     lightSky: Boolean,
     modifier: Modifier = Modifier,
 ) {
     if (spec == null) return
     val density = LocalDensity.current.density
     var size by remember { mutableStateOf(IntSize.Zero) }
-    val clock = remember { mutableDoubleStateOf(STILL_SECONDS) }
-    LaunchedEffect(animate, started) {
-        if (!animate || !started) return@LaunchedEffect
-        val timer = PrecipClock(FRAME_INTERVAL_NANOS, STILL_SECONDS)
-        while (true) withFrameNanos { now -> timer.seconds(now)?.let { clock.doubleValue = it } }
-    }
     val widthDp = size.width / density / SIZE_STEP_DP
     val heightDp = size.height / density / SIZE_STEP_DP
     val stepWidth = widthDp.roundToInt() * SIZE_STEP_DP.toDouble()
@@ -120,7 +129,7 @@ internal fun PrecipLayer(
         modifier
             .onSizeChanged { size = it }
             .drawBehind {
-                val t = clock.doubleValue
+                val t = clock.value
                 if (rain != null) {
                     drawRain(rain, spec, t, lightSky, pose)
                 } else if (snow != null && sprites != null) {
