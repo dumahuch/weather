@@ -75,4 +75,16 @@ class SnowDriftShapeTest {
     fun meltingIsFasterThanTheSlowestGrowth() {
         assertTrue(SnowDriftShape.MELT_DP_PER_SECOND > SnowDriftShape.growDpPerSecond(0.0))
     }
+
+    @Test
+    fun aYoungDriftFadesInInsteadOfAppearingAtOnce() {
+        assertEquals(0.0, SnowDriftShape.visibility(0.0), 1e-9)
+        assertEquals(1.0, SnowDriftShape.visibility(SnowDriftShape.FADE_IN_DP), 1e-9)
+        assertEquals(1.0, SnowDriftShape.visibility(12.0), 1e-9)
+        // Первые десятые dp почти не видны, без скачка.
+        assertTrue(SnowDriftShape.visibility(0.1) < 0.01)
+        assertTrue(SnowDriftShape.visibility(0.25) < 0.05)
+        val steps = (0..30).map { SnowDriftShape.visibility(it / 10.0) }
+        assertTrue(steps.zipWithNext().all { (a, b) -> b >= a && b - a < 0.08 })
+    }
 }
