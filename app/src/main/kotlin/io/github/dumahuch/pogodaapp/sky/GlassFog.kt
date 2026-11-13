@@ -45,8 +45,10 @@ internal object GlassFog {
 
 /**
  * Где на запотевшем стекле размером [widthDp] × [heightDp] прошёл палец (всё в dp, время в секундах). Стекло делится на
- * мелкие клетки; стёртый след несколько секунд держится чистым, потом весь целиком плавно запотевает снова (не сужается
- * от краёв: так было в 0.8.19, и возврат выглядел ступенчатым).
+ * мелкие клетки. След мягкий: чистая только середина, к краям плёнка плавно густеет, граница неровная. Возвращается
+ * запотевание как настоящее: от краёв к середине (след сужается), мелкой дымкой, потому что клетки возвращаются в чуть
+ * разное время; даже самая чистая середина остаётся слегка влажной ([MAX_CLEAR]). В 0.8.20 след был резкой нашлёпкой и
+ * бледнел целиком (Дима 13.11: «след слишком резкий, обратное запотевание неестественное»).
  */
 internal class FogWipe(val widthDp: Double, val heightDp: Double) {
     /** Сторона клетки: не меньше [MIN_CELL_DP], у большой карточки крупнее, чтобы клеток было не больше [MAX_CELLS]. */
@@ -54,16 +56,28 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
     val cols: Int = max(1, ceil(widthDp / cell).toInt())
     val rows: Int = max(1, ceil(heightDp / cell).toInt())
 
-    /** Насколько чистой стала клетка от пальца (0…1, край следа мягче) и сколько секунд назад. */
-    private val clear = FloatArray(cols * rows)
+    /** Сила стирания в клетке от кисти (1 в середине следа, к краю меньше), сколько секунд назад стёрто и своя неровность клетки. */
+    private val strength = FloatArray(cols * rows)
     private val age = FloatArray(cols * rows)
+    private val grain = FloatArray(cols * rows) { noiseAt(it) * GRAIN }
 
     /** Есть ли стёртые клетки, которым ещё возвращаться. */
     var active = false
         private set
 
-    /** Доля плёнки в клетке [index] (0 стёрта, 1 нетронута). */
-    fun cover(index: Int): Float = 1f - clear[index] * fade(age[index])
+    /** Доля плёнки в клетке [index] (1 нетронута, [MAX_CLEAR] от неё убрано у самой чистой). */
+    fun cover(index: Int): Float = 1f - MAX_CLEAR * clearness(index)
+
+    /** Насколько клетка расчищена (0…1): кисть, сдвинутая зерном и отодвигаемая возвращающейся плёнкой. */
+    private fun clearness(index: Int): Float {
+        val base = strength[index]
+        if (base <= 0f) return 0f
+        return ((base + grain[index] - returned(age[index]) * (1f + SPREAD)) / SOFT).coerceIn(0f, 1f)
+    }
+
+    /** Сколько плёнки уже вернулось через [seconds] после стирания: первые [HOLD_SECONDS] ничего, потом плавно до 1. */
+    private fun returned(seconds: Float): Float =
+        smooth(HOLD_SECONDS.toDouble(), (HOLD_SECONDS + RETURN_SECONDS).toDouble(), seconds.toDouble()).toFloat()
 
     /** Палец прошёл от ([x1], [y1]) до ([x2], [y2]): клетки вдоль пути стираются, к краю следа мягче. */
     fun wipe(x1: Double, y1: Double, x2: Double, y2: Double) {
@@ -76,10 +90,11 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
             for (col in left..right) {
                 val d = distanceToSegment((col + 0.5) * cell, (row + 0.5) * cell, x1, y1, x2, y2)
                 if (d >= BRUSH_DP) continue
-                val value = (1 - smooth(BRUSH_DP * CORE, BRUSH_DP, d)).toFloat()
+                val value = (1 - smooth(0.0, BRUSH_DP, d)).toFloat()
                 val index = row * cols + col
-                if (value > clear[index] * fade(age[index])) {
-                    clear[index] = value
+                // Новый мазок заменяет старый, только если расчищает клетку сильнее, чем она расчищена сейчас.
+                if ((value + grain[index]) / SOFT > clearness(index)) {
+                    strength[index] = value
                     age[index] = 0f
                     active = true
                 }
@@ -92,18 +107,14 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
         if (!active) return false
         val d = dt.coerceIn(0.0, MAX_DT).toFloat()
         var any = false
-        for (i in clear.indices) {
-            if (clear[i] <= 0f) continue
+        for (i in strength.indices) {
+            if (strength[i] <= 0f) continue
             age[i] += d
-            if (age[i] >= HOLD_SECONDS + RETURN_SECONDS) clear[i] = 0f else any = true
+            if (age[i] >= HOLD_SECONDS + RETURN_SECONDS) strength[i] = 0f else any = true
         }
         active = any
         return any
     }
-
-    /** Какая доля чистоты ещё держится через [seconds] после стирания: 1 первые секунды, потом плавно до 0. */
-    private fun fade(seconds: Float): Float =
-        if (seconds <= HOLD_SECONDS) 1f else 1f - smooth(HOLD_SECONDS.toDouble(), (HOLD_SECONDS + RETURN_SECONDS).toDouble(), seconds.toDouble()).toFloat()
 
     private fun distanceToSegment(px: Double, py: Double, x1: Double, y1: Double, x2: Double, y2: Double): Double {
         val dx = x2 - x1
@@ -114,18 +125,34 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
         return hypot(px - (x1 + k * dx), py - (y1 + k * dy))
     }
 
+    /** Одно и то же число для одной клетки при каждом запуске, от −1 до 1: без случайных чисел, чтобы стекло не мерцало при пересоздании. */
+    private fun noiseAt(index: Int): Float {
+        var h = index * -1640531535
+        h = h xor (h ushr 15)
+        h *= -2048144789
+        h = h xor (h ushr 13)
+        return ((h ushr 8) and 0xFFFF) / 32767.5f - 1f
+    }
+
     companion object {
-        /** Мелкая клетка: при растяжке со сглаживанием край следа мягкий, без лесенки (в 0.8.19 было 5 dp). */
+        /** Мелкая клетка: при растяжке со сглаживанием край следа мягкий, без лесенки. */
         private const val MIN_CELL_DP = 2.0
         private const val MAX_CELLS = 40_000.0
 
-        /** Полуширина следа пальца (dp) и доля, где след чистый полностью. */
-        const val BRUSH_DP = 15.0
-        private const val CORE = 0.45
+        /** Полуширина следа пальца (dp): в 0.8.20 было 15, Дима попросил пошире. Чистая середина занимает около половины. */
+        const val BRUSH_DP = 24.0
 
-        /** Стёртое держится чистым столько секунд, потом запотевает целиком за [RETURN_SECONDS]. */
-        const val HOLD_SECONDS = 5f
-        const val RETURN_SECONDS = 15f
+        /** Где сила кисти делает клетку полностью чистой (доля), неровность края по клеткам и запас, чтобы всё успело вернуться. */
+        private const val SOFT = 0.7f
+        private const val GRAIN = 0.1f
+        private const val SPREAD = 0.2f
+
+        /** Даже самая чистая середина остаётся слегка влажной: доля плёнки, которую можно убрать. */
+        const val MAX_CLEAR = 0.9f
+
+        /** Плёнка начинает возвращаться через [HOLD_SECONDS] и возвращается целиком за [RETURN_SECONDS]. */
+        const val HOLD_SECONDS = 3f
+        const val RETURN_SECONDS = 17f
         private const val MAX_DT = 0.1
     }
 }
