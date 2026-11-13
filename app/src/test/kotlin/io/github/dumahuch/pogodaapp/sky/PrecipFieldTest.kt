@@ -106,15 +106,15 @@ class PrecipFieldTest {
     @Test
     fun rainStreakLengthIsThePathOfTheExposure() {
         for (drop in RainField.create(1.0, width, height).drops) {
-            val ratio = drop.length / drop.speed * 38.0
+            val ratio = drop.length / drop.speed * 19.0
             assertTrue("$ratio", ratio in 0.79..1.21)
         }
     }
 
     @Test
     fun speedsAreInTheRangeOfRealRain() {
-        // 650–2300 dp/с: на экране в 844 dp дальняя капля пролетает его за секунду-полторы, ближняя быстрее.
-        for (drop in RainField.create(1.0, width, height).drops) assertTrue(drop.speed in 570.0..2850.0)
+        // 350–1100 dp/с: на экране в 844 dp дальняя капля пролетает его за 2–3 секунды, ближняя за секунду (быстрее было неспокойно).
+        for (drop in RainField.create(1.0, width, height).drops) assertTrue(drop.speed in 300.0..1300.0)
     }
 
     @Test

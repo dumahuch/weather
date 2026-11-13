@@ -134,7 +134,7 @@ internal class RainField private constructor(val drops: List<RainDrop>, val widt
             for ((index, layer) in LAYERS.withIndex()) {
                 val depth = layer.first
                 repeat(counts[index]) {
-                    val speed = mix(650.0, 2300.0, depth) * (0.88 + 0.24 * random.nextDouble())
+                    val speed = mix(350.0, 1100.0, depth) * (0.88 + 0.24 * random.nextDouble())
                     out += RainDrop(
                         depth = depth,
                         x0 = random.nextDouble() * (widthDp + 2 * EDGE) - EDGE,
@@ -149,8 +149,8 @@ internal class RainField private constructor(val drops: List<RainDrop>, val widt
             return RainField(out, widthDp, heightDp)
         }
 
-        /** Длина штриха равна пути за выдержку (1/38 с): быстрые ближние капли тянутся длиннее. */
-        private const val EXPOSURE = 38.0
+        /** Длина штриха равна пути за выдержку (1/19 с): быстрые ближние капли тянутся длиннее. Скорости уменьшены вдвое по просьбе Димы 13.11, выдержка удлинена вдвое, штрихи прежней длины. */
+        private const val EXPOSURE = 19.0
     }
 }
 
@@ -209,7 +209,7 @@ internal class SnowField private constructor(val flakes: List<Flake>, val widthD
                         radius = radius,
                         x0 = random.nextDouble() * (widthDp + 2 * EDGE) - EDGE,
                         y0 = random.nextDouble() * Y_PERIOD,
-                        fall = mix(22.0, 150.0, depth) * (0.8 + 0.4 * random.nextDouble()),
+                        fall = mix(14.0, 90.0, depth) * (0.8 + 0.4 * random.nextDouble()),
                         sway = mix(6.0, 30.0, depth) * (0.6 + 0.8 * random.nextDouble()) / (1 + radius * 0.08),
                         swayHz = (0.12 + 0.35 * random.nextDouble()) * (1.4 - 0.5 * depth),
                         phase = random.nextDouble() * 2 * PI,
