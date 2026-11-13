@@ -45,7 +45,8 @@ internal object GlassFog {
 
 /**
  * Где на запотевшем стекле размером [widthDp] × [heightDp] прошёл палец (всё в dp, время в секундах). Стекло делится на
- * клетки; стёртая клетка несколько секунд остаётся чистой, потом медленно запотевает снова.
+ * мелкие клетки; стёртый след несколько секунд держится чистым, потом весь целиком плавно запотевает снова (не сужается
+ * от краёв: так было в 0.8.19, и возврат выглядел ступенчатым).
  */
 internal class FogWipe(val widthDp: Double, val heightDp: Double) {
     /** Сторона клетки: не меньше [MIN_CELL_DP], у большой карточки крупнее, чтобы клеток было не больше [MAX_CELLS]. */
@@ -53,53 +54,56 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
     val cols: Int = max(1, ceil(widthDp / cell).toInt())
     val rows: Int = max(1, ceil(heightDp / cell).toInt())
 
-    /** Насколько стёрта клетка: 0 запотевшая, 1 чистая, выше 1 ещё держится чистой перед возвратом плёнки. */
-    private val wiped = FloatArray(cols * rows)
+    /** Насколько чистой стала клетка от пальца (0…1, край следа мягче) и сколько секунд назад. */
+    private val clear = FloatArray(cols * rows)
+    private val age = FloatArray(cols * rows)
 
     /** Есть ли стёртые клетки, которым ещё возвращаться. */
     var active = false
         private set
 
     /** Доля плёнки в клетке [index] (0 стёрта, 1 нетронута). */
-    fun cover(index: Int): Float = 1f - min(1f, wiped[index])
+    fun cover(index: Int): Float = 1f - clear[index] * fade(age[index])
 
     /** Палец прошёл от ([x1], [y1]) до ([x2], [y2]): клетки вдоль пути стираются, к краю следа мягче. */
     fun wipe(x1: Double, y1: Double, x2: Double, y2: Double) {
+        if (max(x1, x2) < -BRUSH_DP || min(x1, x2) > widthDp + BRUSH_DP || max(y1, y2) < -BRUSH_DP || min(y1, y2) > heightDp + BRUSH_DP) return
         val left = ((min(x1, x2) - BRUSH_DP) / cell).toInt().coerceIn(0, cols - 1)
         val right = ((max(x1, x2) + BRUSH_DP) / cell).toInt().coerceIn(0, cols - 1)
         val top = ((min(y1, y2) - BRUSH_DP) / cell).toInt().coerceIn(0, rows - 1)
         val bottom = ((max(y1, y2) + BRUSH_DP) / cell).toInt().coerceIn(0, rows - 1)
-        if (max(x1, x2) < -BRUSH_DP || min(x1, x2) > widthDp + BRUSH_DP || max(y1, y2) < -BRUSH_DP || min(y1, y2) > heightDp + BRUSH_DP) return
         for (row in top..bottom) {
             for (col in left..right) {
                 val d = distanceToSegment((col + 0.5) * cell, (row + 0.5) * cell, x1, y1, x2, y2)
                 if (d >= BRUSH_DP) continue
-                val value = (HOLD * (1 - smooth(BRUSH_DP * CORE, BRUSH_DP, d))).toFloat()
+                val value = (1 - smooth(BRUSH_DP * CORE, BRUSH_DP, d)).toFloat()
                 val index = row * cols + col
-                if (value > wiped[index]) {
-                    wiped[index] = value
+                if (value > clear[index] * fade(age[index])) {
+                    clear[index] = value
+                    age[index] = 0f
                     active = true
                 }
             }
         }
     }
 
-    /** Плёнка возвращается за [dt] секунд; `true`, если ещё есть что возвращать. Большие перерывы режутся. */
+    /** Время идёт на [dt] секунд; `true`, если ещё есть что возвращать. Большие перерывы режутся. */
     fun step(dt: Double): Boolean {
         if (!active) return false
-        val d = (dt.coerceIn(0.0, MAX_DT) * RETURN_PER_SECOND).toFloat()
+        val d = dt.coerceIn(0.0, MAX_DT).toFloat()
         var any = false
-        for (i in wiped.indices) {
-            val w = wiped[i]
-            if (w > 0f) {
-                val next = max(0f, w - d)
-                wiped[i] = next
-                if (next > 0f) any = true
-            }
+        for (i in clear.indices) {
+            if (clear[i] <= 0f) continue
+            age[i] += d
+            if (age[i] >= HOLD_SECONDS + RETURN_SECONDS) clear[i] = 0f else any = true
         }
         active = any
         return any
     }
+
+    /** Какая доля чистоты ещё держится через [seconds] после стирания: 1 первые секунды, потом плавно до 0. */
+    private fun fade(seconds: Float): Float =
+        if (seconds <= HOLD_SECONDS) 1f else 1f - smooth(HOLD_SECONDS.toDouble(), (HOLD_SECONDS + RETURN_SECONDS).toDouble(), seconds.toDouble()).toFloat()
 
     private fun distanceToSegment(px: Double, py: Double, x1: Double, y1: Double, x2: Double, y2: Double): Double {
         val dx = x2 - x1
@@ -111,16 +115,17 @@ internal class FogWipe(val widthDp: Double, val heightDp: Double) {
     }
 
     companion object {
-        private const val MIN_CELL_DP = 5.0
-        private const val MAX_CELLS = 12_000.0
+        /** Мелкая клетка: при растяжке со сглаживанием край следа мягкий, без лесенки (в 0.8.19 было 5 dp). */
+        private const val MIN_CELL_DP = 2.0
+        private const val MAX_CELLS = 40_000.0
 
         /** Полуширина следа пальца (dp) и доля, где след чистый полностью. */
         const val BRUSH_DP = 15.0
         private const val CORE = 0.45
 
-        /** Стёртое держится чистым (HOLD − 1) / RETURN_PER_SECOND ≈ 5 с, потом запотевает за 1 / RETURN_PER_SECOND ≈ 18 с. */
-        private const val HOLD = 1.3
-        private const val RETURN_PER_SECOND = 1.0 / 18.0
+        /** Стёртое держится чистым столько секунд, потом запотевает целиком за [RETURN_SECONDS]. */
+        const val HOLD_SECONDS = 5f
+        const val RETURN_SECONDS = 15f
         private const val MAX_DT = 0.1
     }
 }

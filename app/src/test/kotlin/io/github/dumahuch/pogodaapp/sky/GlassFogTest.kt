@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 /** Запотевшее стекло: когда появляется плёнка и как её стирает палец. */
 class GlassFogTest {
@@ -39,16 +40,23 @@ class GlassFogTest {
     }
 
     @Test
-    fun theWipedPathStaysClearForAFewSecondsThenFogsUpAgainSlowly() {
+    fun theWipedPathStaysClearForAFewSecondsThenFogsUpAgainWhollyAndSmoothly() {
         val glass = FogWipe(350.0, 250.0)
-        glass.wipe(100.0, 100.0, 100.0, 100.0)
-        val i = index(glass, 100.0, 100.0)
+        glass.wipe(100.0, 100.0, 200.0, 100.0)
+        val centre = index(glass, 150.0, 100.0)
+        val nearEdge = index(glass, 150.0, 100.0 + FogWipe.BRUSH_DP * 0.4)
         run(glass, 4.0)
-        assertEquals(0f, glass.cover(i), 1e-6f)
+        assertEquals(0f, glass.cover(centre), 1e-6f)
+        // Середина возврата: плёнка проступает по всему следу сразу, а не сужает след от краёв.
+        run(glass, 8.5)
+        assertTrue("${glass.cover(centre)}", glass.cover(centre) in 0.3f..0.7f)
+        assertTrue("${glass.cover(nearEdge)}", glass.cover(nearEdge) in 0.3f..0.8f)
+        // Плавно: за кадр плёнка меняется на доли процента.
+        val before = glass.cover(centre)
+        glass.step(0.016)
+        assertTrue(abs(glass.cover(centre) - before) < 0.01f)
         run(glass, 10.0)
-        assertTrue(glass.cover(i) in 0.2f..0.8f)
-        run(glass, 20.0)
-        assertEquals(1f, glass.cover(i), 1e-6f)
+        assertEquals(1f, glass.cover(centre), 1e-6f)
         assertFalse(glass.active)
         assertFalse(glass.step(0.03))
     }
@@ -56,7 +64,8 @@ class GlassFogTest {
     @Test
     fun aTallCardKeepsTheGridSmallAndATouchOutsideDoesNothing() {
         val tall = FogWipe(360.0, 2400.0)
-        assertTrue(tall.cols * tall.rows <= 12_500)
+        assertTrue(tall.cols * tall.rows <= 41_000)
+        assertTrue(FogWipe(350.0, 250.0).cell <= 2.0)
         val glass = FogWipe(100.0, 50.0)
         glass.wipe(-200.0, -200.0, -150.0, -180.0)
         assertFalse(glass.active)

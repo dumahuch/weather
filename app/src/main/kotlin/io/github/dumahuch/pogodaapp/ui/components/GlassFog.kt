@@ -1,17 +1,18 @@
 package io.github.dumahuch.pogodaapp.ui.components
 
 import android.graphics.Bitmap
+import android.graphics.Paint
+import android.graphics.RectF
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -21,12 +22,10 @@ import androidx.compose.ui.node.PointerInputModifierNode
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.requireDensity
 import androidx.compose.ui.platform.InspectorInfo
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import io.github.dumahuch.pogodaapp.sky.FogWipe
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.util.Random
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -38,12 +37,8 @@ private const val MIN_COVER = 0.02f
 private val FOG_WHITE = Color(0xFFF1F5F9)
 private const val FOG_TINT = 0.3f
 
-/** Неровность плёнки по клеткам и сгущение к низу стекла (там оседает больше влаги). */
-private const val GRAIN = 0.3f
+/** Плёнка ровная (пятна по клеткам в 0.8.19 читались квадратами), к низу стекла чуть гуще: там оседает больше влаги. */
 private const val BOTTOM_EXTRA = 0.3f
-
-/** Плёнка возвращается с шагом не чаще 30 мс, как дождь и снег. */
-private const val STEP_NANOS = 30_000_000L
 
 /**
  * Общее у двух половин высокой карточки ([GlassCardBox]): палец ловит внешняя коробка ([fogWiping]), а плёнку рисует
@@ -93,9 +88,9 @@ private class GlassFogNode(
 ) : Modifier.Node(), DrawModifierNode, PointerInputModifierNode {
 
     private var bitmap: Bitmap? = null
-    private var image: ImageBitmap? = null
     private var pixels = IntArray(0)
-    private var grain = FloatArray(0)
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val target = RectF()
     private var drawnCover = -1f
     private var dirty = true
     private var recovery: Job? = null
@@ -134,7 +129,6 @@ private class GlassFogNode(
                     last = now
                     continue
                 }
-                if (now - last < STEP_NANOS) continue
                 val glass = patch.wipe ?: break
                 val still = glass.step((now - last) / 1e9)
                 last = now
@@ -150,14 +144,11 @@ private class GlassFogNode(
         if (draws && cover >= MIN_COVER && size.width >= 1f && size.height >= 1f) {
             val glass = glassFor(size.width / density, size.height / density)
             if (dirty || cover != drawnCover) render(glass, cover)
-            image?.let {
-                drawImage(
-                    it,
-                    srcOffset = IntOffset.Zero,
-                    srcSize = IntSize(glass.cols, glass.rows),
-                    dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-                    filterQuality = FilterQuality.Low,
-                )
+            val made = bitmap
+            if (made != null) {
+                // Сглаживание при растяжке маленькой картинки даёт ровную плёнку и мягкий край следа.
+                target.set(0f, 0f, size.width, size.height)
+                drawIntoCanvas { it.nativeCanvas.drawBitmap(made, null, target, paint) }
             }
         }
         drawContent()
@@ -170,24 +161,20 @@ private class GlassFogNode(
         val fresh = current ?: FogWipe(widthDp.toDouble(), heightDp.toDouble())
         patch.wipe = fresh
         val count = fresh.cols * fresh.rows
-        val random = Random(count.toLong() * 31 + fresh.cols)
-        grain = FloatArray(count) { 1f - GRAIN / 2 + GRAIN * random.nextFloat() }
         pixels = IntArray(count)
-        val made = Bitmap.createBitmap(fresh.cols, fresh.rows, Bitmap.Config.ARGB_8888)
-        bitmap = made
-        image = made.asImageBitmap()
+        bitmap = Bitmap.createBitmap(fresh.cols, fresh.rows, Bitmap.Config.ARGB_8888)
         dirty = true
         return fresh
     }
 
-    /** Клетки плёнки в маленькую картинку: растянутая с мягкой фильтрацией, она даёт ровную плёнку с мягким краем следа. */
+    /** Клетки плёнки в маленькую картинку. */
     private fun render(glass: FogWipe, cover: Float) {
         val base = lerp(FOG_WHITE, (if (tint.isSpecified) tint else FOG_WHITE).copy(alpha = 1f), FOG_TINT).toArgb() and 0x00FFFFFF
         for (row in 0 until glass.rows) {
             val lower = 1f - BOTTOM_EXTRA / 2 + BOTTOM_EXTRA * (row + 0.5f) / glass.rows
             for (col in 0 until glass.cols) {
                 val i = row * glass.cols + col
-                val alpha = (FOG_ALPHA * cover * grain[i] * lower * glass.cover(i)).coerceIn(0f, 1f)
+                val alpha = (FOG_ALPHA * cover * lower * glass.cover(i)).coerceIn(0f, 1f)
                 pixels[i] = ((alpha * 255).roundToInt() shl 24) or base
             }
         }

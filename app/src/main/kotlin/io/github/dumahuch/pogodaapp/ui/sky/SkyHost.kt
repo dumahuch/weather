@@ -392,6 +392,7 @@ internal fun SkyHost(
                 precip = precip,
                 precipClock = precipClock,
                 lightSky = palette.darkInk,
+                fogMotion = animationsOn && started,
                 reveal = { reveal },
                 scrim = palette.scrim,
                 infoScrim = palette.infoScrim,
@@ -416,6 +417,7 @@ private fun SkyBackground(
     precip: PrecipSpec?,
     precipClock: State<Double>,
     lightSky: Boolean,
+    fogMotion: Boolean,
     reveal: () -> Float,
     scrim: Color,
     infoScrim: Color,
@@ -448,6 +450,7 @@ private fun SkyBackground(
                         SkyEffects.drawScrim(this, scrim, infoScrim, bands(), size.height)
                     },
             )
+            FogLayer(sky, fogMotion, Modifier.matchParentSize().graphicsLayer { alpha = reveal() })
             // Дождь и снег лежат на небе и под подложкой не нужны: они вместе с небом проявляются и вместе с ним размываются стеклом.
             PrecipLayer(
                 spec = precip,
