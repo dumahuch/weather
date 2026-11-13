@@ -8,6 +8,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -39,9 +41,9 @@ private const val MIN_COVER = 0.02f
 private val FOG_WHITE = Color(0xFFF1F5F9)
 private const val FOG_TINT = 0.3f
 
-/** Иней: ровный слой полупрозрачный, прожилки плотнее и белее; край растущего инея мягкий (доля [GlassFrost.coverage]). */
-private const val FROST_ALPHA = 0.5f
-private const val FROST_LINE_ALPHA = 0.4f
+/** Иней: матовая плёнка полупрозрачная (гуще у кромки), перья плотнее и белее; край растущего инея мягкий (доля [GlassFrost.coverage]). */
+private const val FROST_ALPHA = 0.45f
+private const val FROST_LINE_ALPHA = 0.38f
 private const val FROST_EDGE = 0.05f
 private val FROST_ICE = Color(0xFFDCE8F4)
 private val FROST_WHITE = Color(0xFFF7FBFF)
@@ -76,8 +78,8 @@ internal fun Modifier.fogWiping(fog: State<Float>?, patch: FogPatch): Modifier =
  * Иней на стекле: растёт от краёв ветками ([FrostPattern]), [frost] доля стекла под ним (0…1). Тёплый палец протапливает
  * след, через несколько секунд он снова замерзает (около минуты). С [patch] касания ловит [frostWiping] на внешней коробке.
  */
-internal fun Modifier.glassFrost(frost: State<Float>?, tint: Color, patch: FogPatch? = null): Modifier =
-    if (frost == null) this else this then GlassFogElement(frost, tint, patch, draws = true, frosty = true)
+internal fun Modifier.glassFrost(frost: State<Float>?, tint: Color, shape: Shape, patch: FogPatch? = null): Modifier =
+    if (frost == null) this else this then GlassFogElement(frost, tint, patch, draws = true, frosty = true, shape = shape)
 
 /** Только ловит палец для инея, который рисует [glassFrost] с тем же [patch]. */
 internal fun Modifier.frostWiping(frost: State<Float>?, patch: FogPatch): Modifier =
@@ -89,18 +91,20 @@ private class GlassFogElement(
     val patch: FogPatch?,
     val draws: Boolean,
     val frosty: Boolean = false,
+    /** Форма стекла: иней идёт от её кромки (у круглой кнопки кольцом). */
+    val shape: Shape? = null,
 ) : ModifierNodeElement<GlassFogNode>() {
-    override fun create() = GlassFogNode(fog, tint, patch ?: FogPatch(), draws, listens = patch == null || !draws, frosty)
+    override fun create() = GlassFogNode(fog, tint, patch ?: FogPatch(), draws, listens = patch == null || !draws, frosty, shape)
 
     override fun update(node: GlassFogNode) = node.update(fog, tint)
 
     override fun equals(other: Any?): Boolean =
         other is GlassFogElement && other.fog === fog && other.tint == tint && other.patch === patch && other.draws == draws &&
-            other.frosty == frosty
+            other.frosty == frosty && other.shape == shape
 
     override fun hashCode(): Int =
-        (((System.identityHashCode(fog) * 31 + tint.hashCode()) * 31 + System.identityHashCode(patch)) * 31 + draws.hashCode()) * 31 +
-            frosty.hashCode()
+        ((((System.identityHashCode(fog) * 31 + tint.hashCode()) * 31 + System.identityHashCode(patch)) * 31 + draws.hashCode()) * 31 +
+            frosty.hashCode()) * 31 + shape.hashCode()
 
     override fun InspectorInfo.inspectableProperties() {
         name = if (frosty) "glassFrost" else "glassFog"
@@ -114,6 +118,7 @@ private class GlassFogNode(
     private val draws: Boolean,
     private val listens: Boolean,
     private val frosty: Boolean,
+    private val shape: Shape?,
 ) : Modifier.Node(), DrawModifierNode, PointerInputModifierNode {
 
     /** Узор инея для текущего размера стекла (только у инея). */
@@ -174,7 +179,7 @@ private class GlassFogNode(
     override fun ContentDrawScope.draw() {
         val cover = fog.value
         if (draws && cover >= MIN_COVER && size.width >= 1f && size.height >= 1f) {
-            val glass = glassFor(size.width / density, size.height / density)
+            val glass = glassFor(size.width / density, size.height / density, cornerRadiusDp())
             if (dirty || cover != drawnCover) render(glass, cover)
             val made = bitmap
             if (made != null) {
@@ -187,16 +192,29 @@ private class GlassFogNode(
     }
 
     /** Стекло этого размера; новое (сухое от пальца) при заметной смене размера. */
-    private fun glassFor(widthDp: Float, heightDp: Float): FogWipe {
+    /** Скругление верхнего левого угла формы в dp (0 у прямоугольной или неизвестной формы). */
+    private fun ContentDrawScope.cornerRadiusDp(): Double = when (val outline = shape?.createOutline(size, layoutDirection, this)) {
+        is Outline.Rounded -> outline.roundRect.topLeftCornerRadius.x / density.toDouble()
+        else -> 0.0
+    }
+
+    private fun glassFor(widthDp: Float, heightDp: Float, radiusDp: Double): FogWipe {
         val current = patch.wipe?.takeIf { abs(it.widthDp - widthDp) < 1 && abs(it.heightDp - heightDp) < 1 }
         if (current != null && bitmap != null) return current
         val fresh = current ?: if (frosty) {
-            FogWipe(widthDp.toDouble(), heightDp.toDouble(), GlassFrost.MELT_HOLD_SECONDS, GlassFrost.REFREEZE_SECONDS)
+            FogWipe(
+                widthDp.toDouble(),
+                heightDp.toDouble(),
+                GlassFrost.MELT_HOLD_SECONDS,
+                GlassFrost.REFREEZE_SECONDS,
+                GlassFrost.CELL_DP,
+                GlassFrost.MAX_CELLS,
+            )
         } else {
             FogWipe(widthDp.toDouble(), heightDp.toDouble())
         }
         patch.wipe = fresh
-        if (frosty) pattern = FrostPattern(fresh.cols, fresh.rows, fresh.cell, (fresh.cols * 7919L) xor fresh.rows.toLong())
+        if (frosty) pattern = FrostPattern(fresh.cols, fresh.rows, fresh.cell, radiusDp, (fresh.cols * 7919L) xor fresh.rows.toLong())
         val count = fresh.cols * fresh.rows
         pixels = IntArray(count)
         bitmap = Bitmap.createBitmap(fresh.cols, fresh.rows, Bitmap.Config.ARGB_8888)
@@ -230,13 +248,20 @@ private class GlassFogNode(
      * ветки белее и плотнее. Цвет ледяной голубоватый с долей цвета стекла.
      */
     private fun renderFrost(glass: FogWipe, frost: FrostPattern, level: Float) {
-        val ice = lerp(FROST_ICE, (if (tint.isSpecified) tint else FROST_ICE).copy(alpha = 1f), FROST_TINT).toArgb() and 0x00FFFFFF
-        val white = FROST_WHITE.toArgb() and 0x00FFFFFF
+        val ice = lerp(FROST_ICE, (if (tint.isSpecified) tint else FROST_ICE).copy(alpha = 1f), FROST_TINT)
+        val white = FROST_WHITE
         for (i in pixels.indices) {
             val grown = ((level - frost.threshold[i]) / FROST_EDGE).coerceIn(0f, 1f)
+            if (grown <= 0f) {
+                pixels[i] = 0
+                continue
+            }
             val line = frost.crystal[i]
-            val alpha = (grown * (FROST_ALPHA + FROST_LINE_ALPHA * line) * glass.cover(i)).coerceIn(0f, 1f)
-            pixels[i] = ((alpha * 255).roundToInt() shl 24) or (if (line > 0f) white else ice)
+            val alpha = (grown * (FROST_ALPHA * frost.matte[i] + FROST_LINE_ALPHA * line) * glass.cover(i)).coerceIn(0f, 1f)
+            val r = (ice.red + (white.red - ice.red) * line) * 255
+            val g = (ice.green + (white.green - ice.green) * line) * 255
+            val b = (ice.blue + (white.blue - ice.blue) * line) * 255
+            pixels[i] = ((alpha * 255).roundToInt() shl 24) or (r.roundToInt() shl 16) or (g.roundToInt() shl 8) or b.roundToInt()
         }
         bitmap?.setPixels(pixels, 0, glass.cols, 0, 0, glass.cols, glass.rows)
         drawnCover = level
