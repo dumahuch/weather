@@ -201,13 +201,29 @@ private class GlassDropsNode(private var rain: RainOnGlass) : Modifier.Node(), D
             val x = bead.x.toFloat()
             val y = bead.y.toFloat()
             val r = bead.r.toFloat()
-            if (bead.r < SMALL_RADIUS) {
+            val squash = bead.squash.toFloat()
+            if (bead.pooled) {
+                // Вода у нижней кромки: низкий длинный валик, после слияния на миг выпячивается вверх.
+                val ry = glass.halfHeight(bead).toFloat() * (1f + SQUASH_TALL * squash)
+                val heavy = (ry / GlassRain.POOL_HEIGHT_LIMIT.toFloat()).coerceIn(0f, 1f)
+                lensDrop(canvas, x, y, glass.halfWidth(bead).toFloat(), ry, 0f, heavy, 0f, px, sky)
+            } else if (bead.r < SMALL_RADIUS) {
                 canvas.drawCircle(x + 0.3f, y + 0.5f, r * 0.9f, smallShadow)
                 canvas.drawCircle(x - 0.3f, y - 0.4f, r * 0.38f, smallLight)
             } else {
-                // Чем крупнее капля, тем сильнее она оседает: снизу тяжёлая и круглая, сверху уже, чуть вытянута вниз.
+                // Чем крупнее капля, тем сильнее она оседает: снизу тяжёлая и круглая, сверху уже. У каждой своя форма
+                // (хвост, растяжение вширь, наклон); после слияния на миг сплющена вдоль линии слияния.
                 val heavy = ((bead.r - SMALL_RADIUS) / SAG_SPAN).toFloat().coerceIn(0f, 1f)
-                lensDrop(canvas, x, y, r * 0.95f, r * (1.05f + 0.15f * heavy), BEAD_TAIL + BEAD_TAIL_SAG * heavy, heavy, px, sky)
+                var rx = r * 0.95f * bead.wide.toFloat()
+                var ry = r * (1.05f + 0.15f * heavy)
+                if (bead.squashSideways) {
+                    rx *= 1f + SQUASH_WIDE * squash
+                    ry *= 1f - SQUASH_LOW * squash
+                } else {
+                    ry *= 1f + SQUASH_TALL * squash
+                    rx *= 1f - SQUASH_LOW * squash
+                }
+                lensDrop(canvas, x, y, rx, ry, (BEAD_TAIL + BEAD_TAIL_SAG * heavy) * bead.form.toFloat(), heavy, bead.tilt.toFloat(), px, sky)
             }
         }
         for (runner in glass.runners) {
@@ -215,20 +231,21 @@ private class GlassDropsNode(private var rain: RainOnGlass) : Modifier.Node(), D
             val r = runner.r.toFloat()
             val stretch = glass.stretch(runner).toFloat()
             val ry = r * (RUNNER_LENGTH + RUNNER_LENGTH_GAIN * stretch)
-            lensDrop(canvas, runner.x.toFloat(), runner.y.toFloat() + r * HEAD_FORWARD, r * 0.92f, ry, RUNNER_TAIL + RUNNER_TAIL_GAIN * stretch, 1f, px, sky)
+            lensDrop(canvas, runner.x.toFloat(), runner.y.toFloat() + r * HEAD_FORWARD, r * 0.92f, ry, RUNNER_TAIL + RUNNER_TAIL_GAIN * stretch, 1f, 0f, px, sky)
         }
         canvas.restore()
     }
 
     /**
-     * Капля-линза: центр ([x], [y]), полуоси [rx] и [ry] (dp) и хвост [tail] (0 круг, больше вытянутее кверху, см.
-     * [DropOutline]). В ней перевёрнутое небо из круга в [LENS_WIDTH] раз шире, сверху светлее, снизу тёмная кромка
+     * Капля-линза: центр ([x], [y]), полуоси [rx] и [ry] (dp), хвост [tail] (0 круг, больше вытянутее кверху, см.
+     * [DropOutline]) и наклон [tilt] (градусы). В ней перевёрнутое небо из круга в [LENS_WIDTH] раз шире, сверху светлее, снизу тёмная кромка
      * (у тяжёлой капли [heavy] гуще), в верхней части блик.
      */
-    private fun lensDrop(canvas: Canvas, x: Float, y: Float, rx: Float, ry: Float, tail: Float, heavy: Float, px: Float, sky: LensSky?) {
+    private fun lensDrop(canvas: Canvas, x: Float, y: Float, rx: Float, ry: Float, tail: Float, heavy: Float, tilt: Float, px: Float, sky: LensSky?) {
         val level = (tail * TAIL_STEPS).roundToInt().coerceIn(0, MAX_TAIL_LEVEL)
         val shape = shapes[level] ?: DropShape(DropOutline.points(level / TAIL_STEPS.toDouble())).also { shapes[level] = it }
         shapeMatrix.setScale(rx, ry)
+        shapeMatrix.postRotate(tilt)
         shapeMatrix.postTranslate(x, y)
         shape.body.transform(shapeMatrix, body)
         shape.bottom.transform(shapeMatrix, rimBottom)
@@ -253,11 +270,13 @@ private class GlassDropsNode(private var rain: RainOnGlass) : Modifier.Node(), D
         canvas.drawPath(rimBottom, rimDark)
         canvas.drawPath(rimTop, rimLight)
         if (rx > 2f) {
+            // У длинного валика блик не уезжает к краю: ширина блика считается от высоты.
+            val hw = min(rx, ry * 1.6f)
             val lift = min(level / TAIL_STEPS, 1.4f) / 1.4f
             canvas.save()
-            canvas.translate(x - rx * 0.35f, y + ry * (HIGHLIGHT_Y + HIGHLIGHT_Y_TAIL * lift))
+            canvas.translate(x - hw * 0.35f, y + ry * (HIGHLIGHT_Y + HIGHLIGHT_Y_TAIL * lift))
             canvas.rotate(HIGHLIGHT_TURN)
-            oval.set(-rx * 0.22f, -ry * 0.15f, rx * 0.22f, ry * 0.15f)
+            oval.set(-hw * 0.22f, -ry * 0.15f, hw * 0.22f, ry * 0.15f)
             canvas.drawOval(oval, highlight)
             canvas.restore()
         }
@@ -314,6 +333,11 @@ private const val MAX_TAIL_LEVEL = 16
 private const val SAG_SPAN = 2.6
 private const val BEAD_TAIL = 0.15f
 private const val BEAD_TAIL_SAG = 0.5f
+
+/** После слияния капля на миг сплющена: растёт вдоль линии слияния (вширь или вверх) и убавляет поперёк. */
+private const val SQUASH_WIDE = 0.35f
+private const val SQUASH_TALL = 0.3f
+private const val SQUASH_LOW = 0.15f
 
 /** Стекающая капля: длина в радиусах (стоит и на разгоне), хвост, и насколько голова выдвинута вперёд от центра в радиусах. */
 private const val RUNNER_LENGTH = 1.3f

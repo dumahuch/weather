@@ -14,15 +14,27 @@ import java.util.Random
  * Капли дождя на стекле одной карточки размером [widthDp] × [heightDp] (всё в dp, время в секундах). Перенос прототипа
  * 13.11.2026: капли садятся на стекло и медленно растут; созревшие срываются и стекают рывками, оставляя мокрый след и
  * мелкие капли, по пути вбирают встречные. Стекло вертикальное, поэтому вода собирается внизу: у кромки капли не
- * обрезаны, дошедшая до низа вода уходит на карточку ниже ([spill], см. [GlassStack]) или копится у кромки каплей,
- * которая, потяжелев, отрывается. Состояние меняется только в [step]; рисует его
+ * обрезаны, касающиеся капли сливаются, дошедшая до низа вода уходит на карточку ниже ([spill], см. [GlassStack])
+ * или растекается у кромки валиком, который, потяжелев, отрывается каплей. Маленькое плоское стекло (кнопка, плашка,
+ * [compact]) живёт проще: стекающих капель и траекторий нет, капли собираются, сливаются и крупные падают вниз. Состояние меняется только в [step]; рисует его
  * [io.github.dumahuch.pogodaapp.ui.components.glassDrops].
  */
 internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, cornerDp: Double = CORNER_DP) {
 
-    /** Неподвижная капля: центр и радиус. [pooled] капля собралась у нижней кромки из стёкшей воды. */
+    /**
+     * Неподвижная капля: центр и радиус. [pooled] вода у нижней кромки: растекается валиком вдоль неё, [span] его
+     * половина длины, сливающиеся валики складываются в один длинный (см. [halfWidth], [halfHeight]).
+     * У каждой капли своя форма: [form] длина хвоста (множитель), [wide] растяжение вширь, [tilt] наклон в градусах;
+     * после слияния [squash] (1 → 0) сплющивает её вдоль линии слияния ([squashSideways] вширь, иначе вверх).
+     */
     class Bead(var x: Double, var y: Double, var r: Double) {
         var pooled = false
+        var span = 0.0
+        var form = 1.0
+        var wide = 1.0
+        var tilt = 0.0
+        var squash = 0.0
+        var squashSideways = true
     }
 
     /**
@@ -50,14 +62,18 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
 
     /** Радиус скругления углов: у плашек и пилюль не больше половины меньшей стороны. */
     private val corner = min(cornerDp, min(widthDp, heightDp) / 2)
+
+    /** Маленькое плоское стекло: меньше капель, без стекающих; капли собираются и крупные падают прямо вниз. */
+    val compact = heightDp <= COMPACT_HEIGHT_DP
     val beads = ArrayList<Bead>()
     val runners = ArrayList<Runner>()
     val trails = ArrayList<Trail>()
     private val incoming = ArrayList<Incoming>()
-    private val dripped = ArrayList<Runner>()
+    private val queued = ArrayList<Runner>()
     private var spawnDebt = 0.0
     private var feedDebt = 0.0
     private var runnerClock = 0.0
+    private var coalesceClock = 0.0
 
     /**
      * Куда уходит вода, дошедшая до нижней кромки: точка [x] кромки и радиус капли; true, если воду принимает карточка
@@ -66,7 +82,20 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
     var spill: ((x: Double, r: Double) -> Boolean)? = null
 
     /** Сколько капель может держать стекло при силе [strength]: на площадь карточки и меньше при слабом дожде. */
-    fun capacity(strength: Double): Int = (MAX_BEADS * area * (MIN_SHARE + (1 - MIN_SHARE) * strength.coerceIn(0.0, 1.0))).toInt()
+    fun capacity(strength: Double): Int =
+        (MAX_BEADS * area * (if (compact) COMPACT_SHARE else 1.0) * (MIN_SHARE + (1 - MIN_SHARE) * strength.coerceIn(0.0, 1.0))).toInt()
+
+    /** Половина ширины капли; у воды у кромки половина длины валика, он шире капли такого объёма. */
+    fun halfWidth(bead: Bead): Double = if (bead.pooled) bead.span else bead.r
+
+    /** Половина длины нового валика объёма капли радиуса [r]: он растекается в [POOL_WIDE_START] радиуса. */
+    private fun poolSpan(r: Double): Double = r * POOL_WIDE_START
+
+    /**
+     * Половина высоты воды у кромки: объём делится на длину, поэтому длинный валик низкий, а короткий с тем же объёмом
+     * набухает до круглой капли. Когда высота дошла до [POOL_HEIGHT_LIMIT], валик роняет каплю.
+     */
+    fun halfHeight(bead: Bead): Double = if (bead.pooled) sqrt(bead.r.pow(3) / max(bead.span, MIN_POOL_RADIUS)) else bead.r
 
     /** Вода с карточки выше: капля радиуса [r] упадёт на верхнюю кромку в точке [x] через [delay] секунд. */
     fun receive(x: Double, r: Double, delay: Double) {
@@ -96,12 +125,13 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
         feedFromEdge(d, s)
         land(d)
         for (b in beads) if (b.r < GROW_LIMIT && !b.pooled && fits(b.x, b.y, b.r + GROW_RATE * d)) b.r += GROW_RATE * d
+        coalesce(d)
         release(d)
         val flowing = runners.iterator()
         while (flowing.hasNext()) if (move(flowing.next(), d)) flowing.remove()
-        if (dripped.isNotEmpty()) {
-            runners += dripped
-            dripped.clear()
+        if (queued.isNotEmpty()) {
+            runners += queued
+            queued.clear()
         }
         runners.removeAll { it.y > heightDp + it.r * 3 }
         for (t in trails) t.age += d
@@ -130,6 +160,30 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
         return if (side * 2 >= widthDp) widthDp / 2 else x.coerceIn(side, widthDp - side)
     }
 
+    private fun newBead(x: Double, y: Double, r: Double) = Bead(x, y, r).also {
+        it.form = FORM_MIN + (FORM_MAX - FORM_MIN) * random.nextDouble()
+        it.wide = WIDE_MIN + (WIDE_MAX - WIDE_MIN) * random.nextDouble()
+        it.tilt = (random.nextDouble() - 0.5) * 2 * MAX_TILT
+    }
+
+    /** Вода у нижней кромки в точке [x], объёмом капли радиуса [r]: новый валик на высоте кромки. */
+    private fun pooledBead(x: Double, r: Double): Bead {
+        val bead = newBead(x, heightDp, r).also {
+            it.pooled = true
+            it.tilt = 0.0
+            it.span = poolSpan(r)
+        }
+        placeOnEdge(bead)
+        return bead
+    }
+
+    /** Ставит валик на нижнюю кромку, не ближе к углам, чем его ширина; у узкого стекла на середину. */
+    private fun placeOnEdge(bead: Bead) {
+        val limit = max(halfWidth(bead), corner)
+        bead.x = if (limit * 2 >= widthDp) widthDp / 2 else bead.x.coerceIn(limit, widthDp - limit)
+        bead.y = heightDp - halfHeight(bead) * POOL_SIT
+    }
+
     private fun spawn(d: Double, s: Double) {
         spawnDebt += d * SPAWN_PER_SECOND * area * (MIN_SHARE + (1 - MIN_SHARE) * s)
         val cap = capacity(s)
@@ -138,11 +192,111 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
             if (beads.size < cap) {
                 val r = 1.0 + 2.6 * random.nextDouble().pow(2.4)
                 val x = random.nextDouble() * widthDp
-                val y = heightDp * random.nextDouble().pow(1.35)
-                // Капля у самой кромки висела бы обрезанной пополам: такая не садится.
-                if (fits(x, y, r)) beads += Bead(x, y, r)
+                // На маленьком стекле вода собирается внизу.
+                val y = heightDp * random.nextDouble().pow(if (compact) COMPACT_BOTTOM_BIAS else 1.35)
+                if (compact && y > heightDp - r * 2.2 && r > MIN_POOL_RADIUS) {
+                    beads += pooledBead(x, r)
+                } else if (fits(x, y, r)) {
+                    // Капля у самой кромки висела бы обрезанной пополам: такая не садится.
+                    beads += newBead(x, y, r)
+                }
             }
         }
+    }
+
+    /**
+     * Капли, которые касаются друг друга, сливаются в одну (объём складывается, чуть теряясь на стекле); она на миг
+     * сплющивается вдоль линии слияния. Валики у кромки сливаются так же и растут вширь. Слишком тяжёлая капля падает:
+     * на маленьком стекле прямо вниз, на большом стекает, а валик у кромки отрывается.
+     */
+    private fun coalesce(d: Double) {
+        coalesceClock += d
+        if (coalesceClock < COALESCE_SECONDS) return
+        val elapsed = coalesceClock
+        coalesceClock = 0.0
+        for (b in beads) if (b.squash > 0) b.squash = max(0.0, b.squash - elapsed / SQUASH_SECONDS)
+        var i = 0
+        while (i < beads.size) {
+            val a = beads[i]
+            var j = i + 1
+            while (j < beads.size) {
+                if (touches(a, beads[j])) {
+                    merge(a, beads[j])
+                    beads.removeAt(j)
+                } else {
+                    j++
+                }
+            }
+            if (isTooHeavy(a) && !fall(a)) {
+                beads.removeAt(i)
+            } else {
+                i++
+            }
+        }
+    }
+
+    private fun touches(a: Bead, b: Bead): Boolean {
+        val reach = (halfWidth(a) + halfWidth(b)) * (if (a.pooled && b.pooled) POOL_TOUCH else TOUCH)
+        val dx = a.x - b.x
+        if (abs(dx) > reach) return false
+        val dy = a.y - b.y
+        return dx * dx + dy * dy < reach * reach
+    }
+
+    private fun merge(a: Bead, b: Bead) {
+        val va = a.r.pow(3)
+        val vb = b.r.pow(3)
+        a.squashSideways = abs(b.x - a.x) >= abs(b.y - a.y)
+        // Валик после слияния покрывает обоих (крайние точки), капля встаёт в центр тяжести.
+        val left = min(a.x - halfWidth(a), b.x - halfWidth(b))
+        val right = max(a.x + halfWidth(a), b.x + halfWidth(b))
+        val pooled = a.pooled || b.pooled
+        a.x = (a.x * va + b.x * vb) / (va + vb)
+        a.y = (a.y * va + b.y * vb) / (va + vb)
+        a.r = cbrt(va + MERGE_KEEP * vb)
+        a.squash = 1.0
+        a.pooled = pooled
+        if (pooled) {
+            a.x = (left + right) / 2
+            a.span = max((right - left) / 2, poolSpan(a.r))
+            placeOnEdge(a)
+        } else if (!fits(a.x, a.y, a.r)) {
+            a.y = if (heightDp > 2 * a.r) a.y.coerceIn(a.r, heightDp - a.r) else heightDp / 2
+            a.x = keepInsideSides(a.x, a.y, a.r)
+        }
+    }
+
+    private fun isTooHeavy(bead: Bead) = if (bead.pooled) halfHeight(bead) >= POOL_HEIGHT_LIMIT else bead.r >= MERGE_LIMIT
+
+    /**
+     * Тяжёлая капля срывается. Валик у кромки роняет каплю из случайной точки своей длины и худеет (остаётся, пока в нём
+     * есть вода); капля на маленьком стекле падает прямо вниз целиком; на большом стекле стекающая бежит рывками.
+     * Возвращает, осталась ли на месте вода (валик).
+     */
+    private fun fall(bead: Bead): Boolean {
+        if (bead.pooled) {
+            val drop = Runner(bead.x + (random.nextDouble() - 0.5) * bead.span * 0.8, bead.y, DRIP_DROP_RADIUS, 1.0, 0.0)
+            drop.dripping = true
+            drop.v = DRIP_START_SPEED
+            queued += drop
+            val rest = bead.r.pow(3) - DRIP_DROP_RADIUS.pow(3)
+            if (rest < MIN_POOL_RADIUS.pow(3)) return false
+            bead.r = cbrt(rest)
+            bead.span = max(bead.span * POOL_SHRINK, bead.r * POOL_MIN_WIDE)
+            bead.squash = 1.0
+            bead.squashSideways = false
+            placeOnEdge(bead)
+            return true
+        }
+        val runner = Runner(bead.x, bead.y, bead.r, 1.0, random.nextDouble() * 6.28)
+        if (compact) {
+            runner.dripping = true
+            runner.v = DRIP_START_SPEED
+        } else {
+            runner.timer = 0.3 + random.nextDouble() * 0.5
+        }
+        queued += runner
+        return false
     }
 
     /**
@@ -150,6 +304,7 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
      * стекающие капли, чаще при сильном дожде и у широкого стекла. Им оставлен запас сверх обычного числа стекающих.
      */
     private fun feedFromEdge(d: Double, s: Double) {
+        if (compact) return
         feedDebt += d * EDGE_FEED_PER_100DP * widthDp / 100.0 * (MIN_SHARE + (1 - MIN_SHARE) * s)
         val limit = max(1, (MAX_RUNNERS * area).toInt()) + EDGE_RUNNERS_EXTRA
         while (feedDebt >= 1) {
@@ -169,6 +324,12 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
             drop.delay -= d
             if (drop.delay > 0) continue
             waiting.remove()
+            if (compact) {
+                // На маленьком стекле упавшая вода остаётся у верхней кромки каплей.
+                val r = drop.r * COMPACT_LANDING_SHARE
+                if (fits(drop.x, r + 0.5, r)) beads += newBead(drop.x, r + 0.5, r)
+                continue
+            }
             runners += runner(drop.x, 1.0, drop.r).also {
                 it.v = RUN_SPEED
                 it.timer = 0.5 + random.nextDouble() * 0.5
@@ -181,7 +342,7 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
         runnerClock += d
         if (runnerClock < RELEASE_SECONDS) return
         runnerClock = 0.0
-        if (runners.size >= max(1, (MAX_RUNNERS * area).toInt())) return
+        if (compact || runners.size >= max(1, (MAX_RUNNERS * area).toInt())) return
         val ripe = beads.filter { it.r > RIPE_RADIUS && it.y < heightDp * 0.8 && !it.pooled }
         if (ripe.isNotEmpty() && random.nextDouble() < 0.7) {
             val b = ripe[random.nextInt(ripe.size)]
@@ -225,7 +386,7 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
                 val x = runner.x + (random.nextDouble() - 0.5) * runner.r * 0.8
                 val y = runner.y - runner.r
                 val r = 0.8 + random.nextDouble() * 0.9
-                if (fits(x, y, r)) beads += Bead(x, y, r)
+                if (fits(x, y, r)) beads += newBead(x, y, r)
             }
             runner.r = max(MIN_RUNNER_RADIUS, runner.r - SHED_PER_DP * dy)
         }
@@ -248,44 +409,41 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
         return false
     }
 
-    /** Капля дошла до нижней кромки: вода уходит на карточку ниже, а если её нет, собирается у кромки. */
+    /** Капля дошла до нижней кромки: вода уходит на карточку ниже, а если её нет, растекается валиком у кромки. */
     private fun reachBottom(runner: Runner) {
         if (spill?.invoke(runner.x, runner.r) == true) return
-        val pool = beads.firstOrNull { it.pooled && abs(it.x - runner.x) < it.r + runner.r }
+        val pool = beads.firstOrNull { it.pooled && abs(it.x - runner.x) < halfWidth(it) + runner.r * 0.7 }
         if (pool == null) {
-            val r = (runner.r * POOL_START_SHARE).coerceIn(MIN_POOL_RADIUS, POOL_LIMIT * 0.9)
-            beads += Bead(keepInsideSides(runner.x, heightDp - r, r), heightDp - r, r).also { it.pooled = true }
+            val r = (runner.r * POOL_START_SHARE).coerceIn(MIN_POOL_RADIUS, POOL_START_MAX)
+            beads += pooledBead(runner.x, r)
             return
         }
         pool.r = cbrt(pool.r.pow(3) + 0.7 * runner.r.pow(3))
-        pool.y = heightDp - pool.r
-        if (pool.r >= POOL_LIMIT) {
-            // Капля у кромки стала слишком тяжёлой и отрывается.
-            beads.remove(pool)
-            dripped += Runner(pool.x, pool.y, pool.r, 1.0, 0.0).also {
-                it.dripping = true
-                it.v = DRIP_START_SPEED
-            }
-        }
+        pool.span = max(pool.span, poolSpan(pool.r)) + runner.r * POOL_FEED_WIDENING
+        pool.squash = 1.0
+        pool.squashSideways = true
+        placeOnEdge(pool)
+        // Валик у кромки набух и роняет каплю.
+        if (isTooHeavy(pool) && !fall(pool)) beads.remove(pool)
     }
 
     companion object {
         /** Карточка образца 350 × 250 dp: на ней до 430 капель и до 9 стекающих, садится 34 капли в секунду. */
         private const val REF_AREA = 350.0 * 250.0
-        const val MAX_BEADS = 430
+        const val MAX_BEADS = 260
 
         /** Карточка больше полутора образцов держит капель как полтора образца: число капель на кадр ограничено. */
         private const val MAX_AREA = 1.5
-        private const val MAX_RUNNERS = 9
+        private const val MAX_RUNNERS = 6
 
         /** Радиус скругления углов карточек (у них 20–26 dp), по которому капли держатся подальше от угла. */
         private const val CORNER_DP = 22.0
 
         /** Стекающих капель с кромки в секунду на 100 dp ширины при сильном дожде, запас сверх обычного числа и отступ от углов (dp). */
-        private const val EDGE_FEED_PER_100DP = 0.28
+        private const val EDGE_FEED_PER_100DP = 0.2
         private const val EDGE_RUNNERS_EXTRA = 2
         private const val EDGE_MARGIN = 10.0
-        private const val SPAWN_PER_SECOND = 34.0
+        private const val SPAWN_PER_SECOND = 22.0
 
         /** При самом слабом дожде капель и прилёта меньше в такой доле. */
         private const val MIN_SHARE = 0.35
@@ -307,7 +465,39 @@ internal class GlassRain(val widthDp: Double, val heightDp: Double, seed: Long, 
         /** Вода у нижней кромки: радиус первой капли в доле стёкшей, наименьший радиус и радиус, при котором капля отрывается. */
         private const val POOL_START_SHARE = 0.85
         private const val MIN_POOL_RADIUS = 1.6
-        const val POOL_LIMIT = 4.6
+        private const val POOL_START_MAX = 4.0
+        const val POOL_HEIGHT_LIMIT = 4.4
+
+        /** Валик у кромки: длина в радиусах у новой воды, наименьшая длина в радиусах после отрыва и посадка центра (доля высоты над кромкой). */
+        private const val POOL_WIDE_START = 2.3
+        private const val POOL_MIN_WIDE = 1.5
+        const val POOL_SIT = 0.9
+
+        /** Валики у кромки сливаются уже у самого касания (немного раньше, чем обычные капли), стёкшая капля удлиняет валик; радиус оторвавшейся капли и во сколько раз валик после отрыва короче. */
+        private const val POOL_TOUCH = 1.05
+        private const val POOL_FEED_WIDENING = 0.4
+        private const val DRIP_DROP_RADIUS = 3.4
+        private const val POOL_SHRINK = 0.9
+
+        /** Стекло не выше этого (dp) считается маленьким плоским: кнопки, плашки; капель там в этой доле и они собираются внизу. */
+        private const val COMPACT_HEIGHT_DP = 80.0
+        private const val COMPACT_SHARE = 0.6
+        private const val COMPACT_BOTTOM_BIAS = 0.6
+        private const val COMPACT_LANDING_SHARE = 0.8
+
+        /** Слияние: проверка раз в 0,15 с; капли сливаются, когда расстояние меньше суммы радиусов в этой доле; потеря объёма; радиус, с которого капля срывается; сплющивание после слияния длится столько секунд. */
+        private const val COALESCE_SECONDS = 0.15
+        private const val TOUCH = 0.9
+        private const val MERGE_KEEP = 0.95
+        private const val MERGE_LIMIT = 5.0
+        private const val SQUASH_SECONDS = 0.7
+
+        /** Форма неподвижной капли: множитель хвоста, растяжение вширь и наибольший наклон (градусы) у каждой свои. */
+        private const val FORM_MIN = 0.2
+        private const val FORM_MAX = 1.5
+        private const val WIDE_MIN = 0.9
+        private const val WIDE_MAX = 1.3
+        private const val MAX_TILT = 14.0
 
         /** Оторвавшаяся капля падает с этой скоростью, разгоняясь до [DRIP_SPEED] (dp/с и dp/с²). */
         private const val DRIP_START_SPEED = 10.0
