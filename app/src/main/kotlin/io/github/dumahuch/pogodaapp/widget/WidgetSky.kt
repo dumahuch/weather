@@ -19,6 +19,7 @@ import android.util.Log
 import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
+import io.github.dumahuch.pogodaapp.sky.Placement
 import io.github.dumahuch.pogodaapp.sky.Rgb
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
 import io.github.dumahuch.pogodaapp.sky.SkyLook
@@ -40,22 +41,13 @@ import kotlin.math.roundToInt
  * отмечены неподвижными штрихами и точками.
  * Окно виджета берёт из картины пояс гряд ([DiArt.placeWidget]); солнце и луна, что лежат выше окна, прижаты к его верхнему краю.
  */
-internal class WidgetSky(private val context: Context) {
+internal class WidgetSky(private val context: Context, private val screen: Boolean = false) {
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     /** Рисует небо на весь холст [w]×[h] (единицы макета); [unit] сколько пикселей холста в одной единице (от него зависит, как сильно уменьшать картинки). */
     fun draw(canvas: Canvas, w: Float, h: Float, unit: Float, model: WidgetModel) {
-        val latitude = model.latitude
-        val sun = SunPosition.at(latitude, model.longitude, model.now)
-        val state = SkyState.of(
-            sun,
-            model.condition,
-            model.hourPrecipitationMm,
-            model.cloudCoverPercent,
-            Celestial.moonSky(latitude, model.longitude, model.now),
-            SunPosition.atSolarHour(latitude, model.now, 12.0).elevation,
-        )
+        val state = widgetSkyState(model)
         val look = state.look(SkyDrift.position(state.pan, SkyDrift.START_PHASE))
         val scenes = look.weights.visible()
         if (scenes.isEmpty()) return
@@ -82,13 +74,17 @@ internal class WidgetSky(private val context: Context) {
             drawTone(canvas, look, bounds, PorterDuff.Mode.SRC_ATOP)
             canvas.restore()
         }
-        drawPrecipitation(canvas, w, h, model)
+        if (!screen) drawPrecipitation(canvas, w, h, model)
     }
+
+    /** Окно виджета смотрит на пояс гряд; снимок для экрана ([screen]) кладёт картину так же, как главный экран. */
+    private fun placeOf(layer: DiArt.Layer, w: Float, h: Float, pan: Double): Placement =
+        if (screen) DiArt.place(layer, w.toDouble(), h.toDouble(), pan, 0.0) else DiArt.placeWidget(layer, w.toDouble(), h.toDouble(), pan)
 
     /** Слои [layers] каждого времени суток из [scenes], смешанные каскадом (вес / сумма весов до него), как на экране. */
     private fun drawLayers(canvas: Canvas, look: SkyLook, scenes: List<SkyScene>, layers: List<DiArt.Layer>, w: Float, h: Float, unit: Float, pan: Double) {
         for (layer in layers) {
-            val place = DiArt.placeWidget(layer, w.toDouble(), h.toDouble(), pan)
+            val place = placeOf(layer, w, h, pan)
             var sum = 0.0
             for (scene in scenes) {
                 val weight = look.weights[scene]
@@ -148,7 +144,7 @@ internal class WidgetSky(private val context: Context) {
         if (look.bodies.isEmpty()) return
         val ref = min(w, h).toDouble()
         val referenceScale = DiArt.place(DiArt.Layer.Sky, ref, h.toDouble(), 0.5, 0.0).scale
-        val place = DiArt.placeWidget(DiArt.Layer.Sky, w.toDouble(), h.toDouble(), 0.5)
+        val place = placeOf(DiArt.Layer.Sky, w, h, 0.5)
         for (disc in Celestial.discs(look.bodies, ref, h.toDouble())) {
             val body = disc.body
             val side = disc.imageSize.toFloat()
@@ -328,4 +324,17 @@ internal class WidgetSky(private val context: Context) {
         const val RAIN_SLANT = 8f
         const val REFERENCE = 444f
     }
+}
+
+/** Небо по модели виджета: то же, что строит главный экран по прогнозу (солнце, луна, погода, облачность). */
+internal fun widgetSkyState(model: WidgetModel): SkyState {
+    val latitude = model.latitude
+    return SkyState.of(
+        SunPosition.at(latitude, model.longitude, model.now),
+        model.condition,
+        model.hourPrecipitationMm,
+        model.cloudCoverPercent,
+        Celestial.moonSky(latitude, model.longitude, model.now),
+        SunPosition.atSolarHour(latitude, model.now, 12.0).elevation,
+    )
 }
