@@ -1,12 +1,13 @@
 package io.github.dumahuch.pogodaapp.widget
 
+import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.RangeSpan
 import io.github.dumahuch.pogodaapp.forecast.TemperatureRange
+import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.DayForecast
 import io.github.dumahuch.pogodaapp.weather.Forecast
-import io.github.dumahuch.pogodaapp.weather.HourPoint
 import io.github.dumahuch.pogodaapp.weather.Place
 import java.time.Instant
 import java.time.ZoneId
@@ -26,8 +27,8 @@ data class WidgetModel(
     val windy: Boolean,
     val high: Double,
     val low: Double,
-    /** Часы ленты, первый «сейчас». */
-    val hours: List<HourPoint>,
+    /** Когда осадки сегодня («Осадки днём», «Без осадков»). */
+    val caption: PrecipitationCaption,
     /** Следующие сутки после сегодняшних. */
     val days: List<DayForecast>,
     /** Положение полосок температур дней [days] на общей шкале. */
@@ -36,11 +37,16 @@ data class WidgetModel(
     val humidity: Int?,
     /** Осадки за сегодняшние сутки, мм. */
     val precipitationMm: Double?,
+    /** Для неба «Ди»: где место, какой сейчас час и сколько осадков и облаков в этот час. */
+    val latitude: Double,
+    val longitude: Double,
+    val now: Instant,
+    val hourPrecipitationMm: Double?,
+    val cloudCoverPercent: Double?,
 )
 
 object WidgetModels {
-    /** Сколько часов и дней берётся: самая большая раскладка показывает шесть часов и пять дней. */
-    const val HOURS = 6
+    /** Сколько дней берётся: самая большая раскладка показывает пять. */
     const val DAYS = 5
 
     fun of(place: Place, forecast: Forecast, now: Instant): WidgetModel {
@@ -49,6 +55,7 @@ object WidgetModels {
         val details = forecast.detailsAt(now)
         val todayForecast = forecast.days.firstOrNull { it.date == today }
         val days = forecast.days.filter { it.date.isAfter(today) }.take(DAYS)
+        val hour = forecast.strip(now, 1).firstOrNull()
         return WidgetModel(
             placeName = place.name,
             zone = forecast.zone,
@@ -60,12 +67,17 @@ object WidgetModels {
             windy = isStrongWind(details?.windKmh),
             high = forecast.today.max,
             low = forecast.today.min,
-            hours = forecast.strip(now, HOURS),
+            caption = precipitationCaption(forecast, now),
             days = days,
             ranges = TemperatureRange.layout(days),
             windKmh = details?.windKmh,
             humidity = details?.humidity,
             precipitationMm = todayForecast?.precipitationMm,
+            latitude = place.latitude,
+            longitude = place.longitude,
+            now = now,
+            hourPrecipitationMm = hour?.precipitationMm,
+            cloudCoverPercent = hour?.cloudCover?.toDouble(),
         )
     }
 }

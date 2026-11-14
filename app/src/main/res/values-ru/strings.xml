@@ -364,5 +364,12 @@
     <string name="widget_bg_glass">Стекло</string>
     <string name="widget_bg_none">Без фона</string>
     <string name="widget_opacity">Непрозрачность фона: %1$d %%</string>
+    <string name="widget_bg_sky">Небо</string>
+    <string name="widget_shade">Затемнение: %1$d %%</string>
+    <string name="widget_detail_title">Сведения</string>
+    <string name="widget_detail_minimum">Минимум</string>
+    <string name="widget_detail_normal">Обычно</string>
+    <string name="widget_detail_full">Подробно</string>
+    <string name="widget_icons_none_on_sky">На небе значка нет: погоду показывает само небо.</string>
     <string name="widget_done">Готово</string>
 </resources>

@@ -370,5 +370,12 @@
     <string name="widget_bg_glass">Glass</string>
     <string name="widget_bg_none">No background</string>
     <string name="widget_opacity">Background opacity: %1$d %%</string>
+    <string name="widget_bg_sky">Sky</string>
+    <string name="widget_shade">Shading: %1$d %%</string>
+    <string name="widget_detail_title">Information</string>
+    <string name="widget_detail_minimum">Minimal</string>
+    <string name="widget_detail_normal">Usual</string>
+    <string name="widget_detail_full">Detailed</string>
+    <string name="widget_icons_none_on_sky">On the sky background there is no icon: the sky shows the weather.</string>
     <string name="widget_done">Done</string>
 </resources>

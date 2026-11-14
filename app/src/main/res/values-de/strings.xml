@@ -360,5 +360,12 @@
     <string name="widget_bg_glass">Glas</string>
     <string name="widget_bg_none">Ohne Hintergrund</string>
     <string name="widget_opacity">Hintergrund-Deckkraft: %1$d %%</string>
+    <string name="widget_bg_sky">Himmel</string>
+    <string name="widget_shade">Abdunkelung: %1$d %%</string>
+    <string name="widget_detail_title">Angaben</string>
+    <string name="widget_detail_minimum">Minimal</string>
+    <string name="widget_detail_normal">Normal</string>
+    <string name="widget_detail_full">Ausführlich</string>
+    <string name="widget_icons_none_on_sky">Auf dem Himmel gibt es kein Symbol: Der Himmel zeigt das Wetter.</string>
     <string name="widget_done">Fertig</string>
 </resources>
