@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
@@ -47,6 +48,9 @@ private const val TOP_GAP_DP = 12
  * Manrope переменный, вес любой от 200 до 800.
  */
 private const val DIGITS_WEIGHT = 200
+
+/** Градус чуть бледнее цифр (решение Димы 14.11.2026: «облегчай везде»; в виджете то же, 80 %). */
+private const val DEGREE_ALPHA = 0.8f
 
 /** Наибольший размер цифры (sp): высота блока считается по нему, чтобы строки ниже не прыгали при смене числа. */
 private const val MAX_DIGITS_SP = 124
@@ -100,7 +104,7 @@ fun HeroBlock(
                 style = pogodaText(size = degreeSize, weight = DIGITS_WEIGHT, lineHeight = 0.9f),
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier.clearAndSetSemantics { },
+                modifier = Modifier.alpha(DEGREE_ALPHA).clearAndSetSemantics { },
             )
             if (icon != null) {
                 WeatherGlyph(icon, iconStyle, glyphSize, night, Modifier.clearAndSetSemantics { })

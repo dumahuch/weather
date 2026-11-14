@@ -83,6 +83,23 @@ internal object DiArt {
         return Placement(left = -t * room, top = top, scale = scale)
     }
 
+    /** Высота холста, на которую смотрит окно виджета: гряды (их верхушки лежат между 727 и 1359). */
+    private const val WIDGET_FOCUS_Y = 1010.0
+
+    /**
+     * Где лежит слой [layer] в окне виджета [width]×[height]: картина закрывает окно целиком (по ширине или по высоте, что теснее),
+     * по горизонтали окно смотрит на [pan] как у экрана, по вертикали на гряды ([WIDGET_FOCUS_Y]), а не на пустое небо сверху:
+     * у широкого виджета виден только пояс картины. Запаса под прокрутку нет.
+     */
+    fun placeWidget(layer: Layer, width: Double, height: Double, pan: Double): Placement {
+        val scale = max(width / CANVAS_W, height / CANVAS_H)
+        val room = CANVAS_W * scale - width
+        val t = clamp01(0.5 + (pan - 0.5) * (1 + PAN_DEPTH * layer.depth))
+        val windowHeight = height / scale
+        val topPx = (WIDGET_FOCUS_Y - windowHeight / 2).coerceIn(0.0, CANVAS_H - windowHeight)
+        return Placement(left = -t * room, top = -topPx * scale, scale = scale)
+    }
+
     /** Где лежит лист облаков: [position] от 0 (левый край листа у левого края экрана) до 1 (правый у правого). */
     fun placeClouds(width: Double, height: Double, position: Double): Placement {
         val scale = max(CLOUD_HEIGHT * height / SHEET_H, MIN_WIDTH * width / SHEET_W)

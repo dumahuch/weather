@@ -17,9 +17,6 @@ import io.github.dumahuch.pogodaapp.ui.home.weatherGlyphBitmap
 import io.github.dumahuch.pogodaapp.weather.Condition
 import kotlin.math.roundToInt
 
-/** Значки показателей строки внизу виджета. */
-internal enum class MetricIcon { Wind, Humidity, Rain }
-
 /**
  * Кисти и примитивы рисования виджета. Координаты в «единицах макета» ([WidgetLayout.designWidth]): холст уже
  * масштабирован под настоящий размер, [scale] нужен только чтобы значки погоды рисовались картинкой нужной резкости.
@@ -33,7 +30,7 @@ internal class WidgetDrawer(
     private val iconStyle: WeatherIconStyle,
 ) {
     private val face: Typeface = context.resources.getFont(R.font.manrope)
-    private val pens = HashMap<Triple<Float, Int, Int>, TextPaint>()
+    private val pens = HashMap<PenKey, TextPaint>()
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -42,14 +39,16 @@ internal class WidgetDrawer(
     }
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    /** Кисть текста: размер в единицах макета, вес шрифта 200…700, прозрачность 0…1. Кисти запоминаются. */
-    fun pen(size: Float, weight: Int = 400, alpha: Float = 1f): TextPaint =
-        pens.getOrPut(Triple(size, weight, (alpha * 100).roundToInt())) {
+    private data class PenKey(val size: Float, val weight: Int, val alpha: Int, val rgb: Int)
+
+    /** Кисть текста: размер в единицах макета, вес шрифта 200…700, прозрачность 0…1, цвет (по умолчанию белый). Кисти запоминаются. */
+    fun pen(size: Float, weight: Int = 400, alpha: Float = 1f, rgb: Int = Color.WHITE): TextPaint =
+        pens.getOrPut(PenKey(size, weight, (alpha * 100).roundToInt(), rgb and 0xFFFFFF)) {
             TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 typeface = face
                 setFontVariationSettings("'wght' $weight")
                 textSize = size
-                color = Color.argb((alpha * 255).roundToInt(), 255, 255, 255)
+                color = Color.argb((alpha * 255).roundToInt(), Color.red(rgb), Color.green(rgb), Color.blue(rgb))
                 if (shadow) setShadowLayer(SHADOW_RADIUS, 0f, 1f, SHADOW_COLOR)
             }
         }
@@ -70,7 +69,7 @@ internal class WidgetDrawer(
         draw(weatherGlyphBitmap(condition, isDay, windy, iconStyle, false, (size * scale).roundToInt().coerceAtLeast(1)), x, y, size)
     }
 
-    /** Мелкий значок для часов и дней: всегда контурный, как в ленте приложения. */
+    /** Мелкий значок дней: всегда контурный, как в ленте приложения. */
     fun smallGlyph(condition: Condition, isDay: Boolean, x: Float, y: Float, size: Float) {
         draw(
             weatherGlyphBitmap(condition, isDay, false, WeatherIconStyle.Outline, false, (size * scale).roundToInt().coerceAtLeast(1)),
@@ -89,7 +88,7 @@ internal class WidgetDrawer(
         val box = size * ARROW_BOX
         val cx = x + box / 2
         val cy = baseline - size * DIGIT_HEIGHT / 2
-        linePaint.color = Color.argb(ARROW_ALPHA, 255, 255, 255)
+        linePaint.color = pen.color
         linePaint.strokeWidth = size * ARROW_STROKE
         val tip = if (up) cy - box / 2 else cy + box / 2
         val tail = if (up) cy + box / 2 else cy - box / 2
@@ -108,19 +107,29 @@ internal class WidgetDrawer(
 
     fun arrowTextWidth(value: String, pen: TextPaint): Float = pen.textSize * (ARROW_BOX + ARROW_GAP) + pen.measureText(value)
 
-    /** «↑ 9° ↓ 3°» в одну строку; возвращает ширину. */
-    fun hiLo(x: Float, baseline: Float, high: String, low: String, pen: TextPaint): Float {
-        val first = arrowText(x, baseline, true, high, pen)
-        val second = arrowText(x + first + pen.textSize * HI_LO_GAP, baseline, false, low, pen)
-        return first + pen.textSize * HI_LO_GAP + second
+    /** Кисть максимума (тёплая) и минимума (холодная) размера [size]: правила надписей, стрелка вверх и вниз. */
+    fun highPen(size: Float): TextPaint = pen(size, 400, 1f, HIGH)
+
+    fun lowPen(size: Float): TextPaint = pen(size, 400, 1f, LOW)
+
+    /** «↑ 9° ↓ 3°» в одну строку (максимум тёплым, минимум холодным); возвращает ширину. */
+    fun hiLo(x: Float, baseline: Float, high: String, low: String, size: Float): Float {
+        val first = arrowText(x, baseline, true, high, highPen(size))
+        val second = arrowText(x + first + size * HI_LO_GAP, baseline, false, low, lowPen(size))
+        return first + size * HI_LO_GAP + second
     }
 
-    fun hiLoWidth(high: String, low: String, pen: TextPaint): Float =
-        arrowTextWidth(high, pen) + pen.textSize * HI_LO_GAP + arrowTextWidth(low, pen)
+    /** Показатель: бледная мелкая подпись над значением (правила надписей); [valueBase] нижняя линия значения размера [size]. */
+    fun fact(x: Float, valueBase: Float, label: String, value: String, size: Float, maxWidth: Float) {
+        val valuePen = pen(size, 400)
+        val labelPen = pen(FACT_LABEL, 400, 0.65f)
+        text(fit(label, labelPen, maxWidth), x, valueBase - size * DIGIT_HEIGHT - FACT_GAP, labelPen)
+        text(fit(value, valuePen, maxWidth), x, valueBase, valuePen)
+    }
 
-    /** Колечко (значок градуса) с центром в ([cx], [cy]), радиус по оси линии [radius], толщина [strokeWidth]. */
-    fun ring(cx: Float, cy: Float, radius: Float, strokeWidth: Float) {
-        linePaint.color = Color.WHITE
+    /** Колечко (значок градуса) с центром в ([cx], [cy]), радиус по оси линии [radius], толщина [strokeWidth], прозрачность [alpha]. */
+    fun ring(cx: Float, cy: Float, radius: Float, strokeWidth: Float, alpha: Float) {
+        linePaint.color = Color.argb((alpha * 255).roundToInt(), 255, 255, 255)
         linePaint.strokeWidth = strokeWidth
         canvas.drawCircle(cx, cy, radius, linePaint)
     }
@@ -151,38 +160,6 @@ internal class WidgetDrawer(
         fillPaint.shader = null
     }
 
-    /** Значок показателя в квадрате [size] с центром по высоте [cy]. Голубые капли и линии ветра, как в макете. */
-    fun metricIcon(kind: MetricIcon, x: Float, cy: Float, size: Float) {
-        linePaint.strokeWidth = size * METRIC_STROKE
-        linePaint.color = if (kind == MetricIcon.Wind) Color.WHITE else METRIC_BLUE
-        val top = cy - size / 2
-        val path = Path()
-        when (kind) {
-            MetricIcon.Wind -> {
-                path.moveTo(x + size * 0.1f, top + size * 0.30f)
-                path.lineTo(x + size * 0.75f, top + size * 0.30f)
-                path.moveTo(x + size * 0.1f, top + size * 0.52f)
-                path.lineTo(x + size * 0.95f, top + size * 0.52f)
-                path.moveTo(x + size * 0.1f, top + size * 0.74f)
-                path.lineTo(x + size * 0.55f, top + size * 0.74f)
-            }
-            MetricIcon.Humidity -> {
-                val cx = x + size / 2
-                path.moveTo(cx, top + size * 0.08f)
-                path.quadTo(x + size * 0.86f, top + size * 0.52f, cx, top + size * 0.92f)
-                path.quadTo(x + size * 0.14f, top + size * 0.52f, cx, top + size * 0.08f)
-            }
-            MetricIcon.Rain -> {
-                for (i in 0..2) {
-                    val sx = x + size * (0.30f + 0.25f * i)
-                    path.moveTo(sx + size * 0.10f, top + size * 0.25f)
-                    path.lineTo(sx - size * 0.10f, top + size * 0.75f)
-                }
-            }
-        }
-        canvas.drawPath(path, linePaint)
-    }
-
     companion object {
         /** Высота цифр Manrope в долях размера шрифта (по ней выравниваются блоки текста). */
         const val DIGIT_HEIGHT = 0.72f
@@ -192,7 +169,6 @@ internal class WidgetDrawer(
         private const val ARROW_BOX = 0.62f
         private const val ARROW_GAP = 0.22f
         private const val ARROW_STROKE = 0.09f
-        private const val ARROW_ALPHA = 178
         private const val HEAD = 0.32f
         private const val HI_LO_GAP = 0.6f
         private const val RULE_ALPHA = 72
@@ -201,7 +177,9 @@ internal class WidgetDrawer(
         private const val TRACK_ALPHA = 51
         private const val COLD = 0xFF8FC6FF.toInt()
         private const val WARM = 0xFFFFD27A.toInt()
-        private const val METRIC_BLUE = 0xFF9FD0FF.toInt()
-        private const val METRIC_STROKE = 0.07f
+        private const val HIGH = 0xFFFFB070.toInt()
+        private const val LOW = 0xFF8EC8FF.toInt()
+        private const val FACT_LABEL = 36f
+        private const val FACT_GAP = 16f
     }
 }

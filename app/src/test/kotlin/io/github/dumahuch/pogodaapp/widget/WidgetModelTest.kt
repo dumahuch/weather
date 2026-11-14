@@ -67,11 +67,13 @@ class WidgetModelTest {
     }
 
     @Test
-    fun hoursStartAtTheCurrentHourAndAreSix() {
+    fun skyInputsComeFromThePlaceAndTheCurrentHour() {
         val model = WidgetModels.of(place, forecast(listOf(day(0, 9.0, 3.0))), now)
-        assertEquals(WidgetModels.HOURS, model.hours.size)
-        assertEquals(Instant.parse("2026-11-12T15:00:00Z"), model.hours.first().time)
-        assertEquals(7.0, model.hours.first().temperature, 0.0)
+        assertEquals(52.37, model.latitude, 0.0)
+        assertEquals(9.73, model.longitude, 0.0)
+        assertEquals(now, model.now)
+        assertEquals(0.0, model.hourPrecipitationMm!!, 0.0)
+        assertNull(model.cloudCoverPercent)
     }
 
     @Test

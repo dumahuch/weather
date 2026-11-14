@@ -15,16 +15,19 @@ enum class WidgetLayout(val cols: Int, val rows: Int) {
     /** 2×1: то же, по краям воздух. */
     Narrow(2, 1),
 
-    /** 4×1: город, значок, температура и пять часов. */
+    /** 1×2: узкий и высокий: город, температура, максимум и минимум столбиком. */
+    Tall(1, 2),
+
+    /** 4×1: слева город и температура, справа сведения. */
     Strip(4, 1),
 
-    /** 2×2: город, значок, температура, максимум и минимум, четыре часа. */
+    /** 2×2: город, температура, фраза про осадки, максимум и минимум (и ветер с влажностью). */
     Square(2, 2),
 
-    /** 4×2: слева текущая погода и ветер, справа часы и три дня. */
+    /** 4×2: слева текущая погода, справа три дня. */
     Wide(4, 2),
 
-    /** 4×4: всё сразу: шапка, шесть часов, пять дней, ветер, влажность, осадки. */
+    /** 4×4: всё сразу: шапка, температура, ветер, влажность, осадки и пять дней. */
     Large(4, 4);
 
     val designWidth: Float get() = WidgetLayouts.CELL * cols - WidgetLayouts.GAP
@@ -47,7 +50,8 @@ object WidgetLayouts {
     fun cells(sizeDp: Int): Int = floor((sizeDp + OFFSET_DP) / CELL_DP + TOLERANCE).toInt().coerceAtLeast(1)
 
     /**
-     * Раскладка по размеру в dp. Узкий виджет (одна клетка в ширину) всегда [WidgetLayout.Tiny]; одна клетка в высоту:
+     * Раскладка по размеру в dp. Узкий виджет (одна клетка в ширину): [WidgetLayout.Tiny] при одной клетке в высоту, иначе
+     * [WidgetLayout.Tall]; одна клетка в высоту:
      * до трёх клеток в ширину [WidgetLayout.Narrow], от четырёх [WidgetLayout.Strip]; от двух клеток в высоту: до трёх
      * в ширину [WidgetLayout.Square], от четырёх в ширину и до трёх в высоту [WidgetLayout.Wide], иначе [WidgetLayout.Large].
      */
@@ -55,7 +59,7 @@ object WidgetLayouts {
         val cols = cells(widthDp)
         val rows = cells(heightDp)
         return when {
-            cols <= 1 -> WidgetLayout.Tiny
+            cols <= 1 -> if (rows <= 1) WidgetLayout.Tiny else WidgetLayout.Tall
             rows <= 1 -> if (cols <= 3) WidgetLayout.Narrow else WidgetLayout.Strip
             cols <= 3 -> WidgetLayout.Square
             rows <= 3 -> WidgetLayout.Wide

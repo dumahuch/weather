@@ -37,9 +37,11 @@ class WidgetLayoutTest {
     }
 
     @Test
-    fun narrowAndTallWidgetsFallBackToTheNearestSmallerOne() {
-        assertEquals(WidgetLayout.Tiny, WidgetLayouts.pick(40, 320))
-        assertEquals(WidgetLayout.Tiny, WidgetLayouts.pick(40, 110))
+    fun oneCellWideAndTwoOrMoreHighIsTheTallLayout() {
+        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(40, 110))
+        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(40, 180))
+        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(40, 320))
+        assertEquals(WidgetLayout.Tiny, WidgetLayouts.pick(40, 40))
     }
 
     @Test
@@ -49,5 +51,7 @@ class WidgetLayoutTest {
         assertEquals(904f, WidgetLayout.Large.designWidth, 0f)
         assertEquals(904f, WidgetLayout.Large.designHeight, 0f)
         assertEquals(214f, WidgetLayout.Strip.designHeight, 0f)
+        assertEquals(214f, WidgetLayout.Tall.designWidth, 0f)
+        assertEquals(444f, WidgetLayout.Tall.designHeight, 0f)
     }
 }
