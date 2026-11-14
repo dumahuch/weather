@@ -119,6 +119,25 @@ internal class WidgetDrawer(
         return first + size * HI_LO_GAP + second
     }
 
+    /**
+     * Максимум и минимум по центру [cx]: со стрелками, если они помещаются в [maxWidth], иначе просто цветными числами (цвет и
+     * так различает их); 1×1 очень узкий.
+     */
+    fun hiLoCentered(cx: Float, baseline: Float, high: String, low: String, size: Float, maxWidth: Float) {
+        val hiPen = highPen(size)
+        val loPen = lowPen(size)
+        val gap = size * HI_LO_GAP
+        val arrows = arrowTextWidth(high, hiPen) + gap + arrowTextWidth(low, loPen)
+        if (arrows <= maxWidth) {
+            hiLo(cx - arrows / 2, baseline, high, low, size)
+            return
+        }
+        val first = width(high, hiPen)
+        val x = cx - (first + gap + width(low, loPen)) / 2
+        text(high, x, baseline, hiPen)
+        text(low, x + first + gap, baseline, loPen)
+    }
+
     /** Показатель: бледная мелкая подпись над значением (правила надписей); [valueBase] нижняя линия значения размера [size]. */
     fun fact(x: Float, valueBase: Float, label: String, value: String, size: Float, maxWidth: Float) {
         val valuePen = pen(size, 400)

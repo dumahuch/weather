@@ -44,10 +44,26 @@ internal class WidgetPage(
         WidgetLayout.Large -> large()
     }
 
-    // ---- 1×1: цифра по центру, значок над её правым верхним углом (на небе значка нет); на всех делениях одно и то же.
-    private fun tiny() = centered(150f, 66f, w - 2 * TINY_SIDE)
+    // ---- 1×1: город сверху, цифра по центру (значок над её правым верхним углом, на небе его нет), максимум и минимум внизу;
+    // на всех делениях одно и то же (договор Димы 14.11: цифра по центру, 14.11 19:16: город и максимум с минимумом вернуть).
+    private fun tiny() {
+        val digits = temperatureDigits(m.temperature)
+        val size = fitSize(digits, 150f, w - 2 * TINY_SIDE)
+        val iconSize = 66f
+        val plan = TinyPlan.plan(h, size, if (sky) 0f else iconSize, DIGIT_HEIGHT)
+        val textWidth = heroWidth(digits, plan.digitSize)
+        val left = (w - textWidth) / 2
+        val city = m.placeName.orEmpty()
+        if (city.isNotEmpty()) {
+            val cityPen = d.pen(TinyPlan.LABEL, 600)
+            d.text(d.fit(city, cityPen, w - 2 * TINY_SIDE), w / 2, plan.cityBase, cityPen, Paint.Align.CENTER)
+        }
+        icon(left + textWidth - iconSize, plan.iconTop, iconSize)
+        hero(digits, plan.digitSize, left, plan.digitsBase)
+        d.hiLoCentered(w / 2, plan.hiLoBase, temperatureText(m.high), temperatureText(m.low), TinyPlan.LABEL, w - 2 * TINY_SIDE)
+    }
 
-    // ---- 2×1: «Минимум» то же, что 1×1; иначе цифра слева, справа город, фраза, максимум и минимум.
+    // ---- 2×1: «Минимум» цифра по центру (без города); иначе цифра слева, справа город, фраза, максимум и минимум.
     private fun narrow() {
         if (minimum) return centered(160f, 70f, w * NARROW_SHARE)
         val pad = SMALL_PAD
@@ -271,7 +287,7 @@ internal class WidgetPage(
 
     // ---- общие части
 
-    /** Цифра по центру окна и значок над её правым верхним углом (на небе значка нет): 1×1 и «Минимум» 2×1. */
+    /** Цифра по центру окна и значок над её правым верхним углом (на небе значка нет): «Минимум» 2×1. */
     private fun centered(maxSize: Float, iconSize: Float, maxWidth: Float) {
         val digits = temperatureDigits(m.temperature)
         val size = fitSize(digits, maxSize, maxWidth)
