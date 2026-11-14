@@ -84,8 +84,9 @@ class CloudLayoutTest {
     }
 
     @Test
-    fun everyCloudIsOnTheSheetWithSensibleSize() {
+    fun everyCloudIsOnTheSheetWithSensibleSizeAndAlpha() {
         for (condition in Condition.entries) for (cloud in clouds(condition)) {
+            assertTrue("$condition: прозрачность ${cloud.alpha}", cloud.alpha >= CloudLayout.MIN_ALPHA - 1e-9 && cloud.alpha <= 1.0)
             assertTrue("$condition: размер ${cloud.scale}", cloud.scale in 0.4..1.8)
             assertTrue("$condition: центр по горизонтали ${cloud.cx}", cloud.cx in 0.0..DiArt.SHEET_W)
             assertTrue("$condition: центр по вертикали ${cloud.cy}", cloud.cy in 0.0..DiArt.SHEET_H)
@@ -281,5 +282,14 @@ class CloudLayoutTest {
     private companion object {
         /** Зазор между облаками на листе: два блока карты (16 пикселей), чтобы они не смешивались при сжатии. */
         const val GAP = 16
+    }
+
+    @Test
+    fun lowerCloudsAreMoreTransparentThanUpperOnes() {
+        assertEquals(1.0, CloudLayout.alpha(0.0), 1e-9)
+        assertEquals(CloudLayout.MIN_ALPHA, CloudLayout.alpha(1.0), 1e-9)
+        assertTrue(CloudLayout.alpha(0.3) > CloudLayout.alpha(0.7))
+        val list = clouds(Condition.Cloudy)
+        assertTrue("верхние плотнее нижних", list.first().alpha >= list.last().alpha)
     }
 }

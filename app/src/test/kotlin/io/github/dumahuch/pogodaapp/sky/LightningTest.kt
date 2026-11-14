@@ -43,7 +43,7 @@ class LightningTest {
 
     @Test
     fun lightRisesFastAndFadesOut() {
-        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 0.9)), bolt = 2, boltX = 0.5, mirrored = false, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
+        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 0.9)), bolt = 2, boltX = 0.5, mirrored = false, boltDepth = 0.5, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
         assertNull(strike.frame(-0.01))
         assertEquals(0.0, strike.frame(0.0)!!.flash, 1e-9)
         assertEquals(0.9, strike.frame(Lightning.RISE_SECONDS)!!.flash, 1e-9)
@@ -54,7 +54,7 @@ class LightningTest {
 
     @Test
     fun secondFlashDipsInBetween() {
-        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 1.0), Strike.Pulse(0.12, 0.8)), bolt = -1, boltX = 0.5, mirrored = false, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
+        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 1.0), Strike.Pulse(0.12, 0.8)), bolt = -1, boltX = 0.5, mirrored = false, boltDepth = 0.5, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
         val dip = strike.light(0.119)
         assertTrue("провал $dip", dip < 0.4)
         assertEquals(0.8, strike.light(0.12 + Lightning.RISE_SECONDS), 1e-9)
@@ -63,8 +63,8 @@ class LightningTest {
     @Test
     fun boltOutlastsTheFlashAndIsAbsentWithoutBolt() {
         val pulses = listOf(Strike.Pulse(0.0, 0.8))
-        val withBolt = Strike(0.0, pulses, bolt = 0, boltX = 0.5, mirrored = false, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
-        val cloudOnly = Strike(0.0, pulses, bolt = -1, boltX = 0.5, mirrored = false, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
+        val withBolt = Strike(0.0, pulses, bolt = 0, boltX = 0.5, mirrored = false, boltDepth = 0.5, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
+        val cloudOnly = Strike(0.0, pulses, bolt = -1, boltX = 0.5, mirrored = false, boltDepth = 0.5, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
         // Молния полной силы держится через 0,15 с, когда вспышка уже почти погасла.
         assertEquals(0.8, withBolt.frame(Lightning.BOLT_RISE + 0.05)!!.bolt, 1e-9)
         assertTrue(withBolt.frame(0.15)!!.bolt > 0.7)
@@ -75,7 +75,7 @@ class LightningTest {
 
     @Test
     fun boltFlickersOnSecondStrike() {
-        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 1.0), Strike.Pulse(0.5, 0.9)), bolt = 1, boltX = 0.5, mirrored = false, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
+        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 1.0), Strike.Pulse(0.5, 0.9)), bolt = 1, boltX = 0.5, mirrored = false, boltDepth = 0.5, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
         val dip = strike.boltLight(0.49)
         assertTrue("провал $dip", dip < 0.1)
         assertEquals(0.9, strike.boltLight(0.5 + Lightning.BOLT_RISE + 0.05), 1e-9)
@@ -83,7 +83,7 @@ class LightningTest {
 
     @Test
     fun boltIsVisibleForAtLeastTenFramesOfAnAverageFrameRate() {
-        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 0.8)), bolt = 0, boltX = 0.5, mirrored = false, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
+        val strike = Strike(0.0, listOf(Strike.Pulse(0.0, 0.8)), bolt = 0, boltX = 0.5, mirrored = false, boltDepth = 0.5, boltScale = 1.0, boltTilt = 0.0, glowX = 0.5, glowY = 0.3)
         val frame = 1.0 / 38
         val visible = generateSequence(0) { it + 1 }.takeWhile { it * frame < strike.duration }.count { strike.frame(it * frame)!!.bolt >= 0.25 }
         assertTrue("кадров с молнией $visible", visible >= 10)
@@ -94,6 +94,7 @@ class LightningTest {
         for (strike in strikes(4, 500)) {
             assertTrue(strike.boltX in 0.2..0.8)
             assertTrue(strike.boltScale in 0.8..1.2)
+            assertTrue(strike.boltDepth in Lightning.MIN_DEPTH..Lightning.MAX_DEPTH)
             assertTrue(Math.abs(strike.boltTilt) <= Lightning.MAX_TILT)
             assertTrue(strike.glowX in 0.0..1.0)
             assertTrue(strike.glowY in 0.0..0.5)

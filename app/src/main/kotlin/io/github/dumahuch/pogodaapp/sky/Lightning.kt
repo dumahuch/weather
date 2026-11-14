@@ -6,7 +6,7 @@ import kotlin.random.Random
 /**
  * Один разряд грозы: пауза перед ним [gapSeconds], одна или две вспышки ([pulses]) и, если [bolt] не меньше нуля, молния
  * (номер картинки из [Lightning.BOLT_COUNT]). [boltX] центр молнии по ширине экрана (0…1), [mirrored] молния отражена,
- * [boltScale] её размер (множитель), [boltTilt] наклон в градусах вокруг верхней точки, [glowX] и [glowY] центр свечения
+ * [boltDepth] между какими облаками она бьёт (доля облаков, что лежат позади неё), [boltScale] её размер (множитель), [boltTilt] наклон в градусах вокруг верхней точки, [glowX] и [glowY] центр свечения
  * в облаках (доли ширины и высоты экрана).
  */
 internal class Strike(
@@ -15,6 +15,7 @@ internal class Strike(
     val bolt: Int,
     val boltX: Double,
     val mirrored: Boolean,
+    val boltDepth: Double,
     val boltScale: Double,
     val boltTilt: Double,
     val glowX: Double,
@@ -73,6 +74,7 @@ internal class Lightning(seed: Long) {
             bolt = bolt,
             boltX = boltX,
             mirrored = random.nextBoolean(),
+            boltDepth = MIN_DEPTH + (MAX_DEPTH - MIN_DEPTH) * random.nextDouble(),
             boltScale = 0.8 + 0.4 * random.nextDouble(),
             boltTilt = (random.nextDouble() - 0.5) * 2 * MAX_TILT,
             glowX = if (withBolt) boltX else 0.15 + 0.7 * random.nextDouble(),
@@ -92,6 +94,10 @@ internal class Lightning(seed: Long) {
         /** Картинок молний в `assets/lightning` (bolt_01…bolt_06). */
         const val BOLT_COUNT = 6
         const val MAX_TILT = 8.0
+
+        /** Доля облаков (сверху вниз), что лежат позади молнии: остальные, нижние и ближние, перед ней. */
+        const val MIN_DEPTH = 0.35
+        const val MAX_DEPTH = 0.8
         const val FIRST_GAP_SECONDS = 2.0
         const val MIN_GAP_SECONDS = 6.0
         const val MAX_GAP_SECONDS = 20.0

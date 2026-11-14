@@ -156,16 +156,23 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         }
         scope.drawCelestial(look, celestial)
         // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
-        // Во время молнии гряды уходят в свой слой: молния ложится на облака своим светом, без затемнения грозы, и прячется за грядами.
+        // Во время молнии облака делятся на дальние и ближние (по порядку сверху вниз): молния лежит между ними своим светом, без
+        // затемнения грозы, нижние прозрачные облака проходят перед ней, а гряды ещё ближе.
         val bolt = lightning?.takeIf { it.image != null && it.frame.bolt > 0.0 }
+        val list = cloudsFor(look)
+        val split = if (bolt == null) list.size else (list.size * bolt.frame.strike.boltDepth).toInt().coerceIn(0, list.size)
         effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
-            drawClouds(look, clouds, w, h)
+            drawClouds(list, look, clouds, w, h, 0, split)
             effects.drawVeil(this, look, BlendMode.SrcAtop)
             if (bolt == null) drawRidges(loaded, look, pan, w, h)
         }
         if (bolt != null) {
             scope.drawBolt(bolt)
-            effects.layer(scope, look, force = false, withTone = true) { drawRidges(loaded, look, pan, w, h) }
+            effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
+                drawClouds(list, look, clouds, w, h, split, list.size)
+                effects.drawVeil(this, look, BlendMode.SrcAtop)
+                drawRidges(loaded, look, pan, w, h)
+            }
         }
         lightning?.let { scope.drawFlash(it) }
     }
@@ -188,18 +195,24 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         }
     }
 
-    /**
-     * Облака погоды: каждое рисуется своим куском листа (отражённое по горизонтали при [PlacedCloud.mirrored]);
-     * те, что целиком за краем экрана, пропускаются. Раскладка пересчитывается только при смене погоды.
-     */
-    private fun DrawScope.drawClouds(look: SkyLook, clouds: DiClouds, w: Double, h: Double) {
+    /** Раскладка облаков погоды: пересчитывается только при смене погоды. */
+    private fun cloudsFor(look: SkyLook): List<PlacedCloud> {
         if (look.weather != cloudWeather) {
             cloudList = CloudLayout.of(look.weather)
             cloudWeather = look.weather
         }
+        return cloudList
+    }
+
+    /**
+     * Облака [list] с номера [from] до [to] (порядок сверху вниз, нижние поверх): каждое рисуется своим куском листа (отражённое
+     * по горизонтали при [PlacedCloud.mirrored]); те, что целиком за краем экрана, пропускаются.
+     */
+    private fun DrawScope.drawClouds(list: List<PlacedCloud>, look: SkyLook, clouds: DiClouds, w: Double, h: Double, from: Int, to: Int) {
         val place = DiArt.placeClouds(w, h, look.cloudPosition)
         val filter = tint(look)
-        for (cloud in cloudList) {
+        for (index in from until to) {
+            val cloud = list[index]
             val left = place.left + cloud.left * place.scale
             val top = place.top + cloud.top * place.scale
             val width = cloud.width * place.scale
@@ -219,6 +232,7 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
                     if (cloud.storm) clouds.storm else clouds.light,
                     srcOffset = IntOffset(cloud.rect.x, cloud.rect.y),
                     srcSize = IntSize(cloud.rect.w, cloud.rect.h),
+                    alpha = cloud.alpha.toFloat(),
                     colorFilter = filter,
                 )
             }
