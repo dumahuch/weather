@@ -23,25 +23,27 @@ class WidgetLayoutTest {
     }
 
     @Test
-    fun layoutByCells() {
-        assertEquals(WidgetLayout.Tiny, WidgetLayouts.pick(40, 40))
-        assertEquals(WidgetLayout.Narrow, WidgetLayouts.pick(110, 40))
-        assertEquals(WidgetLayout.Narrow, WidgetLayouts.pick(180, 40))
-        assertEquals(WidgetLayout.Strip, WidgetLayouts.pick(250, 40))
-        assertEquals(WidgetLayout.Square, WidgetLayouts.pick(110, 110))
-        assertEquals(WidgetLayout.Square, WidgetLayouts.pick(180, 250))
-        assertEquals(WidgetLayout.Wide, WidgetLayouts.pick(250, 110))
-        assertEquals(WidgetLayout.Wide, WidgetLayouts.pick(250, 180))
-        assertEquals(WidgetLayout.Large, WidgetLayouts.pick(250, 250))
-        assertEquals(WidgetLayout.Large, WidgetLayouts.pick(320, 320))
+    fun rowsFollowThePixelCellHeight() {
+        assertEquals(1, WidgetLayouts.rowCells(94))
+        assertEquals(1, WidgetLayouts.rowCells(120))
+        assertEquals(2, WidgetLayouts.rowCells(196))
+        assertEquals(3, WidgetLayouts.rowCells(298))
+        assertEquals(4, WidgetLayouts.rowCells(400))
+        assertEquals(1, WidgetLayouts.rowCells(10))
     }
 
     @Test
-    fun oneCellWideAndTwoOrMoreHighIsTheTallLayout() {
-        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(40, 110))
-        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(40, 180))
-        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(40, 320))
-        assertEquals(WidgetLayout.Tiny, WidgetLayouts.pick(40, 40))
+    fun layoutByPixelCells() {
+        assertEquals(WidgetLayout.Tiny, WidgetLayouts.pick(62, 94))
+        assertEquals(WidgetLayout.Narrow, WidgetLayouts.pick(148, 94))
+        assertEquals(WidgetLayout.Strip, WidgetLayouts.pick(310, 94))
+        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(62, 196))
+        assertEquals(WidgetLayout.Tall, WidgetLayouts.pick(62, 400))
+        assertEquals(WidgetLayout.Square, WidgetLayouts.pick(148, 196))
+        assertEquals(WidgetLayout.Square, WidgetLayouts.pick(148, 298))
+        assertEquals(WidgetLayout.Wide, WidgetLayouts.pick(310, 196))
+        assertEquals(WidgetLayout.Wide, WidgetLayouts.pick(310, 298))
+        assertEquals(WidgetLayout.Large, WidgetLayouts.pick(310, 400))
     }
 
     @Test

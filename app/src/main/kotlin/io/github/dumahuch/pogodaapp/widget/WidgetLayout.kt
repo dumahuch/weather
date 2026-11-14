@@ -39,15 +39,26 @@ object WidgetLayouts {
     const val CELL = 230f
     const val GAP = 16f
 
-    /** Размер виджета в dp при n клетках: 70·n − 30 (правило Android для рабочего стола). */
+    /** Ширина виджета в dp при n клетках: 70·n − 30 (правило Android для рабочего стола); высота у Pixel другая, см. [rowCells]. */
     private const val CELL_DP = 70.0
     private const val OFFSET_DP = 30.0
 
     /** Допуск: лаунчеры округляют размеры по-своему, 0,3 клетки не меняют число клеток. */
     private const val TOLERANCE = 0.3
 
-    /** Сколько клеток занимает сторона [sizeDp] (не меньше одной). */
+    /** Сколько клеток занимает ширина [sizeDp] (не меньше одной). */
     fun cells(sizeDp: Int): Int = floor((sizeDp + OFFSET_DP) / CELL_DP + TOLERANCE).toInt().coerceAtLeast(1)
+
+    /**
+     * Клетка рабочего стола Pixel выше, чем шире: по снимку Димы (14.11) клетка 1×1 лежит около 62×94 dp, две клетки в высоту
+     * около 196. По правилу 70·n − 30 такая клетка считалась бы двумя в высоту (одна клетка попадала в 1×2 вместо 1×1). Высота
+     * в клетках: шаг [ROW_STEP_DP] с запасом [ROW_GAP_DP] на зазор, допуск [ROW_TOLERANCE].
+     */
+    fun rowCells(heightDp: Int): Int = floor((heightDp + ROW_GAP_DP) / ROW_STEP_DP + ROW_TOLERANCE).toInt().coerceAtLeast(1)
+
+    private const val ROW_STEP_DP = 102.0
+    private const val ROW_GAP_DP = 8.0
+    private const val ROW_TOLERANCE = 0.25
 
     /**
      * Раскладка по размеру в dp. Узкий виджет (одна клетка в ширину): [WidgetLayout.Tiny] при одной клетке в высоту, иначе
@@ -57,7 +68,7 @@ object WidgetLayouts {
      */
     fun pick(widthDp: Int, heightDp: Int): WidgetLayout {
         val cols = cells(widthDp)
-        val rows = cells(heightDp)
+        val rows = rowCells(heightDp)
         return when {
             cols <= 1 -> if (rows <= 1) WidgetLayout.Tiny else WidgetLayout.Tall
             rows <= 1 -> if (cols <= 3) WidgetLayout.Narrow else WidgetLayout.Strip
