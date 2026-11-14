@@ -6,7 +6,8 @@ import kotlin.random.Random
 /**
  * Один разряд грозы: пауза перед ним [gapSeconds], одна или две вспышки ([pulses]) и, если [bolt] не меньше нуля, молния
  * (номер картинки из [Lightning.BOLT_COUNT]). [boltX] центр молнии по ширине экрана (0…1), [mirrored] молния отражена,
- * [glowX] и [glowY] центр свечения в облаках (доли ширины и высоты экрана).
+ * [boltScale] её размер (множитель), [boltTilt] наклон в градусах вокруг верхней точки, [glowX] и [glowY] центр свечения
+ * в облаках (доли ширины и высоты экрана).
  */
 internal class Strike(
     val gapSeconds: Double,
@@ -14,24 +15,27 @@ internal class Strike(
     val bolt: Int,
     val boltX: Double,
     val mirrored: Boolean,
+    val boltScale: Double,
+    val boltTilt: Double,
     val glowX: Double,
     val glowY: Double,
 ) {
     /** Вспышка: начало от начала разряда в секундах и сила (0…1). */
     class Pulse(val start: Double, val peak: Double)
 
-    /** Сколько длится разряд: после последней вспышки свет гаснет почти до нуля. */
-    val duration: Double get() = pulses.maxOf { it.start } + Lightning.RISE_SECONDS + Lightning.DECAY_SECONDS * Lightning.FADE_DECAYS
+    /** Сколько длится разряд: молния держится дольше вспышки, после последнего удара гаснет почти до нуля. */
+    val duration: Double get() = pulses.maxOf { it.start } + Lightning.BOLT_RISE + Lightning.BOLT_HOLD + Lightning.BOLT_DECAY * Lightning.FADE_DECAYS
 
-    /** Яркость в момент [t] секунд от начала разряда (0…1): быстрый подъём и плавное затухание каждой вспышки, берётся наибольшая. */
+    /** Яркость света в момент [t] секунд от начала разряда (0…1): быстрый подъём и плавное затухание каждой вспышки, берётся наибольшая. */
     fun light(t: Double): Double = pulses.maxOf { Lightning.pulse(t - it.start) * it.peak }
+
+    /** Яркость молнии в момент [t] (0…1): подъём, выдержка и спад каждого удара; второй удар поднимает её снова (мерцание). */
+    fun boltLight(t: Double): Double = if (bolt < 0) 0.0 else pulses.maxOf { Lightning.boltPulse(t - it.start) * it.peak }.coerceAtMost(1.0)
 
     /** Кадр разряда в момент [t] или пусто, когда разряд кончился. */
     fun frame(t: Double): LightningFrame? {
         if (t < 0 || t > duration) return null
-        val light = light(t)
-        val boltLight = if (bolt >= 0) (light * Lightning.BOLT_GAIN).coerceAtMost(1.0) else 0.0
-        return LightningFrame(this, light, boltLight)
+        return LightningFrame(this, light(t), boltLight(t))
     }
 }
 
@@ -69,6 +73,8 @@ internal class Lightning(seed: Long) {
             bolt = bolt,
             boltX = boltX,
             mirrored = random.nextBoolean(),
+            boltScale = 0.8 + 0.4 * random.nextDouble(),
+            boltTilt = (random.nextDouble() - 0.5) * 2 * MAX_TILT,
             glowX = if (withBolt) boltX else 0.15 + 0.7 * random.nextDouble(),
             glowY = if (withBolt) BOLT_GLOW_Y else 0.1 + 0.35 * random.nextDouble(),
         )
@@ -85,10 +91,11 @@ internal class Lightning(seed: Long) {
     companion object {
         /** Картинок молний в `assets/lightning` (bolt_01…bolt_06). */
         const val BOLT_COUNT = 6
+        const val MAX_TILT = 8.0
         const val FIRST_GAP_SECONDS = 2.0
         const val MIN_GAP_SECONDS = 6.0
         const val MAX_GAP_SECONDS = 20.0
-        const val BOLT_SHARE = 0.45
+        const val BOLT_SHARE = 0.65
         const val DOUBLE_SHARE = 0.4
         const val MIN_PULSE_GAP = 0.09
         const val MAX_PULSE_GAP = 0.16
@@ -96,11 +103,21 @@ internal class Lightning(seed: Long) {
         const val DECAY_SECONDS = 0.06
         const val FADE_DECAYS = 5.0
 
-        /** Молния ярче света в облаках: видна целиком и тогда, когда вспышка уже гаснет. */
-        const val BOLT_GAIN = 1.4
+        /** Молния видна дольше вспышки: подъём 0,03 с, выдержка 0,12 с, спад с постоянной 0,1 с (всего около 0,5 с). */
+        const val BOLT_RISE = 0.03
+        const val BOLT_HOLD = 0.12
+        const val BOLT_DECAY = 0.1
 
         /** Свечение вокруг молнии по высоте экрана: верхняя треть, где молния выходит из облаков. */
         const val BOLT_GLOW_Y = 0.3
+
+        /** Один удар молнии силы 1 в момент [t] от его начала. */
+        fun boltPulse(t: Double): Double = when {
+            t < 0 -> 0.0
+            t < BOLT_RISE -> t / BOLT_RISE
+            t < BOLT_RISE + BOLT_HOLD -> 1.0
+            else -> exp(-(t - BOLT_RISE - BOLT_HOLD) / BOLT_DECAY)
+        }
 
         /** Одна вспышка силы 1 в момент [t] от её начала: линейный подъём за [RISE_SECONDS], затем спад по экспоненте. */
         fun pulse(t: Double): Double = when {

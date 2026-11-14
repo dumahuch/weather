@@ -341,6 +341,17 @@ private val GlareColor = Color(0.86f, 0.91f, 1f)
 private const val GLARE_ALPHA = 0.14f
 private const val MIN_FLASH = 0.004f
 
+/**
+ * Погода на плашке предупреждения и шторке: сугроб (не выше четверти высоты, как у кнопок) и брызги над кромкой. Ставится до [clip]
+ * формы; остальное ([glassWeatherInside]) после заливки.
+ */
+fun Modifier.glassWeatherOutside(shape: Shape, glass: Glass): Modifier =
+    this.snowDrift(shape, glass.snow, glass.palette.glass, BUTTON_SNOW_SHARE).rainSplash(glass.rain)
+
+/** Погода внутри стекла: отблеск грозы, туман, иней и капли; ставится после заливки. Палец туман и иней не стирает. */
+fun Modifier.glassWeatherInside(glass: Glass): Modifier =
+    this.glassFlash(glass.flash).glassFog(glass.fog, glass.palette.glass).glassFrost(glass.frost, glass.palette.glass).glassDrops(glass.rain)
+
 /** Только размытый фон карточек, без заливки, тени и кромки: у плоского стекла плашек предупреждений. */
 fun Modifier.hazeCardBlur(glass: Glass): Modifier = hazeGlass(glass, glass.cardBlur)
 
