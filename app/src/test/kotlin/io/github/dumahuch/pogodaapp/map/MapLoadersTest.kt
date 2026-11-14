@@ -56,7 +56,7 @@ class MapLoadersTest {
         val listings = mutableListOf<String>()
         val downloads = mutableListOf<String>()
         val grib = Grib2Test.message(columns = 2, rows = 2, raw = intArrayOf(0, 50, 100, 100), scan = 64)
-        val loader = CloudLoader(
+        val loader = FieldLoader(
             listings = FolderListings { url ->
                 listings += url
                 // Прогоны 18…09 UTC ещё не выложили этот час, прогон 03 UTC выложил.
@@ -79,14 +79,43 @@ class MapLoadersTest {
 
     @Test
     fun noRunWithTheHourGivesNothing() {
-        val loader = CloudLoader(listings = FolderListings { "" }, bytes = { error("не должно скачиваться") }, unpack = { it })
+        val loader = FieldLoader(listings = FolderListings { "" }, bytes = { error("не должно скачиваться") }, unpack = { it })
         assertNull(loader.load(Instant.parse("2026-11-10T21:00:00Z"), now))
+    }
+
+    @Test
+    fun windComponentsComeFromOneRunThatHasBoth() {
+        val hour = Instant.parse("2026-11-10T21:00:00Z")
+        val frames = IconD2Files.candidates(hour, now)
+        val both = frames.last()
+        val downloads = mutableListOf<String>()
+        val grib = Grib2Test.message(columns = 2, rows = 2, raw = intArrayOf(0, 50, 100, 100), scan = 64)
+        val loader = FieldLoader(
+            listings = FolderListings { url ->
+                // u_10m есть во всех прогонах, v_10m только в самом раннем: ветер берётся целиком из него.
+                frames.filter { url == IconD2Files.runFolder(it.run, IconD2Files.WIND_U) }
+                    .joinToString("") { "<a href=\"${IconD2Files.fileName(it, IconD2Files.WIND_U)}\">" } +
+                    frames.filter { url == IconD2Files.runFolder(it.run, IconD2Files.WIND_V) && it == both }
+                        .joinToString("") { "<a href=\"${IconD2Files.fileName(it, IconD2Files.WIND_V)}\">" }
+            },
+            bytes = { url -> downloads += url; grib },
+            unpack = { it },
+        )
+        val grids = loader.loadAll(hour, now, listOf(IconD2Files.WIND_U, IconD2Files.WIND_V))
+        assertEquals(2, grids!!.size)
+        assertEquals(
+            listOf(
+                IconD2Files.runFolder(both.run, IconD2Files.WIND_U) + IconD2Files.fileName(both, IconD2Files.WIND_U),
+                IconD2Files.runFolder(both.run, IconD2Files.WIND_V) + IconD2Files.fileName(both, IconD2Files.WIND_V),
+            ),
+            downloads,
+        )
     }
 
     @Test
     fun brokenFileIsDataError() {
         val frame = IconD2Frame(Instant.parse("2026-11-09T18:00:00Z"), 27)
-        val loader = CloudLoader(
+        val loader = FieldLoader(
             listings = FolderListings { "<a href=\"${IconD2Files.fileName(frame)}\">" },
             bytes = { "<html>".toByteArray() },
             unpack = { it },
@@ -123,7 +152,7 @@ class MapLoadersTest {
         val names = listOf(first, second).map { hour ->
             IconD2Files.fileName(IconD2Frame(run, (hour.epochSecond - run.epochSecond).toInt() / 3600))
         }
-        val loader = CloudLoader(
+        val loader = FieldLoader(
             listings = FolderListings { synchronized(this) { listings++ }; names.joinToString("") { "<a href=\"$it\">" } },
             bytes = {
                 bothStarted.countDown()

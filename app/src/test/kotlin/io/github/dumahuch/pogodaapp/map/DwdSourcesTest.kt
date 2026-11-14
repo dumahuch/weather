@@ -112,4 +112,17 @@ class DwdSourcesTest {
         assertTrue(IconD2Files.listed(listing, frame))
         assertFalse(IconD2Files.listed(listing, frame.copy(lead = 6)))
     }
+
+    @Test
+    fun temperatureAndWindFilesHaveTheirOwnFolderAndName() {
+        val frame = IconD2Frame(Instant.parse("2026-11-09T18:00:00Z"), 27)
+        assertEquals("https://opendata.dwd.de/weather/nwp/icon-d2/grib/18/t_2m/", IconD2Files.runFolder(frame.run, IconD2Files.TEMPERATURE))
+        assertEquals(
+            "icon-d2_germany_regular-lat-lon_single-level_2026110918_027_2d_u_10m.grib2.bz2",
+            IconD2Files.fileName(frame, IconD2Files.WIND_U),
+        )
+        val listing = "<a href=\"${IconD2Files.fileName(frame, IconD2Files.WIND_V)}\">"
+        assertTrue(IconD2Files.listed(listing, frame, IconD2Files.WIND_V))
+        assertFalse(IconD2Files.listed(listing, frame, IconD2Files.WIND_U))
+    }
 }

@@ -345,6 +345,8 @@
     <!-- Карта (0.8.0) -->
     <string name="map_layer_clouds_rain">Clouds and rain</string>
     <string name="map_layer_rain">Rain only</string>
+    <string name="map_layer_temperature">Temperature</string>
+    <string name="map_layer_wind">Wind</string>
     <string name="map_day_now">Now</string>
     <string name="map_day_tomorrow">Tomorrow</string>
     <string name="map_day_after">Day after tomorrow</string>
@@ -353,6 +355,8 @@
     <string name="map_pause">Pause</string>
     <string name="map_locate">Show my place</string>
     <string name="map_legend_unit">mm/h</string>
+    <string name="map_legend_unit_temperature">°C</string>
+    <string name="map_legend_unit_wind">km/h</string>
     <string name="map_time_scale">Time scale</string>
     <string name="map_no_connection">No connection to DWD</string>
     <string name="map_no_data">No data for this time</string>
