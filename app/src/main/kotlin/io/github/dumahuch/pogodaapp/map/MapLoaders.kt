@@ -78,16 +78,19 @@ class FieldLoader(
      * Несколько полей на один час из одного и того же прогона (например две составляющие ветра): берётся первый из
      * прогонов [IconD2Files.candidates], где выложены все файлы. Сетки в порядке [fields]; нет такого прогона: null.
      */
-    fun loadAll(hour: Instant, now: Instant, fields: List<String>): List<LatLonGrid>? {
-        for (frame in IconD2Files.candidates(hour, now)) {
-            val listed = fields.all { field ->
+    fun loadAll(hour: Instant, now: Instant, fields: List<String>): List<LatLonGrid>? =
+        resolve(hour, now, fields)?.let { fetch(it, fields) }
+
+    /** Прогон и час, из которых сейчас берётся [hour] (по спискам папок, без скачивания файлов); null, если нигде не выложен. */
+    fun resolve(hour: Instant, now: Instant, fields: List<String>): IconD2Frame? =
+        IconD2Files.candidates(hour, now).firstOrNull { frame ->
+            fields.all { field ->
                 IconD2Files.listed(listings.get(IconD2Files.runFolder(frame.run, field), now), frame, field)
             }
-            if (!listed) continue
-            return fields.map { field ->
-                Grib2.parse(unpack(bytes(IconD2Files.runFolder(frame.run, field) + IconD2Files.fileName(frame, field))))
-            }
         }
-        return null
+
+    /** Скачивает и разбирает файлы [fields] кадра [frame] (из [resolve]); сетки в порядке [fields]. */
+    fun fetch(frame: IconD2Frame, fields: List<String>): List<LatLonGrid> = fields.map { field ->
+        Grib2.parse(unpack(bytes(IconD2Files.runFolder(frame.run, field) + IconD2Files.fileName(frame, field))))
     }
 }

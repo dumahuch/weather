@@ -5,21 +5,16 @@ import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.dumahuch.pogodaapp.data.Bzip2
 import io.github.dumahuch.pogodaapp.data.HttpJson
 import io.github.dumahuch.pogodaapp.map.CloudRaster
-import io.github.dumahuch.pogodaapp.map.FieldLoader
-import io.github.dumahuch.pogodaapp.map.FolderListings
 import io.github.dumahuch.pogodaapp.map.FrameDiskCache
 import io.github.dumahuch.pogodaapp.map.HourlyField
-import io.github.dumahuch.pogodaapp.map.IconD2Files
 import io.github.dumahuch.pogodaapp.map.LevelPacking
 import io.github.dumahuch.pogodaapp.map.ModelFrameDisk
 import io.github.dumahuch.pogodaapp.map.MapArea
 import io.github.dumahuch.pogodaapp.map.MapDataException
 import io.github.dumahuch.pogodaapp.map.MapDay
 import io.github.dumahuch.pogodaapp.map.MapTimeline
-import io.github.dumahuch.pogodaapp.map.ModelRainLoader
 import io.github.dumahuch.pogodaapp.map.RainLoader
 import io.github.dumahuch.pogodaapp.map.RainPalette
 import io.github.dumahuch.pogodaapp.map.RainResult
@@ -94,7 +89,8 @@ data class MapImages(
  * ([HourlyField], до [FIELD_CACHE] штук, около 170 КБ у температуры и 3 КБ у ветра). Уход с вкладки запас не очищает
  * (устаревшие кадры перекачиваются сами по срокам [RainLife] и [CloudLife]). Кадры, которые уже не меняются
  * (прошедший радар и облака прошедших часов сегодняшних суток), ещё и лежат на диске в кэше приложения до 23:55
- * ([FrameDiskCache]). Кадры дождя ICON-D2 лежат на диске по прогонам, пока прогон не сменился ([ModelFrameDisk]).
+ * ([FrameDiskCache]). Кадры модели (дождь ICON-D2, облака, температура, ветер) лежат на диске по прогонам, пока прогон
+ * не сменился ([ModelFrameDisk], [ModelFrames]), и карта открывается с них сразу; утром их кладёт туда фоновая подгрузка.
  * Цвета дождя меняет [RainPalette].
  *
  * Загрузки идут одновременно, каждый кадр один раз: если он уже качается (для показа или заранее), второй спрос
@@ -115,20 +111,12 @@ class MapViewModel(
     private val rainLoader = RainLoader { url ->
         HttpJson.bytes(url, userAgent, SOURCE, "image/png", allowClientErrors = true)
     }
-    private val listings = FolderListings { url -> HttpJson.get(url, userAgent, SOURCE) }
-    private val fieldLoader = FieldLoader(
-        listings = listings,
-        bytes = { url -> HttpJson.bytes(url, userAgent, SOURCE, "application/octet-stream") },
-        unpack = Bzip2::unpack,
-    )
-    private val modelRainLoader = ModelRainLoader(
-        listings = listings,
-        bytes = { url -> HttpJson.bytes(url, userAgent, SOURCE, "application/octet-stream") },
-        unpack = Bzip2::unpack,
-    )
 
-    /** Кадры дождя ICON-D2 по прогонам: лежат, пока прогон не сменился, и через полночь тоже. */
-    private val modelDisk = ModelFrameDisk(modelRoot)
+    /**
+     * Кадры модели (дождь ICON-D2, облака, температура, ветер) по прогонам на диске: лежат, пока прогон не сменился, и
+     * через полночь тоже; ту же работу утром делает фоновая подгрузка ([MapPreloadJobs]).
+     */
+    private val frames = modelFrames(userAgent, modelRoot) { message -> Log.w(TAG, message) }
 
     /** Папка кадров ICON-EU из 0.8.36 (источник убран в 0.8.37): стирается при открытии карты; убрать вместе с этой строкой позже. */
     private val oldEuRoot: File? = modelRoot.parentFile?.let { File(it, "map-model-eu") }
@@ -175,7 +163,7 @@ class MapViewModel(
     fun onShown() {
         viewModelScope.launch(Dispatchers.IO) {
             FrameDiskCache.purgeOtherDays(cacheRoot, LocalDate.now(zone))
-            modelDisk.tidy(Instant.now())
+            frames.tidy(Instant.now())
             oldEuRoot?.deleteRecursively()
         }
         val now = Instant.now()
@@ -497,7 +485,7 @@ class MapViewModel(
             val name = rainDiskName(time, now)
             val disk = todayDisk(now)
             val result = name?.let { disk.readRain(it) }?.let { RainResult.Image(it) }
-                ?: modelRain(time, now)
+                ?: modelRain(time, now)?.let { RainResult.Levels(it) }
                 ?: rainLoader.load(time, now).also { loaded ->
                     if (name != null && loaded is RainResult.Image) disk.writeRain(name, loaded.png)
                 }
@@ -506,27 +494,9 @@ class MapViewModel(
         }.await()
     }
 
-    /**
-     * Дождь ICON-D2 на 15-минутный кадр после радара (сжатые уровни); null на радаре, без ICON-D2 и при испорченном файле.
-     * Какой прогон нужен, показывает список папки; кадр этого прогона уже на диске берётся оттуда, иначе считается из
-     * файлов DWD и записывается на диск.
-     */
-    private fun modelRain(time: Instant, now: Instant): RainResult? {
-        if (MapTimeline.fromRadar(time, now)) return null
-        return try {
-            val run = modelRainLoader.runFor(time, now) ?: return null
-            modelDisk.read(run, time, MapArea.RAIN_WIDTH, rainHeight)?.let { return RainResult.Levels(it) }
-            modelRainLoader.load(time, now)?.let { frame ->
-                val packed = LevelPacking.pack(frame.levels, MapArea.RAIN_WIDTH)
-                modelDisk.write(frame.run, time, packed, now)
-                RainResult.Levels(packed)
-            }
-        } catch (e: MapDataException) {
-            // Файл не того вида: дождь берётся из ICON-EU, причина в журнал.
-            Log.w(TAG, "Осадки ICON-D2: ${e.message}")
-            null
-        }
-    }
+    /** Дождь ICON-D2 на 15-минутный кадр после радара (сжатые уровни); null на радаре, без ICON-D2 и при испорченном файле. */
+    private fun modelRain(time: Instant, now: Instant): ByteArray? =
+        if (MapTimeline.fromRadar(time, now)) null else frames.rain(time, now)
 
     /** Папка кадров на диске для суток, в которые попадает [now]. */
     private fun todayDisk(now: Instant): FrameDiskCache =
@@ -550,9 +520,7 @@ class MapViewModel(
         return sharedLoad(cloudLoads, hour) {
             val disk = if (cloudSettled(hour, now)) todayDisk(now) else null
             val alpha = disk?.readClouds(hour, cloudPixelCount)
-                ?: fieldLoader.load(hour, now)?.let { grid ->
-                    CloudRaster.alphaOnly(CloudRaster.render(grid, MapArea.Overlay, MapArea.CLOUD_WIDTH, cloudHeight))
-                }?.also { disk?.writeClouds(hour, it) }
+                ?: frames.clouds(hour, now, keep = disk == null)?.also { disk?.writeClouds(hour, it) }
             synchronized(cloudCache) { cloudCache[hour] = Cached(alpha, Instant.now()) }
             alpha
         }.await()
@@ -574,17 +542,10 @@ class MapViewModel(
         return sharedLoad(fieldLoads, key) {
             val disk = if (cloudSettled(hour, now)) todayDisk(now) else null
             val frame = disk?.readField(field, hour)
-                ?: loadField(field, hour, now)?.also { disk?.writeField(field, hour, it) }
+                ?: frames.field(field, hour, now, keep = disk == null)?.also { disk?.writeField(field, hour, it) }
             synchronized(fieldCache) { fieldCache[key] = Cached(frame, Instant.now()) }
             frame
         }.await()
-    }
-
-    private fun loadField(field: HourlyField, hour: Instant, now: Instant): ByteArray? = when (field) {
-        HourlyField.Temperature ->
-            fieldLoader.loadAll(hour, now, listOf(IconD2Files.TEMPERATURE))?.let { TemperatureField.encode(it.first()) }
-        HourlyField.Wind ->
-            fieldLoader.loadAll(hour, now, listOf(IconD2Files.WIND_U, IconD2Files.WIND_V))?.let { WindField.encode(it[0], it[1]) }
     }
 
     /** Час облаков уже прошёл (с запасом) и относится к сегодняшним суткам: его данные больше не меняются. */
@@ -613,7 +574,7 @@ class MapViewModel(
         frame.isBefore(now.minus(SettledAfter)) || Duration.between(fetched, at) < life
 
     private val cloudHeight = MapArea.heightFor(MapArea.CLOUD_WIDTH)
-    private val cloudPixelCount = MapArea.CLOUD_WIDTH * cloudHeight
+    private val cloudPixelCount = frames.cloudLength
 
     private val rainHeight = MapArea.heightFor(MapArea.RAIN_WIDTH)
 

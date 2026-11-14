@@ -58,6 +58,7 @@ import io.github.dumahuch.pogodaapp.ui.home.LocalHeroSolarHourOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalHeroWetOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalHeroWindOverride
 import io.github.dumahuch.pogodaapp.ui.home.LocalWeatherIconStyle
+import io.github.dumahuch.pogodaapp.ui.map.MapPreloadJobs
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.sky.PollenCheck
@@ -151,6 +152,12 @@ class MainActivity : ComponentActivity() {
 
         notificationSwitches = NotificationSwitches(this, settings)
         notificationSwitches.onAppStarted()
+        // Утренняя подгрузка карты ставится при каждом запуске (если уже стоит, ничего не меняется); сбой тут не должен мешать запуску.
+        try {
+            MapPreloadJobs.sync(applicationContext)
+        } catch (e: RuntimeException) {
+            Log.w("PogodaApp", "Подгрузка карты не поставлена", e)
+        }
         if (hasLocationPermission()) notificationSwitches.askPermissionOnFirstRun()
         // После пересоздания окна намерение то же самое: предупреждение уже было открыто.
         if (savedInstanceState == null) takeAlertRequest(intent)
