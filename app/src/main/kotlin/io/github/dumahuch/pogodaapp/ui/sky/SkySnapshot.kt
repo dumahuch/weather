@@ -36,6 +36,19 @@ internal object SkySnapshotStorage {
         null
     }
 
+    /** Сколько миллисекунд назад записан снимок; без снимка пусто. */
+    fun ageMillis(context: Context, nowMillis: Long): Long? {
+        val modified = File(context.filesDir, IMAGE_FILE).lastModified()
+        return if (modified == 0L) null else nowMillis - modified
+    }
+
+    /** Размер снимка в пикселях (ширина, высота), если он есть: чтобы фоновый снимок лёг в те же пропорции экрана. */
+    fun size(context: Context): Pair<Int, Int>? {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(File(context.filesDir, IMAGE_FILE).path, options)
+        return if (options.outWidth > 0 && options.outHeight > 0) options.outWidth to options.outHeight else null
+    }
+
     /** Записывает снимок (блокирующий вызов, вызывать не с главного потока). */
     fun save(context: Context, bitmap: Bitmap, palette: PogodaPalette) {
         try {

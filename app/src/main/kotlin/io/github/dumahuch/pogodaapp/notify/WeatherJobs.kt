@@ -10,6 +10,7 @@ import android.util.Log
 import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
+import io.github.dumahuch.pogodaapp.ui.sky.SkyBackgroundSnapshot
 import io.github.dumahuch.pogodaapp.widget.WidgetUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +72,7 @@ class WeatherJobService : JobService() {
             try {
                 guarded("виджет не обновлён") { WidgetUpdater(applicationContext).refresh() }
                 guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh() }
+                guarded("снимок неба не записан") { SkyBackgroundSnapshot(applicationContext).refresh() }
                 guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
                 guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
                 guarded("пыльца не проверена") { PollenNotifier(applicationContext).refresh() }
