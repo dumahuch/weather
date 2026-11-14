@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.drawable.Icon
 import android.icu.text.DateFormat
 import io.github.dumahuch.pogodaapp.AppVersion
@@ -20,7 +19,6 @@ import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import io.github.dumahuch.pogodaapp.ui.home.conditionNameRes
-import io.github.dumahuch.pogodaapp.ui.home.weatherGlyphBitmap
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
@@ -28,14 +26,15 @@ import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
-import kotlin.math.roundToInt
 
 /**
  * Уведомление о погоде (0.7.0, шаг 1): температура и погода для места, которое приложение определило последним
  * (доступа «Всегда» к месту нет, решение Димы 07.11.2026). Заголовок «Ганновер · 7° Облачно», строка «Ощущается как 5° ·
  * осадки днём». Значок в строке состояния это число температуры. На заблокированном экране без названия места, если
  * выключатель «Название места на заблокированном экране» выключен. Если место определено больше суток назад, в шапке
- * «Место с 5 ноября». Смахнуть можно: уведомление вернётся при следующем обновлении.
+ * «Место с 5 ноября». Развёрнутый вид (0.8.35, решение Димы 14.11.2026) добавляет, что ожидается сегодня: температуры утра,
+ * дня и вечера, а когда они прошли, завтрашний день. Запись постоянная и с наибольшим приоритетом: Android ставит её выше
+ * других тихих уведомлений того же уровня; выше уведомлений со звуком поставить нельзя.
  */
 class WeatherNotifier(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -108,16 +107,9 @@ class WeatherNotifier(private val context: Context) {
         } else {
             Icon.createWithResource(context, R.drawable.ic_notification)
         }
-        val largeIcon = Icon.createWithBitmap(
-            weatherGlyphBitmap(
-                current.condition,
-                current.isDay,
-                isStrongWind(forecast.detailsAt(now)?.windKmh),
-                settings().iconStyle.value,
-                onLight(),
-                largeIconPx(),
-            ),
-        )
+        val largeIcon = noticeGlyph(context, current.condition, current.isDay, isStrongWind(forecast.detailsAt(now)?.windKmh))
+        val expanded = listOfNotNull(text, dayLine(forecast, now)).joinToString("\n")
+        @Suppress("DEPRECATION") // Notification.priority ещё участвует в порядке уведомлений одного уровня (шаг 11 NotificationComparator)
         fun builder(contentTitle: String) = Notification.Builder(context, channel.id)
             .setSmallIcon(smallIcon)
             .setLargeIcon(largeIcon)
@@ -127,14 +119,34 @@ class WeatherNotifier(private val context: Context) {
             .setWhen(current.time.toEpochMilli())
             .setShowWhen(true)
             .setOnlyAlertOnce(true)
+            .setOngoing(true)
+            .setPriority(Notification.PRIORITY_MAX)
             .setCategory(Notification.CATEGORY_STATUS)
             .setLocalOnly(true)
             .setContentIntent(openApp())
         // На заблокированном экране вместо полной записи показывается эта: без названия места.
         val lockScreen = builder(headline).setVisibility(Notification.VISIBILITY_PUBLIC).build()
         val visibility = if (prefs.placeOnLockScreen) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
-        manager.notify(NOTIFICATION_ID, builder(title).setVisibility(visibility).setPublicVersion(lockScreen).build())
+        val full = builder(title).setStyle(Notification.BigTextStyle().bigText(expanded)).setVisibility(visibility).setPublicVersion(lockScreen)
+        manager.notify(NOTIFICATION_ID, full.build())
         settings().setNoticeError(null)
+    }
+
+    /** «Утро 6° · День 10° · Вечер 7°» из частей суток, что ещё впереди; когда их нет, «Завтра: днём до 10°, ночью 3°». */
+    private fun dayLine(forecast: Forecast, now: Instant): String? {
+        val parts = DayOutlook.remaining(forecast, now)
+        if (parts.isNotEmpty()) {
+            return parts.joinToString(" · ") {
+                val name = when (it.stop) {
+                    DayStop.Morning -> R.string.notify_day_morning
+                    DayStop.Day -> R.string.notify_day_day
+                    DayStop.Evening -> R.string.notify_day_evening
+                }
+                context.getString(name, temperatureText(it.temperature))
+            }
+        }
+        val tomorrow = SummaryNotice.outlook(forecast, now) ?: return null
+        return context.getString(R.string.notify_day_tomorrow, temperatureText(tomorrow.high), temperatureText(tomorrow.low))
     }
 
     /** Каналы создаются при каждом показе: так их названия следуют за языком интерфейса. */
@@ -160,11 +172,6 @@ class WeatherNotifier(private val context: Context) {
         manager.createNotificationChannels(listOf(status, shade))
     }
 
-    private fun largeIconPx(): Int = (LARGE_ICON_DP * context.resources.displayMetrics.density).roundToInt().coerceIn(64, 256)
-
-    private fun onLight(): Boolean =
-        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK != Configuration.UI_MODE_NIGHT_YES
-
     /** Нажатие открывает приложение так же, как значок на рабочем столе (уже открытое не дублируется). */
     private fun openApp(): PendingIntent? {
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return null
@@ -173,6 +180,5 @@ class WeatherNotifier(private val context: Context) {
 
     private companion object {
         const val NOTIFICATION_ID = 7001
-        const val LARGE_ICON_DP = 48f
     }
 }
