@@ -20,6 +20,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import java.time.Duration
+import java.time.ZonedDateTime
 
 /**
  * Фоновое обновление виджета и уведомления о погоде, предупреждений DWD, «скоро дождь» и пыльцы через JobScheduler системы (без сторонних библиотек). Раз в
@@ -28,6 +29,10 @@ import java.time.Duration
 object WeatherJobs {
     private const val PERIODIC_ID = 7101
     private const val NOW_ID = 7102
+
+    /** Две пары номеров вечерней сводки: задача, которая сейчас идёт, ставит следующую под другим номером (одинаковый номер остановил бы её саму). */
+    private const val SUMMARY_A = 7103
+    private const val SUMMARY_B = 7104
     private val PERIOD: Duration = Duration.ofMinutes(30)
     private val FLEX: Duration = Duration.ofMinutes(10)
 
@@ -37,6 +42,7 @@ object WeatherJobs {
      */
     fun sync(context: Context, prefs: NotificationPrefs) {
         val scheduler = context.getSystemService(JobScheduler::class.java)
+        syncSummary(context)
         if (!prefs.background && !WidgetUpdater(context).hasWidgets()) {
             scheduler.cancel(PERIODIC_ID)
             scheduler.cancel(NOW_ID)
@@ -45,6 +51,31 @@ object WeatherJobs {
         if (scheduler.getPendingJob(PERIODIC_ID) != null) return
         val job = JobInfo.Builder(PERIODIC_ID, ComponentName(context, WeatherJobService::class.java))
             .setPeriodic(PERIOD.toMillis(), FLEX.toMillis())
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+            .setPersisted(true)
+            .build()
+        scheduler.schedule(job)
+    }
+
+    /**
+     * Ставит разовую задачу вечерней сводки на ближайшее выбранное время (сегодня, сразу или завтра, см.
+     * [SummaryNotice.delayUntilNext]) с окном [SummaryNotice.JOB_WINDOW] на сдвиг системой, или снимает её, если сводка выключена.
+     * [runningId] номер задачи, которая идёт сейчас (если вызов из неё).
+     */
+    fun syncSummary(context: Context, runningId: Int? = null) {
+        val scheduler = context.getSystemService(JobScheduler::class.java)
+        val settings = AppSettings(PreferencesSettingsStorage(context))
+        val prefs = settings.notifications.value
+        val next = if (runningId == SUMMARY_A) SUMMARY_B else SUMMARY_A
+        listOf(SUMMARY_A, SUMMARY_B).filter { it != next && it != runningId }.forEach { scheduler.cancel(it) }
+        if (!prefs.summary) {
+            scheduler.cancel(next)
+            return
+        }
+        val delay = SummaryNotice.delayUntilNext(ZonedDateTime.now(), prefs.summaryMinutes, settings.summarySentOn())
+        val job = JobInfo.Builder(next, ComponentName(context, WeatherJobService::class.java))
+            .setMinimumLatency(delay.toMillis())
+            .setOverrideDeadline((delay + SummaryNotice.JOB_WINDOW).toMillis())
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
             .setPersisted(true)
             .build()
@@ -61,7 +92,7 @@ object WeatherJobs {
 }
 
 /**
- * Обновляет виджет, уведомление о погоде, предупреждения, «скоро дождь» и пыльцу; запросы в сеть идут в фоне, система ждёт их до [jobFinished]. Сбой одного
+ * Обновляет виджет, уведомление о погоде, предупреждения, «скоро дождь», пыльцу и вечернюю сводку; запросы в сеть идут в фоне, система ждёт их до [jobFinished]. Сбой одного
  * не мешает другому.
  */
 class WeatherJobService : JobService() {
@@ -76,6 +107,8 @@ class WeatherJobService : JobService() {
                 guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
                 guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
                 guarded("пыльца не проверена") { PollenNotifier(applicationContext).refresh() }
+                guarded("вечерняя сводка не отправлена") { SummaryNotifier(applicationContext).refresh() }
+                guarded("вечерняя сводка не поставлена") { WeatherJobs.syncSummary(applicationContext, params.jobId) }
             } finally {
                 jobFinished(params, false)
             }

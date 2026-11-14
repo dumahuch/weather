@@ -56,9 +56,11 @@ enum class MapPreload(val key: String) {
 }
 
 /**
- * Выключатели уведомлений (0.7.0, решения Димы 07.11.2026), все по умолчанию выключены. Число в строке состояния
+ * Выключатели уведомлений (0.7.0, решения Димы 07.11.2026); с 0.8.35 все по умолчанию включены (решение Димы 14.11.2026:
+ * [AppSettings] включает выключатель, если человек его ещё не трогал; значения по умолчанию в самом классе служат только
+ * для сборки в тестах). Число в строке состояния
  * Android показывает только как значок уведомления, поэтому при нём запись в шторке тоже есть. [alerts] это
- * предупреждения DWD в фоне (шаг 2), [rainSoon] «скоро дождь» по радару DWD (шаг 3), [pollen] пыльца по индексу DWD (шаг 4).
+ * предупреждения DWD в фоне (шаг 2), [rainSoon] «скоро дождь» по радару DWD (шаг 3), [pollen] пыльца по индексу DWD (шаг 4), [summary] вечерняя сводка на завтра.
  */
 data class NotificationPrefs(
     val inShade: Boolean = false,
@@ -67,18 +69,23 @@ data class NotificationPrefs(
     val alerts: Boolean = false,
     val rainSoon: Boolean = false,
     val pollen: Boolean = false,
+    val summary: Boolean = false,
+    /** Время вечерней сводки на завтра, минут от полуночи (решение Димы 14.11.2026: по умолчанию 20:00). */
+    val summaryMinutes: Int = SUMMARY_DEFAULT_MINUTES,
 ) {
     /** Уведомление о погоде нужно, если включена шторка или строка состояния. */
     val wanted: Boolean get() = inShade || inStatusBar
 
     /** Фоновое обновление нужно, если нужно уведомление о погоде, предупреждения или «скоро дождь». */
-    val background: Boolean get() = wanted || alerts || rainSoon || pollen
+    val background: Boolean get() = wanted || alerts || rainSoon || pollen || summary
 
     /** Сколько выключателей включено (для строки раздела «Уведомления»); всего их [TOGGLE_COUNT]. */
-    val enabledCount: Int get() = listOf(inShade, inStatusBar, placeOnLockScreen, alerts, rainSoon, pollen).count { it }
+    val enabledCount: Int get() = listOf(inShade, inStatusBar, placeOnLockScreen, alerts, rainSoon, pollen, summary).count { it }
 
     companion object {
-        const val TOGGLE_COUNT = 6
+        const val TOGGLE_COUNT = 7
+        const val SUMMARY_DEFAULT_MINUTES = 20 * 60
+        const val MINUTES_IN_DAY = 24 * 60
     }
 }
 
@@ -90,6 +97,7 @@ enum class NotificationToggle(val key: String) {
     Alerts("notify_alerts"),
     RainSoon("notify_rain_soon"),
     Pollen("notify_pollen"),
+    Summary("notify_summary"),
 }
 
 /** Где лежат настройки: ключи и значения строками, чтобы логику можно было проверить без Android. */
@@ -173,6 +181,9 @@ class AppSettings(private val storage: SettingsStorage) {
             alerts = flag(NotificationToggle.Alerts),
             rainSoon = flag(NotificationToggle.RainSoon),
             pollen = flag(NotificationToggle.Pollen),
+            summary = flag(NotificationToggle.Summary),
+            summaryMinutes = storage.read(SUMMARY_MINUTES)?.toIntOrNull()?.takeIf { it in 0 until NotificationPrefs.MINUTES_IN_DAY }
+                ?: NotificationPrefs.SUMMARY_DEFAULT_MINUTES,
         ),
     )
 
@@ -187,10 +198,35 @@ class AppSettings(private val storage: SettingsStorage) {
             NotificationToggle.Alerts -> current.copy(alerts = on)
             NotificationToggle.RainSoon -> current.copy(rainSoon = on)
             NotificationToggle.Pollen -> current.copy(pollen = on)
+            NotificationToggle.Summary -> current.copy(summary = on)
         }
         if (next == current) return
         mutableNotifications.value = next
         storage.write(toggle.key, if (on) ON else OFF)
+        // Сводку включили заново: она может прийти и сегодня, если время ещё не вышло (иначе её не проверить).
+        if (toggle == NotificationToggle.Summary && on) storage.write(SUMMARY_SENT, "")
+    }
+
+    /** Время вечерней сводки: минуты от полуночи, значение вне суток отбрасывается. */
+    fun setSummaryMinutes(minutes: Int) {
+        val value = minutes.coerceIn(0, NotificationPrefs.MINUTES_IN_DAY - 1)
+        val current = mutableNotifications.value
+        if (current.summaryMinutes == value) return
+        mutableNotifications.value = current.copy(summaryMinutes = value)
+        storage.write(SUMMARY_MINUTES, value.toString())
+        // Новое время: сегодняшняя сводка, если она уже была, больше не считается (иначе новое время не проверить).
+        storage.write(SUMMARY_SENT, "")
+    }
+
+    /** День, за который вечерняя сводка уже была (по часам телефона); `null`, если не было. */
+    fun summarySentOn(): LocalDate? = try {
+        storage.read(SUMMARY_SENT)?.let { LocalDate.parse(it) }
+    } catch (e: DateTimeParseException) {
+        null
+    }
+
+    fun setSummarySentOn(day: LocalDate) {
+        storage.write(SUMMARY_SENT, day.toString())
     }
 
     /** Системное окно «Разрешить уведомления» уже показывали: при следующем отказе ведём в системные настройки. */
@@ -222,7 +258,8 @@ class AppSettings(private val storage: SettingsStorage) {
         storage.write(MAP_PRELOAD, value.key)
     }
 
-    private fun flag(toggle: NotificationToggle): Boolean = storage.read(toggle.key) == ON
+    /** Выключатели уведомлений по умолчанию включены (решение Димы 14.11.2026); выбранное человеком значение сохраняется. */
+    private fun flag(toggle: NotificationToggle): Boolean = storage.read(toggle.key)?.let { it == ON } ?: true
 
     internal companion object {
         const val CARD_SHADOW = "card_shadow"
@@ -236,6 +273,8 @@ class AppSettings(private val storage: SettingsStorage) {
         const val POLLEN_KINDS = "pollen_kinds"
         const val POLLEN_NOTIFIED = "pollen_notified_on"
         const val POLLEN_CHECKED = "pollen_checked_at"
+        const val SUMMARY_MINUTES = "summary_minutes"
+        const val SUMMARY_SENT = "summary_sent_on"
         private const val ON = "1"
         private const val OFF = "0"
     }

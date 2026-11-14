@@ -129,6 +129,8 @@ class MainActivity : ComponentActivity() {
         val granted = result[LOCATION_PERMISSION] == true || hasLocationPermission()
         permanentlyDenied = !granted && !shouldShowRequestPermissionRationale(LOCATION_PERMISSION)
         viewModel.retry(permissionGranted = granted)
+        // Дальше, когда окно места закрыто, один раз просим разрешение на уведомления (все выключатели включены по умолчанию).
+        notificationSwitches.askPermissionOnFirstRun()
     }
 
     /** Окно «Точное / Приблизительное» один раз для тех, у кого уже выдано приблизительное (решение Димы 07.11.2026). */
@@ -149,6 +151,7 @@ class MainActivity : ComponentActivity() {
 
         notificationSwitches = NotificationSwitches(this, settings)
         notificationSwitches.onAppStarted()
+        if (hasLocationPermission()) notificationSwitches.askPermissionOnFirstRun()
         // После пересоздания окна намерение то же самое: предупреждение уже было открыто.
         if (savedInstanceState == null) takeAlertRequest(intent)
 
@@ -261,6 +264,7 @@ class MainActivity : ComponentActivity() {
                                 onMapPreload = settings::setMapPreload,
                                 notifications = notifications,
                                 onNotification = notificationSwitches::set,
+                                onSummaryTime = notificationSwitches::setSummaryTime,
                                 pollenKinds = pollenKinds,
                                 onPollenKind = settings::setPollenKind,
                                 noticeError = noticeError,

@@ -1,5 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui.settings
 
+import android.app.TimePickerDialog
+import android.text.format.DateFormat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -42,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -60,6 +63,9 @@ import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 private val CardShape = RoundedCornerShape(24.dp)
 
@@ -86,6 +92,7 @@ fun SettingsScreen(
     onMapPreload: (MapPreload) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    onSummaryTime: (Int) -> Unit,
     pollenKinds: Set<PollenKind>,
     onPollenKind: (PollenKind, Boolean) -> Unit,
     noticeError: String?,
@@ -212,6 +219,20 @@ fun SettingsScreen(
                 checked = notifications.pollen,
                 onChange = { onNotification(NotificationToggle.Pollen, it) },
             )
+            ToggleOption(
+                title = stringResource(R.string.settings_notify_summary),
+                hint = stringResource(R.string.settings_notify_summary_hint),
+                checked = notifications.summary,
+                onChange = { onNotification(NotificationToggle.Summary, it) },
+            )
+            // Время нужно только при включённой сводке.
+            if (notifications.summary) {
+                TimeOption(
+                    title = stringResource(R.string.settings_notify_summary_time),
+                    minutes = notifications.summaryMinutes,
+                    onPick = onSummaryTime,
+                )
+            }
             // Виды пыльцы нужны только при включённом уведомлении о ней.
             if (notifications.pollen) {
                 SectionHeading(stringResource(R.string.settings_pollen_kinds))
@@ -347,6 +368,35 @@ private fun CheckOption(title: String, checked: Boolean, onChange: (Boolean) -> 
         } else {
             Spacer(Modifier.size(22.dp))
         }
+    }
+}
+
+/** Строка со временем: название слева, время справа; нажатие открывает системное окно выбора времени (формат 12 или 24 часа как в системе). */
+@Composable
+private fun TimeOption(title: String, minutes: Int, onPick: (Int) -> Unit) {
+    val palette = LocalPogodaPalette.current
+    val context = LocalContext.current
+    val clock = remember(minutes) { LocalTime.of(minutes / 60, minutes % 60) }
+    val text = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).format(clock)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(interactionSource = null, indication = null, role = Role.Button) {
+                TimePickerDialog(
+                    context,
+                    { _, hour, minute -> onPick(hour * 60 + minute) },
+                    minutes / 60,
+                    minutes % 60,
+                    DateFormat.is24HourFormat(context),
+                ).show()
+            }
+            .padding(horizontal = 18.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text(title, style = pogodaText(16f, 500), modifier = Modifier.weight(1f))
+        Text(text, style = pogodaText(16f, 600, color = palette.accent))
     }
 }
 

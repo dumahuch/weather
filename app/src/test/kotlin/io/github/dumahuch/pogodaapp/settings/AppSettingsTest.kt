@@ -101,24 +101,38 @@ class AppSettingsTest {
     }
 
     @Test
-    fun notificationsAreOffByDefault() {
+    fun notificationsAreOnByDefault() {
         val prefs = AppSettings(MemoryStorage()).notifications.value
-        assertEquals(NotificationPrefs(), prefs)
-        assertFalse(prefs.wanted)
+        assertEquals(NotificationPrefs(true, true, true, true, true, true, true), prefs)
+        assertEquals(NotificationPrefs.SUMMARY_DEFAULT_MINUTES, prefs.summaryMinutes)
+        assertEquals(20 * 60, prefs.summaryMinutes)
+        assertTrue(prefs.wanted)
+        assertEquals(NotificationPrefs.TOGGLE_COUNT, prefs.enabledCount)
+    }
+
+    @Test
+    fun storedChoiceBeatsTheDefault() {
+        val storage = MemoryStorage()
+        storage.write(NotificationToggle.RainSoon.key, "0")
+        storage.write(NotificationToggle.Shade.key, "1")
+        val prefs = AppSettings(storage).notifications.value
+        assertFalse(prefs.rainSoon)
+        assertTrue(prefs.inShade)
+        assertTrue(prefs.pollen)
     }
 
     @Test
     fun notificationTogglesAreStoredSeparatelyAndComeBackAfterRestart() {
         val storage = MemoryStorage()
         val first = AppSettings(storage)
-        first.setNotification(NotificationToggle.StatusBar, true)
-        first.setNotification(NotificationToggle.LockScreenPlace, true)
-        first.setNotification(NotificationToggle.StatusBar, true)
+        first.setNotification(NotificationToggle.StatusBar, false)
+        first.setNotification(NotificationToggle.LockScreenPlace, false)
+        first.setNotification(NotificationToggle.StatusBar, false)
         assertEquals(2, storage.writes)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(inShade = false, inStatusBar = true, placeOnLockScreen = true), restored)
+        assertEquals(NotificationPrefs(true, false, false, true, true, true, true), restored)
         assertTrue(restored.wanted)
-        first.setNotification(NotificationToggle.StatusBar, false)
+        first.setNotification(NotificationToggle.Shade, false)
         assertFalse(AppSettings(storage).notifications.value.wanted)
         // Уведомление не трогает другие настройки.
         assertEquals(CardShadow.Soft, AppSettings(storage).cardShadow.value)
@@ -134,6 +148,7 @@ class AppSettingsTest {
     fun rainSoonAloneNeedsTheBackgroundJobAndRemembersWhetherItWasReported() {
         val storage = MemoryStorage()
         val settings = AppSettings(storage)
+        NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.RainSoon, true)
         val restored = AppSettings(storage).notifications.value
         assertEquals(NotificationPrefs(rainSoon = true), restored)
@@ -168,6 +183,7 @@ class AppSettingsTest {
         settings.setPollenCheckedAt(Instant.parse("2026-04-20T09:00:00Z"))
         assertEquals(LocalDate.of(2026, 4, 20), AppSettings(storage).pollenNotifiedOn())
         assertEquals(Instant.parse("2026-04-20T09:00:00Z"), AppSettings(storage).pollenCheckedAt())
+        NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.Pollen, true)
         val restored = AppSettings(storage).notifications.value
         assertEquals(NotificationPrefs(pollen = true), restored)
@@ -175,17 +191,51 @@ class AppSettingsTest {
     }
 
     @Test
+    fun summaryTimeIsStoredClampedAndResetsTheSentMarker() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        settings.setSummarySentOn(LocalDate.of(2026, 11, 14))
+        assertEquals(LocalDate.of(2026, 11, 14), AppSettings(storage).summarySentOn())
+        settings.setSummaryMinutes(19 * 60 + 45)
+        assertEquals(19 * 60 + 45, AppSettings(storage).notifications.value.summaryMinutes)
+        assertNull(AppSettings(storage).summarySentOn())
+        settings.setSummaryMinutes(99999)
+        assertEquals(24 * 60 - 1, AppSettings(storage).notifications.value.summaryMinutes)
+        storage.write("summary_minutes", "oops")
+        assertEquals(NotificationPrefs.SUMMARY_DEFAULT_MINUTES, AppSettings(storage).notifications.value.summaryMinutes)
+    }
+
+    @Test
+    fun turningTheSummaryOnAgainResetsTheSentMarker() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        settings.setNotification(NotificationToggle.Summary, false)
+        settings.setSummarySentOn(LocalDate.of(2026, 11, 14))
+        settings.setNotification(NotificationToggle.Summary, true)
+        assertNull(AppSettings(storage).summarySentOn())
+        assertTrue(AppSettings(storage).notifications.value.summary)
+    }
+
+    @Test
+    fun summaryAloneNeedsTheBackgroundJob() {
+        assertTrue(NotificationPrefs(summary = true).background)
+        assertFalse(NotificationPrefs(summary = true).wanted)
+    }
+
+    @Test
     fun enabledCountCountsEveryToggle() {
         assertEquals(0, NotificationPrefs().enabledCount)
         assertEquals(2, NotificationPrefs(inShade = true, pollen = true).enabledCount)
-        val all = NotificationPrefs(true, true, true, true, true, true)
+        val all = NotificationPrefs(true, true, true, true, true, true, true)
         assertEquals(NotificationPrefs.TOGGLE_COUNT, all.enabledCount)
     }
 
     @Test
     fun alertsAloneNeedTheBackgroundJobButNotTheWeatherNotification() {
         val storage = MemoryStorage()
-        AppSettings(storage).setNotification(NotificationToggle.Alerts, true)
+        val settings = AppSettings(storage)
+        NotificationToggle.entries.forEach { settings.setNotification(it, false) }
+        settings.setNotification(NotificationToggle.Alerts, true)
         val restored = AppSettings(storage).notifications.value
         assertEquals(NotificationPrefs(alerts = true), restored)
         assertTrue(restored.background)

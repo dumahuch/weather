@@ -25,6 +25,7 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
     private val alerts = AlertNotifier(activity.applicationContext)
     private val rain = RainNotifier(activity.applicationContext)
     private val pollen = PollenNotifier(activity.applicationContext)
+    private val summary = SummaryNotifier(activity.applicationContext)
 
     /** Что сделать, когда разрешение выдано. */
     private var pending: (() -> Unit)? = null
@@ -41,6 +42,23 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
         } else {
             apply(toggle, on)
         }
+    }
+
+    /** Новое время вечерней сводки (минуты от полуночи): запоминается, задача ставится заново. */
+    fun setSummaryTime(minutes: Int) {
+        settings.setSummaryMinutes(minutes)
+        guarded { WeatherJobs.syncSummary(activity) }
+    }
+
+    /**
+     * Первый запуск (решение Димы 14.11.2026: все уведомления включены по умолчанию): если разрешения на уведомления ещё нет
+     * и о нём не спрашивали, системное окно открывается один раз. После отказа больше не беспокоим: включить можно в настройках.
+     */
+    fun askPermissionOnFirstRun() {
+        if (!settings.notifications.value.background || allowed() || settings.notificationPermissionAsked()) return
+        settings.markNotificationPermissionAsked()
+        pending = { guarded { WeatherJobs.refreshSoon(activity) } }
+        request.launch(PERMISSION)
     }
 
     /** Кнопка экрана проверки: учебное уведомление о предупреждении (со звуком, как настоящее). */
@@ -95,6 +113,11 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
         if (toggle == NotificationToggle.RainSoon) {
             // Включили: радар смотрится сразу, как будет сеть. Выключили: прежнее уведомление убирается.
             guarded { if (on) WeatherJobs.refreshSoon(activity) else rain.cancelAll() }
+            return
+        }
+        if (toggle == NotificationToggle.Summary) {
+            // Включили: сводка придёт в выбранное время (задача уже поставлена в sync). Выключили: уведомление убирается.
+            guarded { if (!on) summary.cancel() }
             return
         }
         if (toggle == NotificationToggle.Pollen) {
