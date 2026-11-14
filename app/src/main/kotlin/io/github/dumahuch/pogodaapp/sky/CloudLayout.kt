@@ -5,7 +5,7 @@ import kotlin.math.roundToInt
 
 /**
  * Одно облако фона «Ди» на листе облаков: какое ([rect] на листе), где лежит его центр ([cx], [cy], пиксели листа),
- * во сколько раз растянуто ([scale]), насколько непрозрачно ([alpha]) и отражено ли по горизонтали ([mirrored]).
+ * во сколько раз растянуто ([scale]) и отражено ли по горизонтали ([mirrored]). Облака непрозрачны: небо сквозь них не видно.
  * [storm] облако лежит на тёмном (грозовом) листе, иначе на светлом.
  */
 internal class PlacedCloud(
@@ -14,7 +14,6 @@ internal class PlacedCloud(
     val cx: Double,
     val cy: Double,
     val scale: Double,
-    val alpha: Double,
     val mirrored: Boolean,
 ) {
     val width: Double get() = rect.w * scale
@@ -24,7 +23,7 @@ internal class PlacedCloud(
 }
 
 /**
- * Раскладка облаков фона «Ди» по виду погоды: число облаков, их размер и непрозрачность растут с густотой
+ * Раскладка облаков фона «Ди» по виду погоды: число облаков и их размер растут с густотой
  * [SkyWeather.density], так что «малооблачно» это несколько отдельных облаков с просветами, а «облачно» и дождь
  * густая гряда. Раскладка постоянная (без случайных чисел): одна погода даёт один и тот же рисунок, и рисование
  * ([io.github.dumahuch.pogodaapp.ui.sky.DiPainter]) совпадает с расчётом цветов интерфейса ([DiRaster]).
@@ -65,9 +64,6 @@ internal object CloudLayout {
     /** Размер облаков листа (множитель к их исходному размеру) при густоте [density]: густая облачность из крупных облаков. */
     fun size(density: Double): Double = 0.7 + 0.45 * clamp01(density)
 
-    /** Непрозрачность облаков при густоте [density]: редкие облака чуть прозрачнее, плотная гряда полностью непрозрачна. */
-    fun alpha(density: Double): Double = 0.85 + 0.15 * clamp01(density)
-
     /**
      * Облака для погоды [weather], верхние первыми (рисуются раньше, нижние мелкие поверх). Каждое облако лежит на светлом или грозовом листе:
      * на грозовом столько, сколько задаёт [SkyWeather.darkShare], какие именно, решает равномерная последовательность по номеру облака.
@@ -75,7 +71,6 @@ internal object CloudLayout {
     fun of(weather: SkyWeather): List<PlacedCloud> {
         val n = count(weather)
         val size = size(weather.density)
-        val alpha = alpha(weather.density)
         val clouds = ArrayList<PlacedCloud>(n)
         for (i in 0 until n) {
             val along = (i + 0.5) / n + (unit(i, 1) - 0.5) * 0.7 / n
@@ -91,7 +86,6 @@ internal object CloudLayout {
                 cx = DiArt.SHEET_W * along,
                 cy = ROW_TOP + (ROW_BOTTOM - ROW_TOP) * row + (unit(i, 2) - 0.5) * 40.0,
                 scale = size * (DEPTH_TOP + (DEPTH_BOTTOM - DEPTH_TOP) * row) * (0.9 + 0.2 * unit(i, 3)),
-                alpha = alpha * (0.9 + 0.1 * row),
                 mirrored = unit(i, 4) > 0.5,
             )
         }

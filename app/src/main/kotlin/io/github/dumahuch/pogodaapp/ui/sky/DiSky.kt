@@ -140,7 +140,8 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
     private var cloudWeather: SkyWeather? = null
     private var cloudList: List<PlacedCloud> = emptyList()
 
-    fun draw(scope: DrawScope, look: SkyLook) {
+    /** [lightning]: кадр грозы (молния между облаками и грядами, свет разряда поверх всего), пусто вне разряда. */
+    fun draw(scope: DrawScope, look: SkyLook, lightning: LightningShot? = null) {
         val loaded = look.weights.visible().filter { store.has(it) }
         if (loaded.isEmpty()) return
         val clouds = store.clouds ?: return
@@ -155,12 +156,23 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         }
         scope.drawCelestial(look, celestial)
         // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
+        // Во время молнии гряды уходят в свой слой: молния ложится на облака своим светом, без затемнения грозы, и прячется за грядами.
+        val bolt = lightning?.takeIf { it.image != null && it.frame.bolt > 0.0 }
         effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
             drawClouds(look, clouds, w, h)
             effects.drawVeil(this, look, BlendMode.SrcAtop)
-            for (layer in DiArt.Layer.entries) {
-                if (layer != DiArt.Layer.Sky) drawLayer(layer, loaded, look, pan, w, h)
-            }
+            if (bolt == null) drawRidges(loaded, look, pan, w, h)
+        }
+        if (bolt != null) {
+            scope.drawBolt(bolt)
+            effects.layer(scope, look, force = false, withTone = true) { drawRidges(loaded, look, pan, w, h) }
+        }
+        lightning?.let { scope.drawFlash(it) }
+    }
+
+    private fun DrawScope.drawRidges(loaded: List<SkyScene>, look: SkyLook, pan: Double, w: Double, h: Double) {
+        for (layer in DiArt.Layer.entries) {
+            if (layer != DiArt.Layer.Sky) drawLayer(layer, loaded, look, pan, w, h)
         }
     }
 
@@ -207,7 +219,6 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
                     if (cloud.storm) clouds.storm else clouds.light,
                     srcOffset = IntOffset(cloud.rect.x, cloud.rect.y),
                     srcSize = IntSize(cloud.rect.w, cloud.rect.h),
-                    alpha = cloud.alpha.toFloat(),
                     colorFilter = filter,
                 )
             }

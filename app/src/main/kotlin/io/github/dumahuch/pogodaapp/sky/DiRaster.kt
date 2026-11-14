@@ -123,12 +123,12 @@ internal class DiRaster(private val maps: DiMaps) : SkyRaster {
                             if (lx < 0 || ly < 0 || lx >= cloud.rect.w || ly >= cloud.rect.h) continue
                             val ix = if (cloud.mirrored) cloud.rect.w - lx else lx
                             RasterKit.bilinearOrClear(maps.clouds(cloud.storm), maps.sheetW, maps.sheetH, (cloud.rect.x + ix) * sheetK, (cloud.rect.y + ly) * sheetK, tmp)
-                            val ca = cloud.alpha * tmp[3] / 255.0
+                            val ca = tmp[3] / 255.0
                             // Подъём яркости обрезается белым (цвет облака умножен на прозрачность), как у фильтра на экране.
                             val cap = ca * 255.0
-                            var cr = min(cap, cloud.alpha * tmp[0] * tint.r / 255.0)
-                            var cg = min(cap, cloud.alpha * tmp[1] * tint.g / 255.0)
-                            var cb = min(cap, cloud.alpha * tmp[2] * tint.b / 255.0)
+                            var cr = min(cap, tmp[0] * tint.r / 255.0)
+                            var cg = min(cap, tmp[1] * tint.g / 255.0)
+                            var cb = min(cap, tmp[2] * tint.b / 255.0)
                             if (veilStrength > 0.01) {
                                 // Цвет облака умножен на прозрачность; вуаль красит его пропорционально ей.
                                 cr = lerp(cr, ca * rowVeil.r, veilStrength); cg = lerp(cg, ca * rowVeil.g, veilStrength); cb = lerp(cb, ca * rowVeil.b, veilStrength)

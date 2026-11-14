@@ -84,9 +84,8 @@ class CloudLayoutTest {
     }
 
     @Test
-    fun everyCloudIsOnTheSheetWithSensibleSizeAndAlpha() {
+    fun everyCloudIsOnTheSheetWithSensibleSize() {
         for (condition in Condition.entries) for (cloud in clouds(condition)) {
-            assertTrue("$condition: прозрачность ${cloud.alpha}", cloud.alpha > 0.5 && cloud.alpha <= 1.0)
             assertTrue("$condition: размер ${cloud.scale}", cloud.scale in 0.4..1.8)
             assertTrue("$condition: центр по горизонтали ${cloud.cx}", cloud.cx in 0.0..DiArt.SHEET_W)
             assertTrue("$condition: центр по вертикали ${cloud.cy}", cloud.cy in 0.0..DiArt.SHEET_H)

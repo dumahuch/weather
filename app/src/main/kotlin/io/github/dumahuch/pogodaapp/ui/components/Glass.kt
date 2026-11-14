@@ -14,6 +14,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -76,6 +77,8 @@ class Glass internal constructor(
     internal val fog: State<Float>? = null,
     /** Доля стекла под инеем (0…1), пусто без мороза; см. [glassFrost]. */
     internal val frost: State<Float>? = null,
+    /** Свет вспышки грозы (0…1), пусто без грозы; стекло на миг светлеет, см. [glassFlash]. */
+    internal val flash: State<Float>? = null,
 ) {
     /**
      * То же стекло без размытия. Нужно экрану настроек: у высокой прокручиваемой карточки Haze считает размытие только
@@ -83,7 +86,7 @@ class Glass internal constructor(
      * серой полосой (записи стенда 12.11.2026). Заливка, тень, кромка, снег, капли и туман остаются прежними. Число капель
      * считается по площади с потолком, поэтому высокие карточки настроек не держат тысячи капель.
      */
-    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow, rain, fog, frost)
+    fun withoutBlur(): Glass = Glass(palette, null, cardBlur, lifted, snow, rain, fog, frost, flash)
 
     companion object {
         /** Стекло без размытия: пока неба нет и в проверках. */
@@ -106,10 +109,11 @@ fun rememberGlass(
     rain: RainOnGlass? = null,
     fog: State<Float>? = null,
     frost: State<Float>? = null,
+    flash: State<Float>? = null,
 ): Glass {
     val step = (palette.smoke.coerceIn(0f, 1f) * SMOKE_STEPS).roundToInt()
     val cardBlur = remember(step) { GlassBlur.card(step / SMOKE_STEPS.toFloat()) }
-    return remember(palette, haze, cardBlur, lifted, snow, rain, fog, frost) { Glass(palette, haze, cardBlur, lifted, snow, rain, fog, frost) }
+    return remember(palette, haze, cardBlur, lifted, snow, rain, fog, frost, flash) { Glass(palette, haze, cardBlur, lifted, snow, rain, fog, frost, flash) }
 }
 
 /**
@@ -248,6 +252,7 @@ private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean, fogPat
             shape,
         )
         .then(if (lifted) Modifier.border(1.dp, Color.White.copy(alpha = CardLift.RIM_ALPHA), shape) else Modifier)
+        .glassFlash(glass.flash)
         .glassFog(glass.fog, palette.glass, fogPatch)
         .glassFrost(glass.frost, palette.glass, frostPatch)
         .glassDrops(glass.rain)
@@ -314,10 +319,27 @@ fun Modifier.glassButton(shape: Shape, glass: Glass): Modifier {
         .border(1.dp, palette.glassLine, shape)
         .hazeGlass(glass, GlassBlur.Button)
         .background(palette.buttonBackground, shape)
+        .glassFlash(glass.flash)
         .glassFog(glass.fog, palette.glass)
         .glassFrost(glass.frost, palette.glass)
         .glassDrops(glass.rain)
 }
+
+/**
+ * Отблеск грозы: стекло на миг светлеет вместе со вспышкой. Стоит после [clip], поэтому закрашивает только стекло; значение
+ * читается при рисовании, и между разрядами стекло не перерисовывается.
+ */
+private fun Modifier.glassFlash(flash: State<Float>?): Modifier {
+    if (flash == null) return this
+    return drawBehind {
+        val light = flash.value
+        if (light > MIN_FLASH) drawRect(GlareColor, alpha = light * GLARE_ALPHA)
+    }
+}
+
+private val GlareColor = Color(0.86f, 0.91f, 1f)
+private const val GLARE_ALPHA = 0.14f
+private const val MIN_FLASH = 0.004f
 
 /** Только размытый фон карточек, без заливки, тени и кромки: у плоского стекла плашек предупреждений. */
 fun Modifier.hazeCardBlur(glass: Glass): Modifier = hazeGlass(glass, glass.cardBlur)

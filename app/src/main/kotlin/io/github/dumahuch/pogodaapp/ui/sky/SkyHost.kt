@@ -367,13 +367,18 @@ internal fun SkyHost(
         rainStrength?.takeUnless { frosty }?.let { RainOnGlass(precipClock, it, lensSky, animationsOn) }
     }
 
+    // Гроза: вспышки, молния и отблеск на стекле, только с анимацией и когда небо уже видно.
+    val storming = (override.condition ?: input?.condition) == Condition.Storm
+    val lightning = rememberLightning(storming && animationsOn && started && ready)
+    val glassFlash = remember(lightning) { derivedStateOf { lightning.value?.frame?.flash?.toFloat() ?: 0f } }
+
     val fog = rememberGlassFog(input, override, animationsOn, started)
     val frost = rememberGlassFrost(input, override, animationsOn, started)
 
     // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
     val hazeState = rememberHazeState()
     // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
-    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass, fog = fog, frost = frost)
+    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass, fog = fog, frost = frost, flash = glassFlash)
 
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,
@@ -395,6 +400,7 @@ internal fun SkyHost(
                 snapshot = restored?.image,
                 snapshotAlpha = { snapshotAlpha },
                 phase = { phase },
+                lightning = { lightning.value },
                 precip = precip,
                 precipClock = precipClock,
                 lightSky = palette.darkInk,
@@ -420,6 +426,7 @@ private fun SkyBackground(
     snapshot: ImageBitmap?,
     snapshotAlpha: () -> Float,
     phase: () -> Double,
+    lightning: () -> LightningShot?,
     precip: PrecipSpec?,
     precipClock: State<Double>,
     lightSky: Boolean,
@@ -452,7 +459,7 @@ private fun SkyBackground(
                     .matchParentSize()
                     .graphicsLayer { alpha = reveal() }
                     .drawBehind {
-                        painter.draw(this, sky.look(SkyDrift.position(sky.pan, phase()), lift(size.height.toDouble())))
+                        painter.draw(this, sky.look(SkyDrift.position(sky.pan, phase()), lift(size.height.toDouble())), lightning())
                         SkyEffects.drawScrim(this, scrim, infoScrim, bands(), size.height)
                     },
             )
