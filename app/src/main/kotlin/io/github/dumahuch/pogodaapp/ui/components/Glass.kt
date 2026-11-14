@@ -249,7 +249,7 @@ private fun Modifier.glassFill(shape: Shape, glass: Glass, blur: Boolean, fogPat
         )
         .then(if (lifted) Modifier.border(1.dp, Color.White.copy(alpha = CardLift.RIM_ALPHA), shape) else Modifier)
         .glassFog(glass.fog, palette.glass, fogPatch)
-        .glassFrost(glass.frost, palette.glass, shape, frostPatch)
+        .glassFrost(glass.frost, palette.glass, frostPatch)
         .glassDrops(glass.rain)
 }
 
@@ -315,7 +315,7 @@ fun Modifier.glassButton(shape: Shape, glass: Glass): Modifier {
         .hazeGlass(glass, GlassBlur.Button)
         .background(palette.buttonBackground, shape)
         .glassFog(glass.fog, palette.glass)
-        .glassFrost(glass.frost, palette.glass, shape)
+        .glassFrost(glass.frost, palette.glass)
         .glassDrops(glass.rain)
 }
 
