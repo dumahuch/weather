@@ -61,9 +61,10 @@ class RainLoader(private val fetch: (url: String) -> ByteArray) {
 }
 
 /**
- * Загрузка облачности ICON-D2 на час: список файлов папки прогона показывает, выложен ли нужный час (список
- * держится 10 минут), файл скачивается, распаковывается ([unpack], bzip2) и разбирается. Нет ни в одном
- * подходящем прогоне: null. Разные часы грузятся одновременно; список папки общий ([FolderListings]).
+ * Загрузка облачности на час: сначала ICON-D2, где его срок кончился, ICON-EU ([IconEuFiles], сетка грубее).
+ * Список файлов папки прогона показывает, выложен ли нужный час (список держится 10 минут), файл скачивается,
+ * распаковывается ([unpack], bzip2) и разбирается. Нет ни в одном подходящем прогоне: null. Разные часы грузятся
+ * одновременно; список папки общий ([FolderListings]).
  */
 class CloudLoader(
     private val listings: FolderListings,
@@ -76,6 +77,12 @@ class CloudLoader(
             if (!IconD2Files.listed(listings.get(folder, now), frame)) continue
             val grib = unpack(bytes(folder + IconD2Files.fileName(frame)))
             return CloudRaster.normalize(Grib2.parse(grib))
+        }
+        for (run in IconEuFiles.runs(hour, now)) {
+            val folder = IconEuFiles.folder(run, IconEuFiles.CLOUDS)
+            val name = IconEuFiles.fileName(run, IconEuFiles.lead(run, hour), IconEuFiles.CLOUDS)
+            if (!IconEuFiles.listed(listings.get(folder, now), name)) continue
+            return CloudRaster.normalize(Grib2.parse(unpack(bytes(folder + name))))
         }
         return null
     }

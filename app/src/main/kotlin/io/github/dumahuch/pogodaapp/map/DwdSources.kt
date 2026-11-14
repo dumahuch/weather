@@ -110,3 +110,47 @@ object IconD2Files {
     /** Есть ли в списке папки (HTML сервера) файл этого кадра. */
     fun listed(listing: String, frame: IconD2Frame): Boolean = listing.contains("\"" + fileName(frame) + "\"")
 }
+
+/**
+ * Файлы ICON-EU на открытом сервере DWD: `https://opendata.dwd.de/weather/nwp/icon-eu/grib/HH/<поле>/`, сетка
+ * 0,0625° на всю Европу. Нужны после конца ICON-D2 ([IconD2Files.MAX_LEAD]), до конца «Послезавтра». Длинные прогоны
+ * 00, 06, 12 и 18 UTC идут до +120 ч, до +78 каждый час (проверено 14.11.2026 через среду «dwd»); короткие 03, 09,
+ * 15, 21 только до +48 ч и дальше ICON-D2 ничего не дают, поэтому не берутся. Поле в имени файла заглавными.
+ */
+object IconEuFiles {
+    private const val BASE = "https://opendata.dwd.de/weather/nwp/icon-eu/grib/"
+    private val RunStep: Duration = Duration.ofHours(6)
+
+    /** До этого часа прогноза файлы идут каждый час; дальше через 3 часа, такие часы не берутся. */
+    const val MAX_LEAD = 78
+
+    /** Сколько прогонов назад пробовать, если последний ещё не выложен. */
+    private const val RUNS_BACK = 2
+
+    const val CLOUDS = "clct_mod"
+    const val RAIN = "tot_prec"
+
+    private val Stamp: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneOffset.UTC)
+
+    fun folder(run: Instant, field: String): String =
+        BASE + String.format(Locale.ROOT, "%02d", run.atOffset(ZoneOffset.UTC).hour) + "/" + field + "/"
+
+    fun fileName(run: Instant, lead: Int, field: String): String =
+        "icon-eu_europe_regular-lat-lon_single-level_${Stamp.format(run)}_" +
+            String.format(Locale.ROOT, "%03d", lead) + "_" + field.uppercase(Locale.ROOT) + ".grib2.bz2"
+
+    /**
+     * Прогоны, из которых можно взять момент [time], от лучшего к худшему: последний длинный прогон, начавшийся не позже
+     * [time] и «сейчас», и до [RUNS_BACK] более ранних, у которых [time] в пределах [MAX_LEAD].
+     */
+    fun runs(time: Instant, now: Instant): List<Instant> {
+        val latest = MapTimeline.floorTo(if (time.isBefore(now)) time else now, RunStep)
+        return (0..RUNS_BACK).map { latest.minus(RunStep.multipliedBy(it.toLong())) }
+            .filter { Duration.between(it, time).toHours() in 0..MAX_LEAD.toLong() }
+    }
+
+    fun lead(run: Instant, time: Instant): Int = Duration.between(run, time).toHours().toInt()
+
+    /** Есть ли в списке папки (HTML сервера) файл [name]. */
+    fun listed(listing: String, name: String): Boolean = listing.contains("\"" + name + "\"")
+}
