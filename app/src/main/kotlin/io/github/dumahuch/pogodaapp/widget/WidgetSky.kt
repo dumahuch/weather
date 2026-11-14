@@ -19,6 +19,7 @@ import android.util.Log
 import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
+import io.github.dumahuch.pogodaapp.sky.Placement
 import io.github.dumahuch.pogodaapp.sky.Rgb
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
 import io.github.dumahuch.pogodaapp.sky.SkyLook
