@@ -91,7 +91,6 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, wifiOnly: Boolean, modifier: M
             userAgent = "PogodaApp/${AppVersion.read(context).name}",
             cacheRoot = mapCacheRoot(context),
             modelRoot = mapModelRoot(context),
-            euRoot = mapModelEuRoot(context),
             metered = { connectivity?.isActiveNetworkMetered ?: true },
         )
     }
@@ -333,9 +332,13 @@ private fun TimePanel(
             Text(status, style = pogodaText(11f, 500, color = palette.ink2), modifier = Modifier.padding(top = 2.dp))
         }
         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            DayChip(MapDay.Today, R.string.map_day_now, state.day, onDay)
-            DayChip(MapDay.Tomorrow, R.string.map_day_tomorrow, state.day, onDay)
-            DayChip(MapDay.DayAfter, R.string.map_day_after, state.day, onDay)
+            for ((day, label) in listOf(
+                MapDay.Today to R.string.map_day_now,
+                MapDay.Tomorrow to R.string.map_day_tomorrow,
+                MapDay.DayAfter to R.string.map_day_after,
+            )) {
+                DayChip(day, label, state.day, MapTimeline.hasFrames(day, state.now, zone), onDay)
+            }
         }
         Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             val playLabel = stringResource(if (state.playing) R.string.map_pause else R.string.map_play)
@@ -366,17 +369,22 @@ private fun TimePanel(
 }
 
 @Composable
-private fun DayChip(day: MapDay, label: Int, selected: MapDay, onDay: (MapDay) -> Unit) {
+private fun DayChip(day: MapDay, label: Int, selected: MapDay, enabled: Boolean, onDay: (MapDay) -> Unit) {
     val palette = LocalPogodaPalette.current
     val shape = RoundedCornerShape(12.dp)
     val on = day == selected
+    val color = when {
+        !enabled -> palette.ink2.copy(alpha = 0.4f)
+        on -> palette.ink
+        else -> palette.ink2
+    }
     Text(
         stringResource(label),
-        style = pogodaText(12f, if (on) 600 else 500, color = if (on) palette.ink else palette.ink2),
+        style = pogodaText(12f, if (on) 600 else 500, color = color),
         modifier = Modifier
             .clip(shape)
             .then(if (on) Modifier.background(palette.buttonOn, shape) else Modifier)
-            .selectable(selected = on, role = Role.Tab, onClick = { onDay(day) })
+            .selectable(selected = on, enabled = enabled, role = Role.Tab, onClick = { onDay(day) })
             .padding(horizontal = 12.dp, vertical = 5.dp),
     )
 }
