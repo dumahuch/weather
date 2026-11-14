@@ -233,7 +233,9 @@ class AppSettingsTest {
     @Test
     fun alertsAloneNeedTheBackgroundJobButNotTheWeatherNotification() {
         val storage = MemoryStorage()
-        AppSettings(storage).setNotification(NotificationToggle.Alerts, true)
+        val settings = AppSettings(storage)
+        NotificationToggle.entries.forEach { settings.setNotification(it, false) }
+        settings.setNotification(NotificationToggle.Alerts, true)
         val restored = AppSettings(storage).notifications.value
         assertEquals(NotificationPrefs(alerts = true), restored)
         assertTrue(restored.background)
