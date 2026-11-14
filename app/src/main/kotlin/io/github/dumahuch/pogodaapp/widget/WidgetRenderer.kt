@@ -32,7 +32,7 @@ internal class WidgetRenderer(private val context: Context) {
         val h = heightPx / scale
         val sky = style.background == WidgetBackground.Sky && model != null
         if (style.background == WidgetBackground.Glass) drawGlass(canvas, w, h, style.opacity)
-        if (sky && model != null) drawSky(canvas, w, h, scale, model, layout, style)
+        if (sky) drawSky(canvas, w, h, scale, model, layout, style)
         // Без неба и без плотного стекла буквы лежат прямо на обоях: им нужна тень.
         val shadow = style.background == WidgetBackground.None || (style.background == WidgetBackground.Glass && style.opacity < SHADOW_BELOW_OPACITY)
         val d = WidgetDrawer(context, canvas, scale, shadow, style.icons ?: appIcons)
