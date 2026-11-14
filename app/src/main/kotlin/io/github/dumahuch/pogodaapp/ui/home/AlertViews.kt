@@ -37,6 +37,8 @@ import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassButton
+import io.github.dumahuch.pogodaapp.ui.components.glassWeatherInside
+import io.github.dumahuch.pogodaapp.ui.components.glassWeatherOutside
 import io.github.dumahuch.pogodaapp.ui.components.hazeCardBlur
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -58,8 +60,8 @@ private val AlertShape = RoundedCornerShape(16.dp)
 private val MoreShape = RoundedCornerShape(14.dp)
 
 /** Доля цвета уровня в заливке плашки и в её тонкой рамке (макет: 15 % и 26 %). */
-private const val TINT_FILL = 0.15f
-private const val TINT_LINE = 0.26f
+internal const val TINT_FILL = 0.15f
+internal const val TINT_LINE = 0.26f
 
 /** Цвет уровня DWD (приглушённый под стиль приложения). */
 internal fun levelColor(level: AlertLevel): Color = PogodaColors.AlertLevels[level.number - 1]
@@ -132,10 +134,12 @@ private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color): Modifi
     val base = if (palette.glassAlert.alpha >= palette.glass.alpha) palette.glassAlert else palette.glass
     val fill = tint.copy(alpha = TINT_FILL).compositeOver(base)
     return this
+        .glassWeatherOutside(shape, glass)
         .clip(shape)
         .border(1.dp, tint.copy(alpha = TINT_LINE), shape)
         .hazeCardBlur(glass)
         .background(fill, shape)
+        .glassWeatherInside(glass)
 }
 
 /**

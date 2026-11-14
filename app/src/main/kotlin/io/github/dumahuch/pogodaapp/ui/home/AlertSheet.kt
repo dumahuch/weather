@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
@@ -51,6 +52,8 @@ import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
+import io.github.dumahuch.pogodaapp.ui.components.glassWeatherInside
+import io.github.dumahuch.pogodaapp.ui.components.glassWeatherOutside
 import io.github.dumahuch.pogodaapp.ui.components.hazeCardBlur
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -119,6 +122,7 @@ fun AlertSheetHost(
             val current = shown.last
             val alert = (current as? AlertSheet.One)?.let { one -> alerts.firstOrNull { it.id == one.id } }
             SheetFrame(
+                tint = alert?.let { levelColor(it.level) },
                 header = {
                     if (alert != null) {
                         AlertHeader(alert, Modifier.weight(1f))
@@ -147,11 +151,14 @@ private class SheetMemory {
 }
 
 @Composable
-private fun SheetFrame(header: @Composable RowScope.() -> Unit, onClose: () -> Unit, content: @Composable () -> Unit) {
+private fun SheetFrame(tint: Color?, header: @Composable RowScope.() -> Unit, onClose: () -> Unit, content: @Composable () -> Unit) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
     val base = if (palette.darkInk) Color.White else Color(0xFF0C131F)
-    val fill = lerp(base, palette.glass.copy(alpha = 1f), SHEET_GLASS_SHARE).copy(alpha = SHEET_ALPHA)
+    val plain = lerp(base, palette.glass.copy(alpha = 1f), SHEET_GLASS_SHARE).copy(alpha = SHEET_ALPHA)
+    // Шторка одного предупреждения красится цветом его уровня, как плашка; общий список остаётся нейтральным.
+    val fill = tint?.copy(alpha = TINT_FILL)?.compositeOver(plain) ?: plain
+    val line = tint?.copy(alpha = TINT_LINE) ?: palette.glassLine
     BoxWithConstraints(
         Modifier
             .fillMaxWidth()
@@ -163,10 +170,12 @@ private fun SheetFrame(header: @Composable RowScope.() -> Unit, onClose: () -> U
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = maxHeight - 48.dp)
+                .glassWeatherOutside(SheetShape, glass)
                 .clip(SheetShape)
-                .border(1.dp, palette.glassLine, SheetShape)
+                .border(1.dp, line, SheetShape)
                 .hazeCardBlur(glass)
                 .background(fill, SheetShape)
+                .glassWeatherInside(glass)
                 // Нажатие по самой шторке не должно закрывать её (оно ушло бы к затемнению под ней).
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})
                 .verticalScroll(rememberScrollState())

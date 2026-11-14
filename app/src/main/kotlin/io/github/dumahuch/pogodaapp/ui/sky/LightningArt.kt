@@ -98,17 +98,15 @@ internal fun DrawScope.drawBolt(shot: LightningShot) {
     val alpha = shot.frame.bolt.toFloat()
     if (alpha < MIN_LIGHT) return
     val strike = shot.frame.strike
-    val scale = size.height * BOLT_HEIGHT / BOLT_SOURCE_HEIGHT
+    val scale = (size.height * BOLT_HEIGHT * strike.boltScale / BOLT_SOURCE_HEIGHT).toFloat()
     val width = image.width * scale
     val left = (strike.boltX * size.width).toFloat() - width / 2
     withTransform({
-        if (strike.mirrored) {
-            translate(left + width, 0f)
-            scale(-scale, scale, pivot = Offset.Zero)
-        } else {
-            translate(left, 0f)
-            scale(scale, scale, pivot = Offset.Zero)
-        }
+        // Наклон вокруг верхней середины картинки, потом (при отражении) переворот по горизонтали.
+        translate(left + width / 2, 0f)
+        rotate(strike.boltTilt.toFloat(), pivot = Offset.Zero)
+        scale(if (strike.mirrored) -scale else scale, scale, pivot = Offset.Zero)
+        translate(-image.width / 2f, 0f)
     }) {
         drawImage(image, alpha = alpha)
     }
