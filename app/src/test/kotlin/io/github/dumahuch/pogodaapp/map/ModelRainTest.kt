@@ -70,23 +70,10 @@ class ModelRainTest {
     }
 
     @Test
-    fun fileOfMomentIsWholeHoursFromRun() {
-        assertEquals(7, IconD2RainModel.leadOf(run, Instant.parse("2026-11-12T22:45:00Z")))
-        assertEquals(8, IconD2RainModel.leadOf(run, Instant.parse("2026-11-12T23:00:00Z")))
-    }
-
-    @Test
-    fun lessRainLaterGivesNoRainNotNegative() {
-        val downloads = mutableListOf<String>()
-        val shrinking = mapOf(IconD2Rain.fileName(run, 7) to file(7, listOf(100, 90, 80, 70)))
-        val model = ModelRainLoader(
-            listings = FolderListings { shrinking.keys.joinToString("") { "<a href=\"$it\">" } },
-            bytes = { url -> downloads += url; shrinking.getValue(url.substringAfterLast('/')) },
-            unpack = { it },
-            width = 16,
-            height = 12,
-        )
-        assertTrue(model.load(Instant.parse("2026-11-12T22:30:00Z"), now)!!.levels.all { it.toInt() == 0 })
+    fun rateIsNeverNegative() {
+        assertEquals(0.0, IconD2Rain.rate(1.0, 0.9), 0.0)
+        assertEquals(2.0, IconD2Rain.rate(1.0, 1.5), 1e-9)
+        assertEquals(7, IconD2Rain.leadOf(run, Instant.parse("2026-11-12T22:45:00Z")))
     }
 
     /** Загрузчик с одним файлом, где дождь (1 мм за 15 минут, 4 мм/ч) только в узлах [wet] сетки 25 × 12 по 1°. */

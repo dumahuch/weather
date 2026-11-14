@@ -12,11 +12,12 @@ enum class MapDay { Today, Tomorrow, DayAfter }
 data class RulerTick(val time: Instant, val major: Boolean)
 
 /**
- * Время на карте. Шкала одна, сплошная: с сегодняшних 00:00 до конца «Послезавтра»; палец ведёт её через полночь,
+ * Время на карте. Шкала одна, сплошная: с сегодняшних 00:00 до конца прогноза ICON-D2 ([modelEnd], около 48 часов
+ * вперёд: «Послезавтра» обрезано, а ночью может не начаться, см. [hasFrames]); палец ведёт её через полночь,
  * а кнопки суток только прыгают и подсвечиваются по тому, на каких сутках стоит шкала ([dayOf]).
  * Шаг выбора: около «сейчас» (два часа назад и два вперёд, пока есть радар) 5 минут; прошедшие часы раньше этого
- * по часам; после радара 15 минут, как дождь ICON-D2 ([ModelStep]), пока его прогноз достаёт ([modelEnd]); дальше
- * по часам (ICON-EU). Малые деления через 15 минут там, где шаг мельче часа.
+ * по часам; после радара 15 минут, как дождь ICON-D2 ([ModelStep]), до самого конца шкалы ([modelEnd]).
+ * Малые деления через 15 минут там, где шаг мельче часа.
  */
 object MapTimeline {
     val RadarStep: Duration = Duration.ofMinutes(5)
@@ -58,12 +59,20 @@ object MapTimeline {
     private fun dayEnd(day: MapDay, now: Instant, zone: ZoneId): Instant =
         LocalDate.ofInstant(now, zone).plusDays(day.ordinal + 1L).atStartOfDay(zone).toInstant()
 
-    /** Начало и конец всей шкалы: с сегодняшних 00:00 до конца «Послезавтра». */
+    /** Начало и конец всей шкалы: с сегодняшних 00:00 до конца прогноза ICON-D2 ([modelEnd]), но не дальше конца «Послезавтра». */
     fun range(now: Instant, zone: ZoneId): Pair<Instant, Instant> =
-        dayStart(MapDay.Today, now, zone) to dayEnd(MapDay.DayAfter, now, zone)
+        dayStart(MapDay.Today, now, zone) to minOf(dayEnd(MapDay.DayAfter, now, zone), modelEnd(now))
 
-    /** Сутки [day] на шкале: от их 00:00 до следующих 00:00 (полночь уже следующие сутки, кроме конца шкалы). */
-    fun dayRange(day: MapDay, now: Instant, zone: ZoneId): Pair<Instant, Instant> = dayStart(day, now, zone) to dayEnd(day, now, zone)
+    /**
+     * Сутки [day] на шкале: от их 00:00 до следующих 00:00 (полночь уже следующие сутки), но не дальше конца шкалы
+     * ([range]). Если сутки начинаются после конца шкалы, начало позже конца (см. [hasFrames]).
+     */
+    fun dayRange(day: MapDay, now: Instant, zone: ZoneId): Pair<Instant, Instant> =
+        dayStart(day, now, zone) to minOf(dayEnd(day, now, zone), range(now, zone).second)
+
+    /** Есть ли на шкале хоть один кадр суток [day]: ночью прогноз ICON-D2 ещё не доходит до «Послезавтра». */
+    fun hasFrames(day: MapDay, now: Instant, zone: ZoneId): Boolean =
+        !dayStart(day, now, zone).isAfter(range(now, zone).second)
 
     /** На каких сутках стоит [time]: их кнопка подсвечена. */
     fun dayOf(time: Instant, now: Instant, zone: ZoneId): MapDay =
@@ -89,12 +98,11 @@ object MapTimeline {
         val result = when {
             clamped.isBefore(fineStart) -> roundTo(clamped, Hour)
             !clamped.isAfter(fineEnd) -> roundTo(clamped, RadarStep)
-            !clamped.isAfter(modelEnd(now)) -> {
-                // После радара шаг 15 минут; ближайшая к пальцу четверть часа может оказаться ещё на радаре.
+            else -> {
+                // После радара шаг 15 минут до конца шкалы; ближайшая к пальцу четверть часа может оказаться ещё на радаре.
                 val quarter = roundTo(clamped, ModelStep)
                 if (quarter.isAfter(fineEnd)) quarter else fineEnd
             }
-            else -> roundTo(clamped, Hour)
         }
         return result.coerceIn(start, end)
     }
@@ -177,7 +185,8 @@ object MapTimeline {
         } else {
             step = Hour
             time = start
-            last = end.minus(Hour)
+            // Сутки обрезаны концом шкалы: последний кадр это сам конец; иначе без полуночи следующих суток.
+            last = if (end.isBefore(dayEnd(day, now, zone))) end else end.minus(Hour)
         }
         val frames = mutableListOf<Instant>()
         while (!time.isAfter(last)) {

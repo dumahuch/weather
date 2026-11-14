@@ -47,77 +47,22 @@ object IconD2Rain {
     /** Шаг полей в файле и шаг кадров дождя модели на шкале. */
     val Step: Duration = Duration.ofMinutes(15)
 
+    private val Hour: Duration = Duration.ofHours(1)
+
+    /** Во сколько раз сумма за 15 минут меньше силы дождя в мм/ч. */
+    private const val PER_HOUR = 4.0
+
     fun folder(run: Instant): String = BASE + String.format(Locale.ROOT, "%02d", run.atOffset(ZoneOffset.UTC).hour) + "/tot_prec/"
 
     fun fileName(run: Instant, lead: Int): String =
         "icon-d2_germany_regular-lat-lon_single-level_${Stamp.format(run)}_" +
             String.format(Locale.ROOT, "%03d", lead) + "_2d_tot_prec.grib2.bz2"
-}
 
-/**
- * Модель, из которой считается дождь на карте: какие прогоны подходят, где их файлы и за какой отрезок кадр. Кадр на
- * время T это сила дождя за [span] до [frameEnd]`(T)`, как разность двух накоплений с начала прогона.
- */
-interface RainModel {
-    /** Длина отрезка, за который считается кадр. */
-    val span: Duration
+    /** Номер файла (час прогноза), в котором лежит накопление на момент [time]. */
+    fun leadOf(run: Instant, time: Instant): Int = (Duration.between(run, time).seconds / Hour.seconds).toInt()
 
-    /** Последний час прогноза, который берётся. */
-    val maxLead: Int
-
-    /** Пятна дождя меньше стольких узлов сетки не показываются ([RainSpots]); 0 значит все. */
-    val minSpot: Int
-
-    /** Конец отрезка кадра на [time]. */
-    fun frameEnd(time: Instant): Instant
-
-    /** Прогоны, из которых можно взять накопление на [start] (начало отрезка), от лучшего к худшему. */
-    fun runs(start: Instant, now: Instant): List<Instant>
-
-    fun folder(run: Instant): String
-
-    /** Файл с накоплением на момент [time]; номер файла это целые часы от начала прогона. */
-    fun fileName(run: Instant, lead: Int): String
-
-    fun leadOf(run: Instant, time: Instant): Int = (Duration.between(run, time).seconds / 3600).toInt()
-}
-
-/** ICON-D2: 15-минутные кадры, сетка 0,02°; пятна в один-два узла убираются (на картинке это квадратики). */
-object IconD2RainModel : RainModel {
-    override val span: Duration = IconD2Rain.Step
-    override val maxLead = IconD2Files.MAX_LEAD
-    override val minSpot = RainSpots.MIN_NODES
-
-    override fun frameEnd(time: Instant): Instant = time
-
-    override fun runs(start: Instant, now: Instant): List<Instant> =
-        IconD2Files.candidates(MapTimeline.floorTo(start, Duration.ofHours(1)), now).map { it.run }
-
-    override fun folder(run: Instant): String = IconD2Rain.folder(run)
-
-    override fun fileName(run: Instant, lead: Int): String = IconD2Rain.fileName(run, lead)
-}
-
-/**
- * ICON-EU после конца ICON-D2: дождь за час, который кончается в T (как у ICON-D2: дождь до времени кадра; время между
- * часами относится к часу, где оно лежит). Сетка 0,0625°, на картинке около 4,7 пикселя на узел: одиночный узел
- * сглаживается в мягкое пятно, поэтому мелкие пятна не убираются, иначе пропадали бы настоящие ливни в 5–7 км.
- */
-object IconEuRainModel : RainModel {
-    override val span: Duration = Duration.ofHours(1)
-    override val maxLead = IconEuFiles.MAX_LEAD
-    override val minSpot = 0
-
-    override fun frameEnd(time: Instant): Instant {
-        val hour = MapTimeline.floorTo(time, span)
-        return if (hour == time) time else hour.plus(span)
-    }
-
-    override fun runs(start: Instant, now: Instant): List<Instant> = IconEuFiles.runs(start, now)
-
-    override fun folder(run: Instant): String = IconEuFiles.folder(run, IconEuFiles.RAIN)
-
-    override fun fileName(run: Instant, lead: Int): String = IconEuFiles.fileName(run, lead, IconEuFiles.RAIN)
+    /** Сила дождя (мм/ч) за 15 минут между накоплениями [before] и [after] (мм). */
+    fun rate(before: Double, after: Double): Double = ((after - before) * PER_HOUR).coerceAtLeast(0.0)
 }
 
 /**
@@ -127,7 +72,7 @@ object IconEuRainModel : RainModel {
  * модели, а пятна мягкие, без квадратов. Картинка шириной как у радара ([MapArea.RAIN_WIDTH]), полтора пикселя на клетку.
  * Пятна дождя в один-два узла не показываются ([RainSpots]): на картинке они выходят квадратиками в 3–4 пикселя.
  * Нужный прогон выбирается так же, как для облаков ([IconD2Files.candidates]); есть ли файл, показывает список папки.
- * Нет ни в одном прогоне: null (тогда дождь берётся из следующей модели). Модель задаёт [RainModel]: ICON-D2 или ICON-EU.
+ * Нет ни в одном прогоне: null (тогда дождь берётся из ICON-EU).
  *
  * Скачанные файлы держатся разобранными в небольшом запасе ([FILE_CACHE]), только вырезка сетки под область карты:
  * у четырёх кадров часа один файл, а кадр на :00 берёт ещё последнее поле предыдущего файла. Одновременно
@@ -145,14 +90,13 @@ internal object RainSpots {
 
     /**
      * Обнуляет в [rate] (мм/ч, [columns] × [rows] узлов) пятна дождя, видимые на карте (от [RainPalette.LEVEL_LOW]),
-     * меньше [minNodes] узлов; узлы пятна соседи по стороне или по углу.
+     * меньше [MIN_NODES] узлов; узлы пятна соседи по стороне или по углу.
      */
-    fun dropSmall(rate: FloatArray, columns: Int, rows: Int, minNodes: Int = MIN_NODES) {
-        if (minNodes <= 1) return
+    fun dropSmall(rate: FloatArray, columns: Int, rows: Int) {
         val wet = RainPalette.LEVEL_LOW.toFloat()
         val seen = BooleanArray(rate.size)
         val stack = IntArray(rate.size)
-        val spot = IntArray(minNodes)
+        val spot = IntArray(MIN_NODES)
         for (startNode in rate.indices) {
             if (seen[startNode] || rate[startNode] < wet) continue
             seen[startNode] = true
@@ -161,7 +105,7 @@ internal object RainSpots {
             var size = 0
             while (top > 0) {
                 val node = stack[--top]
-                if (size < minNodes) spot[size] = node
+                if (size < MIN_NODES) spot[size] = node
                 size++
                 val x = node % columns
                 val y = node / columns
@@ -179,7 +123,7 @@ internal object RainSpots {
                     }
                 }
             }
-            if (size < minNodes) for (k in 0 until size) rate[spot[k]] = 0f
+            if (size < MIN_NODES) for (k in 0 until size) rate[spot[k]] = 0f
         }
     }
 }
@@ -190,7 +134,6 @@ class ModelRainLoader(
     private val unpack: (ByteArray) -> ByteArray,
     private val width: Int = MapArea.RAIN_WIDTH,
     private val height: Int = MapArea.heightFor(MapArea.RAIN_WIDTH),
-    private val model: RainModel = IconD2RainModel,
 ) {
     /** Вырезка сетки: столбцы и строки узлов, которые нужны картинке, и где пиксели картинки лежат между ними. */
     private class Window(val key: String, val columns: Int, val rows: Int, val firstColumn: Int, val firstRow: Int, val gx: DoubleArray, val gy: DoubleArray)
@@ -207,64 +150,54 @@ class ModelRainLoader(
     @Volatile
     private var window: Window? = null
 
-    /** Во сколько раз сумма за отрезок кадра меньше силы дождя в мм/ч. */
-    private val perHour = 3600.0 / model.span.seconds
-
     /** Кадр дождя модели: прогон, из которого он посчитан, и уровни [RainPalette.levelOf] на пиксели картинки. */
     class Frame(val run: Instant, val levels: ByteArray)
 
-    /**
-     * Откуда берётся кадр: прогон, его папка, отрезок от [start] до [end] и номера двух файлов с накоплениями;
-     * [leadBefore] null, если отрезок начинается с начала прогона (накопление там ноль, файл не нужен).
-     */
-    private class Source(val run: Instant, val folder: String, val start: Instant, val end: Instant, val leadBefore: Int?, val leadAfter: Int)
+    /** Откуда берётся кадр на [time]: прогон, его папка и номера двух файлов с накоплениями. */
+    private class Source(val run: Instant, val folder: String, val leadBefore: Int, val leadAfter: Int)
 
-    /** Подходящие прогоны по порядку, у которых в списке папки есть нужные файлы. */
+    /** Подходящие прогоны по порядку, у которых в списке папки есть оба нужных файла. */
     private fun sources(time: Instant, now: Instant): Sequence<Source> {
-        val end = model.frameEnd(time)
-        val start = end.minus(model.span)
-        return model.runs(start, now).asSequence().mapNotNull { run ->
+        val start = time.minus(IconD2Rain.Step)
+        return IconD2Files.candidates(MapTimeline.floorTo(start, Duration.ofHours(1)), now).asSequence().mapNotNull { frame ->
+            val run = frame.run
             if (start.isBefore(run)) return@mapNotNull null
-            val leadBefore = if (start == run) null else model.leadOf(run, start)
-            val source = Source(run, model.folder(run), start, end, leadBefore, model.leadOf(run, end))
-            if (source.leadAfter > model.maxLead) return@mapNotNull null
+            val source = Source(run, IconD2Rain.folder(run), IconD2Rain.leadOf(run, start), IconD2Rain.leadOf(run, time))
+            if (source.leadAfter > IconD2Files.MAX_LEAD) return@mapNotNull null
             val listing = listings.get(source.folder, now)
-            source.takeIf { (leadBefore == null || listed(listing, run, leadBefore)) && listed(listing, run, it.leadAfter) }
+            source.takeIf { listed(listing, run, it.leadBefore) && listed(listing, run, it.leadAfter) }
         }
     }
 
     /**
-     * Прогон, из которого сейчас берётся кадр на [time] (по спискам папок, без скачивания файлов); null, если у модели
-     * на это время ничего нет. Кадр одного прогона не меняется, поэтому по прогону его можно хранить на диске.
+     * Прогон, из которого сейчас берётся кадр на [time] (по спискам папок, без скачивания файлов); null, если ICON-D2
+     * на это время нет. Кадр одного прогона не меняется, поэтому по прогону его можно хранить на диске.
      */
     fun runFor(time: Instant, now: Instant): Instant? = sources(time, now).firstOrNull()?.run
 
     fun load(time: Instant, now: Instant): Frame? {
+        val start = time.minus(IconD2Rain.Step)
         for (source in sources(time, now)) {
+            val first = file(source.folder, source.run, source.leadBefore)
             val second = file(source.folder, source.run, source.leadAfter)
-            val after = second.fields[source.end] ?: continue
-            val before = if (source.leadBefore == null) {
-                CharArray(after.size)
-            } else {
-                val first = file(source.folder, source.run, source.leadBefore)
-                if (first.window !== second.window) continue
-                first.fields[source.start] ?: continue
-            }
-            return Frame(source.run, levels(second.window, before, after))
+            if (first.window !== second.window) continue
+            val before = first.fields[start] ?: continue
+            val after = second.fields[time] ?: continue
+            return Frame(source.run, levels(first.window, before, after))
         }
         return null
     }
 
-    private fun listed(listing: String, run: Instant, lead: Int) = listing.contains("\"" + model.fileName(run, lead) + "\"")
+    private fun listed(listing: String, run: Instant, lead: Int) = listing.contains("\"" + IconD2Rain.fileName(run, lead) + "\"")
 
     /** Сила дождя в узлах вырезки, сглаженная на пиксели картинки, в уровнях палитры. */
     private fun levels(window: Window, before: CharArray, after: CharArray): ByteArray {
         val rate = FloatArray(before.size) { i ->
             val a = before[i].code
             val b = after[i].code
-            if (a == GAP || b == GAP || b <= a) 0f else ((b - a) / UNITS * perHour).toFloat()
+            if (a == GAP || b == GAP || b <= a) 0f else IconD2Rain.rate(a / UNITS, b / UNITS).toFloat()
         }
-        RainSpots.dropSmall(rate, window.columns, window.rows, model.minSpot)
+        RainSpots.dropSmall(rate, window.columns, window.rows)
         // Сначала вдоль строк сетки на столбцы картинки, потом вдоль столбцов на строки картинки.
         val across = FloatArray(window.rows * width)
         for (row in 0 until window.rows) {
@@ -302,7 +235,7 @@ class ModelRainLoader(
 
     /** Файл из запаса или скачанный; второй спрос того же файла ждёт ту же загрузку. Неудача из запаса убирается. */
     private fun file(folder: String, run: Instant, lead: Int): FileData {
-        val name = model.fileName(run, lead)
+        val name = IconD2Rain.fileName(run, lead)
         var mine = false
         val task = synchronized(files) {
             files[name] ?: FutureTask { download(folder + name) }.also {
