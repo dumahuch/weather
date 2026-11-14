@@ -52,7 +52,7 @@ jobs:
           DWD_LIVE: '1'
         run: |
           set -o pipefail
-          ./gradlew --console=plain --info --rerun testDebugUnitTest \
+          ./gradlew --console=plain --info cleanTestDebugUnitTest testDebugUnitTest \
             --tests 'io.github.dumahuch.pogodaapp.map.LiveDwdFilesTest' 2>&1 | tee live-dwd.log
           grep 'LIVE' live-dwd.log || true
 
