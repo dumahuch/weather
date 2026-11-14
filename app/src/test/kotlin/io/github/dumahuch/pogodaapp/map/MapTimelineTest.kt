@@ -120,6 +120,13 @@ class MapTimelineTest {
     }
 
     @Test
+    fun hourlyPlayFramesKeepOnlyWholeHours() {
+        val today = MapTimeline.playFrames(MapDay.Today, now, zone, hourly = true)
+        assertEquals(listOf("19:00", "20:00", "21:00", "22:00").map { local("2026-11-09T$it") }, today)
+        assertEquals(24, MapTimeline.playFrames(MapDay.Tomorrow, now, zone, hourly = true).size)
+    }
+
+    @Test
     fun atNightDayAfterHasNoFramesYet() {
         // 00:10: последний прогон ICON-D2 доходит только до 22:00 завтра, «Послезавтра» ещё нет.
         val night = local("2026-11-09T00:10")

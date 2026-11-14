@@ -248,7 +248,7 @@ private fun addOverlays(style: Style) {
         PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
         PropertyFactory.iconAllowOverlap(false),
         PropertyFactory.iconIgnorePlacement(false),
-        PropertyFactory.iconPadding(6f),
+        PropertyFactory.iconPadding(3f),
         PropertyFactory.visibility(Property.NONE),
     )
     val labels = style.layers.firstOrNull { it is SymbolLayer }?.id

@@ -171,8 +171,14 @@ object MapTimeline {
         return snap(target, now, zone)
     }
 
-    /** Кадры кнопки «играть»: сегодня два часа назад и прогноз радара через 15 минут, другие сутки по часам. */
-    fun playFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
+    /**
+     * Кадры кнопки «играть»: сегодня два часа назад и прогноз радара через 15 минут, другие сутки по часам. С [hourly]
+     * (слои температуры и ветра: у ICON-D2 они по часам) только целые часы, иначе каждый час стоял бы четыре кадра.
+     */
+    fun playFrames(day: MapDay, now: Instant, zone: ZoneId, hourly: Boolean = false): List<Instant> =
+        allPlayFrames(day, now, zone).let { frames -> if (hourly) frames.filter { it == floorTo(it, Hour) } else frames }
+
+    private fun allPlayFrames(day: MapDay, now: Instant, zone: ZoneId): List<Instant> {
         val (start, end) = dayRange(day, now, zone)
         val step: Duration
         var time: Instant
