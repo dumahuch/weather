@@ -60,9 +60,9 @@ object DwdWms {
 data class IconD2Frame(val run: Instant, val lead: Int)
 
 /**
- * Файлы облачности ICON-D2 на открытом сервере DWD:
- * `https://opendata.dwd.de/weather/nwp/icon-d2/grib/HH/clct_mod/`, в папке прогона только последний прогон этого часа
- * (каждые сутки перезаписывается). Какие часы прогноза уже выложены, видно по списку файлов в папке.
+ * Часовые файлы ICON-D2 на открытом сервере DWD: облачность, температура и ветер,
+ * `https://opendata.dwd.de/weather/nwp/icon-d2/grib/HH/<поле>/`. В папке прогона лежит только последний прогон этого
+ * часа (каждые сутки перезаписывается). Какие часы прогноза уже выложены, видно по списку файлов в папке.
  */
 object IconD2Files {
     private const val BASE = "https://opendata.dwd.de/weather/nwp/icon-d2/grib/"
@@ -76,16 +76,23 @@ object IconD2Files {
     const val MAX_LEAD = 48
     private const val LONG_RUN_HOUR = 3
 
+    /** Поля ICON-D2: имя папки и конец имени файла совпадают. */
+    const val CLOUDS = "clct_mod"
+    const val TEMPERATURE = "t_2m"
+    const val WIND_U = "u_10m"
+    const val WIND_V = "v_10m"
+
     /** Сколько прогонов назад пробовать, если последний ещё не выложен. */
     private const val RUNS_BACK = 3
 
     private val Stamp: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHH").withZone(ZoneOffset.UTC)
 
-    fun runFolder(run: Instant): String = BASE + String.format(Locale.ROOT, "%02d", run.atOffset(ZoneOffset.UTC).hour) + "/clct_mod/"
+    fun runFolder(run: Instant, field: String = CLOUDS): String =
+        BASE + String.format(Locale.ROOT, "%02d", run.atOffset(ZoneOffset.UTC).hour) + "/" + field + "/"
 
-    fun fileName(frame: IconD2Frame): String =
+    fun fileName(frame: IconD2Frame, field: String = CLOUDS): String =
         "icon-d2_germany_regular-lat-lon_single-level_${Stamp.format(frame.run)}_" +
-            String.format(Locale.ROOT, "%03d", frame.lead) + "_2d_clct_mod.grib2.bz2"
+            String.format(Locale.ROOT, "%03d", frame.lead) + "_2d_$field.grib2.bz2"
 
     /**
      * Прогоны, из которых можно взять час [hour], от лучшего к худшему: для прошедших часов ближайший прогон до этого
@@ -108,5 +115,6 @@ object IconD2Files {
     }
 
     /** Есть ли в списке папки (HTML сервера) файл этого кадра. */
-    fun listed(listing: String, frame: IconD2Frame): Boolean = listing.contains("\"" + fileName(frame) + "\"")
+    fun listed(listing: String, frame: IconD2Frame, field: String = CLOUDS): Boolean =
+        listing.contains("\"" + fileName(frame, field) + "\"")
 }

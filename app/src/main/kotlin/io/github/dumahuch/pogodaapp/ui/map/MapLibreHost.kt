@@ -30,6 +30,7 @@ import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.offline.OfflineManager
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
@@ -40,14 +41,15 @@ import org.maplibre.android.style.sources.ImageSource
 import java.util.Locale
 
 /**
- * Подложка basemap.de (BKG, тёмный стиль) и наши слои: облака под дождём, оба под подписями городов, сверху метка места.
- * Из подписей подложки остаются только города и общины ([MapLabels]). Карта живёт, пока экран на месте: её жизненный цикл идёт за экраном приложения, при уходе с вкладки она закрывается.
+ * Подложка basemap.de (BKG, тёмный стиль) и наши слои: облака под дождём, заливка температуры, числа температуры и
+ * стрелки ветра, все под подписями городов, сверху метка места. Какие слои видны, решает [layer]. Из подписей подложки
+ * остаются только города и общины ([MapLabels]). Карта живёт, пока экран на месте: её жизненный цикл идёт за экраном
+ * приложения, при уходе с вкладки она закрывается.
  */
 @Composable
 fun MapLibreHost(
-    rain: Bitmap?,
-    clouds: Bitmap?,
-    cloudsVisible: Boolean,
+    images: MapImages,
+    layer: MapLayer,
     place: Place?,
     locateRequests: Int,
     onFailed: () -> Unit,
@@ -114,16 +116,28 @@ fun MapLibreHost(
         }
     }
 
-    LaunchedEffect(style, rain) {
-        style?.getSourceAs<ImageSource>(RAIN_SOURCE)?.setImage(rain ?: emptyBitmap())
+    LaunchedEffect(style, images.rain) {
+        style?.getSourceAs<ImageSource>(RAIN_SOURCE)?.setImage(images.rain ?: emptyBitmap())
     }
-    LaunchedEffect(style, clouds) {
-        style?.getSourceAs<ImageSource>(CLOUD_SOURCE)?.setImage(clouds ?: emptyBitmap())
+    LaunchedEffect(style, images.clouds) {
+        style?.getSourceAs<ImageSource>(CLOUD_SOURCE)?.setImage(images.clouds ?: emptyBitmap())
     }
-    LaunchedEffect(style, cloudsVisible) {
-        style?.getLayer(CLOUD_LAYER)?.setProperties(
-            PropertyFactory.visibility(if (cloudsVisible) Property.VISIBLE else Property.NONE),
-        )
+    LaunchedEffect(style, images.temperature) {
+        style?.getSourceAs<ImageSource>(TEMP_SOURCE)?.setImage(images.temperature ?: emptyBitmap())
+    }
+    LaunchedEffect(style, images.numbers) {
+        style?.getSourceAs<GeoJsonSource>(NUMBERS_SOURCE)?.setGeoJson(images.numbers ?: EMPTY_JSON)
+    }
+    LaunchedEffect(style, images.arrows) {
+        style?.getSourceAs<GeoJsonSource>(ARROWS_SOURCE)?.setGeoJson(images.arrows ?: EMPTY_JSON)
+    }
+    LaunchedEffect(style, layer) {
+        val ready = style ?: return@LaunchedEffect
+        show(ready, CLOUD_LAYER, layer == MapLayer.CloudsAndRain)
+        show(ready, RAIN_LAYER, layer == MapLayer.CloudsAndRain || layer == MapLayer.RainOnly)
+        show(ready, TEMP_LAYER, layer == MapLayer.Temperature)
+        show(ready, NUMBERS_LAYER, layer == MapLayer.Temperature)
+        show(ready, ARROWS_LAYER, layer == MapLayer.Wind)
     }
     LaunchedEffect(style, place) {
         style?.getSourceAs<GeoJsonSource>(PLACE_SOURCE)?.setGeoJson(placeJson(place))
@@ -148,7 +162,14 @@ private const val RAIN_SOURCE = "pogoda-rain"
 private const val RAIN_LAYER = "pogoda-rain-layer"
 private const val CLOUD_SOURCE = "pogoda-clouds"
 private const val CLOUD_LAYER = "pogoda-clouds-layer"
+private const val TEMP_SOURCE = "pogoda-temp"
+private const val TEMP_LAYER = "pogoda-temp-layer"
+private const val NUMBERS_SOURCE = "pogoda-numbers"
+private const val NUMBERS_LAYER = "pogoda-numbers-layer"
+private const val ARROWS_SOURCE = "pogoda-arrows"
+private const val ARROWS_LAYER = "pogoda-arrows-layer"
 private const val PLACE_SOURCE = "pogoda-place"
+private const val EMPTY_JSON = """{"type":"FeatureCollection","features":[]}"""
 private const val MIN_ZOOM = 4.6
 private const val MAX_ZOOM = 10.0
 private const val START_LAT = 51.2
@@ -177,7 +198,15 @@ private fun hideExtraLabels(style: Style) {
 
 private fun emptyBitmap(): Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
 
-/** Слои облаков и дождя под первым слоем подписей стиля (подписи городов остаются читаемыми), метка места сверху. */
+/** Показывает или прячет слой [id]. */
+private fun show(style: Style, id: String, visible: Boolean) {
+    style.getLayer(id)?.setProperties(PropertyFactory.visibility(if (visible) Property.VISIBLE else Property.NONE))
+}
+
+/**
+ * Слои облаков, дождя, температуры и ветра под первым слоем подписей стиля (подписи городов остаются читаемыми и
+ * занимают места первыми), метка места сверху. Слои температуры и ветра сначала скрыты: их показывает выбор слоя.
+ */
 private fun addOverlays(style: Style) {
     hideExtraLabels(style)
     val box = MapArea.Overlay
@@ -187,8 +216,12 @@ private fun addOverlays(style: Style) {
         LatLng(box.south, box.east),
         LatLng(box.south, box.west),
     )
+    for ((name, icon) in MapIcons.all()) style.addImage(name, icon)
     style.addSource(ImageSource(CLOUD_SOURCE, quad, emptyBitmap()))
     style.addSource(ImageSource(RAIN_SOURCE, quad, emptyBitmap()))
+    style.addSource(ImageSource(TEMP_SOURCE, quad, emptyBitmap()))
+    style.addSource(GeoJsonSource(NUMBERS_SOURCE, EMPTY_JSON))
+    style.addSource(GeoJsonSource(ARROWS_SOURCE, EMPTY_JSON))
     val cloudLayer = RasterLayer(CLOUD_LAYER, CLOUD_SOURCE).withProperties(
         PropertyFactory.rasterFadeDuration(0f),
         PropertyFactory.rasterResampling(Property.RASTER_RESAMPLING_LINEAR),
@@ -197,13 +230,30 @@ private fun addOverlays(style: Style) {
         PropertyFactory.rasterFadeDuration(0f),
         PropertyFactory.rasterResampling(Property.RASTER_RESAMPLING_LINEAR),
     )
+    val tempLayer = RasterLayer(TEMP_LAYER, TEMP_SOURCE).withProperties(
+        PropertyFactory.rasterFadeDuration(0f),
+        PropertyFactory.rasterResampling(Property.RASTER_RESAMPLING_LINEAR),
+        PropertyFactory.visibility(Property.NONE),
+    )
+    val numbersLayer = SymbolLayer(NUMBERS_LAYER, NUMBERS_SOURCE).withProperties(
+        PropertyFactory.iconImage(Expression.get("i")),
+        PropertyFactory.iconAllowOverlap(false),
+        PropertyFactory.iconIgnorePlacement(false),
+        PropertyFactory.iconPadding(4f),
+        PropertyFactory.visibility(Property.NONE),
+    )
+    val arrowsLayer = SymbolLayer(ARROWS_LAYER, ARROWS_SOURCE).withProperties(
+        PropertyFactory.iconImage(Expression.get("i")),
+        PropertyFactory.iconRotate(Expression.get("d")),
+        PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+        PropertyFactory.iconAllowOverlap(false),
+        PropertyFactory.iconIgnorePlacement(false),
+        PropertyFactory.iconPadding(6f),
+        PropertyFactory.visibility(Property.NONE),
+    )
     val labels = style.layers.firstOrNull { it is SymbolLayer }?.id
-    if (labels != null) {
-        style.addLayerBelow(cloudLayer, labels)
-        style.addLayerBelow(rainLayer, labels)
-    } else {
-        style.addLayer(cloudLayer)
-        style.addLayer(rainLayer)
+    for (layer in listOf(cloudLayer, rainLayer, tempLayer, numbersLayer, arrowsLayer)) {
+        if (labels != null) style.addLayerBelow(layer, labels) else style.addLayer(layer)
     }
     style.addSource(GeoJsonSource(PLACE_SOURCE, placeJson(null)))
     style.addLayer(

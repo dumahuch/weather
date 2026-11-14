@@ -95,4 +95,18 @@ class FrameDiskCacheTest {
         val exact = ZonedDateTime.of(2026, 11, 12, 23, 55, 0, 0, zone)
         assertEquals(Duration.ofDays(1), FrameDiskCache.untilCleanup(exact))
     }
+
+    @Test
+    fun hourlyFieldFramesAreReadBackAndBrokenOnesDropped() {
+        val frame = ByteArray(HourlyField.Wind.length) { (it % 7).toByte() }
+        assertNull(cache().readField(HourlyField.Wind, hour))
+        cache().writeField(HourlyField.Wind, hour, frame)
+        assertArrayEquals(frame, cache().readField(HourlyField.Wind, hour))
+        // Кадр температуры того же часа лежит отдельно и не путается с ветром.
+        assertNull(cache().readField(HourlyField.Temperature, hour))
+        val file = File(File(folder.root, "2026-11-12"), "wind-" + hour.epochSecond + ".z")
+        file.writeBytes(byteArrayOf(1, 2, 3))
+        assertNull(cache().readField(HourlyField.Wind, hour))
+        assertFalse(file.exists())
+    }
 }

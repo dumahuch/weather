@@ -27,15 +27,21 @@ class FrameDiskCache(private val dir: File) {
     fun writeRain(name: String, png: ByteArray) = write(File(dir, name), png)
 
     /** Облачность часа [hour] (непрозрачность пикселей, [length] байт); null, если нет или испорчена. */
-    fun readClouds(hour: Instant, length: Int): ByteArray? {
-        val file = File(dir, cloudName(hour))
-        val packed = read(file) { true } ?: return null
-        val alpha = inflate(packed, length)
-        if (alpha == null) file.delete()
-        return alpha
-    }
+    fun readClouds(hour: Instant, length: Int): ByteArray? = readPacked(File(dir, cloudName(hour)), length)
 
     fun writeClouds(hour: Instant, alpha: ByteArray) = write(File(dir, cloudName(hour)), deflate(alpha))
+
+    /** Готовый кадр часа [hour] поля [field] (температура, ветер), [HourlyField.length] байт; null, если нет или испорчен. */
+    fun readField(field: HourlyField, hour: Instant): ByteArray? = readPacked(File(dir, fieldName(field, hour)), field.length)
+
+    fun writeField(field: HourlyField, hour: Instant, frame: ByteArray) = write(File(dir, fieldName(field, hour)), deflate(frame))
+
+    private fun readPacked(file: File, length: Int): ByteArray? {
+        val packed = read(file) { true } ?: return null
+        val bytes = inflate(packed, length)
+        if (bytes == null) file.delete()
+        return bytes
+    }
 
     private fun read(file: File, valid: (ByteArray) -> Boolean): ByteArray? = try {
         if (!file.isFile) {
@@ -67,6 +73,8 @@ class FrameDiskCache(private val dir: File) {
         fun rainName(frame: Instant): String = "radar-" + frame.epochSecond + ".png"
 
         private fun cloudName(hour: Instant): String = "clouds-" + hour.epochSecond + ".z"
+
+        private fun fieldName(field: HourlyField, hour: Instant): String = field.diskPrefix + "-" + hour.epochSecond + ".z"
 
         /** Папка суток [day] внутри [root]. */
         fun dayDir(root: File, day: LocalDate): File = File(root, day.toString())

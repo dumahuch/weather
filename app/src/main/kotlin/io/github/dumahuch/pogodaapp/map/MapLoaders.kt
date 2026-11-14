@@ -61,21 +61,32 @@ class RainLoader(private val fetch: (url: String) -> ByteArray) {
 }
 
 /**
- * Загрузка облачности ICON-D2 на час: список файлов папки прогона показывает, выложен ли нужный час (список
- * держится 10 минут), файл скачивается, распаковывается ([unpack], bzip2) и разбирается. Нет ни в одном
- * подходящем прогоне: null. Разные часы грузятся одновременно; список папки общий ([FolderListings]).
+ * Загрузка часового поля ICON-D2 (облачность, температура, ветер): список файлов папки прогона показывает, выложен ли
+ * нужный час (список держится 10 минут), файл скачивается, распаковывается ([unpack], bzip2) и разбирается. Нет ни в
+ * одном подходящем прогоне: null. Разные часы грузятся одновременно; список папки общий ([FolderListings]).
  */
-class CloudLoader(
+class FieldLoader(
     private val listings: FolderListings,
     private val bytes: (url: String) -> ByteArray,
     private val unpack: (ByteArray) -> ByteArray,
 ) {
-    fun load(hour: Instant, now: Instant): LatLonGrid? {
+    /** Облачность на час (доля 0…1). */
+    fun load(hour: Instant, now: Instant): LatLonGrid? =
+        loadAll(hour, now, listOf(IconD2Files.CLOUDS))?.first()?.let { CloudRaster.normalize(it) }
+
+    /**
+     * Несколько полей на один час из одного и того же прогона (например две составляющие ветра): берётся первый из
+     * прогонов [IconD2Files.candidates], где выложены все файлы. Сетки в порядке [fields]; нет такого прогона: null.
+     */
+    fun loadAll(hour: Instant, now: Instant, fields: List<String>): List<LatLonGrid>? {
         for (frame in IconD2Files.candidates(hour, now)) {
-            val folder = IconD2Files.runFolder(frame.run)
-            if (!IconD2Files.listed(listings.get(folder, now), frame)) continue
-            val grib = unpack(bytes(folder + IconD2Files.fileName(frame)))
-            return CloudRaster.normalize(Grib2.parse(grib))
+            val listed = fields.all { field ->
+                IconD2Files.listed(listings.get(IconD2Files.runFolder(frame.run, field), now), frame, field)
+            }
+            if (!listed) continue
+            return fields.map { field ->
+                Grib2.parse(unpack(bytes(IconD2Files.runFolder(frame.run, field) + IconD2Files.fileName(frame, field))))
+            }
         }
         return null
     }

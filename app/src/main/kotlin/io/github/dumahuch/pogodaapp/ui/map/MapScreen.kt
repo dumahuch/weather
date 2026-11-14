@@ -48,6 +48,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,6 +58,8 @@ import io.github.dumahuch.pogodaapp.forecast.sentenceCase
 import io.github.dumahuch.pogodaapp.map.MapDay
 import io.github.dumahuch.pogodaapp.map.MapTimeline
 import io.github.dumahuch.pogodaapp.map.RainPalette
+import io.github.dumahuch.pogodaapp.map.TemperatureField
+import io.github.dumahuch.pogodaapp.map.WindField
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIcon
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
@@ -74,9 +77,9 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * Вкладка «Карта» (0.8.0): тёмная подложка basemap.de, облака ICON-D2 и дождь DWD, метка места. Слева сверху плашка
- * с названием слоя. Над панелью времени слева легенда дождя, справа (от нижнего края вверх, чтобы дотягиваться на
- * больших экранах) кнопка «моё место», отделённая просветом, и над ней два слоя. Внизу стеклянная панель со
+ * Вкладка «Карта» (0.8.0): тёмная подложка basemap.de, облака ICON-D2 и дождь DWD, температура и ветер ICON-D2, метка
+ * места. Слева сверху плашка с названием слоя. Над панелью времени слева легенда слоя, справа (от нижнего края вверх,
+ * чтобы дотягиваться на больших экранах) кнопка «моё место», отделённая просветом, и над ней четыре слоя. Внизу стеклянная панель со
  * временем, сутками, кнопкой «играть» и часовой шкалой. Цвета свои, тёмные ([MapPalette]): их задаёт тот, кто
  * показывает экран.
  *
@@ -112,9 +115,8 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, wifiOnly: Boolean, modifier: M
 
     Box(modifier.fillMaxSize().background(MapBackground)) {
         MapLibreHost(
-            rain = images.rain,
-            clouds = images.clouds,
-            cloudsVisible = state.layer == MapLayer.CloudsAndRain,
+            images = images,
+            layer = state.layer,
             place = place,
             locateRequests = locate,
             onFailed = { baseFailed = true },
@@ -130,7 +132,7 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, wifiOnly: Boolean, modifier: M
                 .padding(start = 8.dp, end = 8.dp, bottom = bottomContentPadding()),
         ) {
             Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.Bottom) {
-                RainLegend(Modifier.padding(start = 6.dp, bottom = 4.dp))
+                MapLegend(state.layer, Modifier.padding(start = 6.dp, bottom = 4.dp))
                 Spacer(Modifier.weight(1f))
                 MapButtons(
                     layer = state.layer,
@@ -165,6 +167,15 @@ private fun LightBarIcons(restoreDark: Boolean) {
 
 @Composable
 private fun statusText(state: MapUiState, baseFailed: Boolean): String? {
+    if (state.layer == MapLayer.Temperature || state.layer == MapLayer.Wind) {
+        return when {
+            baseFailed -> stringResource(R.string.map_base_failed)
+            state.field == FrameStatus.Failed -> stringResource(R.string.map_no_connection)
+            state.field == FrameStatus.Missing -> stringResource(R.string.map_no_data)
+            state.framesDone < state.framesTotal -> stringResource(R.string.map_loading_frames, state.framesDone, state.framesTotal)
+            else -> null
+        }
+    }
     val clouds = if (state.layer == MapLayer.CloudsAndRain) state.clouds else FrameStatus.Ready
     return when {
         baseFailed -> stringResource(R.string.map_base_failed)
@@ -193,7 +204,7 @@ private fun LayerName(layer: MapLayer, modifier: Modifier = Modifier) {
 }
 
 /**
- * Кнопки справа над панелью времени: два слоя, под ними с просветом [LocateGap] кнопка «моё место», самая нижняя,
+ * Кнопки справа над панелью времени: четыре слоя, под ними с просветом [LocateGap] кнопка «моё место», самая нижняя,
  * чтобы она выделялась и до неё было проще дотянуться.
  */
 @Composable
@@ -204,6 +215,10 @@ private fun MapButtons(layer: MapLayer, canLocate: Boolean, onLocate: () -> Unit
         LayerButton(MapLayer.CloudsAndRain, LineIcons.Rain, selected = layer == MapLayer.CloudsAndRain, onLayer)
         Spacer(Modifier.height(8.dp))
         LayerButton(MapLayer.RainOnly, LineIcons.Drop, selected = layer == MapLayer.RainOnly, onLayer)
+        Spacer(Modifier.height(8.dp))
+        LayerButton(MapLayer.Temperature, LineIcons.Thermometer, selected = layer == MapLayer.Temperature, onLayer)
+        Spacer(Modifier.height(8.dp))
+        LayerButton(MapLayer.Wind, LineIcons.Wind, selected = layer == MapLayer.Wind, onLayer)
         Spacer(Modifier.height(LocateGap))
         val locateLabel = stringResource(R.string.map_locate)
         Box(
@@ -227,6 +242,8 @@ private val LocateGap = 16.dp
 private fun MapLayer.label(): Int = when (this) {
     MapLayer.CloudsAndRain -> R.string.map_layer_clouds_rain
     MapLayer.RainOnly -> R.string.map_layer_rain
+    MapLayer.Temperature -> R.string.map_layer_temperature
+    MapLayer.Wind -> R.string.map_layer_wind
 }
 
 /** Кнопка слоя: видимый квадрат 40, нажимаемая область 48. */
@@ -256,11 +273,37 @@ private fun LayerButton(layer: MapLayer, icon: LineIcon, selected: Boolean, onLa
     }
 }
 
+/** Легенда слоя: дождь, температура или ветер. */
+@Composable
+private fun MapLegend(layer: MapLayer, modifier: Modifier = Modifier) {
+    val locale = LocalLocale.current.platformLocale
+    val number = remember(locale) { NumberFormat.getIntegerInstance(locale) }
+    when (layer) {
+        MapLayer.CloudsAndRain, MapLayer.RainOnly -> RainLegend(modifier)
+        MapLayer.Temperature -> {
+            val min = TemperatureField.LegendMin
+            val max = TemperatureField.LegendMax
+            val colors = remember {
+                List(LEGEND_SAMPLES) { k -> Color(0xFF000000.toInt() or TemperatureField.colorOf(max - (max - min) * k / (LEGEND_SAMPLES - 1))) }
+            }
+            val marks = remember(number) {
+                TemperatureField.LegendValues.map { number.format(it) to ((it - min) / (max - min)).toFloat() }
+            }
+            ScaleLegend(colors, marks, stringResource(R.string.map_legend_unit_temperature), LegendTallHeight, modifier)
+        }
+        MapLayer.Wind -> {
+            val colors = remember {
+                List(LEGEND_SAMPLES) { k -> Color(0xFF000000.toInt() or WindField.colorOf(WindField.LEGEND_MAX * (1 - k.toDouble() / (LEGEND_SAMPLES - 1)))) }
+            }
+            val marks = remember(number) { WindField.LegendValues.map { number.format(it) to (it / WindField.LEGEND_MAX).toFloat() } }
+            ScaleLegend(colors, marks, stringResource(R.string.map_legend_unit_wind), LegendHeight, modifier)
+        }
+    }
+}
+
 /** Легенда дождя: полоса цвета от слабого (внизу) к сильному (вверху), отметки 0,1 / 1 / 5 / 20 / 100 мм/ч по логарифмической шкале. */
 @Composable
 private fun RainLegend(modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
-    val glass = LocalGlass.current
     val locale = LocalLocale.current.platformLocale
     val colors = remember {
         List(LEGEND_SAMPLES) { k ->
@@ -269,33 +312,50 @@ private fun RainLegend(modifier: Modifier = Modifier) {
             Color(0xFF000000.toInt() or RainPalette.legendColor(mm))
         }
     }
+    val marks = remember(locale) {
+        val format = NumberFormat.getNumberInstance(locale)
+        RainPalette.LegendValues.map { format.format(it) to RainPalette.legendPosition(it).toFloat() }
+    }
+    ScaleLegend(colors, marks, stringResource(R.string.map_legend_unit), LegendHeight, modifier)
+}
+
+/**
+ * Вертикальная полоса цвета [colors] (сверху вниз) высотой [height] с отметками [marks] (подпись и положение 0…1 снизу
+ * вверх) и единицами [unit] под ней.
+ */
+@Composable
+private fun ScaleLegend(colors: List<Color>, marks: List<Pair<String, Float>>, unit: String, height: Dp, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    val glass = LocalGlass.current
     Column(
         modifier
             .glassButton(RoundedCornerShape(10.dp), glass)
             .padding(horizontal = 8.dp, vertical = 7.dp),
     ) {
         // Подписи стоят в своём столбце справа от полосы: его ширина по самой длинной подписи, рамка её вмещает.
-        Row(Modifier.padding(vertical = 6.dp).height(LegendHeight)) {
-            Box(Modifier.size(width = 8.dp, height = LegendHeight).background(Brush.verticalGradient(colors), RoundedCornerShape(3.dp)))
+        Row(Modifier.padding(vertical = 6.dp).height(height)) {
+            Box(Modifier.size(width = 8.dp, height = height).background(Brush.verticalGradient(colors), RoundedCornerShape(3.dp)))
             Spacer(Modifier.width(6.dp))
-            Box(Modifier.height(LegendHeight)) {
-                for (value in RainPalette.LegendValues) {
-                    val position = RainPalette.legendPosition(value).toFloat()
+            Box(Modifier.height(height)) {
+                for ((label, position) in marks) {
                     Text(
-                        NumberFormat.getNumberInstance(locale).format(value),
+                        label,
                         style = pogodaText(10f, 500, color = palette.ink, tabular = true),
                         maxLines = 1,
                         softWrap = false,
-                        modifier = Modifier.offset(y = LegendHeight * (1f - position) - 7.dp),
+                        modifier = Modifier.offset(y = height * (1f - position) - 7.dp),
                     )
                 }
             }
         }
-        Text(stringResource(R.string.map_legend_unit), style = pogodaText(9f, 500, color = palette.ink2))
+        Text(unit, style = pogodaText(9f, 500, color = palette.ink2))
     }
 }
 
 private val LegendHeight = 96.dp
+
+/** Температурная шкала длиннее: на ней семь отметок через 10 °C. */
+private val LegendTallHeight = 132.dp
 private const val LEGEND_SAMPLES = 24
 
 @Composable

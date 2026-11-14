@@ -7,10 +7,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.dumahuch.pogodaapp.data.Bzip2
 import io.github.dumahuch.pogodaapp.data.HttpJson
-import io.github.dumahuch.pogodaapp.map.CloudLoader
 import io.github.dumahuch.pogodaapp.map.CloudRaster
+import io.github.dumahuch.pogodaapp.map.FieldLoader
 import io.github.dumahuch.pogodaapp.map.FolderListings
 import io.github.dumahuch.pogodaapp.map.FrameDiskCache
+import io.github.dumahuch.pogodaapp.map.HourlyField
+import io.github.dumahuch.pogodaapp.map.IconD2Files
 import io.github.dumahuch.pogodaapp.map.LevelPacking
 import io.github.dumahuch.pogodaapp.map.ModelFrameDisk
 import io.github.dumahuch.pogodaapp.map.MapArea
@@ -22,6 +24,8 @@ import io.github.dumahuch.pogodaapp.map.RainLoader
 import io.github.dumahuch.pogodaapp.map.RainPalette
 import io.github.dumahuch.pogodaapp.map.RainResult
 import io.github.dumahuch.pogodaapp.map.RainSource
+import io.github.dumahuch.pogodaapp.map.TemperatureField
+import io.github.dumahuch.pogodaapp.map.WindField
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -47,8 +51,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicInteger
 
-/** Слой карты: облака и дождь вместе или только дождь. */
-enum class MapLayer { CloudsAndRain, RainOnly }
+/** Слой карты: облака и дождь вместе, только дождь, температура или ветер. */
+enum class MapLayer { CloudsAndRain, RainOnly, Temperature, Wind }
 
 /** Состояние кадра: грузится, показан, на это время данных нет, не удалось (нет связи или ответ испорчен). */
 enum class FrameStatus { Loading, Ready, Missing, Failed }
@@ -61,21 +65,33 @@ data class MapUiState(
     val playing: Boolean,
     val rain: FrameStatus,
     val clouds: FrameStatus,
+    /** Кадр температуры или ветра (слои «Температура» и «Ветер»). */
+    val field: FrameStatus = FrameStatus.Loading,
     /** Сколько кадров выбранных суток уже обработано заранее и сколько их всего; поровну, когда всё готово. */
     val framesDone: Int = 0,
     val framesTotal: Int = 0,
 )
 
-/** Картинки текущего кадра для слоёв карты; пусто, пока не загружены. */
-class MapImages(val rain: Bitmap?, val clouds: Bitmap?)
+/**
+ * Картинки текущего кадра для слоёв карты; пусто, пока не загружены. Температура это заливка и числа в точках (GeoJSON),
+ * ветер это стрелки в точках (GeoJSON).
+ */
+data class MapImages(
+    val rain: Bitmap? = null,
+    val clouds: Bitmap? = null,
+    val temperature: Bitmap? = null,
+    val numbers: String? = null,
+    val arrows: String? = null,
+)
 
 /**
  * Карта: выбранное время и слой, загрузка кадров дождя (радар DWD, после него осадки ICON-D2 по 15 минут, где их нет,
- * ICON-EU по часам) и облаков (ICON-D2), «играть».
+ * ICON-EU по часам), облаков, температуры и ветра (ICON-D2, по часам), «играть».
  *
  * Кадры держатся в оперативной памяти, пока живо приложение: дождь сжатым (PNG радара или уровни модели, сжатые
  * [LevelPacking], до [RAIN_CACHE] штук), облака одной
- * непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ). Уход с вкладки запас не очищает
+ * непрозрачностью (байт на пиксель, до [CLOUD_CACHE] часов, около 16 МБ), температура и ветер готовым кадром часа
+ * ([HourlyField], до [FIELD_CACHE] штук, около 170 КБ у температуры и 3 КБ у ветра). Уход с вкладки запас не очищает
  * (устаревшие кадры перекачиваются сами по срокам [RainLife] и [CloudLife]). Кадры, которые уже не меняются
  * (прошедший радар и облака прошедших часов сегодняшних суток), ещё и лежат на диске в кэше приложения до 23:55
  * ([FrameDiskCache]). Кадры дождя ICON-D2 лежат на диске по прогонам, пока прогон не сменился ([ModelFrameDisk]).
@@ -100,7 +116,7 @@ class MapViewModel(
         HttpJson.bytes(url, userAgent, SOURCE, "image/png", allowClientErrors = true)
     }
     private val listings = FolderListings { url -> HttpJson.get(url, userAgent, SOURCE) }
-    private val cloudLoader = CloudLoader(
+    private val fieldLoader = FieldLoader(
         listings = listings,
         bytes = { url -> HttpJson.bytes(url, userAgent, SOURCE, "application/octet-stream") },
         unpack = Bzip2::unpack,
@@ -125,10 +141,12 @@ class MapViewModel(
 
     private val rainCache = lru<String, Cached<RainResult>>(RAIN_CACHE)
     private val cloudCache = lru<Instant, Cached<ByteArray?>>(CLOUD_CACHE)
+    private val fieldCache = lru<Pair<HourlyField, Instant>, Cached<ByteArray?>>(FIELD_CACHE)
 
     /** Кадры, которые качаются сейчас; запись живёт, пока идёт загрузка. */
     private val rainLoads = HashMap<String, Deferred<RainResult>>()
     private val cloudLoads = HashMap<Instant, Deferred<ByteArray?>>()
+    private val fieldLoads = HashMap<Pair<HourlyField, Instant>, Deferred<ByteArray?>>()
 
     /** Заранее кадры качаются по несколько сразу, чтобы не завалить сервер DWD запросами. */
     private val prefetchSlots = Semaphore(PREFETCH_PARALLEL)
@@ -136,7 +154,7 @@ class MapViewModel(
     private val _state = MutableStateFlow(initialState(Instant.now()))
     val state: StateFlow<MapUiState> = _state.asStateFlow()
 
-    private val _images = MutableStateFlow(MapImages(null, null))
+    private val _images = MutableStateFlow(MapImages())
     val images: StateFlow<MapImages> = _images.asStateFlow()
 
     private var showJob: Job? = null
@@ -293,9 +311,18 @@ class MapViewModel(
         _state.update { it.copy(framesDone = 0, framesTotal = 0) }
     }
 
-    /** Кадр на [time] целиком в памяти (дождь и, если слой с облаками, облака) и ещё свежий. */
-    private fun isCached(time: Instant, s: MapUiState): Boolean =
-        cachedRain(time, s.now) != null && (s.layer != MapLayer.CloudsAndRain || cachedClouds(time) != null)
+    /** Кадр на [time] целиком в памяти (дождь и, если слой с облаками, облака; для температуры и ветра свой кадр) и ещё свежий. */
+    private fun isCached(time: Instant, s: MapUiState): Boolean = when (val field = s.layer.field()) {
+        null -> cachedRain(time, s.now) != null && (s.layer != MapLayer.CloudsAndRain || cachedClouds(time) != null)
+        else -> cachedField(field, MapTimeline.cloudHour(time)) != null
+    }
+
+    /** Часовое поле слоя; null у слоёв дождя и облаков. */
+    private fun MapLayer.field(): HourlyField? = when (this) {
+        MapLayer.Temperature -> HourlyField.Temperature
+        MapLayer.Wind -> HourlyField.Wind
+        else -> null
+    }
 
     private fun show(settleMs: Long = 0) {
         showJob?.cancel()
@@ -311,9 +338,15 @@ class MapViewModel(
      */
     private suspend fun render(time: Instant) {
         val s = _state.value
+        val field = s.layer.field()
+        if (field != null) {
+            _state.update { it.copy(field = FrameStatus.Loading) }
+            showField(field, time, s.now)
+            return
+        }
         val withClouds = s.layer == MapLayer.CloudsAndRain
         _state.update { it.copy(rain = FrameStatus.Loading, clouds = if (withClouds) FrameStatus.Loading else it.clouds) }
-        if (!withClouds) _images.update { MapImages(it.rain, null) }
+        if (!withClouds) _images.update { it.copy(clouds = null) }
         coroutineScope {
             launch { showRain(time, s.now) }
             if (withClouds) launch { showClouds(time, s.now) }
@@ -323,22 +356,66 @@ class MapViewModel(
     private suspend fun showRain(time: Instant, now: Instant) {
         val frame = rainImage(time, now)
         if (_state.value.time != time) return
-        _images.update { MapImages(frame.bitmap, it.clouds) }
+        _images.update { it.copy(rain = frame.bitmap) }
         _state.update { it.copy(rain = frame.status) }
     }
 
     private suspend fun showClouds(time: Instant, now: Instant) {
         val (status, bitmap) = cloudImage(time, now)
         if (_state.value.time != time) return
-        _images.update { MapImages(it.rain, bitmap) }
+        _images.update { it.copy(clouds = bitmap) }
         _state.update { it.copy(clouds = status) }
+    }
+
+    /**
+     * Загружает и показывает кадр температуры или ветра на [time]. Прежний кадр остаётся на экране, пока новый не
+     * пришёл; нет кадра на это время или он не загрузился: слой очищается и строка состояния говорит почему.
+     */
+    private suspend fun showField(field: HourlyField, time: Instant, now: Instant) {
+        val (status, frame) = try {
+            val loaded = fieldFrame(field, time, now)
+            (if (loaded == null) FrameStatus.Missing else FrameStatus.Ready) to loaded
+        } catch (e: Exception) {
+            if (!e.isLoadFailure()) throw e
+            Log.w(TAG, "${field.diskPrefix} на карте: ${e.message}")
+            FrameStatus.Failed to null
+        }
+        val shown = if (frame == null) MapImages() else withContext(Dispatchers.Default) { fieldImages(field, frame) }
+        if (_state.value.time != time || _state.value.layer.field() != field) return
+        _images.update {
+            when (field) {
+                HourlyField.Temperature -> it.copy(temperature = shown.temperature, numbers = shown.numbers)
+                HourlyField.Wind -> it.copy(arrows = shown.arrows)
+            }
+        }
+        _state.update { it.copy(field = status) }
+    }
+
+    /** Картинка и точки кадра часа поля [field]. */
+    private fun fieldImages(field: HourlyField, frame: ByteArray): MapImages = when (field) {
+        HourlyField.Temperature -> MapImages(
+            temperature = Bitmap.createBitmap(
+                TemperatureField.pixels(frame),
+                TemperatureField.PICTURE_WIDTH,
+                TemperatureField.PICTURE_HEIGHT,
+                Bitmap.Config.ARGB_8888,
+            ),
+            numbers = TemperatureField.numbersJson(frame),
+        )
+        HourlyField.Wind -> MapImages(arrows = WindField.arrowsJson(frame))
     }
 
     /** Заранее кладёт кадр в запас (для «играть»); ошибка загрузки здесь не важна, кадр спросят ещё раз при показе. */
     private suspend fun prefetch(time: Instant) = prefetchSlots.withPermit {
         val now = _state.value.now
+        val layer = _state.value.layer
+        val field = layer.field()
+        if (field != null) {
+            quietly { fieldFrame(field, time, now) }
+            return@withPermit
+        }
         quietly { rainResult(time, now) }
-        if (_state.value.layer == MapLayer.CloudsAndRain) quietly { cloudPixels(time, now) }
+        if (layer == MapLayer.CloudsAndRain) quietly { cloudPixels(time, now) }
     }
 
     private suspend fun quietly(block: suspend () -> Unit) {
@@ -469,12 +546,41 @@ class MapViewModel(
         return sharedLoad(cloudLoads, hour) {
             val disk = if (cloudSettled(hour, now)) todayDisk(now) else null
             val alpha = disk?.readClouds(hour, cloudPixelCount)
-                ?: cloudLoader.load(hour, now)?.let { grid ->
+                ?: fieldLoader.load(hour, now)?.let { grid ->
                     CloudRaster.alphaOnly(CloudRaster.render(grid, MapArea.Overlay, MapArea.CLOUD_WIDTH, cloudHeight))
                 }?.also { disk?.writeClouds(hour, it) }
             synchronized(cloudCache) { cloudCache[hour] = Cached(alpha, Instant.now()) }
             alpha
         }.await()
+    }
+
+    private fun cachedField(field: HourlyField, hour: Instant): Cached<ByteArray?>? {
+        val cached = synchronized(fieldCache) { fieldCache[field to hour] } ?: return null
+        return cached.takeIf { Duration.between(it.fetched, Instant.now()) < CloudLife }
+    }
+
+    /**
+     * Готовый кадр часа [hour] температуры или ветра ([TemperatureField.encode], [WindField.encode]); null, если на этот
+     * час данных нет. Прошедшие часы сегодняшних суток лежат ещё и на диске.
+     */
+    private suspend fun fieldFrame(field: HourlyField, time: Instant, now: Instant): ByteArray? {
+        val hour = MapTimeline.cloudHour(time)
+        cachedField(field, hour)?.let { return it.value }
+        val key = field to hour
+        return sharedLoad(fieldLoads, key) {
+            val disk = if (cloudSettled(hour, now)) todayDisk(now) else null
+            val frame = disk?.readField(field, hour)
+                ?: loadField(field, hour, now)?.also { disk?.writeField(field, hour, it) }
+            synchronized(fieldCache) { fieldCache[key] = Cached(frame, Instant.now()) }
+            frame
+        }.await()
+    }
+
+    private fun loadField(field: HourlyField, hour: Instant, now: Instant): ByteArray? = when (field) {
+        HourlyField.Temperature ->
+            fieldLoader.loadAll(hour, now, listOf(IconD2Files.TEMPERATURE))?.let { TemperatureField.encode(it.first()) }
+        HourlyField.Wind ->
+            fieldLoader.loadAll(hour, now, listOf(IconD2Files.WIND_U, IconD2Files.WIND_V))?.let { WindField.encode(it[0], it[1]) }
     }
 
     /** Час облаков уже прошёл (с запасом) и относится к сегодняшним суткам: его данные больше не меняются. */
@@ -538,6 +644,9 @@ class MapViewModel(
         private const val SOURCE = "DWD"
         private const val RAIN_CACHE = 260
         private const val CLOUD_CACHE = 26
+
+        /** Часов температуры и ветра в памяти вместе: до 26 часов каждого поля. */
+        private const val FIELD_CACHE = 52
         private const val PREFETCH_PARALLEL = 6
         private const val SCRUB_SETTLE_MS = 250L
         private const val CACHED_SETTLE_MS = 40L
