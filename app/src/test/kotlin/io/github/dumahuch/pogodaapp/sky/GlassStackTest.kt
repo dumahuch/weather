@@ -20,7 +20,7 @@ class GlassStackTest {
     fun waterFallsOnTheCardJustBelowAtTheSameHorizontalPlace() {
         val stack = GlassStack()
         val upper = pane(20.0, 100.0, 300.0, 100.0)
-        val lower = pane(20.0, 212.0, 300.0, 80.0)
+        val lower = pane(20.0, 212.0, 300.0, 120.0)
         stack.add(upper)
         stack.add(lower)
         assertTrue(stack.spill(upper, 150.0, 4.0))
@@ -33,7 +33,7 @@ class GlassStackTest {
     fun theLowestCardOfTheStackKeepsItsWater() {
         val stack = GlassStack()
         val upper = pane(20.0, 100.0, 300.0, 100.0)
-        val lower = pane(20.0, 212.0, 300.0, 80.0)
+        val lower = pane(20.0, 212.0, 300.0, 120.0)
         stack.add(upper)
         stack.add(lower)
         assertFalse(stack.spill(lower, 150.0, 4.0))
@@ -65,9 +65,9 @@ class GlassStackTest {
     fun theNearestOfSeveralCardsBelowWinsAndAPaneWithoutGlassIsSkipped() {
         val stack = GlassStack()
         val upper = pane(0.0, 0.0, 300.0, 100.0)
-        val near = pane(0.0, 108.0, 300.0, 50.0)
-        val farther = pane(0.0, 120.0, 300.0, 50.0)
-        val dry = pane(0.0, 104.0, 300.0, 50.0).also { it.glass = null }
+        val near = pane(0.0, 108.0, 300.0, 120.0)
+        val farther = pane(0.0, 120.0, 300.0, 120.0)
+        val dry = pane(0.0, 104.0, 300.0, 120.0).also { it.glass = null }
         listOf(upper, farther, dry, near).forEach(stack::add)
         assertTrue(stack.spill(upper, 100.0, 4.0))
         repeat(5) { near.glass!!.step(0.04, 0.0) }

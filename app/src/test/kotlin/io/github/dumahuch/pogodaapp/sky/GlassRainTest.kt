@@ -65,7 +65,8 @@ class GlassRainTest {
         val glass = rain(20.0)
         for (b in glass.beads) {
             assertTrue(b.x in -10.0..360.0 && b.y in -10.0..260.0)
-            assertTrue(b.r in 0.7..5.0)
+            // Валик у кромки считается по высоте: длинный вмещает объём больше одной капли.
+            if (b.pooled) assertTrue(glass.halfHeight(b) in 0.5..GlassRain.POOL_HEIGHT_LIMIT) else assertTrue(b.r in 0.7..5.0)
         }
     }
 
@@ -110,6 +111,12 @@ class GlassRainTest {
     fun dropsNeverSitCutByTheEdgesOrCrossTheirOwnRoundedCorners() {
         val glass = rain(40.0)
         for (b in glass.beads) {
+            if (b.pooled) {
+                // Валик у кромки лежит на ней и шире капли, но боком кромку не пересекает.
+                val half = glass.halfWidth(b)
+                assertTrue("${b.x} ${b.r}", b.x >= half - 1e-6 && b.x <= 350.0 - half + 1e-6)
+                continue
+            }
             assertTrue("${b.x} ${b.y} ${b.r}", b.x >= b.r - 1e-6 && b.x <= 350.0 - b.r + 1e-6)
             assertTrue("${b.x} ${b.y} ${b.r}", b.y >= b.r - 1e-6 && b.y <= 250.0 - b.r + 1e-6)
             assertTrue("${b.x} ${b.y} ${b.r}", glass.fits(b.x, b.y, b.r - 1e-6))
@@ -135,8 +142,10 @@ class GlassRainTest {
         val pooled = glass.beads.filter { it.pooled }
         assertTrue(pooled.isNotEmpty())
         for (b in pooled) {
-            assertEquals(250.0, b.y + b.r, 1e-6)
-            assertTrue("${b.r}", b.r < GlassRain.POOL_LIMIT)
+            assertEquals(250.0, b.y + GlassRain.POOL_SIT * glass.halfHeight(b), 1e-6)
+            assertTrue("${glass.halfHeight(b)}", glass.halfHeight(b) < GlassRain.POOL_HEIGHT_LIMIT)
+            // Валик ниже и шире круглой капли такого объёма.
+            assertTrue(glass.halfWidth(b) >= b.r && glass.halfHeight(b) <= b.r)
         }
         assertTrue(glass.runners.all { it.y < 250.0 + it.r * 3 })
     }
@@ -209,6 +218,100 @@ class GlassRainTest {
             button.step(0.03, 1.0)
             t += 0.03
         }
-        for (b in button.beads) assertTrue(b.x >= b.r - 1e-6 && b.x <= 52.0 - b.r + 1e-6)
+        for (b in button.beads) assertTrue(b.x >= button.halfWidth(b) - 1e-6 && b.x <= 52.0 - button.halfWidth(b) + 1e-6)
+    }
+
+    @Test
+    fun touchingDropsMergeIntoOneAndFlattenForAMoment() {
+        val glass = GlassRain(350.0, 250.0, 1)
+        glass.beads += GlassRain.Bead(100.0, 100.0, 3.0)
+        glass.beads += GlassRain.Bead(104.0, 100.0, 3.0)
+        glass.beads += GlassRain.Bead(200.0, 100.0, 3.0)
+        val volume = 3.0 * 3.0 * 3.0 * 2
+        glass.step(0.1, 0.0)
+        glass.step(0.1, 0.0)
+        val merged = glass.beads.single { it.x in 95.0..110.0 && it.y in 97.0..103.0 }
+        assertTrue(glass.beads.any { it.x in 199.0..201.0 })
+        assertTrue("${merged.r}", merged.r in 3.5..Math.cbrt(volume) + 0.01)
+        assertEquals(102.0, merged.x, 0.01)
+        assertTrue(merged.squash > 0.0 && merged.squashSideways)
+        repeat(4) { glass.step(0.1, 0.0) }
+        assertTrue("${merged.squash}", merged.squash < 0.95)
+    }
+
+    @Test
+    fun anOverheavyDropFallsAwayInsteadOfStayingHuge() {
+        val glass = GlassRain(350.0, 250.0, 1)
+        glass.beads += GlassRain.Bead(100.0, 100.0, 4.4)
+        glass.beads += GlassRain.Bead(105.0, 100.0, 4.4)
+        glass.step(0.1, 0.0)
+        glass.step(0.1, 0.0)
+        assertTrue(glass.beads.none { it.r >= 5.0 })
+        assertTrue(glass.runners.any { it.x in 95.0..110.0 })
+    }
+
+    @Test
+    fun touchingWaterAtTheEdgeJoinsIntoOneWiderCushion() {
+        val glass = GlassRain(350.0, 250.0, 1)
+        val a = GlassRain.Bead(100.0, 249.0, 2.0).also { it.pooled = true; it.span = 4.6 }
+        val b = GlassRain.Bead(104.0, 249.0, 2.0).also { it.pooled = true; it.span = 4.6 }
+        glass.beads += a
+        glass.beads += b
+        val width = glass.halfWidth(a)
+        glass.step(0.1, 0.0)
+        glass.step(0.1, 0.0)
+        val joined = glass.beads.filter { it.pooled }
+        assertEquals(1, joined.size)
+        assertTrue(glass.halfWidth(joined.single()) > width)
+        assertEquals(250.0, joined.single().y + GlassRain.POOL_SIT * glass.halfHeight(joined.single()), 1e-6)
+    }
+
+    @Test
+    fun aCushionSwellsIntoARoundDropBeforeItBreaksOff() {
+        val glass = GlassRain(350.0, 250.0, 1)
+        val small = GlassRain.Bead(100.0, 249.0, 2.0).also { it.pooled = true; it.span = 4.6 }
+        val heavy = GlassRain.Bead(100.0, 249.0, 4.4).also { it.pooled = true; it.span = 4.4 }
+        assertTrue(glass.halfWidth(small) / glass.halfHeight(small) > glass.halfWidth(heavy) / glass.halfHeight(heavy))
+        assertTrue(glass.halfWidth(heavy) / glass.halfHeight(heavy) < 1.5)
+    }
+
+    @Test
+    fun restingDropsDifferInShape() {
+        val glass = rain(20.0)
+        val shapes = glass.beads.filter { !it.pooled }.map { Triple((it.form * 4).toInt(), (it.wide * 8).toInt(), (it.tilt / 5).toInt()) }.toSet()
+        assertTrue("${shapes.size}", shapes.size >= 8)
+        assertTrue(glass.beads.all { it.tilt in -14.0..14.0 && it.wide in 0.9..1.3 && it.form in 0.2..1.5 })
+    }
+
+    @Test
+    fun aSmallFlatGlassHasNoRunningDropsAndFewerDrops() {
+        val bar = GlassRain(300.0, 56.0, 4)
+        var t = 0.0
+        while (t < 60.0) {
+            bar.step(0.03, 1.0)
+            assertTrue(bar.runners.all { it.dripping })
+            t += 0.03
+        }
+        assertTrue(bar.compact)
+        assertTrue(bar.beads.isNotEmpty())
+        assertTrue(bar.beads.count { it.pooled } >= 1)
+        val area = 300.0 * 56.0 / (350.0 * 250.0)
+        assertTrue(bar.capacity(1.0) < GlassRain.MAX_BEADS * area)
+        assertTrue(bar.beads.size <= bar.capacity(1.0) + 5)
+    }
+
+    @Test
+    fun aTallCardIsNotCompact() {
+        assertTrue(GlassRain(350.0, 250.0, 1).compact.not())
+        assertTrue(GlassRain(52.0, 52.0, 1).compact)
+    }
+
+    @Test
+    fun waterFromAboveOnASmallGlassStaysAsADropAtTheTopEdge() {
+        val bar = GlassRain(300.0, 56.0, 4)
+        bar.receive(100.0, 4.0, 0.1)
+        repeat(6) { bar.step(0.05, 0.0) }
+        assertTrue(bar.runners.isEmpty())
+        assertTrue(bar.beads.any { it.x in 99.0..101.0 && it.y < 8.0 })
     }
 }
