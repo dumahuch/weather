@@ -62,8 +62,8 @@ internal class WidgetPage(
         val width = w - x0 - pad
         val cityPen = d.pen(36f, 600)
         val textPen = d.pen(36f, 400, 0.8f)
-        d.text(d.fit(m.placeName.orEmpty(), cityPen, width), x0, 66f, cityPen)
-        d.text(d.fit(phrase(), textPen, width), x0, 120f, textPen)
+        d.text(d.fit(m.placeName.orEmpty(), cityPen, width), x0, 76f, cityPen)
+        d.text(d.fit(phrase(), textPen, width), x0, 124f, textPen)
         d.hiLo(x0, base, temperatureText(m.high), temperatureText(m.low), 36f)
     }
 
@@ -103,14 +103,14 @@ internal class WidgetPage(
         icon(pad + heroWidth(digits, size) + 14f, base - size * DIGIT_HEIGHT / 2 - iconSize / 2, iconSize)
         if (minimum) return
         val dividerX = pad + leftWidth + 14f
-        d.verticalRule(dividerX, 28f, h - 28f)
+        d.verticalRule(dividerX, 36f, h - 36f)
         val x0 = dividerX + 20f
         val width = w - x0 - pad
         val textPen = d.pen(40f, 400, 0.85f)
-        d.text(d.fit(stateLine(), textPen, width), x0, 70f, textPen)
+        d.text(d.fit(stateLine(), textPen, width), x0, 78f, textPen)
         if (full) {
             val feelsPen = d.pen(40f, 400, 0.6f)
-            d.text(d.fit(feelsLike(), feelsPen, width), x0, 118f, feelsPen)
+            d.text(d.fit(feelsLike(), feelsPen, width), x0, 126f, feelsPen)
         }
         d.hiLo(x0, base, temperatureText(m.high), temperatureText(m.low), 44f)
     }
@@ -119,26 +119,26 @@ internal class WidgetPage(
     private fun square() {
         val digits = temperatureDigits(m.temperature)
         val cityPen = d.pen(40f, 600)
-        d.text(d.fit(m.placeName.orEmpty(), cityPen, w - 2 * PAD), PAD, 72f, cityPen)
+        d.text(d.fit(m.placeName.orEmpty(), cityPen, w - 2 * PAD), PAD, 82f, cityPen)
         when (detail) {
             WidgetDetail.Minimum -> {
                 val size = fitSize(digits, .62f * h, w - 2 * PAD)
-                icon(w - PAD - 196f, 18f, 196f)
+                icon(w - PAD - 196f, 26f, 196f)
                 hero(digits, size, PAD - optical(size), h - PAD)
             }
             WidgetDetail.Normal -> {
                 phraseLine(120f, 40f)
-                icon(w - PAD - 150f, 24f, 150f)
+                icon(w - PAD - 150f, 32f, 150f)
                 val size = fitSize(digits, 170f, w - 2 * PAD)
                 d.hiLo(PAD, h - PAD, temperatureText(m.high), temperatureText(m.low), 44f)
                 hero(digits, size, PAD - optical(size), h - PAD - 44f * DIGIT_HEIGHT - 30f)
             }
             WidgetDetail.Full -> {
                 phraseLine(120f, 40f)
-                icon(w - PAD - 130f, 26f, 130f)
+                icon(w - PAD - 130f, 34f, 130f)
                 val size = fitSize(digits, 150f, w - 2 * PAD)
-                hero(digits, size, PAD - optical(size), 254f)
-                d.hiLo(PAD, 318f, temperatureText(m.high), temperatureText(m.low), 40f)
+                hero(digits, size, PAD - optical(size), 246f)
+                d.hiLo(PAD, 310f, temperatureText(m.high), temperatureText(m.low), 40f)
                 val half = (w - 2 * PAD) / 2
                 val labelTop = h - PAD - 40f * DIGIT_HEIGHT - FACT_LABEL_RISE - 26f
                 d.verticalRule(w / 2 + 8f, labelTop - 6f, h - PAD + 6f)
@@ -152,7 +152,7 @@ internal class WidgetPage(
     private fun wide() {
         val digits = temperatureDigits(m.temperature)
         val cityPen = d.pen(40f, 600)
-        d.text(d.fit(m.placeName.orEmpty(), cityPen, w - 2 * PAD), PAD, 72f, cityPen)
+        d.text(d.fit(m.placeName.orEmpty(), cityPen, w - 2 * PAD), PAD, 82f, cityPen)
         when (detail) {
             WidgetDetail.Minimum -> {
                 val size = fitSize(digits, .72f * h, w - 2 * PAD)
@@ -160,7 +160,7 @@ internal class WidgetPage(
                 hero(digits, size, PAD - optical(size), h - PAD)
             }
             WidgetDetail.Normal -> {
-                stateLine(120f, 40f, w * .55f)
+                stateLine(128f, 40f, w * .55f)
                 icon(w - PAD - 320f, 98f, 280f)
                 val size = fitSize(digits, 200f, w - 2 * PAD)
                 d.hiLo(PAD, h - PAD, temperatureText(m.high), temperatureText(m.low), 44f)
@@ -168,8 +168,8 @@ internal class WidgetPage(
             }
             WidgetDetail.Full -> {
                 val leftEdge = w - WIDE_DAYS_WIDTH - 44f
-                stateLine(120f, 40f, leftEdge - PAD)
-                feelsLine(168f, 40f, leftEdge - PAD)
+                stateLine(128f, 40f, leftEdge - PAD)
+                feelsLine(176f, 40f, leftEdge - PAD)
                 icon(leftEdge - 230f, 118f, 230f)
                 val size = fitSize(digits, 200f, leftEdge - 230f - PAD - 20f)
                 d.hiLo(PAD, h - PAD, temperatureText(m.high), temperatureText(m.low), 44f)
@@ -182,7 +182,7 @@ internal class WidgetPage(
     /** Колонка из трёх дней справа в 4×2: название, значок, максимум и минимум; от [x0] до правого поля. */
     private fun days(x0: Float) {
         val rows = min(3, m.days.size)
-        d.verticalRule(x0 - 22f, 40f, h - 40f)
+        d.verticalRule(x0 - 22f, 48f, h - 48f)
         val top = (h - WIDE_ROWS_HEIGHT) / 2 + 16f
         val namePen = d.pen(40f, 400, 0.85f)
         for (i in 0 until rows) {
@@ -200,18 +200,18 @@ internal class WidgetPage(
     private fun large() {
         val digits = temperatureDigits(m.temperature)
         val cityPen = d.pen(44f, 600)
-        d.text(d.fit(m.placeName.orEmpty(), cityPen, w - 2 * PAD), PAD, 78f, cityPen)
+        d.text(d.fit(m.placeName.orEmpty(), cityPen, w - 2 * PAD), PAD, 86f, cityPen)
         when (detail) {
             WidgetDetail.Minimum -> {
                 val statePen = d.pen(44f, 400, 0.8f)
-                d.text(d.fit(condition(), statePen, w - 2 * PAD), PAD, 130f, statePen)
+                d.text(d.fit(condition(), statePen, w - 2 * PAD), PAD, 138f, statePen)
                 val size = fitSize(digits, .45f * h, w - 2 * PAD)
                 hero(digits, size, PAD - optical(size), h - PAD)
                 iconTopRight(450f, 150f, h - PAD - size * DIGIT_HEIGHT - 12f)
             }
             WidgetDetail.Normal -> {
-                stateLine(130f, 44f, w - 2 * PAD)
-                feelsLine(180f, 40f, w - 2 * PAD)
+                stateLine(138f, 44f, w - 2 * PAD)
+                feelsLine(188f, 40f, w - 2 * PAD)
                 icon(w - PAD - 380f, 230f, 400f)
                 val size = fitSize(digits, 215f, w - 2 * PAD)
                 hero(digits, size, PAD - optical(size), 620f)
@@ -219,12 +219,12 @@ internal class WidgetPage(
                 facts(h - PAD, 52f)
             }
             WidgetDetail.Full -> {
-                stateLine(130f, 44f, w - 2 * PAD)
-                feelsLine(180f, 40f, w - 2 * PAD)
-                icon(w - PAD - 240f, 30f, 250f)
+                stateLine(138f, 44f, w - 2 * PAD)
+                feelsLine(188f, 40f, w - 2 * PAD)
+                icon(w - PAD - 240f, 40f, 250f)
                 val size = fitSize(digits, 170f, w - 2 * PAD)
-                hero(digits, size, PAD - optical(size), 380f)
-                d.hiLo(PAD, 440f, temperatureText(m.high), temperatureText(m.low), 44f)
+                hero(digits, size, PAD - optical(size), 372f)
+                d.hiLo(PAD, 432f, temperatureText(m.high), temperatureText(m.low), 44f)
                 val daysTop = h - PAD - LARGE_DAYS_HEIGHT
                 facts(daysTop - 26f, 46f)
                 largeDays(daysTop)
@@ -361,9 +361,9 @@ internal class WidgetPage(
         const val WIDE_DAYS_WIDTH = 174f
         const val LARGE_DAYS_HEIGHT = 290f
 
-        private const val PAD = 32f
-        private const val SMALL_PAD = 28f
-        private const val TINY_SIDE = 14f
+        private const val PAD = 40f
+        private const val SMALL_PAD = 38f
+        private const val TINY_SIDE = 22f
         private const val NARROW_SHARE = 0.62f
         private const val NARROW_DIGITS = 166f
         private const val NARROW_COLUMN = 178f
