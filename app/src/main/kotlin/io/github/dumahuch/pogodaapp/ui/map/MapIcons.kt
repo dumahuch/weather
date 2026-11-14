@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui.map
 
 import android.graphics.Bitmap
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -20,15 +21,20 @@ internal object MapIcons {
     private const val SCALE = 3f
     private const val DENSITY = 480
 
-    private const val INK = 0xFF101820.toInt()
     private const val HALO = 0xD9101820.toInt()
     private const val TEXT_DP = 13f
     private const val HALO_DP = 2.4f
 
-    /** Размер стрелки класса силы ветра, dp: чем сильнее ветер, тем крупнее. */
-    private fun arrowDp(speedClass: Int): Float = 18f + 3.5f * speedClass
+    /** Длина стрелки класса силы ветра, dp: чем сильнее ветер, тем длиннее. */
+    private fun arrowLengthDp(speedClass: Int): Float = 20f + 3.5f * speedClass
+
+    /** Поле вокруг стрелки и точки под размытую тень, dp. */
+    private const val SHADOW_ROOM_DP = 2.5f
+    private const val SHADOW_BLUR_DP = 1.6f
+    private const val SHADOW = 0x4D101820
 
     private const val CALM_DP = 13f
+    private const val CALM_RADIUS_DP = 3.5f
 
     /** Все значки по именам: числа температуры и стрелки ветра. */
     fun all(): Map<String, Bitmap> {
@@ -72,57 +78,53 @@ internal object MapIcons {
         return out
     }
 
-    /** Стрелка вверх (на север) цвета класса; карта сама поворачивает её по направлению ветра. */
+    /**
+     * Стрелка вверх (на север) цвета класса: острая головка и тонкий хвост, сужающийся к концу (вариант «Б», выбор
+     * Димы 14.11). Без тёмной обводки, только мягкая тень; карта сама поворачивает её по направлению ветра, поэтому
+     * стрелка стоит в центре квадрата, а тень без сдвига.
+     */
     private fun arrow(speedClass: Int): Bitmap {
-        val side = ceil(arrowDp(speedClass) * SCALE).toInt()
+        val length = arrowLengthDp(speedClass) * SCALE
+        val shaft = (1.6f + 0.5f * speedClass) * SCALE
+        val head = (3.2f + 0.7f * speedClass) * SCALE
+        val side = ceil(length + 2 * SHADOW_ROOM_DP * SCALE).toInt()
         val out = bitmap(side, side)
         val canvas = Canvas(out)
-        val s = side.toFloat()
-        val margin = 0.07f
-        fun x(v: Float) = s * (margin + v * (1 - 2 * margin))
-        fun y(v: Float) = s * (margin + v * (1 - 2 * margin))
+        val c = side / 2f
+        val tip = c - length / 2
+        val tail = c + length / 2
+        val base = tip + head * 1.6f
+        val neck = base - 1f * SCALE
+        val bend = c + length * 0.1f
         val path = Path().apply {
-            moveTo(x(0.5f), y(0f))
-            lineTo(x(1f), y(0.48f))
-            lineTo(x(0.64f), y(0.48f))
-            lineTo(x(0.64f), y(1f))
-            lineTo(x(0.36f), y(1f))
-            lineTo(x(0.36f), y(0.48f))
-            lineTo(x(0f), y(0.48f))
+            moveTo(c, tip)
+            lineTo(c + head, base)
+            lineTo(c + shaft / 2, neck)
+            quadTo(c + shaft * 0.25f, bend, c, tail)
+            quadTo(c - shaft * 0.25f, bend, c - shaft / 2, neck)
+            lineTo(c - head, base)
             close()
         }
-        val color = 0xFF000000.toInt() or WindField.ClassColors[speedClass]
-        canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color })
-        canvas.drawPath(
-            path,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                this.color = INK
-                style = Paint.Style.STROKE
-                strokeWidth = 1.2f * SCALE
-                strokeJoin = Paint.Join.ROUND
-            },
-        )
+        canvas.drawPath(path, shadowPaint())
+        canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF000000.toInt() or WindField.ClassColors[speedClass] })
         return out
     }
 
-    /** Штиль: точка без направления. */
+    /** Мягкая тень под стрелкой и точкой штиля: размытый тёмный силуэт той же формы. */
+    private fun shadowPaint(): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = SHADOW
+        maskFilter = BlurMaskFilter(SHADOW_BLUR_DP * SCALE, BlurMaskFilter.Blur.NORMAL)
+    }
+
+    /** Штиль: точка без направления, с той же мягкой тенью. */
     private fun calm(): Bitmap {
         val side = ceil(CALM_DP * SCALE).toInt()
         val out = bitmap(side, side)
         val canvas = Canvas(out)
         val c = side / 2f
-        val radius = side * 0.28f
+        val radius = CALM_RADIUS_DP * SCALE
+        canvas.drawCircle(c, c, radius, shadowPaint())
         canvas.drawCircle(c, c, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF000000.toInt() or WindField.ClassColors[0] })
-        canvas.drawCircle(
-            c,
-            c,
-            radius,
-            Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = INK
-                style = Paint.Style.STROKE
-                strokeWidth = 1.2f * SCALE
-            },
-        )
         return out
     }
 }

@@ -231,9 +231,13 @@ class MapViewModel(
     fun scrubEnd() = show()
 
     fun selectLayer(layer: MapLayer) {
+        val wasPlaying = playJob?.isActive == true
+        if (wasPlaying) stopPlaying()
         _state.update { it.copy(layer = layer) }
         show()
         warmUp()
+        // Круг кадров зависит от слоя (температура и ветер по часам): игра начинается заново с новым кругом.
+        if (wasPlaying) togglePlay()
     }
 
     fun togglePlay() {
@@ -242,7 +246,7 @@ class MapViewModel(
             return
         }
         val s = _state.value
-        val frames = MapTimeline.playFrames(s.day, s.now, zone)
+        val frames = MapTimeline.playFrames(s.day, s.now, zone, hourly = s.layer.field() != null)
         if (frames.isEmpty()) return
         _state.update { it.copy(playing = true) }
         showJob?.cancel()
