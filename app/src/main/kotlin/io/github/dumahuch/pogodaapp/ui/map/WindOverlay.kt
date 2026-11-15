@@ -35,7 +35,7 @@ internal fun WindOverlay(flow: WindFlow?, view: ScreenView?, modifier: Modifier 
     val active = flow != null && particles != null && view != null
 
     LaunchedEffect(active, particles) {
-        if (!active || particles == null || view == null) return@LaunchedEffect
+        if (!active) return@LaunchedEffect
         var last = 0L
         while (true) {
             withFrameNanos { now ->
@@ -62,7 +62,7 @@ internal fun WindOverlay(flow: WindFlow?, view: ScreenView?, modifier: Modifier 
 
     Canvas(modifier) {
         // Чтение кадра здесь перерисовывает только холст, без пересборки экрана.
-        if (frame == 0L || !active || particles == null) return@Canvas
+        if (frame == 0L || !active) return@Canvas
         particles.collect(segments)
         drawIntoCanvas { canvas ->
             for (bucket in 0 until segments.bucketCount) {
