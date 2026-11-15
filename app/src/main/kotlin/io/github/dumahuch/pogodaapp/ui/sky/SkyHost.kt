@@ -338,7 +338,7 @@ internal fun SkyHost(
     }
 
     // Часы дождя и снега общие для неба и капель на стекле карточек.
-    val precipClock = rememberPrecipClock(precip != null && animationsOn && started)
+    val precipClock = rememberPrecipClock(precip != null && animationsOn && started && !SkyPause.active)
     // Небо для линз капель: тот же маленький снимок, раз в 10 с, пока идёт дождь (и на экране проверки тоже).
     val raining = precip?.kind == PrecipKind.Rain
     val lensLayer = rememberGraphicsLayer()
@@ -409,7 +409,7 @@ internal fun SkyHost(
                 precip = precip,
                 precipClock = precipClock,
                 lightSky = palette.darkInk,
-                fogMotion = animationsOn && started,
+                fogMotion = animationsOn && started && !SkyPause.active,
                 reveal = { reveal },
                 scrim = palette.scrim,
                 infoScrim = palette.infoScrim,

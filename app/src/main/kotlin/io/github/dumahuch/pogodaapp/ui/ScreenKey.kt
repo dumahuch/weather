@@ -39,6 +39,22 @@ internal fun transitionKind(from: ScreenKey, to: ScreenKey): TransitionKind = wh
     to.layer.depth > from.layer.depth -> TransitionKind.Push
     to.layer.depth < from.layer.depth -> TransitionKind.Pop
     from.layer != Layer.Tab || to.layer != Layer.Tab -> TransitionKind.Fade
-    // Вкладки переключаются мгновенно, без анимации (решение Димы 15.11.2026: сдвиг и гашение карточек выглядели как сбой).
+    // Вкладки само окно переключает мгновенно; их движение ведёт [TabMotion] (прежняя вкладка гаснет картинкой, новая въезжает).
     else -> TransitionKind.None
+}
+
+/** На какую долю ширины новая вкладка въезжает сбоку: вдесятеро меньше, чем окно при переходе вглубь. */
+internal const val TAB_SHIFT_PART = 10
+
+/**
+ * С какого сдвига (в пикселях) въезжает новая вкладка: вкладка правее прежней приходит справа (сдвиг положительный),
+ * левее приходит слева; та же вкладка не двигается. [widthPx] ширина окна.
+ */
+internal fun tabShift(fromIndex: Int, toIndex: Int, widthPx: Int): Int {
+    val step = widthPx / TAB_SHIFT_PART
+    return when {
+        toIndex > fromIndex -> step
+        toIndex < fromIndex -> -step
+        else -> 0
+    }
 }

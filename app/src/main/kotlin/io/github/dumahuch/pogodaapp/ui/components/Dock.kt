@@ -102,4 +102,5 @@ private fun DockButton(tab: AppTab, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-private const val DOCK_MS = 360
+/** Столько же, сколько въезжает новая вкладка (`PUSH_MS`): плашка и содержимое заканчивают вместе. */
+private const val DOCK_MS = 320
