@@ -214,6 +214,7 @@ fun PogodaApp(
     val skyGlass = LocalGlass.current
     val skyContent = LocalContentColor.current
     val mapGlass = remember { Glass.flat(MapPalette) }
+    val skyGlassFlat = remember(skyGlass) { skyGlass.withoutBlur() }
     Box(modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = screen,
@@ -255,9 +256,15 @@ fun PogodaApp(
                 )
 
                 // Окно красится по своему ключу, а не по выбранной вкладке: уходящее не перекрашивается на ходу.
+                // Пока идёт переход, стекло без размытия: размытие у восьми карточек двух экранов сразу делает кадр в разы
+                // дороже, и на видео от 15.11.2026 переход сжимался в 2–3 кадра. После перехода размытие возвращается.
                 Layer.Tab, Layer.Day -> CompositionLocalProvider(
                     LocalPogodaPalette provides if (key.isMap) MapPalette else skyPalette,
-                    LocalGlass provides if (key.isMap) mapGlass else skyGlass,
+                    LocalGlass provides when {
+                        key.isMap -> mapGlass
+                        transition.currentState != transition.targetState -> skyGlassFlat
+                        else -> skyGlass
+                    },
                     LocalContentColor provides if (key.isMap) MapPalette.ink else skyContent,
                 ) {
                     when (AppTab.entries[key.tabIndex]) {
