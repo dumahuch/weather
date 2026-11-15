@@ -10,7 +10,7 @@ internal enum class Layer(val depth: Int) {
 
 /**
  * Какое окно сейчас на экране, для анимации перехода. [tabIndex] порядковый номер вкладки в панели (слева направо),
- * [isMap] вкладка «Карта» (её не сдвигаем, только проявляем).
+ * [isMap] вкладка «Карта» (у неё свои цвета и стекло).
  */
 internal data class ScreenKey(
     val layer: Layer,
@@ -30,13 +30,7 @@ internal enum class TransitionKind {
     /** Возврат: окно уходит вправо, под ним прежнее. */
     Pop,
 
-    /** Вкладка правее: новое выезжает справа на небольшое расстояние. */
-    SlideForward,
-
-    /** Вкладка левее. */
-    SlideBack,
-
-    /** Только проявление (переходы с участием карты и редкие сочетания). */
+    /** Только проявление (редкие сочетания окон одного слоя). */
     Fade,
 }
 
@@ -45,8 +39,6 @@ internal fun transitionKind(from: ScreenKey, to: ScreenKey): TransitionKind = wh
     to.layer.depth > from.layer.depth -> TransitionKind.Push
     to.layer.depth < from.layer.depth -> TransitionKind.Pop
     from.layer != Layer.Tab || to.layer != Layer.Tab -> TransitionKind.Fade
-    from.isMap || to.isMap -> TransitionKind.Fade
-    to.tabIndex > from.tabIndex -> TransitionKind.SlideForward
-    to.tabIndex < from.tabIndex -> TransitionKind.SlideBack
+    // Вкладки переключаются мгновенно, без анимации (решение Димы 15.11.2026: сдвиг и гашение карточек выглядели как сбой).
     else -> TransitionKind.None
 }
