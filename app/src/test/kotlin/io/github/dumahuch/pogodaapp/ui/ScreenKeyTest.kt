@@ -29,6 +29,12 @@ class ScreenKeyTest {
     }
 
     @Test
+    fun frameGapsAreMillisecondsBetweenNeighbours() {
+        assertEquals(listOf(89L, 8L), frameGaps(listOf(0L, 89_400_000L, 97_900_000L)))
+        assertEquals(emptyList<Long>(), frameGaps(listOf(5L)))
+    }
+
+    @Test
     fun deeperWindowsPushAndPop() {
         assertEquals(TransitionKind.Push, transitionKind(forecast, day))
         assertEquals(TransitionKind.Pop, transitionKind(day, forecast))

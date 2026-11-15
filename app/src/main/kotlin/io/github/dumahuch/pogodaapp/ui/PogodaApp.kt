@@ -247,7 +247,9 @@ fun PogodaApp(
             try {
                 // Карта рисуется отдельной поверхностью и в картинку не попадает: с неё уходим без картинки.
                 val old = if (from == AppTab.Map) null else tabMotion.capture(tabLayer)
-                tabMotion.run(old, tabShift(from.ordinal, target.ordinal, contentWidth)) { showTab(target) }
+                tabMotion.run(old, tabShift(from.ordinal, target.ordinal, contentWidth), "${from.name} > ${target.name}") {
+                    showTab(target)
+                }
             } finally {
                 SkyPause.active = false
             }
