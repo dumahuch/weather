@@ -102,4 +102,4 @@ private fun DockButton(tab: AppTab, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-private const val DOCK_MS = 220
+private const val DOCK_MS = 360
