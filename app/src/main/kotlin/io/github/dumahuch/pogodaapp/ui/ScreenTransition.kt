@@ -50,7 +50,8 @@ internal fun screenTransition(kind: TransitionKind): ContentTransform = when (ki
     // не бывает пустого неба, и если тяжёлый экран собрался с опозданием, под ним всё равно виден прежний.
     TransitionKind.SlideForward, TransitionKind.SlideBack -> ContentTransform(
         targetContentEnter = fadeIn(tween(TAB_MS)),
-        initialContentExit = ExitTransition.KeepUntilTransitionsFinished,
+        // Старый экран не гаснет, а пропадает разом, когда новый уже проявился.
+        initialContentExit = fadeOut(tween(durationMillis = 1, delayMillis = TAB_MS)),
         targetContentZIndex = 1f,
         sizeTransform = null,
     )
