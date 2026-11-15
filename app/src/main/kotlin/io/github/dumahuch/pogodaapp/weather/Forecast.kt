@@ -68,6 +68,9 @@ data class HourDetails(
     val windDirection: Int?,
     val gustKmh: Double?,
     val uvIndex: Double?,
+    /** Температура «ощущается как» и точка росы, °C. У прогноза в сохранённом старом формате (до 0.8.43) пусты. */
+    val feelsLikeC: Double? = null,
+    val dewPointC: Double? = null,
 )
 
 data class Forecast(

@@ -151,6 +151,19 @@
         <item>West</item>
         <item>Nordwest</item>
     </string-array>
+    <string-array name="wind_from">
+        <item>aus Norden</item>
+        <item>aus Nordosten</item>
+        <item>aus Osten</item>
+        <item>aus Südosten</item>
+        <item>aus Süden</item>
+        <item>aus Südwesten</item>
+        <item>aus Westen</item>
+        <item>aus Nordwesten</item>
+    </string-array>
+    <string name="hour_dew_point">Taupunkt</string>
+    <string name="hour_show_details">Details anzeigen</string>
+    <string name="hour_panel_header">%1$s — %2$s</string>
     <!-- Сила ветра по шкале Бофорта, ступени 0-12 по средней скорости (км/ч): 0, 1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118. -->
     <string-array name="beaufort_names">
         <item>Windstill</item>

@@ -265,4 +265,21 @@ class OpenMeteoParserTest {
         assertEquals(60, details[1].humidity)
         assertEquals(null, details[1].windKmh)
     }
+    @Test
+    fun feelsLikeAndDewPointAreReadPerHourAndStayEmptyInOldAnswers() {
+        val old = OpenMeteoParser.parse(fixture("hannover-15d.json")).hourDetails
+        assertEquals(null, old.first().feelsLikeC)
+        assertEquals(null, old.first().dewPointC)
+
+        val json = small(extra = "").replace(
+            """"precipitation":[9.0,0.4,0.0,2.5]""",
+            """"precipitation":[9.0,0.4,0.0,2.5],"relative_humidity_2m":[50,60,70,80],""" +
+                """"apparent_temperature":[11.5,null,9.0,8.1],"dew_point_2m":[4.0,5.0,null,6.5]""",
+        )
+        val details = OpenMeteoParser.parse(json).hourDetails
+        assertEquals(11.5, details[0].feelsLikeC!!, 0.0)
+        assertEquals(null, details[1].feelsLikeC)
+        assertEquals(5.0, details[1].dewPointC!!, 0.0)
+        assertEquals(null, details[2].dewPointC)
+    }
 }

@@ -2,6 +2,7 @@ package io.github.dumahuch.pogodaapp.ui.home
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,12 +19,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -37,6 +44,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -44,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.home.HourlyGeometry
 import io.github.dumahuch.pogodaapp.home.hourLabel
+import io.github.dumahuch.pogodaapp.home.hourPanelOf
 import io.github.dumahuch.pogodaapp.home.isStormWet
 import io.github.dumahuch.pogodaapp.home.precipitationText
 import io.github.dumahuch.pogodaapp.home.roundTemperature
@@ -52,6 +61,7 @@ import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.weather.HourDetails
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import java.time.ZoneId
 import java.util.Locale
@@ -102,6 +112,8 @@ fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Compos
  * На «Главной» это 48 часов с первой колонкой «Сейчас» и подписью дня в полночь. В подробностях дня ([markNow] и
  * [dayBreaks] выключены) это сутки: подписи только часы, без отметки «Сейчас» и без границы суток, а лента
  * сразу прокручена на [initialColumn]-ю колонку (для сегодняшнего дня это текущий час).
+ * Нажатие на час, для которого в [details] есть значения, подсвечивает его и раскрывает под лентой панель
+ * (давление, ощущается как, влажность, ветер); нажатие на другой час переносит выбор, на тот же сворачивает панель.
  */
 @Composable
 fun HourlyStrip(
@@ -111,6 +123,7 @@ fun HourlyStrip(
     markNow: Boolean = true,
     dayBreaks: Boolean = true,
     initialColumn: Int = 0,
+    details: List<HourDetails> = emptyList(),
 ) {
     if (points.isEmpty()) return
     val dayNames = stringArrayResource(R.array.days_short).toList()
@@ -121,39 +134,58 @@ fun HourlyStrip(
     val bars = remember(points) { HourlyGeometry.barHeights(points.map { it.precipitationMm }) }
     val density = LocalDensity.current
     val scroll = rememberScrollState(with(density) { (ColumnWidth * initialColumn).roundToPx() })
+    val panels = remember(points, details) {
+        val byTime = details.associateBy { it.time }
+        points.map { hourPanelOf(byTime[it.time]) }
+    }
+    // Выбор хранится по времени часа: когда лента сдвинется, он останется на том же часе или пропадёт вместе с ним.
+    var selectedTime by rememberSaveable { mutableStateOf<Long?>(null) }
+    val selectedIndex = selectedTime?.let { key -> points.indexOfFirst { it.time.epochSecond == key } }
+        ?.takeIf { it >= 0 && panels[it] != null }
 
-    Box(
-        modifier
-            .fillMaxWidth()
-            .edgeFade(18.dp)
-            .horizontalScroll(scroll)
-            .padding(horizontal = 8.dp),
-    ) {
+    Column(modifier.fillMaxWidth()) {
         Box(
             Modifier
-                .width(ColumnWidth * points.size)
-                .height(StripHeight),
+                .fillMaxWidth()
+                .edgeFade(18.dp)
+                .horizontalScroll(scroll)
+                .padding(horizontal = 8.dp),
         ) {
-            CurveLayer(curve, Modifier.matchParentSize())
-            Row(Modifier.matchParentSize()) {
-                points.forEachIndexed { index, point ->
-                    val local = point.time.atZone(zone)
-                    HourColumn(
-                        label = when {
-                            index == 0 && markNow -> nowLabel
-                            dayBreaks -> hourLabel(point.time, zone, dayNames)
-                            else -> "%02d".format(Locale.ROOT, local.hour)
-                        },
-                        isNow = index == 0 && markNow,
-                        isMidnight = dayBreaks && index > 0 && local.hour == 0,
-                        point = point,
-                        curveY = curve[index],
-                        barHeight = bars[index],
-                        locale = locale,
-                    )
+            Box(
+                Modifier
+                    .width(ColumnWidth * points.size)
+                    .height(StripHeight),
+            ) {
+                CurveLayer(curve, Modifier.matchParentSize())
+                Row(Modifier.matchParentSize()) {
+                    points.forEachIndexed { index, point ->
+                        val local = point.time.atZone(zone)
+                        HourColumn(
+                            label = when {
+                                index == 0 && markNow -> nowLabel
+                                dayBreaks -> hourLabel(point.time, zone, dayNames)
+                                else -> "%02d".format(Locale.ROOT, local.hour)
+                            },
+                            isNow = index == 0 && markNow,
+                            isMidnight = dayBreaks && index > 0 && local.hour == 0,
+                            point = point,
+                            curveY = curve[index],
+                            barHeight = bars[index],
+                            locale = locale,
+                            openable = panels[index] != null,
+                            selected = index == selectedIndex,
+                            onToggle = {
+                                selectedTime = if (index == selectedIndex) null else point.time.epochSecond
+                            },
+                        )
+                    }
                 }
             }
         }
+        HourPanelHost(
+            selection = selectedIndex?.let { HourSelection(points[it], panels[it]!!) },
+            zone = zone,
+        )
     }
 }
 
@@ -189,19 +221,37 @@ private fun HourColumn(
     curveY: Float,
     barHeight: Float,
     locale: Locale,
+    openable: Boolean,
+    selected: Boolean,
+    onToggle: () -> Unit,
 ) {
     val palette = LocalPogodaPalette.current
+    val showDetails = stringResource(R.string.hour_show_details)
     Box(
         Modifier
             .width(ColumnWidth)
             .fillMaxHeight()
+            .then(if (selected) Modifier.selectedColumn(palette.ink, palette.accent) else Modifier)
             .then(if (isMidnight) Modifier.dayDivider(palette.ink) else Modifier)
-            .semantics(mergeDescendants = true) {},
+            .then(if (openable && !selected) Modifier.openHint(palette.ink) else Modifier)
+            .then(
+                if (openable) {
+                    Modifier.clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClickLabel = showDetails,
+                        onClick = onToggle,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .semantics(mergeDescendants = true) { this.selected = selected },
     ) {
         val labelStyle = pogodaText(
             size = 12f,
             weight = if (isMidnight) 700 else 500,
-            color = if (isNow || isMidnight) palette.ink else palette.ink2,
+            color = if (isNow || isMidnight || selected) palette.ink else palette.ink2,
             lineHeight = 20f / 12f,
             tabular = true,
         )
@@ -209,7 +259,7 @@ private fun HourColumn(
             .align(Alignment.TopCenter)
             .padding(top = 2.dp)
             .wrapContentWidth(Alignment.CenterHorizontally, unbounded = true)
-        if (isNow) {
+        if (isNow || selected) {
             Text(
                 label,
                 style = labelStyle,
@@ -264,6 +314,36 @@ private fun HourColumn(
                 .padding(bottom = 8.dp),
         )
     }
+}
+
+/** Выбранный час: столбец чуть светлее, внизу стрелка вниз к раскрытой панели. */
+private fun Modifier.selectedColumn(ink: Color, accent: Color): Modifier = drawBehind {
+    drawRoundRect(
+        color = ink.copy(alpha = 0.08f),
+        topLeft = Offset(2.dp.toPx(), 0f),
+        size = Size(size.width - 4.dp.toPx(), size.height),
+        cornerRadius = CornerRadius(14.dp.toPx()),
+    )
+    val half = 6.dp.toPx()
+    val tip = Path().apply {
+        moveTo(size.width / 2 - half, size.height - 7.dp.toPx())
+        lineTo(size.width / 2 + half, size.height - 7.dp.toPx())
+        lineTo(size.width / 2, size.height - 1.dp.toPx())
+        close()
+    }
+    drawPath(tip, accent)
+}
+
+/** Маленький уголок внизу справа: подсказка, что час можно открыть. */
+private fun Modifier.openHint(ink: Color): Modifier = drawBehind {
+    val side = 6.dp.toPx()
+    val corner = Path().apply {
+        moveTo(size.width - 5.dp.toPx(), size.height - 2.dp.toPx())
+        lineTo(size.width - 5.dp.toPx() - side, size.height - 2.dp.toPx())
+        lineTo(size.width - 5.dp.toPx(), size.height - 2.dp.toPx() - side)
+        close()
+    }
+    drawPath(corner, ink.copy(alpha = 0.32f))
 }
 
 /** Пунктир слева от первого часа нового дня. */

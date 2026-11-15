@@ -192,7 +192,13 @@ fun HomeScreen(
                     is HomeUiState.Content -> HourlyFrame(
                         caption = stringResource(R.string.hourly_caption),
                         modifier = Modifier.padding(horizontal = 20.dp),
-                    ) { HourlyStrip(points = state.strip, zone = state.forecast.zone) }
+                    ) {
+                        HourlyStrip(
+                            points = state.strip,
+                            zone = state.forecast.zone,
+                            details = state.forecast.hourDetails,
+                        )
+                    }
                     HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData -> Unit
                 }
                 Spacer(Modifier.height(bottomContentPadding()))

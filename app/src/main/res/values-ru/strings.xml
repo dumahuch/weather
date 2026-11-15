@@ -153,6 +153,19 @@
         <item>Западный</item>
         <item>Северо-западный</item>
     </string-array>
+    <string-array name="wind_from">
+        <item>с севера</item>
+        <item>с северо-востока</item>
+        <item>с востока</item>
+        <item>с юго-востока</item>
+        <item>с юга</item>
+        <item>с юго-запада</item>
+        <item>с запада</item>
+        <item>с северо-запада</item>
+    </string-array>
+    <string name="hour_dew_point">Точка росы</string>
+    <string name="hour_show_details">Показать подробности</string>
+    <string name="hour_panel_header">%1$s — %2$s</string>
     <!-- Сила ветра по шкале Бофорта, ступени 0-12 по средней скорости (км/ч): 0, 1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118. -->
     <string-array name="beaufort_names">
         <item>Штиль</item>

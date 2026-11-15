@@ -122,6 +122,7 @@ fun DayDetailScreen(
                     markNow = false,
                     dayBreaks = false,
                     initialColumn = firstColumn,
+                    details = state.forecast.hourDetails,
                 )
             }
             Spacer(Modifier.height(12.dp))

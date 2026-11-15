@@ -144,6 +144,8 @@ object OpenMeteoParser {
         val direction = hourly.optJSONArray("wind_direction_10m")
         val gusts = hourly.optJSONArray("wind_gusts_10m")
         val uv = hourly.optJSONArray("uv_index")
+        val feelsLike = hourly.optJSONArray("apparent_temperature")
+        val dewPoint = hourly.optJSONArray("dew_point_2m")
         if (listOf(humidity, pressure, visibility, wind, direction, gusts, uv).all { it == null }) return emptyList()
         return (0 until times.length()).map { i ->
             HourDetails(
@@ -155,6 +157,8 @@ object OpenMeteoParser {
                 windDirection = direction.numberAt(i)?.let { Math.round(it).toInt() },
                 gustKmh = gusts.numberAt(i),
                 uvIndex = uv.numberAt(i),
+                feelsLikeC = feelsLike.numberAt(i),
+                dewPointC = dewPoint.numberAt(i),
             )
         }
     }
