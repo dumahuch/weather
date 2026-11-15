@@ -21,6 +21,14 @@ class ScreenKeyTest {
     }
 
     @Test
+    fun newTabComesFromItsSideOfTheBar() {
+        assertEquals(108, tabShift(fromIndex = 0, toIndex = 2, widthPx = 1080))
+        assertEquals(-108, tabShift(fromIndex = 3, toIndex = 1, widthPx = 1080))
+        assertEquals(0, tabShift(fromIndex = 2, toIndex = 2, widthPx = 1080))
+        assertEquals(0, tabShift(fromIndex = 0, toIndex = 1, widthPx = 0))
+    }
+
+    @Test
     fun deeperWindowsPushAndPop() {
         assertEquals(TransitionKind.Push, transitionKind(forecast, day))
         assertEquals(TransitionKind.Pop, transitionKind(day, forecast))

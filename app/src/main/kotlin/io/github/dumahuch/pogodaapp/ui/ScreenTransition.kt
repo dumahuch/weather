@@ -12,10 +12,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 
 /** Переход вглубь (день, места, настройки) и обратно. */
-private const val PUSH_MS = 320
+internal const val PUSH_MS = 320
 
 /** Через сколько уходящее окно уже не просвечивает сквозь выезжающее. */
-private const val PUSH_COVER_MS = 120
+internal const val PUSH_COVER_MS = 120
 
 /** Возврат: пока уходящее окно гаснет, прежнее проявляется с небольшим сдвигом по времени. */
 private const val POP_DELAY_MS = 60

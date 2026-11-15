@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -18,6 +19,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +27,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.notify.AlertNotices
 import io.github.dumahuch.pogodaapp.notify.AlertRequest
@@ -59,6 +67,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /** Сколько суток показывает список «Прогноза» сразу после запуска. */
 private const val DEFAULT_DAY_COUNT = 7
@@ -155,7 +165,6 @@ fun PogodaApp(
     }
     BackHandler(enabled = placesOpen && !searching) { closePlaces() }
     BackHandler(enabled = !placesOpen && openDay != null) { openDay = null }
-    BackHandler(enabled = !placesOpen && openDay == null && tab != AppTab.Home) { tab = AppTab.Home }
 
     // Название выбранного не текущего места (закреплённого или открытого для просмотра) и признак просмотра.
     val chosenName = when (val choice = places.selection) {
@@ -212,15 +221,62 @@ fun PogodaApp(
     }
     DisposableEffect(Unit) { onDispose { SkyPause.active = false } }
 
+    // Смена вкладки: прежняя превращается в картинку и быстро гаснет, новая въезжает сбоку (см. [TabMotion]).
+    val tabMotion = remember { TabMotion() }
+    val tabLayer = rememberGraphicsLayer()
+    val scope = rememberCoroutineScope()
+    var contentWidth by remember { mutableIntStateOf(0) }
+
+    fun showTab(target: AppTab) {
+        tab = target
+        openDay = null
+        closeAlerts()
+    }
+
+    fun selectTab(target: AppTab) {
+        val from = tab
+        // Без движения: анимации выключены, нажата та же вкладка или на экране не вкладка (из дня уходит переход «назад»).
+        if (!animate || target == from || screen.layer != Layer.Tab) {
+            showTab(target)
+            return
+        }
+        tabMotion.job?.cancel()
+        tabMotion.job = scope.launch {
+            // Небо и погода стоят, пока идёт смена: кадры нужны ей.
+            SkyPause.active = true
+            try {
+                // Карта рисуется отдельной поверхностью и в картинку не попадает: с неё уходим без картинки.
+                val old = if (from == AppTab.Map) null else tabMotion.capture(tabLayer)
+                tabMotion.run(old, tabShift(from.ordinal, target.ordinal, contentWidth)) { showTab(target) }
+            } finally {
+                SkyPause.active = false
+            }
+        }
+    }
+    BackHandler(enabled = !placesOpen && openDay == null && tab != AppTab.Home) { selectTab(AppTab.Home) }
+
     // На карте свои тёмные цвета и стекло без размытия (под стеклом карта, а не небо), вместе с панелью вкладок.
     val skyPalette = LocalPogodaPalette.current
     val skyGlass = LocalGlass.current
     val skyContent = LocalContentColor.current
     val mapGlass = remember { Glass.flat(MapPalette) }
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().onSizeChanged { contentWidth = it.width }) {
         AnimatedContent(
             targetState = screen,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .offset { IntOffset(tabMotion.shift.value.roundToInt(), 0) }
+                .drawWithContent {
+                    // Обычно содержимое рисуется как есть; по просьбе [TabMotion] один кадр записывается в слой для картинки.
+                    val request = tabMotion.request
+                    if (request == null) {
+                        drawContent()
+                    } else {
+                        tabLayer.record { this@drawWithContent.drawContent() }
+                        drawLayer(tabLayer)
+                        request.complete(Unit)
+                    }
+                },
             transitionSpec = {
                 if (animate) {
                     screenTransition(transitionKind(initialState, targetState))
@@ -307,6 +363,11 @@ fun PogodaApp(
                 }
             }
         }
+        // Картинка прежней вкладки поверх новой, под панелью вкладок; нажатий не перехватывает.
+        val oldTab = tabMotion.picture
+        if (oldTab != null) {
+            Box(Modifier.fillMaxSize().drawBehind { drawImage(oldTab, alpha = tabMotion.cover.value) })
+        }
         // Панель вкладок не двигается при переходах между вкладками; на местах и в настройках её нет (плавно гаснет).
         val onMap = tab == AppTab.Map
         CompositionLocalProvider(
@@ -322,11 +383,7 @@ fun PogodaApp(
             ) {
                 BottomBar(
                     selected = tab,
-                    onSelect = {
-                        tab = it
-                        openDay = null
-                        closeAlerts()
-                    },
+                    onSelect = { selectTab(it) },
                     versionLabel = versionLabel,
                     showAttribution = state is HomeUiState.Content,
                     onVersionTap = onVersionTap,
