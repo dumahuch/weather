@@ -9,9 +9,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 
-/** Переход между вкладками: старая гаснет за 100 мс, новая проявляется за 180 мс. */
-private const val TAB_OUT_MS = 100
-private const val TAB_IN_MS = 180
+/** Переход между вкладками: новая проявляется поверх старой за это время. */
+private const val TAB_MS = 220
 
 /** Переход вглубь (день, места, настройки) и обратно. */
 private const val PUSH_MS = 320
@@ -47,11 +46,13 @@ internal fun screenTransition(kind: TransitionKind): ContentTransform = when (ki
         sizeTransform = null,
     )
 
-    // Вкладки: старая гаснет, потом проявляется новая. Двигать стеклянные карточки над размытием дорого, а наложение двух
-    // экранов друг на друга даёт двойной текст; поэтому без сдвига и без наложения.
+    // Вкладки: новый экран проявляется поверх старого, а старый стоит целиком, пока новый не проявился. Так между экранами
+    // не бывает пустого неба, и если тяжёлый экран собрался с опозданием, под ним всё равно виден прежний.
     TransitionKind.SlideForward, TransitionKind.SlideBack -> ContentTransform(
-        targetContentEnter = fadeIn(tween(TAB_IN_MS, delayMillis = TAB_OUT_MS)),
-        initialContentExit = fadeOut(tween(TAB_OUT_MS)),
+        targetContentEnter = fadeIn(tween(TAB_MS)),
+        // Старый экран не гаснет, а пропадает разом, когда новый уже проявился.
+        initialContentExit = fadeOut(tween(durationMillis = 1, delayMillis = TAB_MS)),
+        targetContentZIndex = 1f,
         sizeTransform = null,
     )
 
