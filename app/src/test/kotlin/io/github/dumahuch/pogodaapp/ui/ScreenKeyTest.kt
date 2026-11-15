@@ -13,15 +13,11 @@ class ScreenKeyTest {
     private val settings = ScreenKey(Layer.Settings)
 
     @Test
-    fun tabsSlideTowardTheirNeighbour() {
-        assertEquals(TransitionKind.SlideForward, transitionKind(home, forecast))
-        assertEquals(TransitionKind.SlideBack, transitionKind(forecast, details))
-    }
-
-    @Test
-    fun mapOnlyFades() {
-        assertEquals(TransitionKind.Fade, transitionKind(forecast, map))
-        assertEquals(TransitionKind.Fade, transitionKind(map, home))
+    fun tabsSwitchInstantly() {
+        assertEquals(TransitionKind.None, transitionKind(home, forecast))
+        assertEquals(TransitionKind.None, transitionKind(forecast, details))
+        assertEquals(TransitionKind.None, transitionKind(forecast, map))
+        assertEquals(TransitionKind.None, transitionKind(map, home))
     }
 
     @Test
