@@ -109,6 +109,7 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, wifiOnly: Boolean, modifier: M
         model.setWifiOnly(wifiOnly)
         model.onShown()
         MapCacheJobs.scheduleCleanup(context)
+        MapPreloadJobs.sync(context)
         onDispose { model.onHidden() }
     }
     LightBarIcons(restoreDark = skyDarkInk)

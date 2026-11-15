@@ -71,6 +71,12 @@
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <!-- Утром по Wi-Fi кладёт кадры карты (модель ICON-D2) на диск заранее; запускает только система (JobScheduler). -->
+        <service
+            android:name=".ui.map.MapPreloadJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
     </application>
 
 </manifest>
