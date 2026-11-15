@@ -252,7 +252,8 @@ internal fun SkyHost(
         while (true) {
             delay(DRIFT_STEP_MILLIS)
             val at = SystemClock.elapsedRealtimeNanos()
-            phase = (phase + speed * (at - last) / NANOS_PER_SECOND) % TWO_PI
+            // Пока идёт переход между окнами, облака стоят: перерисовка неба отнимает кадры у перехода.
+            if (!SkyPause.active) phase = (phase + speed * (at - last) / NANOS_PER_SECOND) % TWO_PI
             last = at
         }
     }
@@ -265,6 +266,10 @@ internal fun SkyHost(
         if (!started) return@LaunchedEffect
         var last = SystemClock.elapsedRealtimeNanos()
         while (true) {
+            if (animationsOn && SkyPause.active) {
+                delay(THEME_FAST_STEP_MILLIS)
+                continue
+            }
             val at = SystemClock.elapsedRealtimeNanos()
             val seconds = if (animationsOn) (at - last) / NANOS_PER_SECOND else INSTANT_SECONDS
             last = at

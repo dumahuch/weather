@@ -8,10 +8,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.ui.unit.dp
 
-/** Переход между вкладками. Кривая по умолчанию (быстрый старт, мягкая остановка) та же, что у панели часов. */
-private const val TAB_MS = 280
+/** Переход между вкладками: старая гаснет за 100 мс, новая проявляется за 180 мс. */
+private const val TAB_OUT_MS = 100
+private const val TAB_IN_MS = 180
 
 /** Переход вглубь (день, места, настройки) и обратно. */
 private const val PUSH_MS = 320
@@ -20,17 +20,16 @@ private const val PUSH_MS = 320
 private const val FADE_IN_MS = 220
 private const val FADE_OUT_MS = 160
 
-/** На сколько вкладка выезжает сбоку и уходит в другую сторону. */
-internal val TAB_SLIDE = 48.dp
+/** Сколько всего длится самый долгий переход (небо стоит, пока он идёт). */
+internal const val TRANSITION_MAX_MS = 360L
 
 /** Доля ширины, на которую прежнее окно уходит под новое при углублении (и приходит обратно при возврате). */
 private const val UNDER_SHIFT = 5
 
 /**
- * Анимация перехода вида [kind]. Двигается только содержимое: небо стоит, панель вкладок не едет. [tabSlidePx] сдвиг
- * вкладки в пикселях ([TAB_SLIDE]).
+ * Анимация перехода вида [kind]. Двигается только содержимое: небо стоит, панель вкладок не едет.
  */
-internal fun screenTransition(kind: TransitionKind, tabSlidePx: Int): ContentTransform = when (kind) {
+internal fun screenTransition(kind: TransitionKind): ContentTransform = when (kind) {
     TransitionKind.None -> ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
 
     TransitionKind.Push -> ContentTransform(
@@ -48,8 +47,13 @@ internal fun screenTransition(kind: TransitionKind, tabSlidePx: Int): ContentTra
         sizeTransform = null,
     )
 
-    TransitionKind.SlideForward -> tabSlide(tabSlidePx)
-    TransitionKind.SlideBack -> tabSlide(-tabSlidePx)
+    // Вкладки: старая гаснет, потом проявляется новая. Двигать стеклянные карточки над размытием дорого, а наложение двух
+    // экранов друг на друга даёт двойной текст; поэтому без сдвига и без наложения.
+    TransitionKind.SlideForward, TransitionKind.SlideBack -> ContentTransform(
+        targetContentEnter = fadeIn(tween(TAB_IN_MS, delayMillis = TAB_OUT_MS)),
+        initialContentExit = fadeOut(tween(TAB_OUT_MS)),
+        sizeTransform = null,
+    )
 
     TransitionKind.Fade -> ContentTransform(
         targetContentEnter = fadeIn(tween(FADE_IN_MS)),
@@ -57,10 +61,3 @@ internal fun screenTransition(kind: TransitionKind, tabSlidePx: Int): ContentTra
         sizeTransform = null,
     )
 }
-
-/** Новая вкладка приходит со стороны [shiftPx], прежняя уходит в противоположную. */
-private fun tabSlide(shiftPx: Int) = ContentTransform(
-    targetContentEnter = slideInHorizontally(tween(TAB_MS)) { shiftPx } + fadeIn(tween(TAB_MS)),
-    initialContentExit = slideOutHorizontally(tween(TAB_MS)) { -shiftPx } + fadeOut(tween(TAB_MS * 2 / 3)),
-    sizeTransform = null,
-)
