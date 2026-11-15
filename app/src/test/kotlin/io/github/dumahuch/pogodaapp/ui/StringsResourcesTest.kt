@@ -51,12 +51,12 @@ class StringsResourcesTest {
      * Строки, которые по правилу идут строчными: единицы измерения (и подписи легенды карты «мм/ч» и «км/ч») и продолжения после « · » (возраст данных на плашке
      * «Нет сети · данные 3 часа назад», время восхода и захода луны, первое из которых код поднимает до заглавной;
      * части суток подставляются в «Осадки %1$s»), время на плашке предупреждения справа («до 06:00», как в макете) и слова
-     * «сегодня» и «завтра» в середине периода предупреждения («Сегодня 15:00 – завтра 06:00»).
+     * «сегодня» и «завтра» в середине периода предупреждения («Сегодня 15:00 – завтра 06:00»), а также «с юга» и подобные: они идут после слова о силе ветра («Умеренный ветер с юга»).
      */
     private val continuations = setOf(
         "mm_unit", "kmh_unit", "hpa_unit", "map_legend_unit", "map_legend_unit_wind", "data_age_under_hour", "data_age_hours", "moonrise_at", "moonset_at",
         "precip_day_parts", "alert_starts_in", "alert_from", "alert_from_tomorrow", "alert_until", "alert_until_tomorrow",
-        "alert_until_day", "alert_day_today_mid", "alert_day_tomorrow_mid",
+        "alert_until_day", "alert_day_today_mid", "alert_day_tomorrow_mid", "wind_from",
     )
 
     @Test
