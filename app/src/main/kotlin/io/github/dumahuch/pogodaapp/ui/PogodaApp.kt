@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -24,7 +25,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.notify.AlertNotices
 import io.github.dumahuch.pogodaapp.notify.AlertRequest
@@ -51,12 +51,14 @@ import io.github.dumahuch.pogodaapp.ui.map.MapScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
+import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
 import io.github.dumahuch.pogodaapp.ui.sky.rememberAnimationsEnabled
 import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.delay
 
 /** Сколько суток показывает список «Прогноза» сразу после запуска. */
 private const val DEFAULT_DAY_COUNT = 7
@@ -198,7 +200,14 @@ fun PogodaApp(
         else -> ScreenKey(Layer.Tab, tab.ordinal, isMap = tab == AppTab.Map)
     }
     val animate by rememberAnimationsEnabled()
-    val slidePx = with(LocalDensity.current) { TAB_SLIDE.roundToPx() }
+    // Небо стоит, пока идёт переход: кадры нужны ему.
+    LaunchedEffect(screen) {
+        if (!animate) return@LaunchedEffect
+        SkyPause.active = true
+        delay(TRANSITION_MAX_MS)
+        SkyPause.active = false
+    }
+    DisposableEffect(Unit) { onDispose { SkyPause.active = false } }
 
     // На карте свои тёмные цвета и стекло без размытия (под стеклом карта, а не небо), вместе с панелью вкладок.
     val skyPalette = LocalPogodaPalette.current
@@ -211,7 +220,7 @@ fun PogodaApp(
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
                 if (animate) {
-                    screenTransition(transitionKind(initialState, targetState), slidePx)
+                    screenTransition(transitionKind(initialState, targetState))
                 } else {
                     ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
                 }
