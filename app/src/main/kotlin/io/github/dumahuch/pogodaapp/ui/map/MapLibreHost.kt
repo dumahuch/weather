@@ -2,6 +2,8 @@ package io.github.dumahuch.pogodaapp.ui.map
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -18,6 +20,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.dumahuch.pogodaapp.map.MapArea
 import io.github.dumahuch.pogodaapp.map.MapLabels
+import io.github.dumahuch.pogodaapp.map.ScreenView
 import io.github.dumahuch.pogodaapp.weather.Place
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -42,7 +45,8 @@ import java.util.Locale
 
 /**
  * Подложка basemap.de (BKG, тёмный стиль) и наши слои: облака под дождём, заливка температуры, числа температуры и
- * стрелки ветра, все под подписями городов, сверху метка места. Какие слои видны, решает [layer]. Из подписей подложки
+ * заливка ветра, все под подписями городов, сверху метка места. Над картой на слое «Ветер» бегут линии по ветру
+ * ([WindOverlay]); пока карту двигают, их нет. Какие слои видны, решает [layer]. Из подписей подложки
  * остаются только города и общины ([MapLabels]). Карта живёт, пока экран на месте: её жизненный цикл идёт за экраном
  * приложения, при уходе с вкладки она закрывается.
  */
@@ -128,8 +132,8 @@ fun MapLibreHost(
     LaunchedEffect(style, images.numbers) {
         style?.getSourceAs<GeoJsonSource>(NUMBERS_SOURCE)?.setGeoJson(images.numbers ?: EMPTY_JSON)
     }
-    LaunchedEffect(style, images.arrows) {
-        style?.getSourceAs<GeoJsonSource>(ARROWS_SOURCE)?.setGeoJson(images.arrows ?: EMPTY_JSON)
+    LaunchedEffect(style, images.wind) {
+        style?.getSourceAs<ImageSource>(WIND_SOURCE)?.setImage(images.wind ?: emptyBitmap())
     }
     LaunchedEffect(style, layer) {
         val ready = style ?: return@LaunchedEffect
@@ -137,7 +141,7 @@ fun MapLibreHost(
         show(ready, RAIN_LAYER, layer == MapLayer.CloudsAndRain || layer == MapLayer.RainOnly)
         show(ready, TEMP_LAYER, layer == MapLayer.Temperature)
         show(ready, NUMBERS_LAYER, layer == MapLayer.Temperature)
-        show(ready, ARROWS_LAYER, layer == MapLayer.Wind)
+        show(ready, WIND_LAYER, layer == MapLayer.Wind)
     }
     LaunchedEffect(style, place) {
         style?.getSourceAs<GeoJsonSource>(PLACE_SOURCE)?.setGeoJson(placeJson(place))
@@ -154,7 +158,48 @@ fun MapLibreHost(
         ready.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(place.latitude, place.longitude), LOCATE_ZOOM), LOCATE_MS)
     }
 
-    AndroidView(factory = { mapView }, modifier = modifier)
+    // Видимая часть карты для линий ветра; null, пока карту двигают (линии в пикселях экрана, при сдвиге начинаются заново).
+    var view by remember { mutableStateOf<ScreenView?>(null) }
+    var moving by remember { mutableStateOf(false) }
+    LaunchedEffect(map) {
+        val ready = map ?: return@LaunchedEffect
+        ready.addOnCameraMoveStartedListener {
+            moving = true
+            view = null
+        }
+        ready.addOnCameraIdleListener {
+            moving = false
+            view = screenView(ready, mapView)
+        }
+    }
+    // Если карта ещё ни разу не останавливалась после открытия, видимую часть берём при выборе слоя «Ветер».
+    LaunchedEffect(map, layer) {
+        val ready = map ?: return@LaunchedEffect
+        if (layer == MapLayer.Wind && !moving && view == null) view = screenView(ready, mapView)
+    }
+
+    Box(modifier) {
+        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        WindOverlay(
+            flow = if (layer == MapLayer.Wind) images.windFlow else null,
+            view = view,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** Видимая часть карты в градусах и размер экрана карты; null, пока карта не разложена по экрану. */
+private fun screenView(map: MapLibreMap, view: MapView): ScreenView? {
+    if (view.width <= 0 || view.height <= 0) return null
+    val bounds = map.projection.visibleRegion.latLngBounds
+    return ScreenView(
+        width = view.width.toFloat(),
+        height = view.height.toFloat(),
+        west = bounds.longitudeWest,
+        east = bounds.longitudeEast,
+        north = bounds.latitudeNorth,
+        south = bounds.latitudeSouth,
+    )
 }
 
 private const val STYLE_URL = "https://basemap.de/data/produkte/web_vektor/styles/bm_web_drk.json"
@@ -166,8 +211,8 @@ private const val TEMP_SOURCE = "pogoda-temp"
 private const val TEMP_LAYER = "pogoda-temp-layer"
 private const val NUMBERS_SOURCE = "pogoda-numbers"
 private const val NUMBERS_LAYER = "pogoda-numbers-layer"
-private const val ARROWS_SOURCE = "pogoda-arrows"
-private const val ARROWS_LAYER = "pogoda-arrows-layer"
+private const val WIND_SOURCE = "pogoda-wind"
+private const val WIND_LAYER = "pogoda-wind-layer"
 private const val PLACE_SOURCE = "pogoda-place"
 private const val EMPTY_JSON = """{"type":"FeatureCollection","features":[]}"""
 private const val MIN_ZOOM = 4.6
@@ -221,7 +266,7 @@ private fun addOverlays(style: Style) {
     style.addSource(ImageSource(RAIN_SOURCE, quad, emptyBitmap()))
     style.addSource(ImageSource(TEMP_SOURCE, quad, emptyBitmap()))
     style.addSource(GeoJsonSource(NUMBERS_SOURCE, EMPTY_JSON))
-    style.addSource(GeoJsonSource(ARROWS_SOURCE, EMPTY_JSON))
+    style.addSource(ImageSource(WIND_SOURCE, quad, emptyBitmap()))
     val cloudLayer = RasterLayer(CLOUD_LAYER, CLOUD_SOURCE).withProperties(
         PropertyFactory.rasterFadeDuration(0f),
         PropertyFactory.rasterResampling(Property.RASTER_RESAMPLING_LINEAR),
@@ -242,17 +287,13 @@ private fun addOverlays(style: Style) {
         PropertyFactory.iconPadding(4f),
         PropertyFactory.visibility(Property.NONE),
     )
-    val arrowsLayer = SymbolLayer(ARROWS_LAYER, ARROWS_SOURCE).withProperties(
-        PropertyFactory.iconImage(Expression.get("i")),
-        PropertyFactory.iconRotate(Expression.get("d")),
-        PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
-        PropertyFactory.iconAllowOverlap(false),
-        PropertyFactory.iconIgnorePlacement(false),
-        PropertyFactory.iconPadding(3f),
+    val windLayer = RasterLayer(WIND_LAYER, WIND_SOURCE).withProperties(
+        PropertyFactory.rasterFadeDuration(0f),
+        PropertyFactory.rasterResampling(Property.RASTER_RESAMPLING_LINEAR),
         PropertyFactory.visibility(Property.NONE),
     )
     val labels = style.layers.firstOrNull { it is SymbolLayer }?.id
-    for (layer in listOf(cloudLayer, rainLayer, tempLayer, numbersLayer, arrowsLayer)) {
+    for (layer in listOf(cloudLayer, rainLayer, tempLayer, windLayer, numbersLayer)) {
         if (labels != null) style.addLayerBelow(layer, labels) else style.addLayer(layer)
     }
     style.addSource(GeoJsonSource(PLACE_SOURCE, placeJson(null)))

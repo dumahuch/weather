@@ -21,6 +21,7 @@ import io.github.dumahuch.pogodaapp.map.RainResult
 import io.github.dumahuch.pogodaapp.map.RainSource
 import io.github.dumahuch.pogodaapp.map.TemperatureField
 import io.github.dumahuch.pogodaapp.map.WindField
+import io.github.dumahuch.pogodaapp.map.WindFlow
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -69,14 +70,15 @@ data class MapUiState(
 
 /**
  * Картинки текущего кадра для слоёв карты; пусто, пока не загружены. Температура это заливка и числа в точках (GeoJSON),
- * ветер это стрелки в точках (GeoJSON).
+ * ветер это заливка по силе и поле скоростей для линий по ветру.
  */
 data class MapImages(
     val rain: Bitmap? = null,
     val clouds: Bitmap? = null,
     val temperature: Bitmap? = null,
     val numbers: String? = null,
-    val arrows: String? = null,
+    val wind: Bitmap? = null,
+    val windFlow: WindFlow? = null,
 )
 
 /**
@@ -377,7 +379,7 @@ class MapViewModel(
         _images.update {
             when (field) {
                 HourlyField.Temperature -> it.copy(temperature = shown.temperature, numbers = shown.numbers)
-                HourlyField.Wind -> it.copy(arrows = shown.arrows)
+                HourlyField.Wind -> it.copy(wind = shown.wind, windFlow = shown.windFlow)
             }
         }
         _state.update { it.copy(field = status) }
@@ -394,7 +396,12 @@ class MapViewModel(
             ),
             numbers = TemperatureField.numbersJson(frame),
         )
-        HourlyField.Wind -> MapImages(arrows = WindField.arrowsJson(frame))
+        HourlyField.Wind -> WindField.flow(frame).let { flow ->
+            MapImages(
+                wind = Bitmap.createBitmap(WindField.pixels(flow), WindField.PICTURE_WIDTH, WindField.PICTURE_HEIGHT, Bitmap.Config.ARGB_8888),
+                windFlow = flow,
+            )
+        }
     }
 
     /** Заранее кладёт кадр в запас (для «играть»); ошибка загрузки здесь не важна, кадр спросят ещё раз при показе. */
