@@ -155,6 +155,20 @@
         <item>Westerly</item>
         <item>North-westerly</item>
     </string-array>
+    <!-- Hour details: where the wind blows from, after the wind strength word ("Moderate breeze from the south") -->
+    <string-array name="wind_from">
+        <item>from the north</item>
+        <item>from the north-east</item>
+        <item>from the east</item>
+        <item>from the south-east</item>
+        <item>from the south</item>
+        <item>from the south-west</item>
+        <item>from the west</item>
+        <item>from the north-west</item>
+    </string-array>
+    <string name="hour_dew_point">Dew point</string>
+    <string name="hour_show_details">Show details</string>
+    <string name="hour_panel_header">%1$s — %2$s</string>
     <!-- Сила ветра по шкале Бофорта, ступени 0-12 по средней скорости (км/ч): 0, 1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118. -->
     <string-array name="beaufort_names">
         <item>Calm</item>

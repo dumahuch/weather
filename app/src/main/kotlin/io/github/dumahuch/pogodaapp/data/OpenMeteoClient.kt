@@ -43,9 +43,12 @@ class OpenMeteoClient(
          */
         const val DAYS_REQUESTED = 15
 
-        /** Часовые значения вкладки «Подробно» (мгновенные); видимость в метрах, ветер в км/ч (см. wind_speed_unit). */
+        /**
+         * Часовые значения вкладки «Подробно» и панели под лентой часов (мгновенные); видимость в метрах, ветер в км/ч
+         * (см. wind_speed_unit), температуры в градусах Цельсия.
+         */
         const val HOURLY_DETAIL_FIELDS = "relative_humidity_2m,pressure_msl,visibility,wind_speed_10m," +
-            "wind_direction_10m,wind_gusts_10m,uv_index"
+            "wind_direction_10m,wind_gusts_10m,uv_index,apparent_temperature,dew_point_2m"
 
         /** Суточные поля; ветер в км/ч, время восхода и заката в секундах Unix вместе с остальным временем. */
         const val DAILY_FIELDS = "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum," +
