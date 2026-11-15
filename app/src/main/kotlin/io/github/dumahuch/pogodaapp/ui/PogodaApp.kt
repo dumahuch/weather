@@ -1,6 +1,14 @@
 package io.github.dumahuch.pogodaapp.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.LocalContentColor
@@ -16,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.notify.AlertNotices
 import io.github.dumahuch.pogodaapp.notify.AlertRequest
@@ -42,6 +51,7 @@ import io.github.dumahuch.pogodaapp.ui.map.MapScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
+import io.github.dumahuch.pogodaapp.ui.sky.rememberAnimationsEnabled
 import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
@@ -178,125 +188,162 @@ fun PogodaApp(
         )
     }
 
-    if (settingsOpen) {
-        SettingsScreen(
-            cardShadow = cardShadow,
-            onCardShadow = onCardShadow,
-            iconStyle = iconStyle,
-            onIconStyle = onIconStyle,
-            mapPreload = mapPreload,
-            onMapPreload = onMapPreload,
-            notifications = notifications,
-            onNotification = onNotification,
-            onSummaryTime = onSummaryTime,
-            pollenKinds = pollenKinds,
-            onPollenKind = onPollenKind,
-            noticeError = noticeError,
-            modifier = modifier,
-        )
-        return
+    // Какое окно на экране: от него зависит анимация перехода (см. [transitionKind]).
+    val content = state as? HomeUiState.Content
+    val screen = when {
+        settingsOpen -> ScreenKey(Layer.Settings)
+        placesOpen -> ScreenKey(Layer.Places)
+        tab == AppTab.Forecast && openDay != null && content != null ->
+            ScreenKey(Layer.Day, tab.ordinal, day = openDay ?: 0L)
+        else -> ScreenKey(Layer.Tab, tab.ordinal, isMap = tab == AppTab.Map)
     }
-
-    if (placesOpen) {
-        PlacesScreen(
-            ui = places,
-            actions = placesActions,
-            searching = searching,
-            onSearching = {
-                searching = it
-                if (!it) placesActions.onLeave()
-            },
-            onClose = ::closePlaces,
-            modifier = modifier,
-        )
-        return
-    }
+    val animate by rememberAnimationsEnabled()
+    val slidePx = with(LocalDensity.current) { TAB_SLIDE.roundToPx() }
 
     // На карте свои тёмные цвета и стекло без размытия (под стеклом карта, а не небо), вместе с панелью вкладок.
     val skyPalette = LocalPogodaPalette.current
-    val onMap = tab == AppTab.Map
+    val skyGlass = LocalGlass.current
+    val skyContent = LocalContentColor.current
     val mapGlass = remember { Glass.flat(MapPalette) }
-    CompositionLocalProvider(
-        LocalPogodaPalette provides if (onMap) MapPalette else skyPalette,
-        LocalGlass provides if (onMap) mapGlass else LocalGlass.current,
-        LocalContentColor provides if (onMap) MapPalette.ink else LocalContentColor.current,
-    ) {
-        Box(modifier.fillMaxSize()) {
-            when (tab) {
-                AppTab.Home -> HomeScreen(
-                    state = state,
-                    refreshing = refreshing,
-                    permanentlyDenied = permanentlyDenied,
-                    actions = linked,
-                    pinnedName = chosenName,
-                    preview = previewing,
+    Box(modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = screen,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                if (animate) {
+                    screenTransition(transitionKind(initialState, targetState), slidePx)
+                } else {
+                    ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+                }
+            },
+            label = "screen",
+        ) { key ->
+            when (key.layer) {
+                Layer.Settings -> SettingsScreen(
+                    cardShadow = cardShadow,
+                    onCardShadow = onCardShadow,
+                    iconStyle = iconStyle,
+                    onIconStyle = onIconStyle,
+                    mapPreload = mapPreload,
+                    onMapPreload = onMapPreload,
+                    notifications = notifications,
+                    onNotification = onNotification,
+                    onSummaryTime = onSummaryTime,
+                    pollenKinds = pollenKinds,
+                    onPollenKind = onPollenKind,
+                    noticeError = noticeError,
                 )
 
-                AppTab.Forecast -> {
-                    val day = openDay
-                    if (day != null && state is HomeUiState.Content) {
-                        DayDetailScreen(
+                Layer.Places -> PlacesScreen(
+                    ui = places,
+                    actions = placesActions,
+                    searching = searching,
+                    onSearching = {
+                        searching = it
+                        if (!it) placesActions.onLeave()
+                    },
+                    onClose = ::closePlaces,
+                )
+
+                // Окно красится по своему ключу, а не по выбранной вкладке: уходящее не перекрашивается на ходу.
+                Layer.Tab, Layer.Day -> CompositionLocalProvider(
+                    LocalPogodaPalette provides if (key.isMap) MapPalette else skyPalette,
+                    LocalGlass provides if (key.isMap) mapGlass else skyGlass,
+                    LocalContentColor provides if (key.isMap) MapPalette.ink else skyContent,
+                ) {
+                    when (AppTab.entries[key.tabIndex]) {
+                        AppTab.Home -> HomeScreen(
                             state = state,
-                            date = LocalDate.ofEpochDay(day),
-                            onBack = { openDay = null },
+                            refreshing = refreshing,
+                            permanentlyDenied = permanentlyDenied,
+                            actions = linked,
+                            pinnedName = chosenName,
+                            preview = previewing,
                         )
-                    } else {
-                        ForecastScreen(
+
+                        AppTab.Forecast -> if (key.layer == Layer.Day) {
+                            if (content != null) {
+                                DayDetailScreen(
+                                    state = content,
+                                    date = LocalDate.ofEpochDay(key.day),
+                                    onBack = { openDay = null },
+                                )
+                            }
+                        } else {
+                            ForecastScreen(
+                                state = state,
+                                permanentlyDenied = permanentlyDenied,
+                                dayCount = dayCount,
+                                actions = linked,
+                                onDayCount = { dayCount = it },
+                                onOpenDay = { openDay = it.toEpochDay() },
+                            )
+                        }
+
+                        AppTab.Details -> DetailsScreen(
                             state = state,
                             permanentlyDenied = permanentlyDenied,
-                            dayCount = dayCount,
                             actions = linked,
-                            onDayCount = { dayCount = it },
-                            onOpenDay = { openDay = it.toEpochDay() },
+                        )
+
+                        AppTab.Map -> MapScreen(
+                            place = content?.place,
+                            skyDarkInk = skyPalette.darkInk,
+                            wifiOnly = mapPreload == MapPreload.WifiOnly,
                         )
                     }
                 }
-
-                AppTab.Details -> DetailsScreen(
-                    state = state,
-                    permanentlyDenied = permanentlyDenied,
-                    actions = linked,
-                )
-
-                AppTab.Map -> MapScreen(
-                    place = (state as? HomeUiState.Content)?.place,
-                    skyDarkInk = skyPalette.darkInk,
-                    wifiOnly = mapPreload == MapPreload.WifiOnly,
-                )
             }
-            BottomBar(
-                selected = tab,
-                onSelect = {
-                    tab = it
-                    openDay = null
-                    closeAlerts()
-                },
-                versionLabel = versionLabel,
-                showAttribution = state is HomeUiState.Content,
-                onVersionTap = onVersionTap,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
-            val content = state as? HomeUiState.Content
-            val now = remember(content) { Instant.now() }
-            val sheet = when {
-                openAlert != null -> AlertSheet.One(openAlert.orEmpty(), alertFromList)
-                alertsListOpen -> AlertSheet.All
-                else -> null
-            }
-            AlertSheetHost(
-                sheet = if (tab == AppTab.Home) sheet else null,
-                alerts = remember(content, now) { content?.alerts?.shownAt(now).orEmpty() },
-                area = content?.alerts?.area,
-                zone = content?.forecast?.zone ?: ZoneId.systemDefault(),
-                now = now,
-                onOpen = { opened ->
-                    if (opened is AlertSheet.One) {
-                        openAlert = opened.id
-                        alertFromList = opened.fromList
-                    }
-                },
-                onClose = ::closeAlerts,
-            )
         }
+        // Панель вкладок не двигается при переходах между вкладками; на местах и в настройках её нет (плавно гаснет).
+        val onMap = tab == AppTab.Map
+        CompositionLocalProvider(
+            LocalPogodaPalette provides if (onMap) MapPalette else skyPalette,
+            LocalGlass provides if (onMap) mapGlass else skyGlass,
+            LocalContentColor provides if (onMap) MapPalette.ink else skyContent,
+        ) {
+            AnimatedVisibility(
+                visible = screen.layer == Layer.Tab || screen.layer == Layer.Day,
+                modifier = Modifier.align(Alignment.BottomCenter),
+                enter = fadeIn(tween(BAR_FADE_IN_MS)),
+                exit = fadeOut(tween(BAR_FADE_OUT_MS)),
+            ) {
+                BottomBar(
+                    selected = tab,
+                    onSelect = {
+                        tab = it
+                        openDay = null
+                        closeAlerts()
+                    },
+                    versionLabel = versionLabel,
+                    showAttribution = state is HomeUiState.Content,
+                    onVersionTap = onVersionTap,
+                )
+            }
+        }
+        val now = remember(content) { Instant.now() }
+        val sheet = when {
+            openAlert != null -> AlertSheet.One(openAlert.orEmpty(), alertFromList)
+            alertsListOpen -> AlertSheet.All
+            else -> null
+        }
+        AlertSheetHost(
+            sheet = if (tab == AppTab.Home && screen.layer == Layer.Tab) sheet else null,
+            alerts = remember(content, now) { content?.alerts?.shownAt(now).orEmpty() },
+            area = content?.alerts?.area,
+            zone = content?.forecast?.zone ?: ZoneId.systemDefault(),
+            now = now,
+            onOpen = { opened ->
+                if (opened is AlertSheet.One) {
+                    openAlert = opened.id
+                    alertFromList = opened.fromList
+                }
+            },
+            onClose = ::closeAlerts,
+        )
     }
 }
+
+/** Панель вкладок гаснет и проявляется при входе в места и настройки и выходе из них. */
+private const val BAR_FADE_IN_MS = 220
+private const val BAR_FADE_OUT_MS = 160
