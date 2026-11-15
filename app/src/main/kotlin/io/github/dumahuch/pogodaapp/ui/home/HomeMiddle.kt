@@ -61,6 +61,10 @@ internal class HomeLayout {
     var row by mutableIntStateOf(-1)
     var more by mutableIntStateOf(-1)
 
+    /** Высота панели под лентой часов сейчас и после раскрытия (пиксели), см. [HourPanelReport]. */
+    var panelNow by mutableIntStateOf(0)
+    var panelTarget by mutableIntStateOf(0)
+
     private var lastFree = Int.MIN_VALUE
 
     /** Замеры середины забываются, когда она уходит с экрана (загрузка, другое место): иначе первый кадр взял бы чужие. */
@@ -78,7 +82,10 @@ internal class HomeLayout {
      */
     fun free(viewport: Int, heroBase: Float, edge: Int): Int? {
         if (column < 0 || top < 0 || bottom < 0 || alerts < 0 || hero < 0) return null
-        val measured = viewport - column + top + bottom + edge + alerts + (hero - heroBase).roundToInt()
+        // Панель раскрывается вниз по высоте, а план блока нужен сразу на конец раскрытия: прибавляем то, что она
+        // занимает сейчас, и вычитаем то, что займёт.
+        val measured = viewport - column + top + bottom + edge + alerts + (hero - heroBase).roundToInt() +
+            panelNow - panelTarget
         if (lastFree == Int.MIN_VALUE || abs(measured - lastFree) >= FREE_HYSTERESIS_PX) lastFree = measured
         return lastFree
     }

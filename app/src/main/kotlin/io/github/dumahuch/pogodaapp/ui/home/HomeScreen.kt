@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -193,11 +194,16 @@ fun HomeScreen(
                         caption = stringResource(R.string.hourly_caption),
                         modifier = Modifier.padding(horizontal = 20.dp),
                     ) {
-                        HourlyStrip(
-                            points = state.strip,
-                            zone = state.forecast.zone,
-                            details = state.forecast.hourDetails,
-                        )
+                        val report = remember(layout) {
+                            HourPanelReport(now = { layout.panelNow = it }, target = { layout.panelTarget = it })
+                        }
+                        CompositionLocalProvider(LocalHourPanelReport provides report) {
+                            HourlyStrip(
+                                points = state.strip,
+                                zone = state.forecast.zone,
+                                details = state.forecast.hourDetails,
+                            )
+                        }
                     }
                     HomeUiState.NoPermission, HomeUiState.LocationUnavailable, HomeUiState.NoData -> Unit
                 }

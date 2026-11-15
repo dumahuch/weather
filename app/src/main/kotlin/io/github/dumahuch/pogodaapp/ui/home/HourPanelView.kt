@@ -16,8 +16,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -33,6 +40,16 @@ import java.util.Locale
 /** Выбранный час с его панелью; [point] и [panel] есть всегда вместе. */
 class HourSelection(val point: HourPoint, val panel: HourPanel)
 
+/**
+ * Куда «Главная» узнаёт высоту панели: [now] сколько занимает панель сейчас (растёт и сжимается вместе с анимацией),
+ * [target] сколько займёт, когда анимация кончится (0 у свёрнутой). По ним главный блок сразу берёт конечный размер и
+ * плавно приходит к нему за то же время, что панель раскрывается, и страница не вылезает за экран посреди анимации.
+ */
+internal class HourPanelReport(val now: (Int) -> Unit, val target: (Int) -> Unit)
+
+/** Пусто там, где высоту панели сообщать некому (подробности дня: страница прокручивается). */
+internal val LocalHourPanelReport = staticCompositionLocalOf<HourPanelReport?> { null }
+
 /** Последний показанный выбор: при сворачивании панель плавно исчезает с прежним текстом, а не пустой. */
 private class LastSelection {
     var value: HourSelection? = null
@@ -46,17 +63,30 @@ private class LastSelection {
 fun HourPanelHost(selection: HourSelection?, zone: ZoneId, modifier: Modifier = Modifier) {
     val last = remember { LastSelection() }
     if (selection != null) last.value = selection
+    val report = LocalHourPanelReport.current
+    var natural by remember { mutableIntStateOf(0) }
+    val open = selection != null
+    LaunchedEffect(open, natural) { report?.target?.invoke(if (open) natural else 0) }
+    DisposableEffect(report) {
+        onDispose {
+            report?.now?.invoke(0)
+            report?.target?.invoke(0)
+        }
+    }
     AnimatedVisibility(
-        visible = selection != null,
-        modifier = modifier,
+        visible = open,
+        modifier = modifier.onSizeChanged { report?.now?.invoke(it.height) },
         enter = expandVertically(tween(PANEL_MS)) + fadeIn(tween(PANEL_MS)),
         exit = shrinkVertically(tween(PANEL_MS)) + fadeOut(tween(PANEL_MS * 3 / 4)),
     ) {
-        last.value?.let { HourPanelContent(it, zone) }
+        Column(Modifier.onSizeChanged { natural = it.height }) {
+            last.value?.let { HourPanelContent(it, zone) }
+        }
     }
 }
 
-private const val PANEL_MS = 260
+/** Столько же, сколько главный блок меняет размер ([GROW_MS] в HomeMiddle): оба идут по одной кривой. */
+private const val PANEL_MS = 300
 
 @Composable
 private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
