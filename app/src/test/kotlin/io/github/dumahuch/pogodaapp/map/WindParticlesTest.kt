@@ -59,7 +59,7 @@ class WindParticlesTest {
         val particles = WindParticles(30, dp = 1f, random = Random(3))
         val wind = flow(20f, 10f)
         particles.advance(0f, wind, view)
-        repeat(60) { particles.advance(WindParticles.TICK_S, wind, view) }
+        repeat(120) { particles.advance(WindParticles.TICK_S, wind, view) }
         for (i in 0 until 30) assertTrue(particles.trailLength(i) <= WindParticles.TRAIL)
         val segments = WindSegments()
         particles.collect(segments)
@@ -113,9 +113,30 @@ class WindParticlesTest {
 
     @Test
     fun countFollowsScreenArea() {
-        assertEquals(1600, WindParticles.countFor(412f, 915f))
-        assertEquals(1000, WindParticles.countFor(360f, 620f))
+        assertEquals(897, WindParticles.countFor(412f, 915f))
+        assertEquals(1000, WindParticles.countFor(800f, 600f))
         assertEquals(200, WindParticles.countFor(100f, 100f))
         assertEquals(0.0625f, WindParticles.alphaOf(0), 1e-6f)
+    }
+
+    @Test
+    fun lightWindStillDrawsALongStreak() {
+        // 15 км/ч: за полный след (31 отрезок) линия длиннее 20 dp; 0.8.41 давала около 6 dp
+        val particles = WindParticles(1, dp = 1f, random = Random(8))
+        val wind = flow(15f, 0f)
+        particles.advance(0f, wind, view)
+        repeat(WindParticles.TRAIL) { particles.advance(WindParticles.TICK_S, wind, view) }
+        val segments = WindSegments()
+        particles.collect(segments)
+        var longest = 0f
+        for (bucket in 0 until segments.bucketCount) {
+            val data = segments.data(bucket)
+            var k = 0
+            while (k < segments.size(bucket)) {
+                longest += kotlin.math.abs(data[k + 2] - data[k])
+                k += 4
+            }
+        }
+        assertTrue("след короткий: $longest dp", longest > 20f || particles.trailLength(0) < WindParticles.TRAIL)
     }
 }

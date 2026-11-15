@@ -185,22 +185,22 @@ class WindParticles(val count: Int, private val dp: Float, private val random: R
     }
 
     companion object {
-        const val TRAIL = 14
+        const val TRAIL = 32
         const val TICK_S = 1f / 30
         private const val MAX_CATCH_UP_S = 0.2f
 
-        /** Скорость на экране: dp в секунду на 1 км/ч (как в превью 15.11). */
-        const val SPEED_DP_PER_KMH = 0.85f
+        /** Скорость на экране: dp в секунду на 1 км/ч (при 15 км/ч полоска около 25 dp, при 50 км/ч около 85 dp; 0.8.42). */
+        const val SPEED_DP_PER_KMH = 1.7f
 
         private const val CALM_KMH = 2f
-        private const val MIN_LIFE_S = 1.8f
-        private const val LIFE_SPREAD_S = 2.4f
-        private const val FADE_IN_S = 0.4f
-        private const val FADE_OUT_S = 0.5f
+        private const val MIN_LIFE_S = 3.0f
+        private const val LIFE_SPREAD_S = 3.0f
+        private const val FADE_IN_S = 0.5f
+        private const val FADE_OUT_S = 0.8f
         private const val BASE_ALPHA = 0.4f
         private const val EXTRA_ALPHA = 0.3f
         private const val BRIGHT_KMH = 50f
-        private const val TRAIL_FADE = 0.87f
+        private const val TRAIL_FADE = 0.93f
         private const val MIN_ALPHA = 0.03f
         private const val THIN_KMH = 20f
         private const val THICK_KMH = 45f
@@ -210,10 +210,10 @@ class WindParticles(val count: Int, private val dp: Float, private val random: R
         /** Толщина линии в dp для корзины толщины 0…2. */
         val WidthsDp: FloatArray = floatArrayOf(1.0f, 1.3f, 1.6f)
 
-        /** Около одной частицы на [AREA_PER_PARTICLE_DP2] dp² экрана, как в превью. */
-        private const val AREA_PER_PARTICLE_DP2 = 223f
+        /** Около одной частицы на [AREA_PER_PARTICLE_DP2] dp² экрана (0.8.42: реже, но следы длиннее). */
+        private const val AREA_PER_PARTICLE_DP2 = 420f
         private const val MIN_COUNT = 200
-        private const val MAX_COUNT = 1600
+        private const val MAX_COUNT = 1000
 
         /** Сколько частиц на экран [widthDp] × [heightDp]. */
         fun countFor(widthDp: Float, heightDp: Float): Int =
