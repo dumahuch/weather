@@ -97,11 +97,10 @@ class LiveDwdFilesTest {
             assertTrue("ветер: значения не похожи на м/с (${s.min}…${s.max})", abs(s.min) < 90f && abs(s.max) < 90f && s.spread > 0.05)
         }
         val windFrame = WindField.encode(wind[0], wind[1])
-        val arrows = WindField.arrowsJson(windFrame)
-        val count = arrows.split("\"Feature\"").size - 1
         val speeds = (0 until PointGrid.COUNT).mapNotNull { WindField.at(windFrame, it)?.first }
-        println("LIVE стрелок ветра: $count, сила км/ч: среднее ${"%.1f".format(speeds.average())}, наибольшая ${"%.1f".format(speeds.max())}")
-        assertTrue("слишком мало стрелок: $count", count > PointGrid.COUNT * 9 / 10)
+        val filled = WindField.pixels(windFrame).count { it != 0 }
+        println("LIVE точек ветра: ${speeds.size}, сила км/ч: среднее ${"%.1f".format(speeds.average())}, наибольшая ${"%.1f".format(speeds.max())}, закрашено ${filled * 100 / (WindField.PICTURE_WIDTH * WindField.PICTURE_HEIGHT)} %")
+        assertTrue("слишком мало точек ветра: ${speeds.size}", speeds.size > PointGrid.COUNT * 9 / 10)
 
         val clouds = loader.load(hour, now)
         assertNotNull("clct_mod: нет файла", clouds)

@@ -6,17 +6,17 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
- * Точки, где на карте стоят числа температуры и стрелки ветра: сетка по области [MapArea.Overlay], около 28 км между
+ * Точки, где на карте стоят числа температуры и берутся скорости ветра: сетка по области [MapArea.Overlay], около 28 км между
  * соседними точками (шаг по долготе больше, потому что в Германии градус долготы короче градуса широты). Какие из
  * точек видны, решает сама карта: при малом масштабе стоящие рядом значки скрываются.
  */
 object PointGrid {
-    private const val SOUTH = 45.75
-    private const val LAT_STEP = 0.25
+    internal const val SOUTH = 45.75
+    internal const val LAT_STEP = 0.25
     const val ROWS = 42
 
-    private const val WEST = 2.7
-    private const val LON_STEP = 0.4
+    internal const val WEST = 2.7
+    internal const val LON_STEP = 0.4
     const val COLUMNS = 40
 
     const val COUNT = ROWS * COLUMNS
@@ -100,27 +100,7 @@ object TemperatureField {
     val LegendMax: Double = Stops.last().first
 
     /** Цвет RGB для температуры [celsius]; за краями шкалы цвет крайней точки. */
-    fun colorOf(celsius: Double): Int {
-        if (celsius <= Stops.first().first) return Stops.first().second
-        for (i in 1 until Stops.size) {
-            val (upperT, upper) = Stops[i]
-            if (celsius <= upperT) {
-                val (lowerT, lower) = Stops[i - 1]
-                val share = (celsius - lowerT) / (upperT - lowerT)
-                return mix(lower, upper, share)
-            }
-        }
-        return Stops.last().second
-    }
-
-    private fun mix(a: Int, b: Int, share: Double): Int {
-        fun channel(shift: Int): Int {
-            val from = (a shr shift) and 0xFF
-            val to = (b shr shift) and 0xFF
-            return (from + (to - from) * share).roundToInt().coerceIn(0, 255)
-        }
-        return (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
-    }
+    fun colorOf(celsius: Double): Int = colorOnScale(Stops, celsius)
 
     /** Таблица «байт → цвет заливки ARGB»; 0 (нет данных) прозрачный. */
     private val Lut: IntArray = IntArray(256) { code ->
@@ -197,10 +177,11 @@ object TemperatureField {
 }
 
 /**
- * Ветер на 10 м (ICON-D2 `u_10m` и `v_10m`, м/с, на восток и на север) для карты: стрелки в точках [PointGrid] по
- * направлению ветра, цвет и размер по силе в км/ч.
+ * Ветер на 10 м (ICON-D2 `u_10m` и `v_10m`, м/с, на восток и на север) для карты: цветная заливка по силе ветра
+ * ([pixels]) и поле скоростей для линий, бегущих по ветру ([flow], [WindParticles]). Вид выбран Димой 15.11.2026
+ * (вариант «А» превью: тонкие линии по ветру поверх приглушённой заливки, без стрелок).
  *
- * Кадр часа это два байта на точку: u и v с шагом [STEP] м/с, 0 значит «данных нет».
+ * Кадр часа это два байта на точку [PointGrid]: u и v с шагом [STEP] м/с, 0 значит «данных нет».
  */
 object WindField {
     const val STEP = 0.5
@@ -208,24 +189,44 @@ object WindField {
 
     const val LENGTH = PointGrid.COUNT * 2
 
-    /** Границы классов силы ветра (км/ч): класс это число границ, которые сила уже достигла (0…6). */
-    val Bounds: List<Double> = listOf(5.0, 15.0, 25.0, 40.0, 60.0, 80.0)
+    const val PICTURE_WIDTH = 400
+    val PICTURE_HEIGHT: Int = MapArea.heightFor(PICTURE_WIDTH)
 
-    /** Цвет каждого класса: от штиля до бури. */
-    val ClassColors: List<Int> = listOf(0xDCE3EA, 0x9FE3FF, 0x6FD6B5, 0xE8E36A, 0xF5A83D, 0xEE5F3C, 0xD43AA8)
+    /** Опорные точки шкалы цвета: км/ч и цвет RGB, приглушённые, чтобы линии поверх читались. Между ними цвет плавный. */
+    val Stops: List<Pair<Double, Int>> = listOf(
+        0.0 to 0x4A627C,
+        10.0 to 0x3C788E,
+        20.0 to 0x469278,
+        30.0 to 0x8EA25A,
+        40.0 to 0xC89E54,
+        55.0 to 0xCE6E4E,
+        70.0 to 0xB64A70,
+        90.0 to 0x8052B0,
+    )
 
-    /** Слабее этого (км/ч) ветер рисуется точкой без направления: у штиля направление ничего не значит. */
-    private const val CALM_KMH = 3.0
+    /** Непрозрачность заливки; у слабого ветра (до [CALM_FILL_KMH]) она ещё меньше, штиль почти не закрашен. */
+    private const val FILL_ALPHA = 0.42
+    private const val CALM_ALPHA = 0.2
+    private const val CALM_FILL_KMH = 5.0
 
     /** Шкала легенды: от нуля до этой силы (км/ч). */
-    const val LEGEND_MAX = 100.0
+    const val LEGEND_MAX = 90.0
     val LegendValues: List<Int> = listOf(20, 40, 60, 80)
 
-    private const val KMH_PER_MS = 3.6
+    const val KMH_PER_MS = 3.6
 
-    fun speedClass(kmh: Double): Int = Bounds.count { kmh >= it }
+    /** Цвет RGB для силы ветра [kmh]; за краями шкалы цвет крайней точки. */
+    fun colorOf(kmh: Double): Int = colorOnScale(Stops, kmh)
 
-    fun colorOf(kmh: Double): Int = ClassColors[speedClass(kmh)]
+    /** Цвет заливки ARGB для силы [kmh] с непрозрачностью. */
+    fun fillColor(kmh: Double): Int {
+        val alpha = if (kmh >= CALM_FILL_KMH) FILL_ALPHA else CALM_ALPHA + (FILL_ALPHA - CALM_ALPHA) * kmh / CALM_FILL_KMH
+        return ((alpha * 255).roundToInt() shl 24) or colorOf(kmh)
+    }
+
+    /** Таблица «сила с шагом [LUT_STEP] км/ч → цвет заливки». */
+    private const val LUT_STEP = 0.5
+    private val Lut: IntArray = IntArray(((LEGEND_MAX + 30) / LUT_STEP).toInt() + 1) { fillColor(it * LUT_STEP) }
 
     private fun code(value: Float): Int =
         if (value.isNaN()) 0 else ((value / STEP).roundToInt() + ZERO).coerceIn(1, 255)
@@ -264,24 +265,67 @@ object WindField {
         return kmh to ((degrees.roundToInt() % 360) + 360) % 360
     }
 
-    /** Имя значка стрелки класса [speedClass]; штиль ([CALM_KMH]) рисуется точкой. */
-    fun iconName(speedClass: Int, calm: Boolean = false): String = if (calm) CALM_ICON else "w$speedClass"
-
-    const val CALM_ICON = "wc"
-
-    /** Стрелки ветра кадра [frame] как GeoJSON (свойства `i`, имя значка, и `d`, направление); точки без данных пропущены. */
-    fun arrowsJson(frame: ByteArray): String {
+    /** Скорости кадра [frame] в км/ч (на восток и на север) для линий по ветру. */
+    fun flow(frame: ByteArray): WindFlow {
         require(frame.size == LENGTH) { "кадр ветра не того размера" }
-        val out = StringBuilder()
-        for (row in 0 until PointGrid.ROWS) {
-            for (column in 0 until PointGrid.COLUMNS) {
-                val (kmh, direction) = at(frame, row * PointGrid.COLUMNS + column) ?: continue
-                val calm = kmh < CALM_KMH
-                PointGrid.feature(out, row, column, "\"i\":\"" + iconName(speedClass(kmh), calm) + "\",\"d\":" + (if (calm) 0 else direction))
+        val east = FloatArray(PointGrid.COUNT)
+        val north = FloatArray(PointGrid.COUNT)
+        for (i in 0 until PointGrid.COUNT) {
+            val cu = frame[2 * i].toInt() and 0xFF
+            val cv = frame[2 * i + 1].toInt() and 0xFF
+            if (cu == 0 || cv == 0) {
+                east[i] = Float.NaN
+                north[i] = Float.NaN
+            } else {
+                east[i] = (valueOf(cu) * KMH_PER_MS).toFloat()
+                north[i] = (valueOf(cv) * KMH_PER_MS).toFloat()
             }
         }
-        return PointGrid.collection(out)
+        return WindFlow(east, north)
     }
+
+    /** Заливка по силе ветра, ARGB, [PICTURE_WIDTH] × [PICTURE_HEIGHT] на [MapArea.Overlay]; где данных нет, прозрачно. */
+    fun pixels(frame: ByteArray): IntArray = pixels(flow(frame))
+
+    fun pixels(flow: WindFlow): IntArray {
+        val out = IntArray(PICTURE_WIDTH * PICTURE_HEIGHT)
+        val box = MapArea.Overlay
+        val top = Mercator.y(box.north)
+        val bottom = Mercator.y(box.south)
+        val wind = FloatArray(2)
+        for (y in 0 until PICTURE_HEIGHT) {
+            val lat = Mercator.lat(top + (bottom - top) * (y + 0.5) / PICTURE_HEIGHT)
+            for (x in 0 until PICTURE_WIDTH) {
+                val lon = box.west + (box.east - box.west) * (x + 0.5) / PICTURE_WIDTH
+                if (!flow.sample(lon, lat, wind)) continue
+                val kmh = sqrt(wind[0] * wind[0] + wind[1] * wind[1]).toDouble()
+                out[y * PICTURE_WIDTH + x] = Lut[(kmh / LUT_STEP).roundToInt().coerceIn(0, Lut.size - 1)]
+            }
+        }
+        return out
+    }
+}
+
+/** Цвет RGB на шкале [stops] (значение и цвет, по возрастанию) для [value]; за краями цвет крайней точки. */
+internal fun colorOnScale(stops: List<Pair<Double, Int>>, value: Double): Int {
+    if (value <= stops.first().first) return stops.first().second
+    for (i in 1 until stops.size) {
+        val (upperValue, upper) = stops[i]
+        if (value <= upperValue) {
+            val (lowerValue, lower) = stops[i - 1]
+            return mixRgb(lower, upper, (value - lowerValue) / (upperValue - lowerValue))
+        }
+    }
+    return stops.last().second
+}
+
+private fun mixRgb(a: Int, b: Int, share: Double): Int {
+    fun channel(shift: Int): Int {
+        val from = (a shr shift) and 0xFF
+        val to = (b shr shift) and 0xFF
+        return (from + (to - from) * share).roundToInt().coerceIn(0, 255)
+    }
+    return (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
 }
 
 /** Часовые поля карты, которые лежат в памяти и на диске готовыми кадрами: имя файла на диске и размер кадра. */

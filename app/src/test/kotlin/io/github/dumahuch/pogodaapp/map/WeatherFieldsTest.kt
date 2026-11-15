@@ -8,7 +8,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Температура и ветер для карты: точки, байты кадра, цвета, GeoJSON. */
+/** Температура и ветер для карты: точки, байты кадра, цвета, заливка, GeoJSON, поле скоростей. */
 class WeatherFieldsTest {
 
     /** Сетка вокруг всей области карты, значение в узле даёт [value] от (долгота, широта). */
@@ -122,23 +122,36 @@ class WeatherFieldsTest {
     }
 
     @Test
-    fun windClassesFollowTheBounds() {
-        assertEquals(0, WindField.speedClass(4.9))
-        assertEquals(1, WindField.speedClass(5.0))
-        assertEquals(3, WindField.speedClass(36.0))
-        assertEquals(6, WindField.speedClass(120.0))
-        assertEquals(7, WindField.ClassColors.size)
+    fun windColorsGrowWithSpeedAndCalmIsFaint() {
         assertNotEquals(WindField.colorOf(10.0), WindField.colorOf(30.0))
+        assertEquals(WindField.Stops.last().second, WindField.colorOf(150.0))
+        val calmAlpha = WindField.fillColor(0.0) ushr 24
+        val windAlpha = WindField.fillColor(30.0) ushr 24
+        assertTrue(calmAlpha in 1 until windAlpha)
+        assertEquals(windAlpha, WindField.fillColor(80.0) ushr 24)
+        assertEquals(90.0, WindField.LEGEND_MAX, 0.0)
     }
 
     @Test
-    fun windJsonHasIconAndDirection() {
-        val frame = WindField.encode(grid { _, _ -> 10f }, grid { _, _ -> 0f })
-        val json = WindField.arrowsJson(frame)
-        assertEquals(1680, count(json, "\"Feature\""))
-        assertTrue(json.contains("\"i\":\"w3\",\"d\":90"))
-        val calm = WindField.arrowsJson(WindField.encode(grid { _, _ -> 0.4f }, grid { _, _ -> 0.4f }))
-        assertTrue(calm.contains("\"i\":\"wc\",\"d\":0"))
+    fun windFillCoversTheOverlay() {
+        val pixels = WindField.pixels(WindField.encode(grid { _, _ -> 10f }, grid { _, _ -> 0f }))
+        assertEquals(WindField.PICTURE_WIDTH * WindField.PICTURE_HEIGHT, pixels.size)
+        val expected = WindField.fillColor(36.0)
+        assertTrue(pixels.all { it == expected })
+    }
+
+    @Test
+    fun windFlowIsInKmhAndSmoothBetweenPoints() {
+        val flow = WindField.flow(WindField.encode(grid { lon, _ -> lon.toFloat() }, grid { _, lat -> -2f }))
+        val out = FloatArray(2)
+        assertTrue(flow.sample(PointGrid.lon(10), PointGrid.lat(5), out))
+        assertEquals(PointGrid.lon(10) * 3.6, out[0].toDouble(), 1.0)
+        assertEquals(-7.2, out[1].toDouble(), 0.01)
+        val middle = (PointGrid.lon(10) + PointGrid.lon(11)) / 2
+        assertTrue(flow.sample(middle, PointGrid.lat(5), out))
+        assertEquals(middle * 3.6, out[0].toDouble(), 1.0)
+        // за краем сетки берётся её край
+        assertTrue(flow.sample(-20.0, 80.0, out))
     }
 
     @Test
@@ -146,8 +159,12 @@ class WeatherFieldsTest {
         val small = LatLonGrid(3, 3, 9.0, 49.0, 1.0, 1.0, FloatArray(9) { 5f })
         val frame = WindField.encode(small, small)
         assertNull(WindField.at(frame, 0))
-        assertEquals(45, count(WindField.arrowsJson(frame), "\"Feature\""))
-        assertThrows(IllegalArgumentException::class.java) { WindField.arrowsJson(ByteArray(10)) }
+        val flow = WindField.flow(frame)
+        assertTrue(flow.sample(10.0, 50.0, FloatArray(2)))
+        assertTrue(!flow.sample(5.0, 47.0, FloatArray(2)))
+        val pixels = WindField.pixels(frame)
+        assertTrue(pixels.any { it == 0 } && pixels.any { it != 0 })
+        assertThrows(IllegalArgumentException::class.java) { WindField.flow(ByteArray(10)) }
     }
 
     @Test
