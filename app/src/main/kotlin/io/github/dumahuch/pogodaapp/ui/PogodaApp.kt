@@ -290,6 +290,8 @@ fun PogodaApp(
                 }
             },
             label = "screen",
+            // Вкладки с небом живут в одной колоде [TabDeck]: при смене между ними окно не пересобирается.
+            contentKey = { if (it.layer == Layer.Tab && !it.isMap) SKY_TABS_KEY else it },
         ) { key ->
             when (key.layer) {
                 Layer.Settings -> SettingsScreen(
@@ -318,32 +320,42 @@ fun PogodaApp(
                     onClose = ::closePlaces,
                 )
 
-                // Окно красится по своему ключу, а не по выбранной вкладке: уходящее не перекрашивается на ходу.
-                Layer.Tab, Layer.Day -> CompositionLocalProvider(
-                    LocalPogodaPalette provides if (key.isMap) MapPalette else skyPalette,
-                    LocalGlass provides if (key.isMap) mapGlass else skyGlass,
-                    LocalContentColor provides if (key.isMap) MapPalette.ink else skyContent,
-                ) {
-                    when (AppTab.entries[key.tabIndex]) {
-                        AppTab.Home -> HomeScreen(
-                            state = state,
-                            refreshing = refreshing,
-                            permanentlyDenied = permanentlyDenied,
-                            actions = linked,
-                            pinnedName = chosenName,
-                            preview = previewing,
+                Layer.Tab -> if (key.isMap) {
+                    CompositionLocalProvider(
+                        LocalPogodaPalette provides MapPalette,
+                        LocalGlass provides mapGlass,
+                        LocalContentColor provides MapPalette.ink,
+                    ) {
+                        MapScreen(
+                            place = content?.place,
+                            skyDarkInk = skyPalette.darkInk,
+                            wifiOnly = mapPreload == MapPreload.WifiOnly,
                         )
+                    }
+                } else {
+                    TabDeck(
+                        active = key.tabIndex,
+                        all = SKY_TABS,
+                        ready = content != null,
+                        modifier = Modifier.fillMaxSize(),
+                    ) { index ->
+                        when (AppTab.entries[index]) {
+                            AppTab.Home -> HomeScreen(
+                                state = state,
+                                refreshing = refreshing,
+                                permanentlyDenied = permanentlyDenied,
+                                actions = linked,
+                                pinnedName = chosenName,
+                                preview = previewing,
+                            )
 
-                        AppTab.Forecast -> if (key.layer == Layer.Day) {
-                            if (content != null) {
-                                DayDetailScreen(
-                                    state = content,
-                                    date = LocalDate.ofEpochDay(key.day),
-                                    onBack = { openDay = null },
-                                )
-                            }
-                        } else {
-                            ForecastScreen(
+                            AppTab.Details -> DetailsScreen(
+                                state = state,
+                                permanentlyDenied = permanentlyDenied,
+                                actions = linked,
+                            )
+
+                            AppTab.Forecast -> ForecastScreen(
                                 state = state,
                                 permanentlyDenied = permanentlyDenied,
                                 dayCount = dayCount,
@@ -351,20 +363,19 @@ fun PogodaApp(
                                 onDayCount = { dayCount = it },
                                 onOpenDay = { openDay = it.toEpochDay() },
                             )
+
+                            AppTab.Map -> Unit
                         }
-
-                        AppTab.Details -> DetailsScreen(
-                            state = state,
-                            permanentlyDenied = permanentlyDenied,
-                            actions = linked,
-                        )
-
-                        AppTab.Map -> MapScreen(
-                            place = content?.place,
-                            skyDarkInk = skyPalette.darkInk,
-                            wifiOnly = mapPreload == MapPreload.WifiOnly,
-                        )
                     }
+                }
+
+                // День открывается из «Прогноза», всегда на небе.
+                Layer.Day -> if (content != null) {
+                    DayDetailScreen(
+                        state = content,
+                        date = LocalDate.ofEpochDay(key.day),
+                        onBack = { openDay = null },
+                    )
                 }
             }
         }
@@ -431,3 +442,9 @@ fun PogodaApp(
 /** Панель вкладок гаснет и проявляется при входе в места и настройки и выходе из них. */
 private const val BAR_FADE_IN_MS = 220
 private const val BAR_FADE_OUT_MS = 160
+
+/** Ключ окна для всех вкладок с небом: между ними окно не меняется, меняется выбранная в колоде [TabDeck]. */
+private const val SKY_TABS_KEY = "sky-tabs"
+
+/** Вкладки с небом, которые держатся собранными. */
+private val SKY_TABS = listOf(AppTab.Home.ordinal, AppTab.Details.ordinal, AppTab.Forecast.ordinal)
