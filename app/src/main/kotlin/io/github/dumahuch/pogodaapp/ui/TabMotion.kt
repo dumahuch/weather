@@ -2,7 +2,7 @@ package io.github.dumahuch.pogodaapp.ui
 
 import android.util.Log
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -99,7 +99,7 @@ internal class TabMotion {
                     last = now
                 }
                 heldMs = millis(start, System.nanoTime())
-                cover.animateTo(0f, tween(TAB_FADE_MS, easing = LinearEasing))
+                cover.animateTo(0f, tween(TAB_FADE_MS, easing = FastOutSlowInEasing))
                 watch.cancel()
             }
         } finally {
@@ -124,7 +124,7 @@ internal class TabMotion {
 }
 
 /** Как быстро гаснет картинка прежней вкладки, когда новая готова. */
-internal const val TAB_FADE_MS = 200
+internal const val TAB_FADE_MS = 320
 
 /** Кадр не дольше этого значит, что новая вкладка собрана (на «Подробно» обычный кадр 20–42 мс). */
 internal const val SETTLE_FRAME_MS = 45L
