@@ -219,11 +219,11 @@ fun PogodaApp(
     }
     DisposableEffect(Unit) { onDispose { SkyPause.active = false } }
 
-    // Смена вкладки «через небо»: прежняя уходит картинкой, новая собирается под небом и приходит картинкой (см. [TabMotion]).
+    // Смена вкладки: прежняя уходит картинкой, новая ставится под ней и приходит картинкой (см. [TabMotion]).
     val tabMotion = remember { TabMotion() }
     val tabLayer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
-    // Куда идёт смена: плашка внизу едет туда сразу по нажатию, а сама вкладка меняется после ухода прежней.
+    // Куда идёт смена: плашка внизу едет туда сразу по нажатию.
     var tabHeading by remember { mutableStateOf<AppTab?>(null) }
 
     fun showTab(target: AppTab) {

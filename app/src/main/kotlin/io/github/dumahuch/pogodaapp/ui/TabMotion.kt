@@ -24,12 +24,13 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Смена вкладки «через небо» (0.8.55). По замерам стенда (claude/audit/15-stand-results.md) первые кадры новой вкладки
  * стоят 75–260 мс, и пока она собирается, двигать нечего. Поэтому смена в три части, и двух вкладок на экране нет никогда:
- * 1) уход: прежняя вкладка уже картинка, она гаснет и чуть уменьшается за [TAB_EXIT_MS], ничего не собирается;
+ * 1) уход: прежняя вкладка уже картинка, она гаснет и чуть уменьшается за [TAB_EXIT_MS];
  * 2) небо: живое содержимое спрятано ([hidden]), под ним собирается новая вкладка, пока кадры не станут короткими
  *    ([newTabSettled]);
  * 3) приход: новая вкладка снимается в картинку и проявляется, вырастая до полного размера, за [TAB_ENTER_MS];
  *    потом картинку в тот же кадр сменяет живая вкладка.
- * С 0.8.56 вкладки с небом собраны заранее ([TabDeck]), и небо между уходом и приходом длится один-два кадра и снимок.
+ * С 0.8.56 вкладки с небом собраны заранее ([TabDeck]); с 0.8.57 сборка и снимок новой идут под уходящей картинкой (см. [run]),
+ * и небо остаётся только если новая вкладка не успела за время ухода.
  */
 @Stable
 internal class TabMotion {
@@ -84,8 +85,10 @@ internal class TabMotion {
     }
 
     /**
-     * Сама смена: [old] уходит, [switch] меняет вкладку под небом, новая снимается из [layer] и приходит картинкой
+     * Сама смена: [old] уходит, [switch] меняет вкладку, новая снимается из [layer] и приходит картинкой
      * (если [arriveAsPicture]; карта рисуется отдельной поверхностью и в картинку не попадает, она просто появляется).
+     * С 0.8.57 новая вкладка ставится и снимается прямо под уходящей картинкой, а не после неё: к концу ухода она
+     * обычно уже готова, и пустого неба между вкладками нет. Приход всё равно начинается не раньше конца ухода.
      * Отмена (новое нажатие) сразу показывает живое содержимое.
      */
     suspend fun run(
@@ -96,6 +99,7 @@ internal class TabMotion {
         switch: () -> Unit,
     ) {
         val stamps = ArrayList<Long>(FRAMES_KEPT)
+        var buildMs = 0L
         var skyMs = 0L
         var arrived = "живой"
         try {
@@ -106,13 +110,20 @@ internal class TabMotion {
                     while (stamps.size < FRAMES_KEPT) withFrameNanos { stamps += System.nanoTime() }
                 }
                 hidden = true
-                if (old != null) {
+                var exitEnd = System.nanoTime()
+                val exit = if (old != null) {
                     picture = old
                     alpha.snapTo(1f)
                     scale.snapTo(1f)
-                    animatePicture(to = 0f, toScale = TAB_FAR_SCALE, ms = TAB_EXIT_MS, leaving = true)
-                    picture = null
+                    launch {
+                        animatePicture(to = 0f, toScale = TAB_FAR_SCALE, ms = TAB_EXIT_MS, leaving = true)
+                        exitEnd = System.nanoTime()
+                    }
+                } else {
+                    null
                 }
+                // Карта сразу видна сквозь уходящую картинку, поэтому на неё переходим только после ухода.
+                if (!arriveAsPicture) exit?.join()
                 val start = System.nanoTime()
                 switch()
                 var last = start
@@ -123,8 +134,11 @@ internal class TabMotion {
                     if (newTabSettled(millis(last, now), seen, millis(start, now))) break
                     last = now
                 }
-                skyMs = millis(start, System.nanoTime())
                 val new = if (arriveAsPicture) capture(layer, ARRIVE_CAPTURE_TIMEOUT_MS) else null
+                buildMs = millis(start, System.nanoTime())
+                exit?.join()
+                picture = null
+                skyMs = skyMillis(exitEnd, System.nanoTime())
                 if (new != null) {
                     arrived = "картинкой"
                     alpha.snapTo(0f)
@@ -140,8 +154,8 @@ internal class TabMotion {
         } finally {
             Log.i(
                 TAG,
-                "Смена $name: снимки ${captureNotes.joinToString(", ").ifEmpty { "нет" }}; небо $skyMs мс; " +
-                    "пришла $arrived; кадры, мс: ${frameGaps(stamps).joinToString(" ")}",
+                "Смена $name: снимки ${captureNotes.joinToString(", ").ifEmpty { "нет" }}; сборка $buildMs мс; " +
+                    "небо $skyMs мс; пришла $arrived; кадры, мс: ${frameGaps(stamps).joinToString(" ")}",
             )
             captureNotes.clear()
             hidden = false
@@ -175,7 +189,7 @@ internal class TabMotion {
     }
 }
 
-/** Как быстро уходит прежняя вкладка: сразу по нажатию, пока ничего не собирается. */
+/** Как быстро уходит прежняя вкладка: сразу по нажатию; под ней тем временем ставится новая. */
 internal const val TAB_EXIT_MS = 150
 
 /** Как быстро проявляется новая вкладка, когда собрана. */
@@ -198,6 +212,13 @@ internal const val SETTLE_MAX_MS = 450L
  */
 internal fun newTabSettled(gapMs: Long, framesSeen: Int, waitedMs: Long): Boolean =
     waitedMs >= SETTLE_MAX_MS || (framesSeen >= SETTLE_MIN_FRAMES && gapMs <= SETTLE_FRAME_MS)
+
+/**
+ * Сколько миллисекунд было видно одно небо: от конца ухода ([exitEndNanos]) до начала прихода ([arriveNanos]).
+ * Если новая вкладка была готова раньше конца ухода, неба нет: ноль.
+ */
+internal fun skyMillis(exitEndNanos: Long, arriveNanos: Long): Long =
+    ((arriveNanos - exitEndNanos) / 1_000_000).coerceAtLeast(0)
 
 /** Промежутки между соседними отметками времени в миллисекундах: первый — от нажатия до первого кадра. */
 internal fun frameGaps(stampsNanos: List<Long>): List<Long> =

@@ -33,6 +33,15 @@ class ScreenKeyTest {
     }
 
     @Test
+    fun skyIsOnlyTheTimeAfterExitEnds() {
+        // Новая вкладка готова до конца ухода: неба нет.
+        assertEquals(0L, skyMillis(exitEndNanos = 150_000_000L, arriveNanos = 120_000_000L))
+        assertEquals(0L, skyMillis(exitEndNanos = 150_000_000L, arriveNanos = 150_000_000L))
+        // Не успела: небо видно, пока она не готова.
+        assertEquals(40L, skyMillis(exitEndNanos = 150_000_000L, arriveNanos = 190_500_000L))
+    }
+
+    @Test
     fun frameGapsAreMillisecondsBetweenNeighbours() {
         assertEquals(listOf(89L, 8L), frameGaps(listOf(0L, 89_400_000L, 97_900_000L)))
         assertEquals(emptyList<Long>(), frameGaps(listOf(5L)))
