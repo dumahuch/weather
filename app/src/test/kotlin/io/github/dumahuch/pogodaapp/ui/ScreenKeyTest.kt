@@ -21,11 +21,21 @@ class ScreenKeyTest {
     }
 
     @Test
-    fun newTabComesFromItsSideOfTheBar() {
-        assertEquals(108, tabShift(fromIndex = 0, toIndex = 2, widthPx = 1080))
-        assertEquals(-108, tabShift(fromIndex = 3, toIndex = 1, widthPx = 1080))
-        assertEquals(0, tabShift(fromIndex = 2, toIndex = 2, widthPx = 1080))
-        assertEquals(0, tabShift(fromIndex = 0, toIndex = 1, widthPx = 0))
+    fun oldTabPictureWaitsForShortFrame() {
+        // Первый кадр сразу после смены ещё старый, даже если короткий.
+        assertEquals(false, newTabSettled(gapMs = 1, framesSeen = 1, waitedMs = 1))
+        // Сборка новой вкладки: длинный кадр, ждём дальше.
+        assertEquals(false, newTabSettled(gapMs = 187, framesSeen = 2, waitedMs = 188))
+        // Кадр снова короткий: гасим.
+        assertEquals(true, newTabSettled(gapMs = 33, framesSeen = 4, waitedMs = 355))
+        // Предел ожидания, даже если кадры длинные.
+        assertEquals(true, newTabSettled(gapMs = 120, framesSeen = 3, waitedMs = SETTLE_MAX_MS))
+    }
+
+    @Test
+    fun frameGapsAreMillisecondsBetweenNeighbours() {
+        assertEquals(listOf(89L, 8L), frameGaps(listOf(0L, 89_400_000L, 97_900_000L)))
+        assertEquals(emptyList<Long>(), frameGaps(listOf(5L)))
     }
 
     @Test

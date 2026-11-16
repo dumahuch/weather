@@ -102,5 +102,5 @@ private fun DockButton(tab: AppTab, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-/** Столько же, сколько въезжает новая вкладка (`PUSH_MS`): плашка и содержимое заканчивают вместе. */
+/** Плашка выбранной вкладки переезжает за то же время, что окна при переходе вглубь (`PUSH_MS`). */
 private const val DOCK_MS = 320
