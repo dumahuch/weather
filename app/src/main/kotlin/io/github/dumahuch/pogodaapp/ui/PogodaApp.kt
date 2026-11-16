@@ -17,19 +17,21 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.notify.AlertNotices
 import io.github.dumahuch.pogodaapp.notify.AlertRequest
@@ -56,9 +58,9 @@ import io.github.dumahuch.pogodaapp.ui.map.MapScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
+import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
 import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
 import io.github.dumahuch.pogodaapp.ui.sky.rememberAnimationsEnabled
-import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
@@ -217,10 +219,12 @@ fun PogodaApp(
     }
     DisposableEffect(Unit) { onDispose { SkyPause.active = false } }
 
-    // Смена вкладки: прежняя превращается в картинку, держится, пока новая собирается, и гаснет (см. [TabMotion]).
+    // Смена вкладки «через небо»: прежняя уходит картинкой, новая собирается под небом и приходит картинкой (см. [TabMotion]).
     val tabMotion = remember { TabMotion() }
     val tabLayer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
+    // Куда идёт смена: плашка внизу едет туда сразу по нажатию, а сама вкладка меняется после ухода прежней.
+    var tabHeading by remember { mutableStateOf<AppTab?>(null) }
 
     fun showTab(target: AppTab) {
         tab = target
@@ -236,17 +240,20 @@ fun PogodaApp(
             return
         }
         tabMotion.job?.cancel()
+        tabHeading = target
         tabMotion.job = scope.launch {
             // Небо и погода стоят, пока идёт смена: кадры нужны ей.
             SkyPause.active = true
             try {
-                // Карта рисуется отдельной поверхностью и в картинку не попадает: с неё уходим без картинки.
+                // Карта рисуется отдельной поверхностью и в картинку не попадает: с неё уходят и на неё приходят без картинки.
                 val old = if (from == AppTab.Map) null else tabMotion.capture(tabLayer)
-                tabMotion.run(old, "${from.name} > ${target.name}") {
+                tabMotion.run(old, tabLayer, arriveAsPicture = target != AppTab.Map, "${from.name} > ${target.name}") {
                     showTab(target)
                 }
             } finally {
                 SkyPause.active = false
+                // Новое нажатие во время смены уже поставило свою цель: её не трогаем.
+                if (tab == tabHeading) tabHeading = null
             }
         }
     }
@@ -263,14 +270,16 @@ fun PogodaApp(
             modifier = Modifier
                 .fillMaxSize()
                 .drawWithContent {
-                    // Обычно содержимое рисуется как есть; по просьбе [TabMotion] один кадр записывается в слой для картинки.
+                    // Обычно содержимое рисуется как есть; по просьбе [TabMotion] кадр записывается в слой для картинки.
+                    // Пока идёт смена, живое содержимое спрятано: на экране только небо и картинка.
                     val request = tabMotion.request
-                    if (request == null) {
-                        drawContent()
-                    } else {
+                    val hidden = tabMotion.hidden
+                    if (request != null) {
                         tabLayer.record { this@drawWithContent.drawContent() }
-                        drawLayer(tabLayer)
+                        if (!hidden) drawLayer(tabLayer)
                         request.complete(Unit)
+                    } else if (!hidden) {
+                        drawContent()
                     }
                 },
             transitionSpec = {
@@ -359,10 +368,20 @@ fun PogodaApp(
                 }
             }
         }
-        // Картинка прежней вкладки поверх новой, под панелью вкладок; нажатий не перехватывает.
-        val oldTab = tabMotion.picture
-        if (oldTab != null) {
-            Box(Modifier.fillMaxSize().drawBehind { drawImage(oldTab, alpha = tabMotion.cover.value) })
+        // Картинка уходящей или приходящей вкладки, под панелью вкладок. Пока живое содержимое спрятано, нажатия до него
+        // не доходят (панель вкладок выше и нажимается).
+        if (tabMotion.hidden) {
+            val picture = tabMotion.picture
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
+                    .drawBehind {
+                        if (picture != null) {
+                            scale(tabMotion.scale.value) { drawImage(picture, alpha = tabMotion.alpha.value) }
+                        }
+                    },
+            )
         }
         // Панель вкладок не двигается при переходах между вкладками; на местах и в настройках её нет (плавно гаснет).
         val onMap = tab == AppTab.Map
@@ -378,7 +397,7 @@ fun PogodaApp(
                 exit = fadeOut(tween(BAR_FADE_OUT_MS)),
             ) {
                 BottomBar(
-                    selected = tab,
+                    selected = tabHeading ?: tab,
                     onSelect = { selectTab(it) },
                     versionLabel = versionLabel,
                     showAttribution = state is HomeUiState.Content,
