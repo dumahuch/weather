@@ -21,10 +21,10 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Движение при смене вкладки (0.8.52). Прежние попытки (0.8.45–0.8.50) рвались, потому что на экране жили две вкладки с
- * размытым стеклом сразу и кадр стоил 80–100 мс. Здесь прежняя вкладка в момент нажатия снимается в картинку ([capture])
- * и убирается; картинка гаснет за [PUSH_COVER_MS], как уходящее окно при переходе вглубь, а новая вкладка въезжает сбоку
- * за [PUSH_MS] той же кривой. Размытие считает только новая вкладка.
+ * Смена вкладки (0.8.53). Прежняя вкладка в момент нажатия снимается в картинку ([capture]) и закрывает экран, пока под
+ * ней собирается новая: по замерам стенда (claude/audit/15-stand-results.md) первые кадры новой вкладки стоят 70–440 мс.
+ * Когда кадры снова короткие ([newTabSettled]), картинка гаснет за [TAB_FADE_MS]. Новая вкладка не сдвигается: при сдвиге
+ * размытие карточек пересчитывалось в каждом кадре (решение Димы, вариант «б»).
  */
 @Stable
 internal class TabMotion {
@@ -38,9 +38,6 @@ internal class TabMotion {
 
     /** Непрозрачность картинки прежней вкладки. */
     val cover = Animatable(0f)
-
-    /** Сдвиг новой вкладки по горизонтали в пикселях. */
-    val shift = Animatable(0f)
 
     /** Идущая смена вкладки: новое нажатие отменяет её. */
     var job: Job? = null
@@ -75,37 +72,41 @@ internal class TabMotion {
     }
 
     /**
-     * Сама смена: картинка [old] закрывает экран, [switch] меняет вкладку под ней, картинка гаснет, новая вкладка
-     * въезжает со сдвига [startShiftPx]. Отмена (новое нажатие) сразу ставит всё на место.
+     * Сама смена: картинка [old] закрывает экран, [switch] меняет вкладку под ней; картинка держится, пока новая вкладка
+     * не соберётся, и гаснет. Отмена (новое нажатие) сразу убирает картинку.
      */
-    suspend fun run(old: ImageBitmap?, startShiftPx: Int, name: String, switch: () -> Unit) {
+    suspend fun run(old: ImageBitmap?, name: String, switch: () -> Unit) {
         val stamps = ArrayList<Long>(FRAMES_KEPT)
+        var heldMs = 0L
         try {
             picture = old
             cover.snapTo(if (old != null) 1f else 0f)
-            shift.snapTo(startShiftPx.toFloat())
-            stamps += System.nanoTime()
+            val start = System.nanoTime()
+            stamps += start
             switch()
+            if (old == null) return
             coroutineScope {
-                // Замер для журнала: когда приходили кадры, пока шла смена. На само движение не влияет.
+                // Замер для журнала: когда приходили кадры, пока шла смена. На саму смену не влияет.
                 val watch = launch {
                     while (stamps.size < FRAMES_KEPT) withFrameNanos { stamps += System.nanoTime() }
                 }
-                launch {
-                    cover.animateTo(0f, tween(PUSH_COVER_MS, easing = LinearEasing))
-                    picture = null
+                var last = start
+                var seen = 0
+                while (true) {
+                    val now = withFrameNanos { System.nanoTime() }
+                    seen++
+                    if (newTabSettled(millis(last, now), seen, millis(start, now))) break
+                    last = now
                 }
-                shift.animateTo(0f, tween(PUSH_MS))
+                heldMs = millis(start, System.nanoTime())
+                cover.animateTo(0f, tween(TAB_FADE_MS, easing = LinearEasing))
                 watch.cancel()
             }
         } finally {
-            val shot = if (old == null) "без картинки" else captureNote
+            val shot = if (old == null) "без картинки" else "$captureNote, держали $heldMs мс"
             Log.i(TAG, "Смена $name: $shot; кадры, мс: ${frameGaps(stamps).joinToString(" ")}")
             picture = null
-            withContext(NonCancellable) {
-                cover.snapTo(0f)
-                shift.snapTo(0f)
-            }
+            withContext(NonCancellable) { cover.snapTo(0f) }
         }
     }
 
@@ -121,6 +122,24 @@ internal class TabMotion {
         fun millis(fromNanos: Long, toNanos: Long): Long = (toNanos - fromNanos) / 1_000_000
     }
 }
+
+/** Как быстро гаснет картинка прежней вкладки, когда новая готова. */
+internal const val TAB_FADE_MS = 200
+
+/** Кадр не дольше этого значит, что новая вкладка собрана (на «Подробно» обычный кадр 20–42 мс). */
+internal const val SETTLE_FRAME_MS = 45L
+
+/** Самый первый кадр после смены ещё старый: судить можно не раньше второго. */
+internal const val SETTLE_MIN_FRAMES = 2
+
+/** Дольше картинку не держим, даже если кадры всё ещё длинные: иначе нажатие казалось бы зависшим. */
+internal const val SETTLE_MAX_MS = 450L
+
+/**
+ * Можно ли гасить картинку прежней вкладки: прошло [framesSeen] кадров, последний длился [gapMs], всего ждём [waitedMs].
+ */
+internal fun newTabSettled(gapMs: Long, framesSeen: Int, waitedMs: Long): Boolean =
+    waitedMs >= SETTLE_MAX_MS || (framesSeen >= SETTLE_MIN_FRAMES && gapMs <= SETTLE_FRAME_MS)
 
 /** Промежутки между соседними отметками времени в миллисекундах: первый — от смены вкладки до первого кадра. */
 internal fun frameGaps(stampsNanos: List<Long>): List<Long> =

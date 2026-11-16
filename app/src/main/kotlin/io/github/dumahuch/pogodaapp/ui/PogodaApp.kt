@@ -11,7 +11,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -31,8 +30,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntOffset
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.notify.AlertNotices
 import io.github.dumahuch.pogodaapp.notify.AlertRequest
@@ -68,7 +65,6 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /** Сколько суток показывает список «Прогноза» сразу после запуска. */
 private const val DEFAULT_DAY_COUNT = 7
@@ -221,11 +217,10 @@ fun PogodaApp(
     }
     DisposableEffect(Unit) { onDispose { SkyPause.active = false } }
 
-    // Смена вкладки: прежняя превращается в картинку и быстро гаснет, новая въезжает сбоку (см. [TabMotion]).
+    // Смена вкладки: прежняя превращается в картинку, держится, пока новая собирается, и гаснет (см. [TabMotion]).
     val tabMotion = remember { TabMotion() }
     val tabLayer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
-    var contentWidth by remember { mutableIntStateOf(0) }
 
     fun showTab(target: AppTab) {
         tab = target
@@ -247,7 +242,7 @@ fun PogodaApp(
             try {
                 // Карта рисуется отдельной поверхностью и в картинку не попадает: с неё уходим без картинки.
                 val old = if (from == AppTab.Map) null else tabMotion.capture(tabLayer)
-                tabMotion.run(old, tabShift(from.ordinal, target.ordinal, contentWidth), "${from.name} > ${target.name}") {
+                tabMotion.run(old, "${from.name} > ${target.name}") {
                     showTab(target)
                 }
             } finally {
@@ -262,12 +257,11 @@ fun PogodaApp(
     val skyGlass = LocalGlass.current
     val skyContent = LocalContentColor.current
     val mapGlass = remember { Glass.flat(MapPalette) }
-    Box(modifier.fillMaxSize().onSizeChanged { contentWidth = it.width }) {
+    Box(modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = screen,
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(tabMotion.shift.value.roundToInt(), 0) }
                 .drawWithContent {
                     // Обычно содержимое рисуется как есть; по просьбе [TabMotion] один кадр записывается в слой для картинки.
                     val request = tabMotion.request
