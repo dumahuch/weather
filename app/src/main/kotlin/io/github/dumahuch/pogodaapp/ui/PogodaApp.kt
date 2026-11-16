@@ -290,8 +290,8 @@ fun PogodaApp(
                 }
             },
             label = "screen",
-            // Вкладки с небом живут в одной колоде [TabDeck]: при смене между ними окно не пересобирается.
-            contentKey = { if (it.layer == Layer.Tab && !it.isMap) SKY_TABS_KEY else it },
+            // Все вкладки живут в одном окне с колодой [TabDeck]: при смене между ними (и с картой) окно не пересобирается.
+            contentKey = { if (it.layer == Layer.Tab) SKY_TABS_KEY else it },
         ) { key ->
             when (key.layer) {
                 Layer.Settings -> SettingsScreen(
@@ -320,19 +320,8 @@ fun PogodaApp(
                     onClose = ::closePlaces,
                 )
 
-                Layer.Tab -> if (key.isMap) {
-                    CompositionLocalProvider(
-                        LocalPogodaPalette provides MapPalette,
-                        LocalGlass provides mapGlass,
-                        LocalContentColor provides MapPalette.ink,
-                    ) {
-                        MapScreen(
-                            place = content?.place,
-                            skyDarkInk = skyPalette.darkInk,
-                            wifiOnly = mapPreload == MapPreload.WifiOnly,
-                        )
-                    }
-                } else {
+                // Вкладки с небом держатся собранными и под картой: после карты они не собираются заново.
+                Layer.Tab -> Box(Modifier.fillMaxSize()) {
                     TabDeck(
                         active = key.tabIndex,
                         all = SKY_TABS,
@@ -365,6 +354,19 @@ fun PogodaApp(
                             )
 
                             AppTab.Map -> Unit
+                        }
+                    }
+                    if (key.isMap) {
+                        CompositionLocalProvider(
+                            LocalPogodaPalette provides MapPalette,
+                            LocalGlass provides mapGlass,
+                            LocalContentColor provides MapPalette.ink,
+                        ) {
+                            MapScreen(
+                                place = content?.place,
+                                skyDarkInk = skyPalette.darkInk,
+                                wifiOnly = mapPreload == MapPreload.WifiOnly,
+                            )
                         }
                     }
                 }
