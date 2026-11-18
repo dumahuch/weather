@@ -45,17 +45,22 @@ class WidgetUpdater(private val context: Context) {
     suspend fun refresh() {
         if (!hasWidgets()) return
         val entry = cache.load() ?: return
-        if (Duration.between(entry.savedAt, Instant.now()) > FRESH) {
-            val client = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}")
-            val raw = client.fetchRaw(entry.place.latitude, entry.place.longitude)
-            try {
-                OpenMeteoParser.parse(raw)
-                cache.save(ForecastCache.Entry(Instant.now(), entry.place, raw))
-            } catch (e: ForecastException) {
-                Log.w(TAG, "ответ прогноза не разобран, виджет остаётся по прежнему", e)
+        // Без сети запрос падает, но виджет всё равно перерисовывается: по возрасту данных он сам перейдёт на часовой ряд
+        // или на «Нет данных». Сбой при этом уходит дальше, в строку ошибки в настройках.
+        try {
+            if (Duration.between(entry.savedAt, Instant.now()) > FRESH) {
+                val client = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}")
+                val raw = client.fetchRaw(entry.place.latitude, entry.place.longitude)
+                try {
+                    OpenMeteoParser.parse(raw)
+                    cache.save(ForecastCache.Entry(Instant.now(), entry.place, raw))
+                } catch (e: ForecastException) {
+                    Log.w(TAG, "ответ прогноза не разобран, виджет остаётся по прежнему", e)
+                }
             }
+        } finally {
+            renderAll()
         }
-        renderAll()
     }
 
     /** Перерисовка по сохранённому прогнозу, без сети. Без сохранённого прогноза виджет пишет «Нет данных». */
@@ -63,7 +68,7 @@ class WidgetUpdater(private val context: Context) {
         if (ids.isEmpty()) return
         val entry = cache.load()
         val forecast = entry?.let { parse(it.raw) }
-        val model = if (entry != null && forecast != null) WidgetModels.of(entry.place, forecast, Instant.now()) else null
+        val model = if (entry != null && forecast != null) WidgetModels.ofStored(entry.place, forecast, Instant.now()) else null
         for (id in ids) render(id, model)
     }
 

@@ -106,4 +106,30 @@ class WidgetModelTest {
         assertTrue(WidgetModels.of(place, forecast(emptyList(), windKmh = 60.0), now).windy)
         assertTrue(!WidgetModels.of(place, forecast(emptyList(), windKmh = 12.0), now).windy)
     }
+
+    @Test
+    fun storedForecastFromYesterdayEveningShowsNowAndTodaysRange() {
+        val old = forecast(listOf(day(0, 9.0, 3.0), day(1, 12.0, 5.0)))
+            .copy(current = CurrentWeather(Instant.parse("2026-11-11T21:15:00Z"), 1.0, -1.0, Condition.Clear, isDay = false), today = DayRange(2.0, 0.0))
+        val model = WidgetModels.ofStored(place, old, now)!!
+        assertEquals(6.0, model.temperature, 0.0)
+        assertEquals(9.0, model.high, 0.0)
+        assertEquals(3.0, model.low, 0.0)
+        assertEquals(Condition.Cloudy, model.condition)
+        assertEquals(java.time.Duration.ofHours(18).plusMinutes(5), model.dataAge)
+    }
+
+    @Test
+    fun storedForecastOlderThanADayHasNoModel() {
+        val old = forecast(listOf(day(0, 9.0, 3.0)))
+            .copy(current = CurrentWeather(Instant.parse("2026-11-11T15:00:00Z"), 1.0, -1.0, Condition.Clear, isDay = true))
+        assertNull(WidgetModels.ofStored(place, old, now))
+    }
+
+    @Test
+    fun freshStoredForecastKeepsCurrentBlockAndHasSmallAge() {
+        val model = WidgetModels.ofStored(place, forecast(listOf(day(0, 9.0, 3.0))), now)!!
+        assertEquals(7.0, model.temperature, 0.0)
+        assertEquals(java.time.Duration.ofMinutes(5), model.dataAge)
+    }
 }

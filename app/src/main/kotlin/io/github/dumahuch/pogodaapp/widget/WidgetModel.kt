@@ -8,7 +8,9 @@ import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.DayForecast
 import io.github.dumahuch.pogodaapp.weather.Forecast
+import io.github.dumahuch.pogodaapp.weather.ForecastAge
 import io.github.dumahuch.pogodaapp.weather.Place
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 
@@ -43,11 +45,22 @@ data class WidgetModel(
     val now: Instant,
     val hourPrecipitationMm: Double?,
     val cloudCoverPercent: Double?,
+    /** Сколько прошло с момента, к которому относятся данные ответа (для пометки «данные N часов назад»). */
+    val dataAge: Duration = Duration.ZERO,
 )
 
 object WidgetModels {
     /** Сколько дней берётся: самая большая раскладка показывает пять. */
     const val DAYS = 5
+
+    /**
+     * Модель по прогнозу из памяти с поправкой на возраст ([ForecastAge.asOf]); null, если данные старше суток или нужных
+     * часов нет: виджет пишет «Нет данных».
+     */
+    fun ofStored(place: Place, forecast: Forecast, now: Instant): WidgetModel? {
+        val adjusted = ForecastAge.asOf(forecast, now) ?: return null
+        return of(place, adjusted, now).copy(dataAge = ForecastAge.of(forecast, now))
+    }
 
     fun of(place: Place, forecast: Forecast, now: Instant): WidgetModel {
         val current = forecast.current

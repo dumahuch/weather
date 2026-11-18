@@ -20,6 +20,7 @@ import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import io.github.dumahuch.pogodaapp.ui.home.conditionNameRes
 import io.github.dumahuch.pogodaapp.weather.Forecast
+import io.github.dumahuch.pogodaapp.weather.ForecastAge
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
 import java.io.File
@@ -52,9 +53,22 @@ class WeatherNotifier(private val context: Context) {
         val forecast = try {
             OpenMeteoParser.parse(client.fetchRaw(entry.place.latitude, entry.place.longitude))
         } catch (e: ForecastException) {
+            // Нет сети: показываем сохранённый прогноз, пересчитанный на нынешний час, а не вчерашние градусы.
+            postStored(entry)
             return
         }
         post(entry.place, forecast, placeAt = entry.savedAt)
+    }
+
+    /** Сохранённый прогноз с поправкой на возраст ([ForecastAge]); старше суток записи нет совсем. */
+    private fun postStored(entry: ForecastCache.Entry) {
+        val stored = try {
+            OpenMeteoParser.parse(entry.raw)
+        } catch (e: ForecastException) {
+            null
+        }
+        val adjusted = stored?.let { ForecastAge.asOf(it, Instant.now()) }
+        if (adjusted == null) cancel() else post(entry.place, adjusted, placeAt = entry.savedAt)
     }
 
     /**
