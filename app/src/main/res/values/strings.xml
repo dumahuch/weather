@@ -287,6 +287,7 @@
     <string name="about_dwd_text" translatable="false">Datenbasis: Deutscher Wetterdienst</string>
     <string name="settings_summary_off">All off</string>
     <string name="settings_summary_on">%1$d of %2$d on</string>
+    <string name="settings_notify_blocked">Notifications are blocked in system settings. Tap to open them</string>
     <string name="settings_notify_error">Notification error: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <!-- Уведомление о предупреждении: «Гроза с 15:00» (явление и подпись времени, как на плашке). -->

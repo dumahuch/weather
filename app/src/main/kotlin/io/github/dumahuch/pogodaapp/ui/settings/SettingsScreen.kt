@@ -92,6 +92,8 @@ fun SettingsScreen(
     onMapPreload: (MapPreload) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    notificationsBlocked: Boolean,
+    onOpenNotificationSettings: () -> Unit,
     onSummaryTime: (Int) -> Unit,
     pollenKinds: Set<PollenKind>,
     onPollenKind: (PollenKind, Boolean) -> Unit,
@@ -181,6 +183,17 @@ fun SettingsScreen(
             expanded = open == SECTION_NOTIFICATIONS,
             onToggle = { toggleSection(SECTION_NOTIFICATIONS) },
         ) {
+            // Уведомления запрещены в системе: выключатели ничего не дадут, нажатие ведёт в системные настройки (аудит У1).
+            if (notificationsBlocked) {
+                Text(
+                    stringResource(R.string.settings_notify_blocked),
+                    style = pogodaText(14f, 500, lineHeight = 1.35f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(role = Role.Button, onClick = onOpenNotificationSettings)
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                )
+            }
             ToggleOption(
                 title = stringResource(R.string.settings_notify_shade),
                 hint = stringResource(R.string.settings_notify_shade_hint),
