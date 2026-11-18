@@ -56,8 +56,8 @@
     <string name="check_probe_clouds" translatable="false">Облака: %1$s</string>
     <string name="check_probe_ridges" translatable="false">Гряды: %1$s</string>
     <string name="check_probe_still" translatable="false">Готовое небо: %1$s</string>
-    <string name="check_probe_blur_full" translatable="false">Размытие 79 %%</string>
-    <string name="check_probe_blur_half" translatable="false">Размытие 50 %%</string>
+    <string name="check_probe_blur_full" translatable="false" formatted="false">Размытие 79 %</string>
+    <string name="check_probe_blur_half" translatable="false" formatted="false">Размытие 50 %</string>
     <string name="check_probe_glass_weather" translatable="false">Погода на стекле: %1$s</string>
     <string name="check_probe_sky_weather" translatable="false">Туман и осадки: %1$s</string>
     <string name="check_probe_reset" translatable="false">Всё как было</string>

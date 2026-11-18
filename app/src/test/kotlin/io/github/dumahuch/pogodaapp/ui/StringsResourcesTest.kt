@@ -102,4 +102,14 @@ class StringsResourcesTest {
             }
         }
     }
+
+    /** В немецком везде «du» (решение Димы, product.md): вежливая форма («Sie», «Ihr…», «Ihnen») в строках запрещена. */
+    @Test
+    fun germanAddressesTheUserAsDu() {
+        val formal = Regex("""\b(Sie|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres|Ihnen)\b""")
+        val wrong = load("values-de").values.flatMap { entry ->
+            entry.values.filter { formal.containsMatchIn(it) }.map { "${entry.name}: «$it»" }
+        }
+        assertTrue("в немецком вежливая форма вместо «du»: $wrong", wrong.isEmpty())
+    }
 }

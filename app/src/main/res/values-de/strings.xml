@@ -59,7 +59,7 @@
     <string name="forecast_14_days">14 Tage</string>
     <string name="forecast_far_note">Nach dem 10. Tag ist die Vorhersage weniger zuverlässig</string>
     <string name="forecast_missing_title">Noch keine Tagesvorhersage</string>
-    <string name="forecast_missing_text">Aktualisieren Sie die Vorhersage, um die nächsten Tage zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
+    <string name="forecast_missing_text">Aktualisiere die Vorhersage, um die nächsten Tage zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
 
     <string name="next24_title">Nächste 24 Stunden</string>
     <string name="next24_total">%1$s mm in 24 Std.</string>
@@ -106,7 +106,7 @@
     <string name="hours_minutes">%1$d Std. %2$d Min.</string>
 
     <string name="details_missing_title">Noch keine aktuellen Details</string>
-    <string name="details_missing_text">Aktualisieren Sie die Vorhersage, um Luft, Wind, Luftdruck und mehr zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
+    <string name="details_missing_text">Aktualisiere die Vorhersage, um Luft, Wind, Luftdruck und mehr zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
     <string name="tile_air">Luftqualität</string>
     <string name="air_source" translatable="false">CAMS</string>
     <string name="air_unit" translatable="false">EAQI</string>
@@ -259,17 +259,17 @@
     <!-- Уведомление о погоде (0.7.0) -->
     <string name="settings_notifications">Benachrichtigungen</string>
     <string name="settings_notify_shade">Wetter in der Benachrichtigungsleiste</string>
-    <string name="settings_notify_shade_hint">Temperatur, Wetter und Niederschlag für den Ort, an dem Sie die App zuletzt geöffnet haben. Wird etwa halbstündlich aktualisiert.</string>
+    <string name="settings_notify_shade_hint">Temperatur, Wetter und Niederschlag für den Ort, an dem du die App zuletzt geöffnet hast. Wird etwa halbstündlich aktualisiert.</string>
     <string name="settings_notify_status">Temperatur in der Statusleiste</string>
     <string name="settings_notify_status_hint">Die Zahl neben der Uhr. Der Eintrag in der Benachrichtigungsleiste bleibt: Ohne ihn zeigt Android das Symbol nicht.</string>
     <string name="settings_notify_lock">Ortsname auf dem Sperrbildschirm</string>
     <string name="settings_notify_lock_hint">Ausgeschaltet zeigt der Sperrbildschirm nur Temperatur und Wetter. Gilt zusammen mit der Temperatur in der Statusleiste.</string>
     <string name="settings_notify_alerts">Wetterwarnungen</string>
-    <string name="settings_notify_alerts_hint">Amtliche Warnungen des DWD für den Ort, an dem Sie die App zuletzt geöffnet haben, mit Ton. Nur in Deutschland. Etwa jede halbe Stunde geprüft.</string>
+    <string name="settings_notify_alerts_hint">Amtliche Warnungen des DWD für den Ort, an dem du die App zuletzt geöffnet hast, mit Ton. Nur in Deutschland. Etwa jede halbe Stunde geprüft.</string>
     <string name="settings_notify_rain">Bald Regen</string>
-    <string name="settings_notify_rain_hint">Hinweis, wenn laut DWD-Radar innerhalb der nächsten Stunde Regen ab 0,5 mm/h beginnt, für den Ort, an dem Sie die App zuletzt geöffnet haben. Nur in Deutschland. Etwa jede halbe Stunde geprüft, die Zeit ist daher ungefähr.</string>
+    <string name="settings_notify_rain_hint">Hinweis, wenn laut DWD-Radar innerhalb der nächsten Stunde Regen ab 0,5 mm/h beginnt, für den Ort, an dem du die App zuletzt geöffnet hast. Nur in Deutschland. Etwa jede halbe Stunde geprüft, die Zeit ist daher ungefähr.</string>
     <string name="settings_notify_pollen">Pollen</string>
-    <string name="settings_notify_pollen_hint">Einmal täglich ein Hinweis, wenn die Pollenbelastung heute für eine gewählte Art mindestens mittel bis hoch ist, nach dem DWD-Index, für den Ort, an dem Sie die App zuletzt geöffnet haben. Nur in Deutschland. Zwischen 7 und 21 Uhr.</string>
+    <string name="settings_notify_pollen_hint">Einmal täglich ein Hinweis, wenn die Pollenbelastung heute für eine gewählte Art mindestens mittel bis hoch ist, nach dem DWD-Index, für den Ort, an dem du die App zuletzt geöffnet hast. Nur in Deutschland. Zwischen 7 und 21 Uhr.</string>
     <string name="settings_pollen_kinds">Pollenarten für den Hinweis</string>
     <string name="settings_section_view">Darstellung</string>
     <string name="settings_section_about">Über die App</string>
@@ -386,7 +386,7 @@
     <string name="widget_icons_none_on_sky">Auf dem Himmel gibt es kein Symbol: Der Himmel zeigt das Wetter.</string>
     <string name="widget_done">Fertig</string>
     <string name="settings_notify_summary">Abendvorschau für morgen</string>
-    <string name="settings_notify_summary_hint">Eine leise Mitteilung am Abend: Temperatur, Wetter und ob es morgen regnet, für den Ort, an dem Sie die App zuletzt geöffnet haben. Wird zur gewählten Zeit gesendet, bis etwa 10 Minuten später.</string>
+    <string name="settings_notify_summary_hint">Eine leise Mitteilung am Abend: Temperatur, Wetter und ob es morgen regnet, für den Ort, an dem du die App zuletzt geöffnet hast. Wird zur gewählten Zeit gesendet, bis etwa 10 Minuten später.</string>
     <string name="settings_notify_summary_time">Uhrzeit der Vorschau</string>
     <string name="channel_weather_summary">Abendvorschau</string>
     <string name="channel_weather_summary_hint">Das Wetter für morgen, einmal am Abend. Lautlos.</string>
