@@ -63,6 +63,9 @@ private val MoreShape = RoundedCornerShape(14.dp)
 internal const val TINT_FILL = 0.15f
 internal const val TINT_LINE = 0.26f
 
+/** Доля цвета уровня в заливке плоской плашки внутри шторки (на сплошном фоне заметнее, чем на стекле). */
+private const val SOLID_TINT_FILL = 0.2f
+
 /** Цвет уровня DWD (приглушённый под стиль приложения). */
 internal fun levelColor(level: AlertLevel): Color = PogodaColors.AlertLevels[level.number - 1]
 
@@ -131,7 +134,14 @@ internal fun alertWhenLabel(alert: WeatherAlert, now: Instant, zone: ZoneId, day
  * Плотность заливки берётся наибольшая из рассчитанных для карточек и для предупреждений: плашки лежат между полосой
  * предупреждений макета и лентой «По часам», и текст должен читаться на обеих.
  */
-private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color): Modifier {
+private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color, solidBase: Color? = null): Modifier {
+    if (solidBase != null) {
+        // Внутри шторки плашки плоские и непрозрачные: стекло с размытием давало «дырявую шторку» и лишние кадры.
+        return this
+            .clip(shape)
+            .border(1.dp, tint.copy(alpha = TINT_LINE), shape)
+            .background(tint.copy(alpha = SOLID_TINT_FILL).compositeOver(solidBase), shape)
+    }
     val palette = glass.palette
     val base = if (palette.glassAlert.alpha >= palette.glass.alpha) palette.glassAlert else palette.glass
     val fill = tint.copy(alpha = TINT_FILL).compositeOver(base)
@@ -149,7 +159,14 @@ private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color): Modifi
  * явления и время справа от него; вторая: уровень на всю ширину текста (не сокращается из-за времени).
  */
 @Composable
-internal fun AlertRow(alert: WeatherAlert, now: Instant, zone: ZoneId, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AlertRow(
+    alert: WeatherAlert,
+    now: Instant,
+    zone: ZoneId,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    solidBase: Color? = null,
+) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
     val tint = levelColor(alert.level)
@@ -161,7 +178,7 @@ internal fun AlertRow(alert: WeatherAlert, now: Instant, zone: ZoneId, onClick: 
         modifier
             .fillMaxWidth()
             .heightIn(min = AlertRowHeight)
-            .alertGlass(AlertShape, glass, tint)
+            .alertGlass(AlertShape, glass, tint, solidBase)
             .clickable(onClick = onClick)
             .clearAndSetSemantics {
                 contentDescription = description

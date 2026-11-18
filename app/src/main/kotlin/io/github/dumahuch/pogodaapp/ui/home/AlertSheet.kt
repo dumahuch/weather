@@ -30,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,11 +54,13 @@ import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
 import io.github.dumahuch.pogodaapp.weather.AlertLevel
 import io.github.dumahuch.pogodaapp.weather.AlertWhen
 import io.github.dumahuch.pogodaapp.weather.WeatherAlert
 import java.time.Instant
 import java.time.ZoneId
+import kotlinx.coroutines.delay
 
 /** Что открыто в шторке предупреждений: весь список или одно предупреждение (из списка или прямо с «Главной»). */
 sealed interface AlertSheet {
@@ -75,6 +78,14 @@ private val ScrimColor = Color(0x47060A12)
 /** Шторка плотная матовая, без стекла: длинный текст DWD должен читаться на любом небе. */
 private const val SHEET_GLASS_SHARE = 0.7f
 private const val SHEET_ALPHA = 0.97f
+
+/** Сплошной цвет шторки (без прозрачности): на нём лежат плоские плашки списка. */
+@Composable
+private fun sheetBase(): Color {
+    val palette = LocalPogodaPalette.current
+    val base = if (palette.darkInk) Color.White else Color(0xFF0C131F)
+    return lerp(base, palette.glass.copy(alpha = 1f), SHEET_GLASS_SHARE)
+}
 
 private const val ANIMATION_MS = 300
 
@@ -97,6 +108,18 @@ fun AlertSheetHost(
     val open = sheet != null && (sheet !is AlertSheet.One || alerts.any { it.id == sheet.id })
     // Предупреждение исчезло, пока шторка была открыта: закрываем, чтобы «назад» не уходил в пустую шторку.
     LaunchedEffect(open, sheet) { if (!open && sheet != null) onClose() }
+    // Небо и осадки замирают на время движения шторки: перерисовка неба отнимала у неё кадры (стенд 18.11: 40 мс на кадр).
+    val wasOpen = remember { mutableStateOf(open) }
+    LaunchedEffect(open) {
+        if (open == wasOpen.value) return@LaunchedEffect
+        wasOpen.value = open
+        SkyPause.active = true
+        try {
+            delay(ANIMATION_MS + 100L)
+        } finally {
+            SkyPause.active = false
+        }
+    }
     Box(modifier.fillMaxSize()) {
         AnimatedVisibility(open, enter = fadeIn(tween(ANIMATION_MS)), exit = fadeOut(tween(ANIMATION_MS))) {
             Box(
@@ -149,8 +172,7 @@ private class SheetMemory {
 @Composable
 private fun SheetFrame(tint: Color?, header: @Composable RowScope.() -> Unit, onClose: () -> Unit, content: @Composable () -> Unit) {
     val palette = LocalPogodaPalette.current
-    val base = if (palette.darkInk) Color.White else Color(0xFF0C131F)
-    val plain = lerp(base, palette.glass.copy(alpha = 1f), SHEET_GLASS_SHARE).copy(alpha = SHEET_ALPHA)
+    val plain = sheetBase().copy(alpha = SHEET_ALPHA)
     // Шторка одного предупреждения красится цветом его уровня, как плашка; общий список остаётся нейтральным.
     val fill = tint?.copy(alpha = TINT_FILL)?.compositeOver(plain) ?: plain
     val line = tint?.copy(alpha = TINT_LINE) ?: palette.glassLine
@@ -206,8 +228,9 @@ private fun CloseButton(onClose: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun AllAlerts(alerts: List<WeatherAlert>, now: Instant, zone: ZoneId, onOpen: (WeatherAlert) -> Unit) {
+    val base = sheetBase()
     Column(verticalArrangement = Arrangement.spacedBy(AlertGap)) {
-        alerts.forEach { alert -> AlertRow(alert, now, zone, onClick = { onOpen(alert) }) }
+        alerts.forEach { alert -> AlertRow(alert, now, zone, onClick = { onOpen(alert) }, solidBase = base) }
     }
 }
 
