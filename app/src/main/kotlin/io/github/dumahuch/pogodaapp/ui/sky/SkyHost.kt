@@ -411,9 +411,8 @@ internal fun SkyHost(
         LocalContentColor provides palette.ink,
         LocalSkyParallax provides parallax,
         LocalScrimRegions provides scrimRegions,
-        // Стекло размывает небо, уменьшенное вдвое по каждой стороне (step-122; по умолчанию у Haze 0,79): размытие то же,
-        // зерно чуть крупнее, а работы видеокарте заметно меньше.
-        // На экране проверки можно вернуть прежние 79 % ([SkyProbe.fullBlur]) и сравнить.
+        // Размытие стекла на 79 % разрешения (по умолчанию Haze): замер 18.11.2026 показал, что 50 % ничего не даёт
+        // (кадр 31,2 и 32,7 мс), а зерно крупнее. На экране проверки можно сравнить ([SkyProbe.fullBlur]).
         LocalHazePerformanceMode provides if (SkyProbe.fullBlur) HazePerformanceMode.Balanced else HazePerformanceMode.Performance,
     ) {
         Box(
