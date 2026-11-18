@@ -145,11 +145,19 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
      * [lightning]: кадр грозы (молния между облаками и грядами, свет разряда поверх всего), пусто вне разряда.
      * [still]: готовые картинки неподвижной части (небо с солнцем и луной, гряды); с ними на каждом кадре заново рисуются
      * только облака. Без [still] всё рисуется напрямую (снимки неба для диска и капель).
+     * [clouds], [ridges]: выключатели замера на экране проверки ([SkyProbe]).
      */
-    fun draw(scope: DrawScope, look: SkyLook, lightning: LightningShot? = null, still: SkyStill? = null) {
+    fun draw(
+        scope: DrawScope,
+        look: SkyLook,
+        lightning: LightningShot? = null,
+        still: SkyStill? = null,
+        clouds: Boolean = true,
+        ridges: Boolean = true,
+    ) {
         val loaded = look.weights.visible().filter { store.has(it) }
         if (loaded.isEmpty()) return
-        val clouds = store.clouds ?: return
+        val sheets = store.clouds ?: return
         val pan = DiArt.pan(look.weights)
         val w = scope.size.width.toDouble()
         val h = scope.size.height.toDouble()
@@ -163,34 +171,35 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
             drawCelestial(look, celestial)
         }
         val drawRidgesNow: DrawScope.() -> Unit = { drawRidges(loaded, look, pan, w, h) }
+        val noRidges: DrawScope.() -> Unit = {}
         val step = still?.step(stillKey(look, loaded, w, h)) ?: StillGate.Step.Direct
         if (step == StillGate.Step.Record) still?.record(scope, drawBack, drawRidgesNow)
-        val ridges: DrawScope.() -> Unit
+        val drawFront: DrawScope.() -> Unit
         if (still == null || step == StillGate.Step.Direct) {
             scope.drawBack()
-            ridges = drawRidgesNow
+            drawFront = if (ridges) drawRidgesNow else noRidges
         } else {
             scope.drawLayer(still.back)
             val ridgesLayer = still.ridges
-            ridges = { drawLayer(ridgesLayer) }
+            drawFront = if (ridges) ({ drawLayer(ridgesLayer) }) else noRidges
         }
         // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
         // Во время молнии облака делятся на дальние и ближние (по порядку сверху вниз): молния лежит между ними своим светом, без
         // затемнения грозы, нижние прозрачные облака проходят перед ней, а гряды ещё ближе.
         val bolt = lightning?.takeIf { it.image != null && it.frame.bolt > 0.0 }
-        val list = cloudsFor(look)
+        val list = if (clouds) cloudsFor(look) else emptyList()
         val split = if (bolt == null) list.size else (list.size * bolt.frame.strike.boltDepth).toInt().coerceIn(0, list.size)
         effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
-            drawClouds(list, look, clouds, w, h, 0, split)
+            drawClouds(list, look, sheets, w, h, 0, split)
             effects.drawVeil(this, look, BlendMode.SrcAtop)
-            if (bolt == null) ridges()
+            if (bolt == null) drawFront()
         }
         if (bolt != null) {
             scope.drawBolt(bolt)
             effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
-                drawClouds(list, look, clouds, w, h, split, list.size)
+                drawClouds(list, look, sheets, w, h, split, list.size)
                 effects.drawVeil(this, look, BlendMode.SrcAtop)
-                ridges()
+                drawFront()
             }
         }
         lightning?.let { scope.drawFlash(it) }

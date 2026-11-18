@@ -392,7 +392,18 @@ internal fun SkyHost(
     // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
     val hazeState = rememberHazeState()
     // Без размытия (выключатель на экране проверки) нет ни источника размытия, ни самого размытия: кадры сравниваются честно.
-    val glass = rememberGlass(palette, if (glassBlur) hazeState else null, lifted = cardShadow == CardShadow.Strong, snow = snowDrift, rain = rainOnGlass, fog = fog, frost = frost, flash = glassFlash)
+    // Погоду на стекле можно выключить на экране проверки ([SkyProbe]), чтобы замерить, сколько она стоит.
+    val glassWeather = SkyProbe.glassWeather
+    val glass = rememberGlass(
+        palette,
+        if (glassBlur) hazeState else null,
+        lifted = cardShadow == CardShadow.Strong,
+        snow = snowDrift.takeIf { glassWeather },
+        rain = rainOnGlass.takeIf { glassWeather },
+        fog = fog?.takeIf { glassWeather },
+        frost = frost?.takeIf { glassWeather },
+        flash = glassFlash.takeIf { glassWeather },
+    )
 
     CompositionLocalProvider(
         LocalPogodaPalette provides palette,
@@ -402,7 +413,8 @@ internal fun SkyHost(
         LocalScrimRegions provides scrimRegions,
         // Стекло размывает небо, уменьшенное вдвое по каждой стороне (step-122; по умолчанию у Haze 0,79): размытие то же,
         // зерно чуть крупнее, а работы видеокарте заметно меньше.
-        LocalHazePerformanceMode provides HazePerformanceMode.Performance,
+        // На экране проверки можно вернуть прежние 79 % ([SkyProbe.fullBlur]) и сравнить.
+        LocalHazePerformanceMode provides if (SkyProbe.fullBlur) HazePerformanceMode.Balanced else HazePerformanceMode.Performance,
     ) {
         Box(
             modifier
@@ -478,13 +490,21 @@ private fun SkyBackground(
                     .matchParentSize()
                     .graphicsLayer { alpha = reveal() }
                     .drawBehind {
-                        painter.draw(this, sky.look(SkyDrift.position(sky.pan, phase()), lift(size.height.toDouble())), lightning(), still)
+                        painter.draw(
+                            this,
+                            sky.look(SkyDrift.position(sky.pan, phase()), lift(size.height.toDouble())),
+                            lightning(),
+                            still.takeIf { SkyProbe.still },
+                            clouds = SkyProbe.clouds,
+                            ridges = SkyProbe.ridges,
+                        )
                         SkyEffects.drawScrim(this, scrim, infoScrim, bands(), size.height)
                     },
             )
-            FogLayer(sky, fogMotion, Modifier.matchParentSize().graphicsLayer { alpha = reveal() })
+            // Туман, дождь и снег на небе можно выключить на экране проверки ([SkyProbe.skyWeather]).
+            if (SkyProbe.skyWeather) FogLayer(sky, fogMotion, Modifier.matchParentSize().graphicsLayer { alpha = reveal() })
             // Дождь и снег лежат на небе и под подложкой не нужны: они вместе с небом проявляются и вместе с ним размываются стеклом.
-            PrecipLayer(
+            if (SkyProbe.skyWeather) PrecipLayer(
                 spec = precip,
                 clock = precipClock,
                 lightSky = lightSky,
