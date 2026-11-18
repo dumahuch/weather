@@ -8,7 +8,7 @@ junit = "4.13.2"
 lifecycle = "2.11.0"
 kotlinxCoroutines = "1.11.0"
 orgJson = "20260814"
-haze = "2.0.1"
+haze = "2.1.0"
 # Карта (0.8.0, 12.11.2026): версии по меткам на GitHub (maplibre-native android-v13.7.1, commons-compress rel/1.28.0);
 # реестр Maven Central из сессии недоступен, наличие артефактов подтверждает сборка.
 maplibre = "13.7.1"
