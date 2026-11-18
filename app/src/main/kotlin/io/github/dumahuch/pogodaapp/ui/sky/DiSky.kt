@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import io.github.dumahuch.pogodaapp.sky.CloudLayout
@@ -140,8 +141,12 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
     private var cloudWeather: SkyWeather? = null
     private var cloudList: List<PlacedCloud> = emptyList()
 
-    /** [lightning]: кадр грозы (молния между облаками и грядами, свет разряда поверх всего), пусто вне разряда. */
-    fun draw(scope: DrawScope, look: SkyLook, lightning: LightningShot? = null) {
+    /**
+     * [lightning]: кадр грозы (молния между облаками и грядами, свет разряда поверх всего), пусто вне разряда.
+     * [still]: готовые картинки неподвижной части (небо с солнцем и луной, гряды); с ними на каждом кадре заново рисуются
+     * только облака. Без [still] всё рисуется напрямую (снимки неба для диска и капель).
+     */
+    fun draw(scope: DrawScope, look: SkyLook, lightning: LightningShot? = null, still: SkyStill? = null) {
         val loaded = look.weights.visible().filter { store.has(it) }
         if (loaded.isEmpty()) return
         val clouds = store.clouds ?: return
@@ -150,11 +155,25 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         val h = scope.size.height.toDouble()
         // Небо с вуалью под обесцвечиванием, затемнением грозы и ночным приглушением; солнце и луна лежат на небе своим
         // цветом (step-29, step-30), поэтому они вне слоя и ничем из этого не затемняются.
-        effects.layer(scope, look, force = false, withTone = true, opaque = true) {
-            drawLayer(DiArt.Layer.Sky, loaded, look, pan, w, h)
-            effects.drawVeil(this, look)
+        val drawBack: DrawScope.() -> Unit = {
+            effects.layer(this, look, force = false, withTone = true, opaque = true) {
+                drawArtLayer(DiArt.Layer.Sky, loaded, look, pan, w, h)
+                effects.drawVeil(this, look)
+            }
+            drawCelestial(look, celestial)
         }
-        scope.drawCelestial(look, celestial)
+        val drawRidgesNow: DrawScope.() -> Unit = { drawRidges(loaded, look, pan, w, h) }
+        val step = still?.step(stillKey(look, loaded, w, h)) ?: StillGate.Step.Direct
+        if (step == StillGate.Step.Record) still?.record(scope, drawBack, drawRidgesNow)
+        val ridges: DrawScope.() -> Unit
+        if (still == null || step == StillGate.Step.Direct) {
+            scope.drawBack()
+            ridges = drawRidgesNow
+        } else {
+            scope.drawLayer(still.back)
+            val ridgesLayer = still.ridges
+            ridges = { drawLayer(ridgesLayer) }
+        }
         // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
         // Во время молнии облака делятся на дальние и ближние (по порядку сверху вниз): молния лежит между ними своим светом, без
         // затемнения грозы, нижние прозрачные облака проходят перед ней, а гряды ещё ближе.
@@ -164,27 +183,35 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
             drawClouds(list, look, clouds, w, h, 0, split)
             effects.drawVeil(this, look, BlendMode.SrcAtop)
-            if (bolt == null) drawRidges(loaded, look, pan, w, h)
+            if (bolt == null) ridges()
         }
         if (bolt != null) {
             scope.drawBolt(bolt)
             effects.layer(scope, look, force = effects.hasVeil(look), withTone = true) {
                 drawClouds(list, look, clouds, w, h, split, list.size)
                 effects.drawVeil(this, look, BlendMode.SrcAtop)
-                drawRidges(loaded, look, pan, w, h)
+                ridges()
             }
         }
         lightning?.let { scope.drawFlash(it) }
     }
 
+    /**
+     * Всё, от чего зависят неподвижные картинки: время суток, погода и вуаль, солнце и луна, подъём прокруткой, размер и
+     * сами загруженные картины (пока солнце или слой не догрузились, ключ другой, и картинка потом перезапишется).
+     */
+    private fun stillKey(look: SkyLook, loaded: List<SkyScene>, w: Double, h: Double): List<Any?> =
+        listOf<Any?>(look.weights, look.weather, look.veil, look.bodies, look.lift, w, h) +
+            loaded.map { store.get(it) } + look.bodies.map { celestial.get(it.file) }
+
     private fun DrawScope.drawRidges(loaded: List<SkyScene>, look: SkyLook, pan: Double, w: Double, h: Double) {
         for (layer in DiArt.Layer.entries) {
-            if (layer != DiArt.Layer.Sky) drawLayer(layer, loaded, look, pan, w, h)
+            if (layer != DiArt.Layer.Sky) drawArtLayer(layer, loaded, look, pan, w, h)
         }
     }
 
     /** Один слой картины, смешанный между временами суток каскадом (вес / сумма весов до него). */
-    private fun DrawScope.drawLayer(layer: DiArt.Layer, loaded: List<SkyScene>, look: SkyLook, pan: Double, w: Double, h: Double) {
+    private fun DrawScope.drawArtLayer(layer: DiArt.Layer, loaded: List<SkyScene>, look: SkyLook, pan: Double, w: Double, h: Double) {
         val place = DiArt.place(layer, w, h, pan, look.lift)
         var sum = 0.0
         for (scene in loaded) {

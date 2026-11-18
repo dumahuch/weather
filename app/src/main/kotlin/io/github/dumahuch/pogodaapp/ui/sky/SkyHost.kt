@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalGraphicsContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
@@ -45,6 +46,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleStartEffect
+import dev.chrisbanes.haze.HazePerformanceMode
+import dev.chrisbanes.haze.LocalHazePerformanceMode
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import io.github.dumahuch.pogodaapp.home.HomeUiState
@@ -197,6 +200,10 @@ internal fun SkyHost(
     DisposableEffect(store) { onDispose { store.clear() } }
     val celestial = remember(appContext) { CelestialBitmaps(appContext) }
     DisposableEffect(celestial) { onDispose { celestial.clear() } }
+    // Неподвижная часть неба готовыми картинками (step-122): каждый кадр заново рисуются только облака.
+    val graphicsContext = LocalGraphicsContext.current
+    val still = remember(graphicsContext) { SkyStill(graphicsContext) }
+    DisposableEffect(still) { onDispose { still.drop() } }
     val parallax = remember { SkyParallax() }
     var hostSize by remember { mutableStateOf(IntSize.Zero) }
     // Границы блоков «Главной» для подложек и положение верха хозяина в окне (подложки считаются от верха хозяина).
@@ -237,6 +244,8 @@ internal fun SkyHost(
             // Короткий уход (свайп между приложениями) картины не трогает: иначе при возвращении небо мигало бы нейтральным светлым фоном.
             delay(UNLOAD_DELAY_MILLIS)
             store.clear()
+            // Готовые картинки держат ссылки на картины и сами занимают память видеокарты: тоже освобождаются.
+            still.drop()
         }
     }
 
@@ -391,6 +400,9 @@ internal fun SkyHost(
         LocalContentColor provides palette.ink,
         LocalSkyParallax provides parallax,
         LocalScrimRegions provides scrimRegions,
+        // Стекло размывает небо, уменьшенное вдвое по каждой стороне (step-122; по умолчанию у Haze 0,79): размытие то же,
+        // зерно чуть крупнее, а работы видеокарте заметно меньше.
+        LocalHazePerformanceMode provides HazePerformanceMode.Performance,
     ) {
         Box(
             modifier
@@ -401,6 +413,7 @@ internal fun SkyHost(
                 sky = sky,
                 store = store,
                 celestial = celestial,
+                still = still,
                 lift = { height -> DiArt.liftOf(parallax.scrollPx.toDouble(), height) },
                 snapshot = restored?.image,
                 snapshotAlpha = { snapshotAlpha },
@@ -427,6 +440,7 @@ private fun SkyBackground(
     sky: SkyState?,
     store: DiBitmapStore,
     celestial: CelestialBitmaps,
+    still: SkyStill,
     lift: (heightPx: Double) -> Double,
     snapshot: ImageBitmap?,
     snapshotAlpha: () -> Float,
@@ -464,7 +478,7 @@ private fun SkyBackground(
                     .matchParentSize()
                     .graphicsLayer { alpha = reveal() }
                     .drawBehind {
-                        painter.draw(this, sky.look(SkyDrift.position(sky.pan, phase()), lift(size.height.toDouble())), lightning())
+                        painter.draw(this, sky.look(SkyDrift.position(sky.pan, phase()), lift(size.height.toDouble())), lightning(), still)
                         SkyEffects.drawScrim(this, scrim, infoScrim, bands(), size.height)
                     },
             )
