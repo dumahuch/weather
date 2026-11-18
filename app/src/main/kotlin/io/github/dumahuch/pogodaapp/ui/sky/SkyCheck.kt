@@ -134,6 +134,8 @@ internal fun SkyCheckPanel(
     var collapsed by rememberSaveable { mutableStateOf(false) }
     // Счётчик кадров один на свёрнутую и развёрнутую панель: он считает и пока панель свёрнута.
     val meter = rememberFrameMeter()
+    // Панель закрыта: части неба и стекла, выключенные для замера, возвращаются, чтобы небо не осталось без облаков.
+    DisposableEffect(Unit) { onDispose { SkyProbe.reset() } }
     if (collapsed) {
         CollapsedBar(meter = meter, onExpand = { collapsed = false }, onClose = onClose, modifier = modifier)
     } else {
@@ -519,6 +521,49 @@ private fun FrameSection(meter: FrameMeter, glassBlur: Boolean, onGlassBlur: (Bo
         ),
     )
     Info(stringResource(R.string.check_frames_rate, summary.perSecond.format(1), meter.refreshRate.toDouble().format(0)))
+    ProbeSection(onChange = meter::reset)
+}
+
+/** Одна часть для замера: подпись и как её переключить. */
+private class Probe(val label: String, val selected: Boolean, val toggle: () -> Unit)
+
+/**
+ * Выключатели частей неба и стекла ([SkyProbe]): по очереди выключать и смотреть строку «Время кадра». Каждое нажатие
+ * начинает счёт кадров заново ([onChange]), чтобы цифры относились к одному положению.
+ */
+@Composable
+private fun ProbeSection(onChange: () -> Unit) {
+    val on = stringResource(R.string.check_on)
+    val off = stringResource(R.string.check_off)
+    fun state(value: Boolean) = if (value) on else off
+    val probes = listOf(
+        Probe(stringResource(R.string.check_probe_clouds, state(SkyProbe.clouds)), SkyProbe.clouds) { SkyProbe.clouds = !SkyProbe.clouds },
+        Probe(stringResource(R.string.check_probe_ridges, state(SkyProbe.ridges)), SkyProbe.ridges) { SkyProbe.ridges = !SkyProbe.ridges },
+        Probe(stringResource(R.string.check_probe_still, state(SkyProbe.still)), SkyProbe.still) { SkyProbe.still = !SkyProbe.still },
+        Probe(
+            stringResource(if (SkyProbe.fullBlur) R.string.check_probe_blur_full else R.string.check_probe_blur_half),
+            SkyProbe.fullBlur,
+        ) { SkyProbe.fullBlur = !SkyProbe.fullBlur },
+        Probe(stringResource(R.string.check_probe_glass_weather, state(SkyProbe.glassWeather)), SkyProbe.glassWeather) {
+            SkyProbe.glassWeather = !SkyProbe.glassWeather
+        },
+        Probe(stringResource(R.string.check_probe_sky_weather, state(SkyProbe.skyWeather)), SkyProbe.skyWeather) {
+            SkyProbe.skyWeather = !SkyProbe.skyWeather
+        },
+        Probe(stringResource(R.string.check_probe_reset), false) { SkyProbe.reset() },
+    )
+    Caption(stringResource(R.string.check_probe_title))
+    ButtonGrid(columns = 2, items = probes) { probe ->
+        CheckButton(
+            probe.label,
+            selected = probe.selected,
+            onClick = {
+                probe.toggle()
+                onChange()
+            },
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 private const val NANOS_PER_MILLI = 1e6
