@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.widget
 
+import io.github.dumahuch.pogodaapp.weather.ForecastAge
 import kotlin.math.floor
 
 /**
@@ -35,6 +36,19 @@ enum class WidgetLayout(val cols: Int, val rows: Int) {
 }
 
 object WidgetLayouts {
+    /** Место под пометку «данные N ч назад» внизу (единицы макета): содержимое страницы поднимается на столько. */
+    const val AGE_LABEL_BAND = 32f
+
+    /**
+     * Сколько полных часов данным, если внизу виджета нужна пометка «данные N ч назад» (решение Димы 18.11.2026: внизу по
+     * центру), иначе null. Пометка только в 2×2, 4×2 и 4×4 и только когда данным больше часа: в узких раскладках ей нет места.
+     */
+    fun ageLabelHours(layout: WidgetLayout, model: WidgetModel): Int? {
+        if (layout != WidgetLayout.Square && layout != WidgetLayout.Wide && layout != WidgetLayout.Large) return null
+        if (model.dataAge <= ForecastAge.FRESH_LIMIT) return null
+        return model.dataAge.toHours().toInt().coerceAtLeast(1)
+    }
+
     /** Клетка и зазор в единицах макета. */
     const val CELL = 230f
     const val GAP = 16f

@@ -56,4 +56,23 @@ class WidgetLayoutTest {
         assertEquals(214f, WidgetLayout.Tall.designWidth, 0f)
         assertEquals(444f, WidgetLayout.Tall.designHeight, 0f)
     }
+
+    private fun model(ageMinutes: Long) = WidgetModel(
+        placeName = "Ганновер", zone = java.time.ZoneOffset.UTC, temperature = 6.0, feelsLike = 4.0,
+        condition = io.github.dumahuch.pogodaapp.weather.Condition.Cloudy, drizzle = false, isDay = true, windy = false,
+        high = 9.0, low = 3.0, caption = io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption.None, days = emptyList(), ranges = emptyList(),
+        windKmh = null, humidity = null, precipitationMm = null, latitude = 52.0, longitude = 9.0, now = java.time.Instant.EPOCH,
+        hourPrecipitationMm = null, cloudCoverPercent = null, dataAge = java.time.Duration.ofMinutes(ageMinutes),
+    )
+
+    @Test
+    fun ageLabelOnlyInBigLayoutsAndOnlyForDataOlderThanAnHour() {
+        assertEquals(null, WidgetLayouts.ageLabelHours(WidgetLayout.Square, model(60)))
+        assertEquals(1, WidgetLayouts.ageLabelHours(WidgetLayout.Square, model(61)))
+        assertEquals(18, WidgetLayouts.ageLabelHours(WidgetLayout.Wide, model(18 * 60 + 5)))
+        assertEquals(5, WidgetLayouts.ageLabelHours(WidgetLayout.Large, model(5 * 60)))
+        for (narrow in listOf(WidgetLayout.Tiny, WidgetLayout.Narrow, WidgetLayout.Tall, WidgetLayout.Strip)) {
+            assertEquals(null, WidgetLayouts.ageLabelHours(narrow, model(600)))
+        }
+    }
 }

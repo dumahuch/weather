@@ -10,6 +10,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import io.github.dumahuch.pogodaapp.R
+import io.github.dumahuch.pogodaapp.forecast.sentenceCase
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -40,8 +41,19 @@ internal class WidgetRenderer(private val context: Context) {
             d.text(context.getString(R.string.widget_no_data), w / 2, h / 2 + 9f, d.pen(26f, 400, 0.9f), Paint.Align.CENTER)
             return bitmap
         }
-        WidgetPage(context, d, model, w, h, sky, style.detail).draw(layout)
+        val ageHours = WidgetLayouts.ageLabelHours(layout, model)
+        val pageHeight = if (ageHours != null) h - WidgetLayouts.AGE_LABEL_BAND else h
+        WidgetPage(context, d, model, w, pageHeight, sky, style.detail).draw(layout)
+        if (ageHours != null) drawAgeLabel(d, ageHours, w, h)
         return bitmap
+    }
+
+    /** «Данные 18 часов назад» внизу по центру: данные в памяти устарели, а виджет считает по часовому ряду. */
+    private fun drawAgeLabel(d: WidgetDrawer, hours: Int, w: Float, h: Float) {
+        val locale = context.resources.configuration.locales[0]
+        val text = sentenceCase(context.resources.getQuantityString(R.plurals.data_age_hours, hours, hours), locale)
+        val pen = d.pen(AGE_LABEL_SIZE, 400, 0.7f)
+        d.text(d.fit(text, pen, w - 2 * AGE_LABEL_SIDE), w / 2, h - AGE_LABEL_BASE, pen, Paint.Align.CENTER)
     }
 
     /** Тёмное стекло цвета интерфейса с тонкой светлой кромкой; насколько оно непрозрачно, решает человек. */
@@ -120,5 +132,8 @@ internal class WidgetRenderer(private val context: Context) {
         /** Затемнение в процентах, при котором вуаль такая же, как в макете. */
         const val SHADE_REFERENCE = 40f
         const val DAYS_VEIL_REACH = 160f
+        const val AGE_LABEL_SIZE = 36f
+        const val AGE_LABEL_SIDE = 40f
+        const val AGE_LABEL_BASE = 16f
     }
 }
