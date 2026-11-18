@@ -28,7 +28,14 @@ printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$out" 2>/dev/null || {
 }
 
 # Ранняя проверка: ключ открывается с этим паролем и именем, чтобы не искать причину в логах Gradle.
-if ! keytool -list -keystore "$out" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
+if ! check="$(keytool -list -keystore "$out" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" 2>&1)"; then
+  # Без значений секретов: только то, что можно сверить с файлом на компьютере (размер, отпечаток файла, длина пароля).
+  echo "::group::Диагностика ключа (секреты не печатаются)"
+  echo "Размер файла: $(wc -c < "$out") байт"
+  echo "SHA-256 файла: $(sha256sum "$out" | cut -d' ' -f1)"
+  echo "Длина пароля: ${#KEYSTORE_PASSWORD} знаков; пробел или перенос по краям: $([[ "$KEYSTORE_PASSWORD" =~ ^[[:space:]]|[[:space:]]$ ]] && echo да || echo нет)"
+  echo "Ответ keytool: ${check//$KEYSTORE_PASSWORD/***}"
+  echo "::endgroup::"
   echo "::error title=Ключ не открывается::Файл ключа не открылся с паролем KEYSTORE_PASSWORD и именем ключа $KEY_ALIAS. Проверьте значения секретов."
   rm -f "$out"
   exit 1
