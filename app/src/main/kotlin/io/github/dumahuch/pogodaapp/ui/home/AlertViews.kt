@@ -70,13 +70,15 @@ internal fun levelColor(level: AlertLevel): Color = PogodaColors.AlertLevels[lev
 internal fun levelIcon(level: AlertLevel): LineIcon =
     if (level.number >= AlertLevel.Severe.number) LineIcons.Severe else LineIcons.Warning
 
+/** У снега, льда и мороза и на плашке стоит снежинка: она одна во всех местах. */
+internal fun AlertKind.isSnowflake(): Boolean = this == AlertKind.Snow || this == AlertKind.Frost || this == AlertKind.Ice
+
 /** Значок явления в подробностях предупреждения. */
 internal fun kindIcon(kind: AlertKind): LineIcon = when (kind) {
     AlertKind.Thunderstorm -> LineIcons.Storm
     AlertKind.Wind -> LineIcons.Wind
     AlertKind.Rain -> LineIcons.Rain
-    AlertKind.Snow -> LineIcons.Snow
-    AlertKind.Frost, AlertKind.Ice -> LineIcons.Ice
+    AlertKind.Snow, AlertKind.Frost, AlertKind.Ice -> LineIcons.Ice
     AlertKind.Fog -> LineIcons.Fog
     AlertKind.Heat -> LineIcons.Thermometer
     AlertKind.Uv -> LineIcons.Sun
@@ -169,7 +171,7 @@ internal fun AlertRow(alert: WeatherAlert, now: Instant, zone: ZoneId, onClick: 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        LineIconView(levelIcon(alert.level), 20.dp, tint)
+        LineIconView(if (alert.kind.isSnowflake()) LineIcons.Ice else levelIcon(alert.level), 20.dp, tint)
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(

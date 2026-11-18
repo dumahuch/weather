@@ -51,10 +51,6 @@ import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
-import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
-import io.github.dumahuch.pogodaapp.ui.components.glassWeatherInside
-import io.github.dumahuch.pogodaapp.ui.components.glassWeatherOutside
-import io.github.dumahuch.pogodaapp.ui.components.hazeCardBlur
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.AlertLevel
@@ -76,9 +72,9 @@ private val OriginalShape = RoundedCornerShape(16.dp)
 /** Затемнение под шторкой, как в макете (`rgba(6,10,18,.28)`). */
 private val ScrimColor = Color(0x47060A12)
 
-/** Шторка заметно плотнее стекла карточек: длинный текст DWD должен читаться на любом небе (макет: стекло на 70 %). */
+/** Шторка плотная матовая, без стекла: длинный текст DWD должен читаться на любом небе. */
 private const val SHEET_GLASS_SHARE = 0.7f
-private const val SHEET_ALPHA = 0.92f
+private const val SHEET_ALPHA = 0.97f
 
 private const val ANIMATION_MS = 300
 
@@ -153,7 +149,6 @@ private class SheetMemory {
 @Composable
 private fun SheetFrame(tint: Color?, header: @Composable RowScope.() -> Unit, onClose: () -> Unit, content: @Composable () -> Unit) {
     val palette = LocalPogodaPalette.current
-    val glass = LocalGlass.current
     val base = if (palette.darkInk) Color.White else Color(0xFF0C131F)
     val plain = lerp(base, palette.glass.copy(alpha = 1f), SHEET_GLASS_SHARE).copy(alpha = SHEET_ALPHA)
     // Шторка одного предупреждения красится цветом его уровня, как плашка; общий список остаётся нейтральным.
@@ -170,12 +165,11 @@ private fun SheetFrame(tint: Color?, header: @Composable RowScope.() -> Unit, on
             Modifier
                 .fillMaxWidth()
                 .heightIn(max = maxHeight - 48.dp)
-                .glassWeatherOutside(SheetShape, glass)
                 .clip(SheetShape)
                 .border(1.dp, line, SheetShape)
-                .hazeCardBlur(glass)
+                // Шторка третьестепенна: плоская матовая заливка без размытия неба (размытие пересчитывалось на каждом
+                // кадре сдвига: 25 к/с на стенде 18.11.2026).
                 .background(fill, SheetShape)
-                .glassWeatherInside(glass)
                 // Нажатие по самой шторке не должно закрывать её (оно ушло бы к затемнению под ней).
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})
                 .verticalScroll(rememberScrollState())
