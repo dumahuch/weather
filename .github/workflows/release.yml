@@ -1,14 +1,14 @@
 name: Release
 
 # Собирает подписанный APK и публикует его в Releases. Оттуда его берёт Obtainium.
-# Запуск: вручную (Actions → Release → Run workflow, поле «version», например 0.0.1)
-# или отправкой метки v0.0.1. Из сессии Claude метки отправить нельзя (git-прокси
-# отвечает 403), поэтому основной путь ручной. При ручном запуске метку создаёт
-# последний шаг: если сборка упала раньше, номер версии не сгорает.
+# Запуск только вручную: Actions → Release → Run workflow, поле «version», например 0.0.1.
+# Запуск по метке убран: метка на любом коммите давала бы подписанный выпуск в обход
+# проверки «только main». Метку создаёт последний шаг: если сборка упала раньше,
+# номер версии не сгорает.
+# Ключ подписи лежит в секретах среды `release` (Settings → Environments). Среда требует
+# одобрения Димы и пускает только ветку main, поэтому другие ветки до ключа не доберутся.
 
 on:
-  push:
-    tags: ['v[0-9]*']
   workflow_dispatch:
     inputs:
       version:
@@ -28,25 +28,24 @@ jobs:
     name: Сборка и выпуск
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    environment: release # секреты подписи выдаются только после одобрения
     env:
       APP_ID: io.github.dumahuch.pogodaapp
       KEY_ALIAS: pogodaapp # постоянное имя ключа, не секрет
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # токен с правом записи не остаётся в папке на время сборки
 
       - name: Версия
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            if [ "$GITHUB_REF" != refs/heads/main ]; then
-              echo "::error title=Не та ветка::Ручной выпуск собирается только из main, а запущен из $GITHUB_REF"
-              exit 1
-            fi
-            NAME="$INPUT_VERSION"
-          else
-            NAME="$GITHUB_REF_NAME"
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error title=Не та ветка::Выпуск собирается только из main, а запущен из $GITHUB_REF"
+            exit 1
           fi
+          NAME="$INPUT_VERSION"
           VERSION="${NAME#v}"
           if ! [[ "$VERSION" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
             echo "::error title=Неверная версия::'$NAME' должно выглядеть как 1.2.3"
@@ -62,13 +61,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/version_step.py --version "$VERSION" --current-tag "$TAG"
 
-      - name: Ключ подписи
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        run: .github/scripts/prepare_keystore.sh
-
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
@@ -79,14 +71,29 @@ jobs:
       - name: Тесты скриптов выпуска
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
-      - name: Тесты и сборка релиза
+      # Тесты идут без секретов: ключа на машине ещё нет, пока работает код тестов и зависимостей.
+      - name: Тесты
+        env:
+          APP_VERSION: ${{ env.VERSION }}
+        run: |
+          set -o pipefail
+          ./gradlew --console=plain --stacktrace testDebugUnitTest 2>&1 | tee build-release.log
+
+      - name: Ключ подписи
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: .github/scripts/prepare_keystore.sh
+
+      - name: Сборка релиза
         env:
           APP_VERSION: ${{ env.VERSION }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           set -o pipefail
-          ./gradlew --console=plain --stacktrace testDebugUnitTest assembleRelease 2>&1 | tee build-release.log
+          ./gradlew --console=plain --stacktrace assembleRelease 2>&1 | tee -a build-release.log
 
       - name: Разбор APK
         id: inspect
@@ -122,15 +129,9 @@ jobs:
             echo
             echo "Отпечаток ключа подписи (SHA-256): \`$CERT_SHA256\`"
           } > release-body.md
-          # От метки: метка уже есть и обязана существовать (--verify-tag).
-          # От ручного запуска: метку создаёт сам релиз на собранном коммите.
-          args=(--title "PogodaApp $VERSION" --notes-file release-body.md)
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
-            args+=(--target "$GITHUB_SHA")
-          else
-            args+=(--verify-tag)
-          fi
-          gh release create "$TAG" "dist/PogodaApp-$VERSION.apk" "${args[@]}"
+          # Метку создаёт сам релиз на собранном коммите.
+          gh release create "$TAG" "dist/PogodaApp-$VERSION.apk" \
+            --title "PogodaApp $VERSION" --notes-file release-body.md --target "$GITHUB_SHA"
 
       - name: Причина падения
         if: failure()

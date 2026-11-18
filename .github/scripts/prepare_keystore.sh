@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Готовит ключ подписи из секретов GitHub.
-# Секреты репозитория: KEYSTORE_BASE64 (файл ключа в base64) и KEYSTORE_PASSWORD.
+# Секреты среды release: KEYSTORE_BASE64 (файл ключа в base64) и KEYSTORE_PASSWORD.
 # Из сценария выпуска приходят KEY_ALIAS (постоянное имя ключа) и KEY_PASSWORD (равен KEYSTORE_PASSWORD).
 # Кладёт ключ в $RUNNER_TEMP/release.jks и сообщает путь следующим шагам через KEYSTORE_PATH.
 set -euo pipefail
@@ -10,7 +10,7 @@ for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD; do
   [ -n "${!name:-}" ] || missing="$missing $name"
 done
 if [ -n "$missing" ]; then
-  echo "::error title=Нет секретов подписи::Не заданы секреты:$missing. Добавьте их в Settings → Secrets and variables → Actions (см. README)."
+  echo "::error title=Нет секретов подписи::Не заданы секреты:$missing. Добавьте их в Settings → Environments → release → Environment secrets (см. README)."
   exit 1
 fi
 for name in KEY_ALIAS KEY_PASSWORD; do
