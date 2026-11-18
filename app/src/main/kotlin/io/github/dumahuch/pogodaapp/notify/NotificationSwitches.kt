@@ -90,6 +90,25 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
         request.launch(PERMISSION)
     }
 
+    /** Были ли уведомления запрещены при прошлом возврате в приложение (пусто, пока возврата не было). */
+    private var wasBlocked: Boolean? = null
+
+    /**
+     * Приложение вышло на экран (в том числе вернулось из системных настроек): расписание сверяется с разрешением, а когда
+     * уведомления только что разрешили, данные запрашиваются сразу. Истина, если уведомления запрещены в системе (строка в
+     * настройках, аудит У1).
+     */
+    fun onAppResumed(): Boolean {
+        val blocked = !WeatherJobs.notificationsAllowed(activity)
+        val before = wasBlocked
+        wasBlocked = blocked
+        guarded {
+            WeatherJobs.sync(activity, settings.notifications.value)
+            if (before == true && !blocked && settings.notifications.value.background) WeatherJobs.refreshSoon(activity)
+        }
+        return blocked
+    }
+
     /** При открытии приложения: расписание фонового обновления по выключателям (после обновления версии тоже на месте). */
     fun onAppStarted() {
         guarded { WeatherJobs.sync(activity, settings.notifications.value) }
@@ -142,7 +161,8 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
 
     private fun allowed(): Boolean = activity.checkSelfPermission(PERMISSION) == PackageManager.PERMISSION_GRANTED
 
-    private fun openSystemSettings() {
+    /** Системные настройки уведомлений приложения (строка «Уведомления запрещены в системе»). */
+    fun openSystemSettings() {
         val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
         activity.startActivity(intent)
     }

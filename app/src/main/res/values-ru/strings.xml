@@ -283,6 +283,7 @@
     <string name="about_places_text">GeoNames (geonames.org), лицензия CC BY 4.0, через сервис геокодирования Open-Meteo.</string>
     <string name="settings_summary_off">Всё выключено</string>
     <string name="settings_summary_on">Включено %1$d из %2$d</string>
+    <string name="settings_notify_blocked">Уведомления запрещены в системе. Нажми, чтобы открыть настройки</string>
     <string name="settings_notify_error">Ошибка уведомления: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>

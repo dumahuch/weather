@@ -281,6 +281,7 @@
     <string name="about_places_text">GeoNames (geonames.org), Lizenz CC BY 4.0, über den Geocoding-Dienst von Open-Meteo.</string>
     <string name="settings_summary_off">Alles aus</string>
     <string name="settings_summary_on">%1$d von %2$d an</string>
+    <string name="settings_notify_blocked">Benachrichtigungen sind im System gesperrt. Tippe, um die Einstellungen zu öffnen</string>
     <string name="settings_notify_error">Fehler der Benachrichtigung: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>

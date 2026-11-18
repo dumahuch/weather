@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.notify
 
+import android.app.NotificationManager
 import android.app.job.JobInfo
 import android.app.job.JobParameters
 import android.app.job.JobScheduler
@@ -36,6 +37,10 @@ object WeatherJobs {
     private val PERIOD: Duration = Duration.ofMinutes(30)
     private val FLEX: Duration = Duration.ofMinutes(10)
 
+    /** Разрешены ли приложению уведомления в системе (Android 13+: разрешение, и общий выключатель приложения). */
+    fun notificationsAllowed(context: Context): Boolean =
+        context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
+
     /**
      * Включает или снимает периодическое обновление по выключателям и по виджетам (пока на рабочем столе есть виджет
      * погоды, обновление нужно ему); повторный вызов ничего не дублирует.
@@ -43,7 +48,7 @@ object WeatherJobs {
     fun sync(context: Context, prefs: NotificationPrefs) {
         val scheduler = context.getSystemService(JobScheduler::class.java)
         syncSummary(context)
-        if (!prefs.background && !WidgetUpdater(context).hasWidgets()) {
+        if (!BackgroundPlan.periodicJobNeeded(prefs, notificationsAllowed(context), WidgetUpdater(context).hasWidgets())) {
             scheduler.cancel(PERIODIC_ID)
             scheduler.cancel(NOW_ID)
             return
@@ -68,7 +73,7 @@ object WeatherJobs {
         val prefs = settings.notifications.value
         val next = if (runningId == SUMMARY_A) SUMMARY_B else SUMMARY_A
         listOf(SUMMARY_A, SUMMARY_B).filter { it != next && it != runningId }.forEach { scheduler.cancel(it) }
-        if (!prefs.summary) {
+        if (!BackgroundPlan.summaryJobNeeded(prefs, notificationsAllowed(context))) {
             scheduler.cancel(next)
             return
         }
@@ -101,13 +106,17 @@ class WeatherJobService : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
         scope.launch {
             try {
+                // Без разрешения на уведомления обновляются только виджет и снимок неба: остальное показать некому.
+                val allowed = WeatherJobs.notificationsAllowed(applicationContext)
                 guarded("виджет не обновлён") { WidgetUpdater(applicationContext).refresh() }
-                guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh() }
+                if (allowed) guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh() }
                 guarded("снимок неба не записан") { SkyBackgroundSnapshot(applicationContext).refresh() }
-                guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
-                guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
-                guarded("пыльца не проверена") { PollenNotifier(applicationContext).refresh() }
-                guarded("вечерняя сводка не отправлена") { SummaryNotifier(applicationContext).refresh() }
+                if (allowed) {
+                    guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
+                    guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
+                    guarded("пыльца не проверена") { PollenNotifier(applicationContext).refresh() }
+                    guarded("вечерняя сводка не отправлена") { SummaryNotifier(applicationContext).refresh() }
+                }
                 guarded("вечерняя сводка не поставлена") { WeatherJobs.syncSummary(applicationContext, params.jobId) }
             } finally {
                 jobFinished(params, false)

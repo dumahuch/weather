@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
 
     /** Истина, если система больше не покажет окно запроса (отказ с «не спрашивать»). */
     private var permanentlyDenied by mutableStateOf(false)
+    private var notificationsBlocked by mutableStateOf(false)
 
     /** Что сделать, когда место закреплено после запроса доступа из экрана мест (кнопка «Определить место»). */
     private var afterLocatePermission: (() -> Unit)? = null
@@ -271,6 +272,8 @@ class MainActivity : ComponentActivity() {
                                 onMapPreload = settings::setMapPreload,
                                 notifications = notifications,
                                 onNotification = notificationSwitches::set,
+                                notificationsBlocked = notificationsBlocked,
+                                onOpenNotificationSettings = notificationSwitches::openSystemSettings,
                                 onSummaryTime = notificationSwitches::setSummaryTime,
                                 pollenKinds = pollenKinds,
                                 onPollenKind = settings::setPollenKind,
@@ -311,6 +314,7 @@ class MainActivity : ComponentActivity() {
             precisePrompt.markAsked()
             upgradeRequest.launch(LOCATION_PERMISSIONS)
         }
+        notificationsBlocked = notificationSwitches.onAppResumed()
         viewModel.onResumed(permissionGranted = hasLocationPermission())
     }
 
