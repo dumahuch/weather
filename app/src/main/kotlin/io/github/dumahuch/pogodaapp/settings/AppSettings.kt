@@ -77,7 +77,18 @@ data class NotificationPrefs(
      * По умолчанию выключено (решение Димы); это вид записи, а не отдельное уведомление, поэтому в [enabledCount] не входит.
      */
     val lockScreenCompact: Boolean = false,
+    /** Запись о погоде скрыта на заблокированном экране совсем (0.8.67); по умолчанию выключено. */
+    val lockScreenHidden: Boolean = false,
 ) {
+    /** Что видно на заблокированном экране у записи о погоде: скрыто важнее «Кратко», «Кратко» важнее места. */
+    val lockScreen: LockScreenForm
+        get() = when {
+            lockScreenHidden -> LockScreenForm.Hidden
+            lockScreenCompact -> LockScreenForm.Compact
+            placeOnLockScreen -> LockScreenForm.WithPlace
+            else -> LockScreenForm.NoPlace
+        }
+
     /** Уведомление о погоде нужно, если включена шторка или строка состояния. */
     val wanted: Boolean get() = inShade || inStatusBar
 
@@ -93,6 +104,9 @@ data class NotificationPrefs(
         const val MINUTES_IN_DAY = 24 * 60
     }
 }
+
+/** Вид записи о погоде на заблокированном экране: выбор из четырёх пунктов в настройках (0.8.67). */
+enum class LockScreenForm { WithPlace, NoPlace, Compact, Hidden }
 
 /** Один выключатель уведомления и ключ, под которым он хранится. */
 enum class NotificationToggle(val key: String) {
@@ -189,6 +203,7 @@ class AppSettings(private val storage: SettingsStorage) {
             pollen = flag(NotificationToggle.Pollen),
             summary = flag(NotificationToggle.Summary),
             lockScreenCompact = storage.read(NotificationToggle.LockScreenCompact.key) == ON,
+            lockScreenHidden = storage.read(LOCK_HIDDEN) == ON,
             summaryMinutes = storage.read(SUMMARY_MINUTES)?.toIntOrNull()?.takeIf { it in 0 until NotificationPrefs.MINUTES_IN_DAY }
                 ?: NotificationPrefs.SUMMARY_DEFAULT_MINUTES,
         ),
@@ -213,6 +228,26 @@ class AppSettings(private val storage: SettingsStorage) {
         storage.write(toggle.key, if (on) ON else OFF)
         // Сводку включили заново: она может прийти и сегодня, если время ещё не вышло (иначе её не проверить).
         if (toggle == NotificationToggle.Summary && on) storage.write(SUMMARY_SENT, "")
+    }
+
+    /**
+     * Вид записи на заблокированном экране одним выбором. Прежний выключатель места читается как раньше (ключ тот же), поэтому
+     * у кого было включено место, остаётся «С названием места». «Кратко» и «Скрыто» место не стирают: вернувшись к «Без места»
+     * или «С названием места», человек задаёт его заново.
+     */
+    fun setLockScreen(form: LockScreenForm) {
+        val current = mutableNotifications.value
+        val next = when (form) {
+            LockScreenForm.WithPlace -> current.copy(placeOnLockScreen = true, lockScreenCompact = false, lockScreenHidden = false)
+            LockScreenForm.NoPlace -> current.copy(placeOnLockScreen = false, lockScreenCompact = false, lockScreenHidden = false)
+            LockScreenForm.Compact -> current.copy(lockScreenCompact = true, lockScreenHidden = false)
+            LockScreenForm.Hidden -> current.copy(lockScreenCompact = false, lockScreenHidden = true)
+        }
+        if (next == current) return
+        mutableNotifications.value = next
+        storage.write(NotificationToggle.LockScreenPlace.key, if (next.placeOnLockScreen) ON else OFF)
+        storage.write(NotificationToggle.LockScreenCompact.key, if (next.lockScreenCompact) ON else OFF)
+        storage.write(LOCK_HIDDEN, if (next.lockScreenHidden) ON else OFF)
     }
 
     /** Время вечерней сводки: минуты от полуночи, значение вне суток отбрасывается. */
@@ -273,6 +308,7 @@ class AppSettings(private val storage: SettingsStorage) {
         const val CARD_SHADOW = "card_shadow"
         const val ICON_STYLE = "weather_icon_style"
         const val MAP_PRELOAD = "map_preload"
+        const val LOCK_HIDDEN = "notify_lock_hidden"
         const val NOTIFY_ASKED = "notify_permission_asked"
         const val NOTIFY_ERROR = "notify_last_error"
         const val NOTIFY_ERROR_MAX = 400

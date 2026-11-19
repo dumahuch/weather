@@ -267,10 +267,6 @@
     <string name="settings_notify_shade_hint">Temperature, weather and precipitation for the place where you last opened the app. Updates about every half hour.</string>
     <string name="settings_notify_status">Temperature in the status bar</string>
     <string name="settings_notify_status_hint">The number next to the clock. The entry in the notification shade stays: Android shows the icon only together with it.</string>
-    <string name="settings_notify_lock">Place name on the lock screen</string>
-    <string name="settings_notify_lock_hint">When off, the lock screen shows only the temperature and weather. Works with the temperature in the status bar.</string>
-    <string name="settings_notify_lock_compact">Compact on the lock screen</string>
-    <string name="settings_notify_lock_compact_hint">The lock screen shows only the temperature and the weather icon, without place and text. After unlocking you see the normal notification.</string>
     <string name="settings_notify_alerts">Weather warnings</string>
     <string name="settings_notify_alerts_hint">Official DWD warnings for the place where you last opened the app, with sound. Germany only. Checked about every half hour.</string>
     <string name="settings_notify_rain">Rain soon</string>
@@ -289,6 +285,18 @@
     <string name="about_dwd_text" translatable="false">Datenbasis: Deutscher Wetterdienst</string>
     <string name="settings_summary_off">All off</string>
     <string name="settings_summary_on">%1$d of %2$d on</string>
+    <string name="settings_group_weather">Weather notification</string>
+    <string name="settings_group_lock">On the lock screen</string>
+    <string name="settings_group_events">Events</string>
+    <string name="settings_group_summary">Evening summary</string>
+    <string name="settings_lock_place">With place name</string>
+    <string name="settings_lock_place_hint">The whole notification is visible, including the place name.</string>
+    <string name="settings_lock_no_place">Without place</string>
+    <string name="settings_lock_no_place_hint">Temperature and weather, without the place name.</string>
+    <string name="settings_lock_compact">Compact</string>
+    <string name="settings_lock_compact_hint">Only the temperature and the weather icon.</string>
+    <string name="settings_lock_hidden">Don’t show</string>
+    <string name="settings_lock_hidden_hint">No notification on the lock screen; after unlocking it is in the shade.</string>
     <string name="settings_notify_blocked">Notifications are blocked in system settings. Tap to open them</string>
     <string name="settings_notify_error">Notification error: %1$s</string>
     <string name="notify_headline">%1$s %2$s</string>

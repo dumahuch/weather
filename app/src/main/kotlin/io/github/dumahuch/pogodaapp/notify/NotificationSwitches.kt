@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import io.github.dumahuch.pogodaapp.settings.AppSettings
+import io.github.dumahuch.pogodaapp.settings.LockScreenForm
 import io.github.dumahuch.pogodaapp.settings.NotificationToggle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,14 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
             withPermission { apply(toggle, on = true) }
         } else {
             apply(toggle, on)
+        }
+    }
+
+    /** Новый вид записи на заблокированном экране: запоминается, запись обновляется сразу (разрешение не нужно). */
+    fun setLockScreen(form: LockScreenForm) {
+        settings.setLockScreen(form)
+        activity.lifecycleScope.launch(Dispatchers.Default) {
+            guarded { if (!notifier.showFromCache()) WeatherJobs.refreshSoon(activity) }
         }
     }
 
