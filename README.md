@@ -1,54 +1,60 @@
+**English** · [Русский](README.ru.md) · [Deutsch](README.de.md)
+
 # PogodaApp
 
-Погодное приложение для Android (Kotlin, Jetpack Compose) для себя и друзей. Замена WetterOnline. Установка без магазина, обновления через GitHub Releases и Obtainium.
+A weather app for Android, made by a non-developer with the help of AI.
 
-Стадия: версия 0.6.0. Есть главный экран (всё по центру: значок, температура, максимум и минимум дня, строка подписей, официальные предупреждения DWD в Германии) с почасовым прогнозом на нарисованном небе, прогноз по дням, вкладка «Подробно» (воздух, пыльца в Германии, ветер, давление, УФ, влажность, солнце и луна), поиск города по названию или индексу (найденный город открывается для просмотра, закрепляется кнопкой) и до пяти закреплённых мест. Настройки: пока только тень карточек. Карта (радар), уведомления в фоне и виджеты пока не сделаны. Дальше по одной функции, каждая версия проверяется на телефоне.
+I didn't like the existing weather apps for Germany, so I decided to make my own. The app is built for use in Germany and relies on open data sources.
 
-## Устройство проекта
+My friends and I use it. It is a personal project, not a commercial product.
 
-- `app/`: приложение. Android 16 и новее (minSdk 36, целевая версия 36), только Pixel, только портрет. Языки: русский, немецкий, английский. Пакет `io.github.dumahuch.pogodaapp`.
-- `.github/workflows/ci.yml`: при каждом изменении GitHub гоняет линт, тесты, сборку, разбирает готовый APK (пакет, версия, разрешения, языки, одноцветная иконка, подпись), собирает пробный релиз с одноразовым ключом. Проверка на эмуляторе Android 16 убрана 07.11.2026 (шум среды, не обязательна); запуск и вид проверяет Дима на телефоне.
-- `.github/workflows/release.yml`: по кнопке «Run workflow» (после одобрения в среде `release`) собирает подписанный APK из `main` и публикует его в Releases.
-- `.github/scripts/`: скрипты этих проверок (часть с тестами).
-- `release-notes/X.Y.Z.md`: текст выпуска для версии X.Y.Z (показывается в Obtainium).
-- `design/`: материалы концепта (макет, документы, картины неба), см. ниже.
+## Features
 
-Данные погоды: Open-Meteo (https://open-meteo.com/), лицензия CC BY 4.0, ссылка на источник стоит в нижней строке главной. Поиск города: геокодер Open-Meteo (https://open-meteo.com/en/docs/geocoding-api), данные мест GeoNames (https://www.geonames.org/, CC BY 4.0), ссылка стоит на экране поиска. Предупреждения и пыльца в Германии: Deutscher Wetterdienst (https://www.dwd.de/), предупреждения через Bright Sky (https://brightsky.dev/, код сервиса MIT, к данным применяются условия DWD); источник подписан в подробностях предупреждения и на плитке пыльцы.
+- Weather as an environment: a background of painted skies, with a calm, restrained interface of frosted glass on top.
+- Four tabs: Home, Forecast, Details, Map.
+- Official weather warnings (DWD) with the same levels and colors.
+- DWD pollen index (8 species) and air quality on the European EAQI scale.
+- DWD precipitation radar on the map, from −2 to +2 hours.
+- Notifications about weather and warnings for the current location.
+- Home screen widgets (2×2, 4×2, 4×4).
+- Languages: Russian, German, English.
+- Every effect can be turned off; Android's battery saver turns them off automatically.
 
-Инструменты (проверены 28.10.2026): Gradle 9.7.1, Android Gradle Plugin 9.4.1, Kotlin 2.4.21, Compose BOM 2026.09.00. Версии лежат в `gradle/libs.versions.toml`.
+## Data sources
 
-## Номер версии
+| Data | Source | License / terms |
+|---|---|---|
+| Forecast, air quality | [Open-Meteo](https://open-meteo.com/) | [CC BY 4.0](https://open-meteo.com/en/licence), free for non-commercial use only |
+| Pollen, radar | [Deutscher Wetterdienst (DWD)](https://www.dwd.de/) | Datenbasis: Deutscher Wetterdienst (GeoNutzV) |
+| Warnings | DWD, delivered through [Bright Sky](https://brightsky.dev/) | DWD terms apply to the data; Bright Sky code is MIT |
+| Place search | [Open-Meteo Geocoding](https://open-meteo.com/en/docs/geocoding-api), data from [GeoNames](https://www.geonames.org/) | CC BY 4.0 |
 
-Из версии выпуска: `1.2.3` даёт `versionName 1.2.3` и `versionCode 1002003` (major × 1 000 000 + minor × 1 000 + patch). Для обновления номер должен расти.
+The app is not affiliated with or endorsed by DWD, Open-Meteo or GeoNames.
 
-## Выпуск новой версии
+## Installation
 
-1. Изменения сливаются в `main`, проверка CI зелёная.
-2. GitHub → Actions → слева «Release» → «Run workflow» (ветка `main`), в поле «version» ввести номер, например `0.1.0`, подтвердить. Сценарий сам собирает APK, создаёт метку `v0.1.0` и публикует выпуск (минуты). Если сборка упала до публикации, метки нет и версию можно запустить заново. Перед сборкой GitHub просит одобрения: в запуске нажать «Review deployments» → `release` → «Approve and deploy».
-3. Obtainium у всех, кто поставил приложение, предложит обновиться.
+Requires Android 16 or newer. The app has only been tested on the Pixel 6 Pro and Pixel 7; other phones are not guaranteed to work.
 
-Запуска по метке нет: выпуск только кнопкой из `main`. Создавать выпуск через «Draft a new release» нельзя: релиз уже будет, и сборка упадёт на публикации.
+1. Open the [Releases](../../releases) page and download `PogodaApp-<version>.apk`.
+2. Allow installing apps from this source when Android asks.
+3. Install the file.
 
-## Ключ подписи (один раз)
+It is more convenient to install through [Obtainium](https://github.com/ImranR98/Obtainium): add this repository's address and updates will arrive on their own.
 
-Android принимает обновление только от приложения с той же подписью, поэтому ключ один на всю жизнь приложения. Он хранится в секретах среды `release` (Settings → Environments → release → Environment secrets; среда требует одобрения Димы и пускает только ветку `main`): `KEYSTORE_BASE64` (файл ключа, закодированный в base64) и `KEYSTORE_PASSWORD` (пароль). Имя ключа постоянное (`pogodaapp`), пароль ключа совпадает с паролем файла. В репозиторий ключ не попадает никогда (`.gitignore`). Копию файла и пароль хранить у себя. Отпечаток ключа записывается в описание каждого выпуска, и следующий выпуск сверяет его с прошлым: если ключ сменился, сборка останавливается.
+Every release is signed with the same key, so updates install over the existing version.
 
-## Материалы концепта (`design/`)
+## Good to know
 
-- `design/docs/`: договорённости по концепту (`concept-decisions.md`), промпты для картин неба (`sky-art-prompts.md`), инструкция по GitHub (`github-setup.md`), сборка, подпись и выпуск (`build-and-release.md`).
-- `design/mockup/`: живой макет в браузере. Исходники в `src/`, картины неба для макета в `assets/` (1920×1280, WebP). Сборка командой `python3 build.py` создаёт `index.html` (6–7 МБ, в репозиторий не кладётся). Опубликованная версия лежит в проекте Claude. `make_assets.py` делает `assets/` из увеличенных файлов `design/sky/2x/`.
-- `design/sky/`: картины неба для фона, шесть времён суток.
-  - `original/`: как пришли из ChatGPT, 1536×1024.
-  - `2x/`: увеличенные вдвое, 3072×2048, WebP.
+- A forecast is only a forecast. Don't base decisions that affect life or safety on it; rely on the official DWD warnings.
+- Warnings and radar work only for Germany. Abroad, the app shows the forecast and air quality; the rest reads "no data" for now.
+- The app is written by one person with the help of AI, so it has bugs. If something breaks, open an [issue](../../issues).
 
-## Названия картин неба
+## Building from source
 
-Время суток: `dawn` (7–8), `morning` (9–12), `afternoon` (13–16), `sunset` (16–18), `dusk` (18–19), `night` (20+).
+The project is written in Kotlin and built with Gradle. Developer notes (in Russian) are in [DEVELOPMENT.md](DEVELOPMENT.md).
 
-- `sky_<время>.png`: панорама целиком.
-- `sky_<время>_plate.png`: небо без облаков.
-- `sky_<время>_clouds.png`: только облака, с прозрачностью.
+```
+./gradlew lintDebug testDebugUnitTest assembleDebug
+```
 
-## Как увеличены картины
-
-Скрипты в `design/sky/tools/`. Панорамы и облака: Real-ESRGAN (модель `RealESRGAN_x4plus_anime_6B`, лицензия BSD-3-Clause, https://github.com/xinntao/Real-ESRGAN), результат смешан на 65 % с обычным увеличением, чтобы остались мягкие мазки. Небо без облаков увеличено обычным способом. Файл модели в репозиторий не входит.
+Application ID: `io.github.dumahuch.pogodaapp`.
