@@ -60,8 +60,10 @@ import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
+import io.github.dumahuch.pogodaapp.ui.settings.UpdateActions
 import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
 import io.github.dumahuch.pogodaapp.ui.sky.rememberAnimationsEnabled
+import io.github.dumahuch.pogodaapp.update.UpdateUi
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
@@ -111,6 +113,10 @@ fun PogodaApp(
     noticeError: String?,
     alertRequest: AlertRequest?,
     onAlertRequestDone: () -> Unit,
+    update: UpdateUi,
+    updateActions: UpdateActions,
+    updateRequest: Boolean,
+    onUpdateRequestDone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(AppTab.Home) }
@@ -154,6 +160,18 @@ fun PogodaApp(
         val match = AlertNotices.pick(request, shown)
         if (match != null) openAlert = match.id else alertsListOpen = shown.isNotEmpty()
         alertRequestDone()
+    }
+
+    // Нажали уведомление «Доступна версия»: настройки, раздел «Обновления» раскрыт.
+    var openUpdates by remember { mutableStateOf(false) }
+    val updateRequestDone by rememberUpdatedState(onUpdateRequestDone)
+    LaunchedEffect(updateRequest) {
+        if (!updateRequest) return@LaunchedEffect
+        if (placesOpen) closePlaces()
+        closeAlerts()
+        settingsOpen = true
+        openUpdates = true
+        updateRequestDone()
     }
 
     BackHandler(enabled = settingsOpen) { settingsOpen = false }
@@ -314,6 +332,10 @@ fun PogodaApp(
                     pollenKinds = pollenKinds,
                     onPollenKind = onPollenKind,
                     noticeError = noticeError,
+                    update = update,
+                    updateActions = updateActions,
+                    openUpdates = openUpdates,
+                    onOpenedUpdates = { openUpdates = false },
                 )
 
                 Layer.Places -> PlacesScreen(

@@ -15,6 +15,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Чтобы обновление уведомления пережило перезагрузку телефона (JobInfo.setPersisted). Само ничего не запускает. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Обновление из приложения (0.8.69): передать скачанную новую версию системному установщику. Без разрешения
+         «Установка неизвестных приложений» в настройках телефона система не ставит; приложение ставит только само себя. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Обновлять само себя без окна подтверждения (Android 12+, если выполнены условия системы); иначе окно будет. -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <!-- Библиотека карты (MapLibre) просит ещё состояние Wi-Fi; её код его не читает (сверено 12.11.2026 по исходникам
          android-v13.7.1), поэтому право убрано из готового приложения. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
@@ -76,6 +81,26 @@
             android:name=".ui.map.MapPreloadJobService"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- Проверка обновления на GitHub раз в сутки; запускает только система (JobScheduler). -->
+        <service
+            android:name=".update.UpdateJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- Итог установки обновления: шлёт только системный установщик по выданному ему адресу. -->
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
+
+        <!-- Приложение заменено новой версией: событие приходит только от системы и только этому приложению. -->
+        <receiver
+            android:name=".update.UpdateReplacedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 

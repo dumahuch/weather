@@ -424,4 +424,31 @@
     <string name="notify_day_day">День %1$s</string>
     <string name="notify_day_evening">Вечер %1$s</string>
     <string name="notify_day_tomorrow">Завтра: днём до %1$s, ночью %2$s</string>
+
+    <!-- Обновление из приложения (0.8.69). -->
+    <string name="settings_section_updates">Обновления</string>
+    <string name="settings_updates_summary_installed">Установлена %1$s</string>
+    <string name="settings_updates_summary_available">Доступна версия %1$s</string>
+    <string name="settings_update_auto">Проверять раз в сутки</string>
+    <string name="settings_update_auto_hint">Уведомление, когда выйдет новая версия</string>
+    <string name="settings_update_check">Проверить сейчас</string>
+    <string name="settings_update_never">Ещё не проверялось</string>
+    <string name="settings_update_checking">Проверка…</string>
+    <string name="settings_update_latest">Установлена последняя версия. Проверено %1$s</string>
+    <string name="settings_update_latest_checked">Проверено %1$s</string>
+    <string name="settings_update_install">Установить %1$s</string>
+    <string name="settings_update_install_hint">Скачается %1$s МБ. Приложение закроется и обновится</string>
+    <string name="settings_update_downloading">Скачивание: %1$d %%</string>
+    <string name="settings_update_installing">Установка. Приложение закроется</string>
+    <string name="settings_update_permission">Разреши установку из этого приложения в настройках телефона и нажми ещё раз</string>
+    <string name="settings_update_failed">Не удалось: %1$s</string>
+    <string name="settings_update_install_failed">Система не установила обновление</string>
+    <string name="notify_update_title">Доступна версия %1$s</string>
+    <string name="notify_update_text">Нажми, чтобы установить</string>
+    <string name="notify_updated_title">PogodaApp обновлён до %1$s</string>
+    <string name="notify_updated_text">Нажми, чтобы открыть</string>
+    <string name="channel_update">Обновления приложения</string>
+    <string name="channel_update_hint">Новая версия PogodaApp. Без звука.</string>
+    <string name="about_updates_title">Обновления</string>
+    <string name="about_updates_text">Проверка выпуска на GitHub (api.github.com, github.com): раз в сутки и по кнопке. Место в запросе не передаётся.</string>
 </resources>

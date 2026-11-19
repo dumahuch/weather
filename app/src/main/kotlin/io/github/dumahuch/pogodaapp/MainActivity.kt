@@ -32,16 +32,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.dumahuch.pogodaapp.data.BrightSkyAlertsClient
 import io.github.dumahuch.pogodaapp.data.DwdPollenClient
 import io.github.dumahuch.pogodaapp.data.ForecastCache
-import io.github.dumahuch.pogodaapp.data.OpenMeteoGeocodingClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoAirQualityClient
 import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
+import io.github.dumahuch.pogodaapp.data.OpenMeteoGeocodingClient
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.HomeViewModel
 import io.github.dumahuch.pogodaapp.home.PollenStatus
-import io.github.dumahuch.pogodaapp.location.Locations
-import io.github.dumahuch.pogodaapp.location.PreciseLocationPrompt
 import io.github.dumahuch.pogodaapp.location.AndroidPlaceNamer
 import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
+import io.github.dumahuch.pogodaapp.location.Locations
+import io.github.dumahuch.pogodaapp.location.PreciseLocationPrompt
 import io.github.dumahuch.pogodaapp.notify.AlertNotifier
 import io.github.dumahuch.pogodaapp.notify.AlertRequest
 import io.github.dumahuch.pogodaapp.notify.NotificationSwitches
@@ -61,16 +61,20 @@ import io.github.dumahuch.pogodaapp.ui.home.LocalWeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.map.MapPreloadJobs
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
+import io.github.dumahuch.pogodaapp.ui.settings.UpdateActions
 import io.github.dumahuch.pogodaapp.ui.sky.PollenCheck
+import io.github.dumahuch.pogodaapp.ui.sky.SAMPLE_ALERTS
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckModel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckPanel
 import io.github.dumahuch.pogodaapp.ui.sky.SkyDiagnostics
 import io.github.dumahuch.pogodaapp.ui.sky.SkyHost
 import io.github.dumahuch.pogodaapp.ui.sky.TapSequence
-import io.github.dumahuch.pogodaapp.ui.sky.SAMPLE_ALERTS
 import io.github.dumahuch.pogodaapp.ui.sky.sampleAlerts
 import io.github.dumahuch.pogodaapp.ui.sky.samplePollen
 import io.github.dumahuch.pogodaapp.ui.sky.skyInput
+import io.github.dumahuch.pogodaapp.update.UpdateCenter
+import io.github.dumahuch.pogodaapp.update.UpdateInstaller
+import io.github.dumahuch.pogodaapp.update.UpdateJobs
 import io.github.dumahuch.pogodaapp.widget.WidgetUpdater
 import java.io.File
 import java.time.Instant
@@ -111,6 +115,12 @@ class MainActivity : ComponentActivity() {
 
     /** Предупреждение из нажатого уведомления: его откроет «Главная», когда предупреждения для места загрузятся. */
     private var alertRequest by mutableStateOf<AlertRequest?>(null)
+
+    /** Нажали уведомление «Доступна версия»: открыть раздел «Обновления». */
+    private var updateRequest by mutableStateOf(false)
+
+    private val updates: UpdateCenter by lazy { UpdateCenter.get(applicationContext) }
+    private val updateInstaller: UpdateInstaller by lazy { UpdateInstaller(this) }
 
     /** Истина, если система больше не покажет окно запроса (отказ с «не спрашивать»). */
     private var permanentlyDenied by mutableStateOf(false)
@@ -159,9 +169,23 @@ class MainActivity : ComponentActivity() {
         } catch (e: RuntimeException) {
             Log.w("PogodaApp", "Подгрузка карты не поставлена", e)
         }
+        // Проверка обновления раз в сутки ставится при каждом запуске (если уже стоит, ничего не меняется).
+        try {
+            UpdateJobs.sync(applicationContext, updates.state.value.auto)
+        } catch (e: RuntimeException) {
+            Log.w("PogodaApp", "Проверка обновления не поставлена", e)
+        }
         if (hasLocationPermission()) notificationSwitches.askPermissionOnFirstRun()
         // После пересоздания окна намерение то же самое: предупреждение уже было открыто.
-        if (savedInstanceState == null) takeAlertRequest(intent)
+        if (savedInstanceState == null) {
+            takeAlertRequest(intent)
+            takeUpdateRequest(intent)
+        }
+        val updateActions = UpdateActions(
+            onAuto = updates::setAuto,
+            onCheck = updates::checkNow,
+            onInstall = { updates.install(updateInstaller) },
+        )
 
         val version = AppVersion.read(this)
         val versionLabel = getString(R.string.version_footer, version.name, version.code)
@@ -235,6 +259,7 @@ class MainActivity : ComponentActivity() {
                 val notifications by settings.notifications.collectAsStateWithLifecycle()
                 val noticeError by settings.noticeError.collectAsStateWithLifecycle()
                 val pollenKinds by settings.pollenKinds.collectAsStateWithLifecycle()
+                val update by updates.state.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
                 val input = remember(state) { state.skyInput() }
@@ -281,6 +306,10 @@ class MainActivity : ComponentActivity() {
                                 noticeError = noticeError,
                                 alertRequest = alertRequest,
                                 onAlertRequestDone = { alertRequest = null },
+                                update = update,
+                                updateActions = updateActions,
+                                updateRequest = updateRequest,
+                                onUpdateRequestDone = { updateRequest = false },
                             )
                         }
                         if (checkOpen) {
@@ -316,6 +345,7 @@ class MainActivity : ComponentActivity() {
             upgradeRequest.launch(LOCATION_PERMISSIONS)
         }
         notificationsBlocked = notificationSwitches.onAppResumed()
+        updates.onResumed(updateInstaller)
         viewModel.onResumed(permissionGranted = hasLocationPermission())
     }
 
@@ -323,6 +353,13 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         takeAlertRequest(intent)
+        takeUpdateRequest(intent)
+    }
+
+    private fun takeUpdateRequest(intent: Intent?) {
+        if (intent?.getBooleanExtra(UpdateCenter.EXTRA_OPEN_UPDATES, false) != true) return
+        intent.removeExtra(UpdateCenter.EXTRA_OPEN_UPDATES)
+        updateRequest = true
     }
 
     /** Учебное предупреждение открывается вместе с экраном проверки и учебными плашками, иначе его нет на «Главной». */

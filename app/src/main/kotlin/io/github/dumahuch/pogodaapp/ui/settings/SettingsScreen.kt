@@ -38,6 +38,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -69,11 +70,16 @@ import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.matteBase
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.update.UpdateStatus
+import io.github.dumahuch.pogodaapp.update.UpdateUi
 import io.github.dumahuch.pogodaapp.weather.PollenKind
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.Locale
 
 private val CardShape = RoundedCornerShape(24.dp)
 
@@ -82,6 +88,14 @@ private const val NONE = -1
 private const val SECTION_VIEW = 0
 private const val SECTION_NOTIFICATIONS = 1
 private const val SECTION_ABOUT = 2
+private const val SECTION_UPDATES = 3
+
+/** Действия раздела «Обновления»: выключатель автопроверки, «Проверить сейчас», «Установить». */
+data class UpdateActions(
+    val onAuto: (Boolean) -> Unit,
+    val onCheck: () -> Unit,
+    val onInstall: () -> Unit,
+)
 
 /**
  * Экран настроек. Разделы «Вид» (значки погоды, тень карточек), «Уведомления» (выключатели, виды пыльцы) и «О приложении»
@@ -107,11 +121,22 @@ fun SettingsScreen(
     pollenKinds: Set<PollenKind>,
     onPollenKind: (PollenKind, Boolean) -> Unit,
     noticeError: String?,
+    update: UpdateUi,
+    updateActions: UpdateActions,
+    openUpdates: Boolean,
+    onOpenedUpdates: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var open by rememberSaveable { mutableIntStateOf(NONE) }
     fun toggleSection(section: Int) {
         open = if (open == section) NONE else section
+    }
+    // Нажали уведомление «Доступна версия»: раздел «Обновления» сразу раскрыт.
+    LaunchedEffect(openUpdates) {
+        if (openUpdates) {
+            open = SECTION_UPDATES
+            onOpenedUpdates()
+        }
     }
     Column(
         modifier
@@ -288,6 +313,18 @@ fun SettingsScreen(
             }
         }
         SectionCard(
+            title = stringResource(R.string.settings_section_updates),
+            summary = if (update.offer != null) {
+                stringResource(R.string.settings_updates_summary_available, update.offer.version)
+            } else {
+                stringResource(R.string.settings_updates_summary_installed, update.installed)
+            },
+            expanded = open == SECTION_UPDATES,
+            onToggle = { toggleSection(SECTION_UPDATES) },
+        ) {
+            UpdatesContent(update, updateActions)
+        }
+        SectionCard(
             title = stringResource(R.string.settings_section_about),
             summary = stringResource(R.string.settings_about_summary),
             expanded = open == SECTION_ABOUT,
@@ -297,12 +334,90 @@ fun SettingsScreen(
             // Слово в слово по условию лицензии DWD (подпись нужна при любом использовании данных): не переводится.
             SourceLine(stringResource(R.string.about_dwd_title), stringResource(R.string.about_dwd_text))
             SourceLine(stringResource(R.string.about_places_title), stringResource(R.string.about_places_text))
+            SourceLine(stringResource(R.string.about_updates_title), stringResource(R.string.about_updates_text))
             // Подложка BKG и пометка DWD о переработке (облака пересчитаны и перекрашены): по условиям, не переводится.
             SourceLine(
                 stringResource(R.string.about_map_title),
                 stringResource(R.string.about_map_text, LocalDate.now().year),
             )
         }
+    }
+}
+
+/**
+ * Раздел «Обновления» (0.8.69): автопроверка раз в сутки, «Проверить сейчас» со строкой состояния и, если вышла новая
+ * версия, «Установить X» с размером, процентами скачивания или просьбой выдать разрешение на установку.
+ */
+@Composable
+private fun UpdatesContent(update: UpdateUi, actions: UpdateActions) {
+    ToggleOption(
+        title = stringResource(R.string.settings_update_auto),
+        hint = stringResource(R.string.settings_update_auto_hint),
+        checked = update.auto,
+        onChange = actions.onAuto,
+    )
+    val checked = update.checkedAt?.let { checkedText(it) }
+    val status = when {
+        update.status == UpdateStatus.Checking -> stringResource(R.string.settings_update_checking)
+        update.status == UpdateStatus.Failed && update.offer == null && update.error != null ->
+            stringResource(R.string.settings_update_failed, update.error)
+        update.offer == null && checked != null -> stringResource(R.string.settings_update_latest, checked)
+        update.offer == null -> stringResource(R.string.settings_update_never)
+        else -> checked?.let { stringResource(R.string.settings_update_latest_checked, it) } ?: ""
+    }
+    ActionOption(
+        title = stringResource(R.string.settings_update_check),
+        hint = status,
+        enabled = !update.busy,
+        onClick = actions.onCheck,
+    )
+    val offer = update.offer ?: return
+    val megabytes = remember(offer.size) { String.format(Locale.getDefault(), "%.1f", offer.size / BYTES_PER_MB) }
+    val hint = when (update.status) {
+        UpdateStatus.Downloading -> stringResource(R.string.settings_update_downloading, update.progress)
+        UpdateStatus.Installing -> stringResource(R.string.settings_update_installing)
+        UpdateStatus.NeedsPermission -> stringResource(R.string.settings_update_permission)
+        UpdateStatus.Failed -> stringResource(R.string.settings_update_failed, update.error.orEmpty())
+        else -> stringResource(R.string.settings_update_install_hint, megabytes)
+    }
+    ActionOption(
+        title = stringResource(R.string.settings_update_install, offer.version),
+        hint = hint,
+        enabled = !update.busy,
+        accent = true,
+        onClick = actions.onInstall,
+    )
+}
+
+private const val BYTES_PER_MB = 1024.0 * 1024.0
+
+/** «18:20» для сегодняшней проверки, иначе дата и время коротко. */
+private fun checkedText(at: Instant): String {
+    val zone = ZoneId.systemDefault()
+    val time = at.atZone(zone)
+    val formatter = if (time.toLocalDate() == LocalDate.now(zone)) {
+        DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+    } else {
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT)
+    }
+    return formatter.format(time)
+}
+
+/** Строка-кнопка: название (у главного действия цветом акцента), под ним состояние; недоступная бледнее. */
+@Composable
+private fun ActionOption(title: String, hint: String, enabled: Boolean, onClick: () -> Unit, accent: Boolean = false) {
+    val palette = LocalPogodaPalette.current
+    val titleColor = if (accent) palette.accent else LocalContentColor.current
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 60.dp)
+            .clickable(enabled = enabled, interactionSource = null, indication = null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+    ) {
+        Text(title, style = pogodaText(16f, if (accent) 600 else 500, color = dimmed(titleColor, enabled)))
+        if (hint.isNotEmpty()) Text(hint, style = pogodaText(13f, 400, color = dimmed(palette.ink2, enabled)))
     }
 }
 
