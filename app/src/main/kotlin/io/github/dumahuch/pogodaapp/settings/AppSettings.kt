@@ -72,6 +72,11 @@ data class NotificationPrefs(
     val summary: Boolean = false,
     /** Время вечерней сводки на завтра, минут от полуночи (решение Димы 14.11.2026: по умолчанию 20:00). */
     val summaryMinutes: Int = SUMMARY_DEFAULT_MINUTES,
+    /**
+     * Кратко на заблокированном экране (желание жены Димы 19.11.2026): только температура и значок погоды, без места и текста.
+     * По умолчанию выключено (решение Димы); это вид записи, а не отдельное уведомление, поэтому в [enabledCount] не входит.
+     */
+    val lockScreenCompact: Boolean = false,
 ) {
     /** Уведомление о погоде нужно, если включена шторка или строка состояния. */
     val wanted: Boolean get() = inShade || inStatusBar
@@ -94,6 +99,7 @@ enum class NotificationToggle(val key: String) {
     Shade("notify_shade"),
     StatusBar("notify_status_bar"),
     LockScreenPlace("notify_lock_place"),
+    LockScreenCompact("notify_lock_compact"),
     Alerts("notify_alerts"),
     RainSoon("notify_rain_soon"),
     Pollen("notify_pollen"),
@@ -182,6 +188,7 @@ class AppSettings(private val storage: SettingsStorage) {
             rainSoon = flag(NotificationToggle.RainSoon),
             pollen = flag(NotificationToggle.Pollen),
             summary = flag(NotificationToggle.Summary),
+            lockScreenCompact = storage.read(NotificationToggle.LockScreenCompact.key) == ON,
             summaryMinutes = storage.read(SUMMARY_MINUTES)?.toIntOrNull()?.takeIf { it in 0 until NotificationPrefs.MINUTES_IN_DAY }
                 ?: NotificationPrefs.SUMMARY_DEFAULT_MINUTES,
         ),
@@ -195,6 +202,7 @@ class AppSettings(private val storage: SettingsStorage) {
             NotificationToggle.Shade -> current.copy(inShade = on)
             NotificationToggle.StatusBar -> current.copy(inStatusBar = on)
             NotificationToggle.LockScreenPlace -> current.copy(placeOnLockScreen = on)
+            NotificationToggle.LockScreenCompact -> current.copy(lockScreenCompact = on)
             NotificationToggle.Alerts -> current.copy(alerts = on)
             NotificationToggle.RainSoon -> current.copy(rainSoon = on)
             NotificationToggle.Pollen -> current.copy(pollen = on)

@@ -211,8 +211,16 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_notify_lock),
                 hint = stringResource(R.string.settings_notify_lock_hint),
                 checked = notifications.placeOnLockScreen,
-                enabled = notifications.inStatusBar,
+                enabled = notifications.inStatusBar && !notifications.lockScreenCompact,
                 onChange = { onNotification(NotificationToggle.LockScreenPlace, it) },
+            )
+            // Рядом с местом: оба выключателя про вид записи на заблокированном экране.
+            ToggleOption(
+                title = stringResource(R.string.settings_notify_lock_compact),
+                hint = stringResource(R.string.settings_notify_lock_compact_hint),
+                checked = notifications.lockScreenCompact,
+                enabled = notifications.wanted,
+                onChange = { onNotification(NotificationToggle.LockScreenCompact, it) },
             )
             ToggleOption(
                 title = stringResource(R.string.settings_notify_alerts),

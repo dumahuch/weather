@@ -279,4 +279,17 @@ class AppSettingsTest {
         settings.setNoticeError(null)
         assertEquals(writes, storage.writes)
     }
+
+    @Test
+    fun compactLockScreenIsOffByDefaultRemembersChoiceAndIsNotCounted() {
+        val storage = MemoryStorage()
+        val first = AppSettings(storage)
+        assertFalse(first.notifications.value.lockScreenCompact)
+        first.setNotification(NotificationToggle.LockScreenCompact, true)
+        assertTrue(first.notifications.value.lockScreenCompact)
+        assertTrue(AppSettings(storage).notifications.value.lockScreenCompact)
+        assertEquals(NotificationPrefs.TOGGLE_COUNT, AppSettings(storage).notifications.value.enabledCount)
+        first.setNotification(NotificationToggle.LockScreenCompact, false)
+        assertFalse(AppSettings(storage).notifications.value.lockScreenCompact)
+    }
 }

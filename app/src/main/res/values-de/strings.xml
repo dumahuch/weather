@@ -264,6 +264,8 @@
     <string name="settings_notify_status_hint">Die Zahl neben der Uhr. Der Eintrag in der Benachrichtigungsleiste bleibt: Ohne ihn zeigt Android das Symbol nicht.</string>
     <string name="settings_notify_lock">Ortsname auf dem Sperrbildschirm</string>
     <string name="settings_notify_lock_hint">Ausgeschaltet zeigt der Sperrbildschirm nur Temperatur und Wetter. Gilt zusammen mit der Temperatur in der Statusleiste.</string>
+    <string name="settings_notify_lock_compact">Kompakt auf dem Sperrbildschirm</string>
+    <string name="settings_notify_lock_compact_hint">Auf dem Sperrbildschirm nur Temperatur und Wettersymbol, ohne Ort und Text. Nach dem Entsperren erscheint die normale Meldung.</string>
     <string name="settings_notify_alerts">Wetterwarnungen</string>
     <string name="settings_notify_alerts_hint">Amtliche Warnungen des DWD für den Ort, an dem du die App zuletzt geöffnet hast, mit Ton. Nur in Deutschland. Etwa jede halbe Stunde geprüft.</string>
     <string name="settings_notify_rain">Bald Regen</string>

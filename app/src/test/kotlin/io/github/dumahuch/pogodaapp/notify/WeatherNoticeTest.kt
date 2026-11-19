@@ -52,4 +52,12 @@ class WeatherNoticeTest {
         assertEquals("Niederschlag abends", WeatherNotice.precipitationContinuation("Niederschlag abends", Locale.GERMAN))
         assertEquals("Kein Niederschlag", WeatherNotice.precipitationContinuation("Kein Niederschlag", Locale.GERMAN))
     }
+
+    @Test
+    fun lockScreenFormCompactBeatsPlace() {
+        assertEquals(WeatherNotice.LockScreenForm.NoPlace, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true)))
+        assertEquals(WeatherNotice.LockScreenForm.WithPlace, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true, placeOnLockScreen = true)))
+        assertEquals(WeatherNotice.LockScreenForm.Compact, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true, lockScreenCompact = true)))
+        assertEquals(WeatherNotice.LockScreenForm.Compact, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true, placeOnLockScreen = true, lockScreenCompact = true)))
+    }
 }

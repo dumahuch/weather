@@ -29,6 +29,16 @@ object WeatherNotice {
     /** Часы телефона могли уйти назад: запись «из будущего» больше чем на 5 минут считается несвежей. */
     private val CLOCK_SLACK: Duration = Duration.ofMinutes(5)
 
+    /** Что видно на заблокированном экране у записи о погоде. */
+    enum class LockScreenForm { WithPlace, NoPlace, Compact }
+
+    /** «Кратко» важнее выключателя места: в краткой записи места нет совсем. */
+    fun lockScreenFor(prefs: NotificationPrefs): LockScreenForm = when {
+        prefs.lockScreenCompact -> LockScreenForm.Compact
+        prefs.placeOnLockScreen -> LockScreenForm.WithPlace
+        else -> LockScreenForm.NoPlace
+    }
+
     /** Канал по выключателям; `null`, если уведомление не нужно. Строка состояния важнее: при ней значок с числом. */
     fun channelFor(prefs: NotificationPrefs): NoticeChannel? = when {
         prefs.inStatusBar -> NoticeChannel.StatusBar
