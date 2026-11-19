@@ -431,4 +431,31 @@
     <string name="notify_day_day">Day %1$s</string>
     <string name="notify_day_evening">Evening %1$s</string>
     <string name="notify_day_tomorrow">Tomorrow: up to %1$s, %2$s at night</string>
+
+    <!-- Обновление из приложения (0.8.69). -->
+    <string name="settings_section_updates">Updates</string>
+    <string name="settings_updates_summary_installed">Installed: %1$s</string>
+    <string name="settings_updates_summary_available">Version %1$s available</string>
+    <string name="settings_update_auto">Check once a day</string>
+    <string name="settings_update_auto_hint">A notification when a new version is out</string>
+    <string name="settings_update_check">Check now</string>
+    <string name="settings_update_never">Not checked yet</string>
+    <string name="settings_update_checking">Checking…</string>
+    <string name="settings_update_latest">Latest version installed. Checked %1$s</string>
+    <string name="settings_update_latest_checked">Checked %1$s</string>
+    <string name="settings_update_install">Install %1$s</string>
+    <string name="settings_update_install_hint">Download %1$s MB. The app closes to update</string>
+    <string name="settings_update_downloading">Downloading: %1$d %%</string>
+    <string name="settings_update_installing">Installing. The app will close</string>
+    <string name="settings_update_permission">Allow installing from this app in phone settings, then tap again</string>
+    <string name="settings_update_failed">Failed: %1$s</string>
+    <string name="settings_update_install_failed">The system did not install the update</string>
+    <string name="notify_update_title">Version %1$s is available</string>
+    <string name="notify_update_text">Tap to install</string>
+    <string name="notify_updated_title">PogodaApp updated to %1$s</string>
+    <string name="notify_updated_text">Tap to open</string>
+    <string name="channel_update">App updates</string>
+    <string name="channel_update_hint">A new version of PogodaApp. Silent.</string>
+    <string name="about_updates_title">Updates</string>
+    <string name="about_updates_text">Release check on GitHub (api.github.com, github.com): once a day and on request. The request carries no location.</string>
 </resources>

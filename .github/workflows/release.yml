@@ -109,7 +109,9 @@ jobs:
             --allow-permission android.permission.ACCESS_FINE_LOCATION \
             --allow-permission android.permission.POST_NOTIFICATIONS \
             --allow-permission android.permission.ACCESS_NETWORK_STATE \
-            --allow-permission android.permission.RECEIVE_BOOT_COMPLETED
+            --allow-permission android.permission.RECEIVE_BOOT_COMPLETED \
+            --allow-permission android.permission.REQUEST_INSTALL_PACKAGES \
+            --allow-permission android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION
 
       - name: Сверка ключа с прошлым выпуском
         env:

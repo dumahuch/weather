@@ -420,4 +420,31 @@
     <string name="notify_day_day">Tags %1$s</string>
     <string name="notify_day_evening">Abends %1$s</string>
     <string name="notify_day_tomorrow">Morgen: tagsüber bis %1$s, nachts %2$s</string>
+
+    <!-- Обновление из приложения (0.8.69). -->
+    <string name="settings_section_updates">Updates</string>
+    <string name="settings_updates_summary_installed">Installiert: %1$s</string>
+    <string name="settings_updates_summary_available">Version %1$s verfügbar</string>
+    <string name="settings_update_auto">Einmal am Tag prüfen</string>
+    <string name="settings_update_auto_hint">Eine Benachrichtigung, wenn eine neue Version erscheint</string>
+    <string name="settings_update_check">Jetzt prüfen</string>
+    <string name="settings_update_never">Noch nicht geprüft</string>
+    <string name="settings_update_checking">Wird geprüft…</string>
+    <string name="settings_update_latest">Neueste Version installiert. Geprüft %1$s</string>
+    <string name="settings_update_latest_checked">Geprüft %1$s</string>
+    <string name="settings_update_install">%1$s installieren</string>
+    <string name="settings_update_install_hint">Download %1$s MB. Die App schließt sich zum Aktualisieren</string>
+    <string name="settings_update_downloading">Download: %1$d %%</string>
+    <string name="settings_update_installing">Wird installiert. Die App schließt sich</string>
+    <string name="settings_update_permission">Erlaube in den Telefoneinstellungen die Installation aus dieser App und tippe noch einmal</string>
+    <string name="settings_update_failed">Fehlgeschlagen: %1$s</string>
+    <string name="settings_update_install_failed">Das System hat das Update nicht installiert</string>
+    <string name="notify_update_title">Version %1$s ist verfügbar</string>
+    <string name="notify_update_text">Tippe zum Installieren</string>
+    <string name="notify_updated_title">PogodaApp auf %1$s aktualisiert</string>
+    <string name="notify_updated_text">Tippe zum Öffnen</string>
+    <string name="channel_update">App-Updates</string>
+    <string name="channel_update_hint">Eine neue Version von PogodaApp. Lautlos.</string>
+    <string name="about_updates_title">Updates</string>
+    <string name="about_updates_text">Prüfung auf neue Versionen bei GitHub (api.github.com, github.com): einmal am Tag und auf Wunsch. Der Ort wird nicht übertragen.</string>
 </resources>
