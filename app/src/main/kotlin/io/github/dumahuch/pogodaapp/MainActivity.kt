@@ -272,6 +272,7 @@ class MainActivity : ComponentActivity() {
                                 onMapPreload = settings::setMapPreload,
                                 notifications = notifications,
                                 onNotification = notificationSwitches::set,
+                                onLockScreen = notificationSwitches::setLockScreen,
                                 notificationsBlocked = notificationsBlocked,
                                 onOpenNotificationSettings = notificationSwitches::openSystemSettings,
                                 onSummaryTime = notificationSwitches::setSummaryTime,

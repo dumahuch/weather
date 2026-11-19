@@ -17,6 +17,7 @@ import io.github.dumahuch.pogodaapp.home.isStrongWind
 import io.github.dumahuch.pogodaapp.home.roundTemperature
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.settings.AppSettings
+import io.github.dumahuch.pogodaapp.settings.LockScreenForm
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import io.github.dumahuch.pogodaapp.ui.home.conditionNameRes
 import io.github.dumahuch.pogodaapp.weather.Forecast
@@ -140,14 +141,20 @@ class WeatherNotifier(private val context: Context) {
             .setContentIntent(openApp())
         // На заблокированном экране вместо полной записи показывается эта: без названия места, а при «Кратко» только
         // температура и значок (заголовок «8°», без текста и времени).
-        val form = WeatherNotice.lockScreenFor(prefs)
-        val lockScreen = if (form == WeatherNotice.LockScreenForm.Compact) {
-            builder(temperatureText(current.temperature), compact = true)
+        // «Не показывать»: запись скрыта на заблокированном экране совсем и видна только после разблокировки.
+        val form = prefs.lockScreen
+        val full = builder(title).setStyle(Notification.BigTextStyle().bigText(expanded))
+        if (form == LockScreenForm.Hidden) {
+            full.setVisibility(Notification.VISIBILITY_SECRET)
         } else {
-            builder(headline)
-        }.setVisibility(Notification.VISIBILITY_PUBLIC).build()
-        val visibility = if (form == WeatherNotice.LockScreenForm.WithPlace) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
-        val full = builder(title).setStyle(Notification.BigTextStyle().bigText(expanded)).setVisibility(visibility).setPublicVersion(lockScreen)
+            val lockScreen = if (form == LockScreenForm.Compact) {
+                builder(temperatureText(current.temperature), compact = true)
+            } else {
+                builder(headline)
+            }.setVisibility(Notification.VISIBILITY_PUBLIC).build()
+            val visibility = if (form == LockScreenForm.WithPlace) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
+            full.setVisibility(visibility).setPublicVersion(lockScreen)
+        }
         manager.notify(NOTIFICATION_ID, full.build())
         settings().setNoticeError(null)
     }

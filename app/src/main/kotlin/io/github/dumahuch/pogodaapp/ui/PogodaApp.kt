@@ -38,6 +38,7 @@ import io.github.dumahuch.pogodaapp.notify.AlertRequest
 import io.github.dumahuch.pogodaapp.places.PlaceChoice
 import io.github.dumahuch.pogodaapp.places.PlacesLogic
 import io.github.dumahuch.pogodaapp.settings.CardShadow
+import io.github.dumahuch.pogodaapp.settings.LockScreenForm
 import io.github.dumahuch.pogodaapp.settings.MapPreload
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
 import io.github.dumahuch.pogodaapp.settings.NotificationToggle
@@ -101,6 +102,7 @@ fun PogodaApp(
     onMapPreload: (MapPreload) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    onLockScreen: (LockScreenForm) -> Unit,
     notificationsBlocked: Boolean,
     onOpenNotificationSettings: () -> Unit,
     onSummaryTime: (Int) -> Unit,
@@ -305,6 +307,7 @@ fun PogodaApp(
                     onMapPreload = onMapPreload,
                     notifications = notifications,
                     onNotification = onNotification,
+                    onLockScreen = onLockScreen,
                     notificationsBlocked = notificationsBlocked,
                     onOpenNotificationSettings = onOpenNotificationSettings,
                     onSummaryTime = onSummaryTime,

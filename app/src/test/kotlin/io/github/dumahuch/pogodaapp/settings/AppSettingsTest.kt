@@ -292,4 +292,37 @@ class AppSettingsTest {
         first.setNotification(NotificationToggle.LockScreenCompact, false)
         assertFalse(AppSettings(storage).notifications.value.lockScreenCompact)
     }
+
+    @Test
+    fun lockScreenChoiceIsOneOfFourAndRemembered() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        assertEquals(LockScreenForm.WithPlace, settings.notifications.value.lockScreen)
+        LockScreenForm.entries.forEach { form ->
+            settings.setLockScreen(form)
+            assertEquals(form, settings.notifications.value.lockScreen)
+            assertEquals(form, AppSettings(storage).notifications.value.lockScreen)
+        }
+        settings.setLockScreen(LockScreenForm.NoPlace)
+        assertFalse(AppSettings(storage).notifications.value.placeOnLockScreen)
+        assertFalse(AppSettings(storage).notifications.value.lockScreenCompact)
+        assertFalse(AppSettings(storage).notifications.value.lockScreenHidden)
+    }
+
+    @Test
+    fun oldPlaceSwitchIsReadAsTheLockScreenChoice() {
+        val storage = MemoryStorage()
+        storage.write(NotificationToggle.LockScreenPlace.key, "0")
+        assertEquals(LockScreenForm.NoPlace, AppSettings(storage).notifications.value.lockScreen)
+        storage.write(NotificationToggle.LockScreenPlace.key, "1")
+        assertEquals(LockScreenForm.WithPlace, AppSettings(storage).notifications.value.lockScreen)
+    }
+
+    @Test
+    fun hiddenAndCompactAreOffByDefaultAndNotCounted() {
+        val prefs = AppSettings(MemoryStorage()).notifications.value
+        assertFalse(prefs.lockScreenHidden)
+        assertFalse(prefs.lockScreenCompact)
+        assertEquals(NotificationPrefs.TOGGLE_COUNT, prefs.enabledCount)
+    }
 }

@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.notify
 
+import io.github.dumahuch.pogodaapp.settings.LockScreenForm
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -54,10 +55,10 @@ class WeatherNoticeTest {
     }
 
     @Test
-    fun lockScreenFormCompactBeatsPlace() {
-        assertEquals(WeatherNotice.LockScreenForm.NoPlace, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true)))
-        assertEquals(WeatherNotice.LockScreenForm.WithPlace, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true, placeOnLockScreen = true)))
-        assertEquals(WeatherNotice.LockScreenForm.Compact, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true, lockScreenCompact = true)))
-        assertEquals(WeatherNotice.LockScreenForm.Compact, WeatherNotice.lockScreenFor(NotificationPrefs(inShade = true, placeOnLockScreen = true, lockScreenCompact = true)))
+    fun lockScreenFormHiddenBeatsCompactBeatsPlace() {
+        assertEquals(LockScreenForm.NoPlace, NotificationPrefs(inShade = true).lockScreen)
+        assertEquals(LockScreenForm.WithPlace, NotificationPrefs(inShade = true, placeOnLockScreen = true).lockScreen)
+        assertEquals(LockScreenForm.Compact, NotificationPrefs(inShade = true, placeOnLockScreen = true, lockScreenCompact = true).lockScreen)
+        assertEquals(LockScreenForm.Hidden, NotificationPrefs(inShade = true, placeOnLockScreen = true, lockScreenCompact = true, lockScreenHidden = true).lockScreen)
     }
 }

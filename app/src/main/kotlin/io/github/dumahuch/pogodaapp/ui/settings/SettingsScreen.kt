@@ -53,6 +53,7 @@ import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.settings.CardShadow
 import io.github.dumahuch.pogodaapp.settings.MapPreload
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
+import io.github.dumahuch.pogodaapp.settings.LockScreenForm
 import io.github.dumahuch.pogodaapp.settings.NotificationToggle
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
@@ -92,6 +93,7 @@ fun SettingsScreen(
     onMapPreload: (MapPreload) -> Unit,
     notifications: NotificationPrefs,
     onNotification: (NotificationToggle, Boolean) -> Unit,
+    onLockScreen: (LockScreenForm) -> Unit,
     notificationsBlocked: Boolean,
     onOpenNotificationSettings: () -> Unit,
     onSummaryTime: (Int) -> Unit,
@@ -194,6 +196,7 @@ fun SettingsScreen(
                         .padding(horizontal = 18.dp, vertical = 12.dp),
                 )
             }
+            GroupHeading(stringResource(R.string.settings_group_weather), first = true)
             ToggleOption(
                 title = stringResource(R.string.settings_notify_shade),
                 hint = stringResource(R.string.settings_notify_shade_hint),
@@ -206,22 +209,21 @@ fun SettingsScreen(
                 checked = notifications.inStatusBar,
                 onChange = { onNotification(NotificationToggle.StatusBar, it) },
             )
-            // Название места на заблокированном экране бывает только у записи со значком в строке состояния.
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_lock),
-                hint = stringResource(R.string.settings_notify_lock_hint),
-                checked = notifications.placeOnLockScreen,
-                enabled = notifications.inStatusBar && !notifications.lockScreenCompact,
-                onChange = { onNotification(NotificationToggle.LockScreenPlace, it) },
-            )
-            // Рядом с местом: оба выключателя про вид записи на заблокированном экране.
-            ToggleOption(
-                title = stringResource(R.string.settings_notify_lock_compact),
-                hint = stringResource(R.string.settings_notify_lock_compact_hint),
-                checked = notifications.lockScreenCompact,
-                enabled = notifications.wanted,
-                onChange = { onNotification(NotificationToggle.LockScreenCompact, it) },
-            )
+            // Вид записи на заблокированном экране нужен, только пока запись о погоде вообще включена (решение Димы 19.11.2026).
+            if (notifications.wanted) {
+                GroupHeading(stringResource(R.string.settings_group_lock))
+                Column(Modifier.selectableGroup()) {
+                    LockScreenForm.entries.forEach { form ->
+                        ChoiceOption(
+                            title = stringResource(lockTitle(form)),
+                            hint = stringResource(lockHint(form)),
+                            selected = notifications.lockScreen == form,
+                            onClick = { onLockScreen(form) },
+                        )
+                    }
+                }
+            }
+            GroupHeading(stringResource(R.string.settings_group_events))
             ToggleOption(
                 title = stringResource(R.string.settings_notify_alerts),
                 hint = stringResource(R.string.settings_notify_alerts_hint),
@@ -240,6 +242,19 @@ fun SettingsScreen(
                 checked = notifications.pollen,
                 onChange = { onNotification(NotificationToggle.Pollen, it) },
             )
+            // Виды пыльцы нужны только при включённом уведомлении о ней.
+            if (notifications.pollen) {
+                SectionHeading(stringResource(R.string.settings_pollen_kinds))
+                val names = stringArrayResource(R.array.pollen_kinds)
+                PollenKind.entries.forEach { kind ->
+                    CheckOption(
+                        title = names[kind.ordinal],
+                        checked = kind in pollenKinds,
+                        onChange = { onPollenKind(kind, it) },
+                    )
+                }
+            }
+            GroupHeading(stringResource(R.string.settings_group_summary))
             ToggleOption(
                 title = stringResource(R.string.settings_notify_summary),
                 hint = stringResource(R.string.settings_notify_summary_hint),
@@ -253,18 +268,6 @@ fun SettingsScreen(
                     minutes = notifications.summaryMinutes,
                     onPick = onSummaryTime,
                 )
-            }
-            // Виды пыльцы нужны только при включённом уведомлении о ней.
-            if (notifications.pollen) {
-                SectionHeading(stringResource(R.string.settings_pollen_kinds))
-                val names = stringArrayResource(R.array.pollen_kinds)
-                PollenKind.entries.forEach { kind ->
-                    CheckOption(
-                        title = names[kind.ordinal],
-                        checked = kind in pollenKinds,
-                        onChange = { onPollenKind(kind, it) },
-                    )
-                }
             }
             // Ошибка уведомления (0.7.2): текст для снимка экрана, пока журнала падений у приложения нет.
             noticeError?.let {
@@ -358,6 +361,30 @@ private fun SectionCard(
 private const val SECTION_MILLIS = 260
 
 /** Подзаголовок внутри развёрнутого раздела. */
+/** Заголовок группы выключателей в карточке «Уведомления»: тише обычного, с большим отступом сверху. */
+@Composable
+private fun GroupHeading(text: String, first: Boolean = false) {
+    Text(
+        text,
+        style = pogodaText(13f, 600, color = LocalPogodaPalette.current.ink2),
+        modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = if (first) 6.dp else 22.dp, bottom = 2.dp),
+    )
+}
+
+private fun lockTitle(form: LockScreenForm): Int = when (form) {
+    LockScreenForm.WithPlace -> R.string.settings_lock_place
+    LockScreenForm.NoPlace -> R.string.settings_lock_no_place
+    LockScreenForm.Compact -> R.string.settings_lock_compact
+    LockScreenForm.Hidden -> R.string.settings_lock_hidden
+}
+
+private fun lockHint(form: LockScreenForm): Int = when (form) {
+    LockScreenForm.WithPlace -> R.string.settings_lock_place_hint
+    LockScreenForm.NoPlace -> R.string.settings_lock_no_place_hint
+    LockScreenForm.Compact -> R.string.settings_lock_compact_hint
+    LockScreenForm.Hidden -> R.string.settings_lock_hidden_hint
+}
+
 @Composable
 private fun SectionHeading(text: String) {
     Text(
