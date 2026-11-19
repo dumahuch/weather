@@ -124,23 +124,29 @@ class WeatherNotifier(private val context: Context) {
         val largeIcon = noticeGlyph(context, current.condition, current.isDay, isStrongWind(forecast.detailsAt(now)?.windKmh))
         val expanded = listOfNotNull(text, dayLine(forecast, now)).joinToString("\n")
         @Suppress("DEPRECATION") // Notification.priority ещё участвует в порядке уведомлений одного уровня (шаг 11 NotificationComparator)
-        fun builder(contentTitle: String) = Notification.Builder(context, channel.id)
+        fun builder(contentTitle: String, compact: Boolean = false) = Notification.Builder(context, channel.id)
             .setSmallIcon(smallIcon)
             .setLargeIcon(largeIcon)
             .setContentTitle(contentTitle)
-            .setContentText(text)
-            .setSubText(since)
+            .setContentText(if (compact) null else text)
+            .setSubText(if (compact) null else since)
             .setWhen(current.time.toEpochMilli())
-            .setShowWhen(true)
+            .setShowWhen(!compact)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setPriority(Notification.PRIORITY_MAX)
             .setCategory(Notification.CATEGORY_STATUS)
             .setLocalOnly(true)
             .setContentIntent(openApp())
-        // На заблокированном экране вместо полной записи показывается эта: без названия места.
-        val lockScreen = builder(headline).setVisibility(Notification.VISIBILITY_PUBLIC).build()
-        val visibility = if (prefs.placeOnLockScreen) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
+        // На заблокированном экране вместо полной записи показывается эта: без названия места, а при «Кратко» только
+        // температура и значок (заголовок «8°», без текста и времени).
+        val form = WeatherNotice.lockScreenFor(prefs)
+        val lockScreen = if (form == WeatherNotice.LockScreenForm.Compact) {
+            builder(temperatureText(current.temperature), compact = true)
+        } else {
+            builder(headline)
+        }.setVisibility(Notification.VISIBILITY_PUBLIC).build()
+        val visibility = if (form == WeatherNotice.LockScreenForm.WithPlace) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
         val full = builder(title).setStyle(Notification.BigTextStyle().bigText(expanded)).setVisibility(visibility).setPublicVersion(lockScreen)
         manager.notify(NOTIFICATION_ID, full.build())
         settings().setNoticeError(null)

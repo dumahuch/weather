@@ -269,6 +269,8 @@
     <string name="settings_notify_status_hint">The number next to the clock. The entry in the notification shade stays: Android shows the icon only together with it.</string>
     <string name="settings_notify_lock">Place name on the lock screen</string>
     <string name="settings_notify_lock_hint">When off, the lock screen shows only the temperature and weather. Works with the temperature in the status bar.</string>
+    <string name="settings_notify_lock_compact">Compact on the lock screen</string>
+    <string name="settings_notify_lock_compact_hint">The lock screen shows only the temperature and the weather icon, without place and text. After unlocking you see the normal notification.</string>
     <string name="settings_notify_alerts">Weather warnings</string>
     <string name="settings_notify_alerts_hint">Official DWD warnings for the place where you last opened the app, with sound. Germany only. Checked about every half hour.</string>
     <string name="settings_notify_rain">Rain soon</string>

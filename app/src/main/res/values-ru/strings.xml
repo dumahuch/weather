@@ -266,6 +266,8 @@
     <string name="settings_notify_status_hint">Число рядом с часами. Запись в шторке уведомлений при этом остаётся: без неё Android значок не показывает.</string>
     <string name="settings_notify_lock">Название места на заблокированном экране</string>
     <string name="settings_notify_lock_hint">Если выключено, на заблокированном экране видны только температура и погода. Действует вместе с температурой в строке состояния.</string>
+    <string name="settings_notify_lock_compact">Кратко на заблокированном экране</string>
+    <string name="settings_notify_lock_compact_hint">На заблокированном экране только температура и значок погоды, без места и текста. После разблокировки запись обычная.</string>
     <string name="settings_notify_alerts">Предупреждения о погоде</string>
     <string name="settings_notify_alerts_hint">Официальные предупреждения DWD для места, где вы последний раз открывали приложение, со звуком. Только в Германии. Проверяются примерно раз в полчаса.</string>
     <string name="settings_notify_rain">Скоро дождь</string>
