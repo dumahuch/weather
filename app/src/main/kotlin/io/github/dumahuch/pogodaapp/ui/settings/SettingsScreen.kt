@@ -11,14 +11,17 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -43,12 +46,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.settings.CardShadow
 import io.github.dumahuch.pogodaapp.settings.MapPreload
@@ -61,6 +67,7 @@ import io.github.dumahuch.pogodaapp.ui.components.GlassCardBox
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
+import io.github.dumahuch.pogodaapp.ui.components.matteBase
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.LocalDate
@@ -213,12 +220,14 @@ fun SettingsScreen(
             if (notifications.wanted) {
                 GroupHeading(stringResource(R.string.settings_group_lock))
                 Column(Modifier.selectableGroup()) {
-                    LockScreenForm.entries.forEach { form ->
+                    LockScreenForm.entries.forEachIndexed { index, form ->
+                        if (index > 0) Rule(start = SUB_INDENT + 18.dp, alpha = RULE_ALPHA_ITEM)
                         ChoiceOption(
                             title = stringResource(lockTitle(form)),
                             hint = stringResource(lockHint(form)),
                             selected = notifications.lockScreen == form,
                             onClick = { onLockScreen(form) },
+                            nested = true,
                         )
                     }
                 }
@@ -329,7 +338,10 @@ private fun SectionCard(
     val glass = LocalGlass.current
     val flatGlass = remember(glass) { glass.withoutBlur() }
     GlassCardBox(CardShape, flatGlass, Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth()) {
+        // Плита без прозрачности (0.8.68): небо и капли за карточкой не мешают читать строки; кромка и тень остаются от стекла.
+        val plate = remember(palette) { matteBase(palette) }
+        val sheen = remember(palette) { Brush.linearGradient(0f to palette.sheen, 0.55f to Color.Transparent) }
+        Column(Modifier.fillMaxWidth().background(plate).background(sheen)) {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -360,16 +372,38 @@ private fun SectionCard(
 /** Длительность раскрытия и сворачивания раздела настроек, мс. */
 private const val SECTION_MILLIS = 260
 
-/** Подзаголовок внутри развёрнутого раздела. */
-/** Заголовок группы выключателей в карточке «Уведомления»: тише обычного, с большим отступом сверху. */
+/**
+ * Заголовок группы в карточке «Уведомления» (0.8.68): мелкие жирные заглавные буквы, у всех групп кроме первой тонкая
+ * линия на всю ширину и увеличенный отступ сверху, чтобы группы не сливались в сплошной текст.
+ */
 @Composable
 private fun GroupHeading(text: String, first: Boolean = false) {
-    Text(
-        text,
-        style = pogodaText(13f, 600, color = LocalPogodaPalette.current.ink2),
-        modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = if (first) 6.dp else 22.dp, bottom = 2.dp),
+    val ink2 = LocalPogodaPalette.current.ink2
+    Column(Modifier.fillMaxWidth().padding(top = if (first) 6.dp else 14.dp)) {
+        if (!first) Rule(start = 18.dp, alpha = RULE_ALPHA_GROUP)
+        Text(
+            text.uppercase(),
+            style = pogodaText(11.5f, 700, color = ink2, letterSpacing = 0.8.sp),
+            modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = if (first) 0.dp else 14.dp, bottom = 4.dp),
+        )
+    }
+}
+
+/** Тонкая линия-разделитель: от [start] до правого поля 18 dp. */
+@Composable
+private fun Rule(start: Dp, alpha: Float) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = start, end = 18.dp)
+            .height(1.dp)
+            .background(LocalPogodaPalette.current.ink2.copy(alpha = alpha)),
     )
 }
+
+/** Прозрачность линии между группами и между пунктами подгруппы (вторая слабее). */
+private const val RULE_ALPHA_GROUP = 0.28f
+private const val RULE_ALPHA_ITEM = 0.16f
 
 private fun lockTitle(form: LockScreenForm): Int = when (form) {
     LockScreenForm.WithPlace -> R.string.settings_lock_place
@@ -493,22 +527,31 @@ private const val DISABLED_ALPHA = 0.45f
 /** Цвет недоступной строки: тот же, но прозрачнее. */
 private fun dimmed(color: Color, enabled: Boolean): Color = if (enabled) color else color.copy(alpha = color.alpha * DISABLED_ALPHA)
 
-/** Один вариант: название, пояснение и галочка у выбранного. Нажатие по всей строке (высота не меньше 60 dp). */
+/** Сдвиг пунктов подгруппы вправо от обычного поля. */
+private val SUB_INDENT = 12.dp
+
+/**
+ * Один вариант: название, пояснение и галочка у выбранного. Нажатие по всей строке (высота не меньше 60 dp).
+ * [nested]: пункт подгруппы (0.8.68): сдвинут вправо, текст и интервал меньше, высота 52 dp, чтобы пункты читались одной группой.
+ */
 @Composable
-private fun ChoiceOption(title: String, hint: String, selected: Boolean, onClick: () -> Unit) {
+private fun ChoiceOption(title: String, hint: String, selected: Boolean, onClick: () -> Unit, nested: Boolean = false) {
     val palette = LocalPogodaPalette.current
+    val titleSize = if (nested) 15f else 16f
+    val hintSize = if (nested) 12f else 13f
+    val lineHeight = if (nested) 1.15f else 1.25f
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 60.dp)
+            .heightIn(min = if (nested) 52.dp else 60.dp)
             .selectable(selected = selected, interactionSource = null, indication = null, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
+            .padding(start = if (nested) SUB_INDENT + 18.dp else 18.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = pogodaText(16f, if (selected) 600 else 500))
-            Text(hint, style = pogodaText(13f, 400, color = palette.ink2))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (nested) 1.dp else 2.dp)) {
+            Text(title, style = pogodaText(titleSize, if (selected) (if (nested) 700 else 600) else 500, lineHeight = lineHeight))
+            Text(hint, style = pogodaText(hintSize, 400, color = palette.ink2, lineHeight = lineHeight))
         }
         if (selected) {
             LineIconView(LineIcons.Check, 22.dp, palette.accent)
