@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui
 
 import androidx.compose.ui.graphics.Color
+import io.github.dumahuch.pogodaapp.ui.components.matteBase
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.pow
@@ -73,6 +74,17 @@ class PaletteContrastTest {
             val glass = over(PogodaColors.Glass, sky(fraction))
             val ratio = contrast(PogodaColors.Ink2, glass)
             assertTrue("Ink2 на стекле $fraction: $ratio", ratio >= 4.5)
+        }
+    }
+
+    @Test
+    fun textIsReadableOnTheMatteSettingsPlate() {
+        // Карточки настроек и шторка предупреждений лежат на плотной плите без прозрачности (0.8.68).
+        val plate = matteBase(PogodaPalette.Neutral)
+        assertTrue("плита непрозрачна", plate.alpha == 1f)
+        for ((name, ink) in listOf("Ink" to PogodaColors.Ink, "Ink2" to PogodaColors.Ink2)) {
+            val ratio = contrast(ink, plate)
+            assertTrue("$name на плите: $ratio", ratio >= 4.5)
         }
     }
 

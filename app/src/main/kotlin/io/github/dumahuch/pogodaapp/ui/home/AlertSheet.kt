@@ -37,7 +37,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -52,6 +51,7 @@ import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
+import io.github.dumahuch.pogodaapp.ui.components.matteBase
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
@@ -76,16 +76,11 @@ private val OriginalShape = RoundedCornerShape(16.dp)
 private val ScrimColor = Color(0x47060A12)
 
 /** Шторка плотная матовая, без стекла: длинный текст DWD должен читаться на любом небе. */
-private const val SHEET_GLASS_SHARE = 0.7f
 private const val SHEET_ALPHA = 0.97f
 
 /** Сплошной цвет шторки (без прозрачности): на нём лежат плоские плашки списка. */
 @Composable
-private fun sheetBase(): Color {
-    val palette = LocalPogodaPalette.current
-    val base = if (palette.darkInk) Color.White else Color(0xFF0C131F)
-    return lerp(base, palette.glass.copy(alpha = 1f), SHEET_GLASS_SHARE)
-}
+private fun sheetBase(): Color = matteBase(LocalPogodaPalette.current)
 
 private const val ANIMATION_MS = 300
 
