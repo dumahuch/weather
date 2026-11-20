@@ -78,9 +78,6 @@
     <string name="precip_short_none">Нет</string>
     <string name="precip_short_now">Сейчас</string>
     <string name="precip_today_now">Осадки сейчас</string>
-    <string name="outlook_until">%1$s до %2$s</string>
-    <string name="outlook_from">%1$s с %2$s</string>
-    <string name="outlook_all_day">%1$s весь день</string>
     <string name="kind_generic">Осадки</string>
     <string name="kind_rain">Дождь</string>
     <string name="kind_storm">Гроза с дождём</string>
@@ -451,17 +448,77 @@
     <string name="metric_day_max">Максимум за день</string>
     <string name="metric_max_today">Максимум сегодня</string>
     <string name="metric_strongest">Сильнее всего</string>
-    <string name="metric_at_time">%1$s в %2$s</string>
-    <string name="metric_gusts_max">Самые сильные порывы</string>
+    <string name="metric_at">в %1$s</string>
+    <string name="metric_gusts_upto">Порывы до</string>
     <string name="metric_chance">Вероятность</string>
     <string name="metric_visibility">Видимость</string>
-    <string name="metric_strip_wind">Внизу порывы, км/ч</string>
-    <string name="metric_strip_rain">Внизу осадки, мм</string>
-    <string name="metric_strip_humidity">Внизу точка росы</string>
-    <string name="metric_days_kmh">От и до, км/ч</string>
-    <string name="metric_days_percent" formatted="false">От и до, %</string>
-    <string name="metric_days_rain">Вероятность и мм</string>
-    <string name="metric_spans">%1$s %2$s</string>
+    <string name="metric_legend_wind">ветер, км/ч</string>
+    <string name="metric_legend_gusts">порывы, км/ч</string>
+    <string name="metric_legend_blows">куда дует</string>
+    <string name="metric_legend_rain">осадки, мм</string>
+    <string name="metric_legend_chance" formatted="false">вероятность, %</string>
+    <string name="metric_legend_humidity" formatted="false">влажность, %</string>
+    <string name="metric_legend_dew">точка росы, °</string>
+    <string name="metric_days_wind">ветер</string>
+    <string name="metric_days_gusts">порывы</string>
+    <string name="metric_days_wind_note">максимум за день, км/ч</string>
+    <string name="metric_gusts_short">порывы %1$s</string>
+    <string name="metric_days_rain_note">когда идут и сколько, мм</string>
+    <string name="metric_days_humidity_note" formatted="false">влажность, %</string>
+    <string name="metric_daytime">днём</string>
+    <string name="metric_night">ночью</string>
+    <string name="metric_daytime_tile">Днём</string>
+    <string name="metric_night_tile">Ночью</string>
+    <string name="metric_daytime_hours">с 12 до 18 ч</string>
+    <string name="metric_night_hours">с 0 до 6 ч</string>
+    <string-array name="metric_parts">
+        <item>ночь</item>
+        <item>утро</item>
+        <item>день</item>
+        <item>вечер</item>
+    </string-array>
+    <string-array name="metric_parts_when">
+        <item>ночью</item>
+        <item>утром</item>
+        <item>днём</item>
+        <item>вечером</item>
+    </string-array>
+    <string name="metric_and">и</string>
+    <string name="metric_kind_when">%1$s %2$s</string>
+    <string name="metric_beaufort">шкала Бофорта</string>
+    <string name="metric_calm">штиль</string>
+    <string name="metric_hurricane">ураган</string>
+    <string name="metric_marker_now">сейчас</string>
+    <string name="metric_marker_gusts">порывы</string>
+    <string name="metric_vis_fog">туман</string>
+    <string name="metric_vis_far">более 40 км</string>
+    <string name="metric_fog">Туман</string>
+    <string name="metric_umbrella_yes">Зонт пригодится</string>
+    <string name="metric_umbrella_no">Зонт не нужен</string>
+    <string name="metric_next_rain">Ближайшие осадки</string>
+    <string name="metric_no_rain_ahead">В ближайшие дни не ожидаются</string>
+    <string-array name="rain_intensity">
+        <item>слабые</item>
+        <item>умеренные</item>
+        <item>сильные</item>
+    </string-array>
+    <string-array name="rain_chance">
+        <item>маловероятно</item>
+        <item>возможно</item>
+        <item>вероятно</item>
+        <item>почти наверняка</item>
+    </string-array>
+    <string name="metric_week_total">За 7 дней</string>
+    <string name="metric_week_dry">без осадков</string>
+    <plurals name="metric_wet_days">
+        <item quantity="one">%d день с осадками</item>
+        <item quantity="few">%d дня с осадками</item>
+        <item quantity="many">%d дней с осадками</item>
+        <item quantity="other">%d дня с осадками</item>
+    </plurals>
+    <string name="metric_dry_rest">До конца суток без осадков</string>
+    <string name="metric_dry_chance">вероятность не выше %1$s</string>
+    <string name="metric_comfortable">Комфортно</string>
     <string name="km_unit">км</string>
     <string name="pressure_unit">мм рт. ст.</string>
     <string-array name="visibility_levels">

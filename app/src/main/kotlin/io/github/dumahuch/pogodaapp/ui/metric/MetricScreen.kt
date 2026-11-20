@@ -10,7 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -30,7 +29,6 @@ import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
 import io.github.dumahuch.pogodaapp.ui.forecast.PageTitle
 import io.github.dumahuch.pogodaapp.ui.forecast.dayName
 import io.github.dumahuch.pogodaapp.ui.forecast.fullDate
-import io.github.dumahuch.pogodaapp.ui.home.HourlyFrame
 import io.github.dumahuch.pogodaapp.ui.home.StateCard
 import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 import java.time.Instant
@@ -89,36 +87,18 @@ fun MetricScreen(
                 modifier = side,
             )
         } else {
-            val page = metricPage(metric, forecast, date, today, now, dates)
-            NowCard(page.now, side)
-            Spacer(Modifier.height(12.dp))
-            if (page.strip.columns.isNotEmpty()) {
-                HourlyFrame(caption = page.strip.caption, modifier = side) {
-                    // Новый день: лента собирается заново и открывается с его начала (или с текущего часа сегодня).
-                    key(date) {
-                        MetricStrip(
-                            columns = page.strip.columns,
-                            glyph = page.strip.glyph,
-                            nowIndex = page.strip.nowIndex,
-                            initialColumn = page.strip.initialColumn,
-                            barMinScale = page.strip.barMinScale,
-                            barAlpha = page.strip.barAlpha,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-            }
-            MetricDaysCard(
-                rows = page.days,
-                note = page.daysNote,
-                today = today,
-                selected = date,
+            val ctx = PageContext(
+                forecast, date, today, now, dates,
                 onSelect = { picked ->
                     chosen = picked.toEpochDay()
                     scope.launch { scroll.animateScrollTo(0) }
                 },
-                modifier = side,
             )
+            when (metric) {
+                Metric.Wind -> WindPage(ctx, side)
+                Metric.Precipitation -> RainPage(ctx, side)
+                Metric.Humidity -> HumidityPage(ctx, side)
+            }
         }
         Spacer(Modifier.height(bottomContentPadding()))
     }
