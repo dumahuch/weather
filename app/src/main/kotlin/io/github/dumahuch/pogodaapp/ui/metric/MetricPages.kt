@@ -132,12 +132,12 @@ internal fun WindPage(ctx: PageContext, side: Modifier) {
                 TileText(
                     stringResource(if (ctx.isToday) R.string.metric_max_today else R.string.metric_day_max),
                     "$maxSpeed $kmh",
-                    peakIndex?.let { stringResource(R.string.metric_at, clockText(hours[it].time, zone)) },
+                    stringResource(R.string.metric_at, clockText(hours[peakIndex].time, zone)),
                 ),
                 TileText(
                     stringResource(R.string.metric_gusts_upto),
                     "$gustMax $kmh",
-                    gustIndex?.let { stringResource(R.string.metric_at, clockText(hours[it].time, zone)) },
+                    stringResource(R.string.metric_at, clockText(hours[gustIndex].time, zone)),
                 ),
             )
         }

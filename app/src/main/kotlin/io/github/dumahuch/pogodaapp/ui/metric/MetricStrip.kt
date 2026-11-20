@@ -125,7 +125,7 @@ private fun DrawScope.drawStrip(spec: StripSpec, palette: PogodaPalette, styles:
     val top = (LABEL_ROW + (if (spec.directions != null) ARROW_ROW + 12f else 22f)) * dp
     val bottom = size.height - (if (spec.dots != null || spec.dashed != null) BOTTOM_ROW else 8f) * dp
     val lineSpan = (spec.lineMax - spec.lineMin).takeIf { it > 0.0 } ?: 1.0
-    fun yLine(v: Double) = (bottom - ((v - spec.lineMin) / lineSpan).toFloat().coerceIn(0f, 1f) * (bottom - top)).toFloat()
+    fun yLine(v: Double) = bottom - ((v - spec.lineMin) / lineSpan).toFloat().coerceIn(0f, 1f) * (bottom - top)
 
     spec.bars?.let { bars ->
         drawLine(palette.ink.copy(alpha = 0.25f), Offset(0f, bottom), Offset(size.width, bottom), 1 * dp)
