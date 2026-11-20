@@ -63,16 +63,50 @@ object PressureUnits {
     fun shown(hpa: Double, mmHg: Boolean): Double = if (mmHg) hpa * MMHG_PER_HPA else hpa
 }
 
-/** Непрерывный отрезок часов с осадками: от начала первого часа до конца последнего. */
-data class PrecipitationSpan(val start: Instant, val end: Instant)
+/** Осадки подряд: от начала первого часа до конца последнего, сумма и самый сильный час (мм). */
+data class RainSpell(val start: Instant, val end: Instant, val totalMm: Double, val peakMm: Double)
+
+/**
+ * Сила осадков по самому сильному часу, по глоссарию Американского метеорологического общества: до 2,5 мм/ч слабые,
+ * до 7,6 мм/ч умеренные, сильнее сильные (https://glossary.ametsoc.org/wiki/Rain).
+ */
+enum class RainIntensity {
+    Light, Moderate, Heavy;
+
+    companion object {
+        private const val MODERATE_FROM_MM = 2.5
+        private const val HEAVY_FROM_MM = 7.6
+
+        fun ofMmPerHour(mm: Double): RainIntensity = when {
+            mm >= HEAVY_FROM_MM -> Heavy
+            mm >= MODERATE_FROM_MM -> Moderate
+            else -> Light
+        }
+    }
+}
+
+/**
+ * Вероятность осадков словом по ступеням Национальной службы погоды США: 20 % «небольшая вероятность», 30–50 %
+ * «возможно», 60–70 % «вероятно», 80–100 % без оговорок (https://www.weather.gov/ffc/pop). Между ступенями граница
+ * посередине: до 25 % маловероятно, до 55 % возможно, до 75 % вероятно, дальше почти наверняка.
+ */
+enum class RainChance {
+    Unlikely, Possible, Likely, AlmostCertain;
+
+    companion object {
+        fun of(percent: Int): RainChance = when {
+            percent < 25 -> Unlikely
+            percent < 55 -> Possible
+            percent < 75 -> Likely
+            else -> AlmostCertain
+        }
+    }
+}
 
 /** Расчёты страниц подробностей: дни списка, часы дня, отрезки осадков, преобладающее направление ветра. */
 object MetricDays {
     /** Сколько дней в списке внизу страницы. */
     const val SHOWN = 7
-
-    /** Наименьшая ширина полоски «от и до», чтобы день с одинаковыми значениями не стал точкой (как у температур). */
-    private const val MIN_WIDTH = 0.06f
 
     /** Дни списка от сегодняшнего; у прогноза без суточных данных (до 0.3.0) дни берутся из часовых. */
     fun dates(forecast: Forecast, today: LocalDate): List<LocalDate> {
@@ -108,23 +142,45 @@ object MetricDays {
     /** Если вектор короче этой доли суммы скоростей, преобладающего направления нет. */
     private const val CALM_SHARE = 0.2
 
-    /** Отрезки часов с осадками (больше нуля) по порядку; часы в [points] идут подряд. */
-    fun precipitationSpans(points: List<HourPoint>): List<PrecipitationSpan> {
-        val spans = ArrayList<PrecipitationSpan>()
-        var start: Instant? = null
-        var last: Instant? = null
-        for (point in points) {
-            if (point.precipitationMm > 0.0) {
-                if (start == null) start = point.time
-                last = point.time
-            } else if (start != null) {
-                spans += PrecipitationSpan(start, checkNotNull(last).plus(HOUR))
-                start = null
-            }
+    /** Отрезки часов с заметными осадками (от [MIN_NOTICEABLE_MM]) по порядку; часы в [points] идут подряд. */
+    fun spells(points: List<HourPoint>): List<RainSpell> {
+        val spells = ArrayList<RainSpell>()
+        var run = ArrayList<HourPoint>()
+        fun close() {
+            if (run.isEmpty()) return
+            spells += RainSpell(run.first().time, run.last().time.plus(HOUR), run.sumOf { it.precipitationMm }, run.maxOf { it.precipitationMm })
+            run = ArrayList()
         }
-        if (start != null) spans += PrecipitationSpan(start, checkNotNull(last).plus(HOUR))
-        return spans
+        for (point in points) {
+            if (point.precipitationMm >= MIN_NOTICEABLE_MM) run += point else close()
+        }
+        close()
+        return spells
     }
+
+    /** Первые осадки, которые ещё не закончились к [now]; пусто, если их нет в [points]. */
+    fun nextSpell(points: List<HourPoint>, now: Instant): RainSpell? = spells(points).firstOrNull { it.end.isAfter(now) }
+
+    /** Четыре части суток по шесть часов (ночь, утро, день, вечер): самый сильный час каждой, мм. */
+    fun partPeaks(points: List<HourPoint>, zone: ZoneId): List<Double> {
+        val peaks = DoubleArray(PARTS)
+        for (point in points) {
+            val part = point.time.atZone(zone).hour / PART_HOURS
+            peaks[part] = maxOf(peaks[part], point.precipitationMm)
+        }
+        return peaks.toList()
+    }
+
+    private const val PARTS = 4
+    private const val PART_HOURS = 6
+
+    /** Днём: средняя за 12–18 ч местного времени, ночью: за 0–6 ч (часы с началом в этих пределах). */
+    val DAYTIME_HOURS = 12 until 18
+    val NIGHT_HOURS = 0 until 6
+
+    /** Среднее значение [value] за часы [hours] местного времени; пусто, если значений нет. */
+    fun meanOver(details: List<HourDetails>, zone: ZoneId, hours: IntRange, value: (HourDetails) -> Double?): Double? =
+        details.filter { it.time.atZone(zone).hour in hours }.mapNotNull(value).takeIf { it.isNotEmpty() }?.average()
 
     private val HOUR: Duration = Duration.ofHours(1)
 
@@ -135,21 +191,5 @@ object MetricDays {
             if (value != null && (best == null || value > checkNotNull(values[checkNotNull(best)]))) best = index
         }
         return best
-    }
-
-    /**
-     * Полоски «от и до» на общей шкале от [floor] до [ceiling] (шкала раздвигается, если значения за её пределами):
-     * доли ширины строки, полоска не уже [MIN_WIDTH].
-     */
-    fun spans(lows: List<Double>, highs: List<Double>, floor: Double, ceiling: Double): List<RangeSpan> {
-        if (lows.isEmpty()) return emptyList()
-        val low = minOf(floor, lows.min())
-        val high = maxOf(ceiling, highs.max())
-        val span = (high - low).takeIf { it > 0.0 } ?: 1.0
-        return lows.indices.map { i ->
-            val width = maxOf(MIN_WIDTH, ((highs[i] - lows[i]) / span).toFloat())
-            val start = ((lows[i] - low) / span).toFloat().coerceIn(0f, 1f - width)
-            RangeSpan(start, width)
-        }
     }
 }

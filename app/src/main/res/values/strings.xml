@@ -458,17 +458,75 @@
     <string name="metric_day_max">Highest of the day</string>
     <string name="metric_max_today">Highest today</string>
     <string name="metric_strongest">Strongest</string>
-    <string name="metric_at_time">%1$s at %2$s</string>
-    <string name="metric_gusts_max">Strongest gusts</string>
+    <string name="metric_at">at %1$s</string>
+    <string name="metric_gusts_upto">Gusts up to</string>
     <string name="metric_chance">Chance</string>
     <string name="metric_visibility">Visibility</string>
-    <string name="metric_strip_wind">Gusts below, km/h</string>
-    <string name="metric_strip_rain">Precipitation below, mm</string>
-    <string name="metric_strip_humidity">Dew point below</string>
-    <string name="metric_days_kmh">Low–high, km/h</string>
-    <string name="metric_days_percent" formatted="false">Low–high, %</string>
-    <string name="metric_days_rain">Chance and mm</string>
-    <string name="metric_spans">%1$s %2$s</string>
+    <string name="metric_legend_wind">wind, km/h</string>
+    <string name="metric_legend_gusts">gusts, km/h</string>
+    <string name="metric_legend_blows">blowing to</string>
+    <string name="metric_legend_rain">precipitation, mm</string>
+    <string name="metric_legend_chance" formatted="false">chance, %</string>
+    <string name="metric_legend_humidity" formatted="false">humidity, %</string>
+    <string name="metric_legend_dew">dew point, °</string>
+    <string name="metric_days_wind">wind</string>
+    <string name="metric_days_gusts">gusts</string>
+    <string name="metric_days_wind_note">daily high, km/h</string>
+    <string name="metric_gusts_short">gusts %1$s</string>
+    <string name="metric_days_rain_note">when and how much, mm</string>
+    <string name="metric_days_humidity_note" formatted="false">humidity, %</string>
+    <string name="metric_daytime">day</string>
+    <string name="metric_night">night</string>
+    <string name="metric_daytime_tile">Daytime</string>
+    <string name="metric_night_tile">Night</string>
+    <string name="metric_daytime_hours">12:00–18:00</string>
+    <string name="metric_night_hours">00:00–06:00</string>
+    <string-array name="metric_parts">
+        <item>night</item>
+        <item>morning</item>
+        <item>day</item>
+        <item>evening</item>
+    </string-array>
+    <string-array name="metric_parts_when">
+        <item>at night</item>
+        <item>in the morning</item>
+        <item>during the day</item>
+        <item>in the evening</item>
+    </string-array>
+    <string name="metric_and">and</string>
+    <string name="metric_kind_when">%1$s %2$s</string>
+    <string name="metric_beaufort">Beaufort scale</string>
+    <string name="metric_calm">calm</string>
+    <string name="metric_hurricane">hurricane</string>
+    <string name="metric_marker_now">now</string>
+    <string name="metric_marker_gusts">gusts</string>
+    <string name="metric_vis_fog">fog</string>
+    <string name="metric_vis_far">over 40 km</string>
+    <string name="metric_fog">Fog</string>
+    <string name="metric_umbrella_yes">Take an umbrella</string>
+    <string name="metric_umbrella_no">No umbrella needed</string>
+    <string name="metric_next_rain">Next precipitation</string>
+    <string name="metric_no_rain_ahead">None expected in the next days</string>
+    <string-array name="rain_intensity">
+        <item>light</item>
+        <item>moderate</item>
+        <item>heavy</item>
+    </string-array>
+    <string-array name="rain_chance">
+        <item>unlikely</item>
+        <item>possible</item>
+        <item>likely</item>
+        <item>almost certain</item>
+    </string-array>
+    <string name="metric_week_total">Next 7 days</string>
+    <string name="metric_week_dry">dry</string>
+    <plurals name="metric_wet_days">
+        <item quantity="one">%d day with precipitation</item>
+        <item quantity="other">%d days with precipitation</item>
+    </plurals>
+    <string name="metric_dry_rest">Dry for the rest of the day</string>
+    <string name="metric_dry_chance">chance at most %1$s</string>
+    <string name="metric_comfortable">Comfortable</string>
     <string name="km_unit">km</string>
     <string name="pressure_unit">hPa</string>
     <string-array name="visibility_levels">

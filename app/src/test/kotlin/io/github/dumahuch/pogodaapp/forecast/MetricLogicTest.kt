@@ -70,28 +70,59 @@ class MetricLogicTest {
     }
 
     @Test
-    fun precipitationSpansJoinNeighbouringHours() {
-        val points = listOf(point(0, 0.0), point(1, 0.2), point(2, 0.5), point(3, 0.0), point(4, 0.1))
+    fun spellsJoinNeighbouringWetHoursAndSumThem() {
+        val points = listOf(point(0, 0.0), point(1, 0.2), point(2, 0.5), point(3, 0.0), point(4, 0.1), point(5, 0.01))
         assertEquals(
-            listOf(PrecipitationSpan(at(1), at(3)), PrecipitationSpan(at(4), at(5))),
-            MetricDays.precipitationSpans(points),
+            listOf(RainSpell(at(1), at(3), 0.7, 0.5), RainSpell(at(4), at(5), 0.1, 0.1)),
+            MetricDays.spells(points),
         )
-        assertEquals(emptyList<PrecipitationSpan>(), MetricDays.precipitationSpans(listOf(point(0, 0.0))))
+        assertEquals(emptyList<RainSpell>(), MetricDays.spells(listOf(point(0, 0.0))))
+    }
+
+    @Test
+    fun nextSpellSkipsFinishedOnes() {
+        val points = listOf(point(1, 0.2), point(2, 0.0), point(5, 0.4), point(6, 0.4))
+        assertEquals(at(1), MetricDays.nextSpell(points, at(1))?.start)
+        assertEquals(at(5), MetricDays.nextSpell(points, at(3))?.start)
+        assertNull(MetricDays.nextSpell(points, at(8)))
+    }
+
+    @Test
+    fun partPeaksTakeTheStrongestHourOfEachSixHours() {
+        val points = listOf(point(3, 0.4), point(4, 1.2), point(13, 0.3), point(23, 0.6))
+        assertEquals(listOf(1.2, 0.0, 0.3, 0.6), MetricDays.partPeaks(points, utc))
+    }
+
+    @Test
+    fun rainIntensityFollowsAmsSteps() {
+        assertEquals(RainIntensity.Light, RainIntensity.ofMmPerHour(2.4))
+        assertEquals(RainIntensity.Moderate, RainIntensity.ofMmPerHour(2.5))
+        assertEquals(RainIntensity.Moderate, RainIntensity.ofMmPerHour(7.5))
+        assertEquals(RainIntensity.Heavy, RainIntensity.ofMmPerHour(7.6))
+    }
+
+    @Test
+    fun rainChanceWordsFollowNwsSteps() {
+        assertEquals(RainChance.Unlikely, RainChance.of(20))
+        assertEquals(RainChance.Possible, RainChance.of(30))
+        assertEquals(RainChance.Possible, RainChance.of(50))
+        assertEquals(RainChance.Likely, RainChance.of(60))
+        assertEquals(RainChance.Likely, RainChance.of(70))
+        assertEquals(RainChance.AlmostCertain, RainChance.of(80))
+    }
+
+    @Test
+    fun meanOverUsesOnlyHoursInRange() {
+        val hours = listOf(details(1, 10.0), details(13, 20.0), details(14, 30.0), details(20, 90.0))
+        assertEquals(25.0, MetricDays.meanOver(hours, utc, MetricDays.DAYTIME_HOURS) { it.windKmh }!!, 0.0001)
+        assertEquals(10.0, MetricDays.meanOver(hours, utc, MetricDays.NIGHT_HOURS) { it.windKmh }!!, 0.0001)
+        assertNull(MetricDays.meanOver(hours, utc, 6 until 12) { it.windKmh })
     }
 
     @Test
     fun peakIndexIsTheFirstLargestValue() {
         assertEquals(1, MetricDays.peakIndex(listOf(1.0, 3.0, null, 3.0)))
         assertNull(MetricDays.peakIndex(listOf(null, null)))
-    }
-
-    @Test
-    fun spansShareOneScaleAndKeepAMinimumWidth() {
-        val spans = MetricDays.spans(listOf(0.0, 10.0), listOf(20.0, 10.0), floor = 0.0, ceiling = 20.0)
-        assertEquals(0f, spans[0].start, 0.0001f)
-        assertEquals(1f, spans[0].width, 0.0001f)
-        assertEquals(0.5f, spans[1].start, 0.0001f)
-        assertEquals(0.06f, spans[1].width, 0.0001f)
     }
 
     @Test
