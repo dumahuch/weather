@@ -2,7 +2,6 @@ package io.github.dumahuch.pogodaapp.ui.forecast
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,9 +40,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
-import io.github.dumahuch.pogodaapp.forecast.PrecipitationKind
-import io.github.dumahuch.pogodaapp.forecast.PrecipitationOutlook
-import io.github.dumahuch.pogodaapp.forecast.PrecipitationOutlooks
 import io.github.dumahuch.pogodaapp.forecast.RangeSpan
 import io.github.dumahuch.pogodaapp.forecast.TemperatureRange
 import io.github.dumahuch.pogodaapp.forecast.dayPrecipitationText
@@ -65,10 +61,8 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 import io.github.dumahuch.pogodaapp.weather.DayForecast
 import io.github.dumahuch.pogodaapp.weather.Forecast
-import io.github.dumahuch.pogodaapp.weather.HourPoint
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import java.util.Locale
 
 /** Строк в списке по дням и их плотность: 7 дней просторно, 14 дней плотно. */
@@ -76,9 +70,6 @@ private const val COMPACT_DAYS = 14
 
 /** С какого дня (счёт с нуля) прогноз считается менее надёжным: строки приглушаются. */
 private const val FAR_FROM_DAY = 10
-
-/** Столько часов показывает карточка осадков. */
-private const val OUTLOOK_HOURS = 24
 
 private val NoteMaxWidth = 150.dp
 
@@ -134,12 +125,6 @@ fun ForecastScreen(
                     dayCount = dayCount,
                     onDayCount = onDayCount,
                     onOpenDay = onOpenDay,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
-                Spacer(Modifier.height(12.dp))
-                OutlookCard(
-                    points = state.strip.take(OUTLOOK_HOURS),
-                    zone = state.forecast.zone,
                     modifier = Modifier.padding(horizontal = 20.dp),
                 )
             }
@@ -413,104 +398,5 @@ private fun RangeBar(span: RangeSpan, far: Boolean, modifier: Modifier = Modifie
             cornerRadius = radius,
             alpha = if (far) 0.55f else 1f,
         )
-    }
-}
-
-/** Карточка «Ближайшие 24 часа»: итог словами, столбики осадков по часам и подписи времени. */
-@Composable
-private fun OutlookCard(points: List<HourPoint>, zone: ZoneId, modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
-    val locale = LocalLocale.current.platformLocale
-    val outlook = remember(points) { PrecipitationOutlooks.of(points) }
-    val total = remember(points) { PrecipitationOutlooks.totalMm(points) }
-    Column(
-        modifier
-            .fillMaxWidth()
-            .glassCard(RoundedCornerShape(24.dp), LocalGlass.current)
-            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-            Text(stringResource(R.string.next24_title), style = pogodaText(13f, 700))
-            val totalText = dayPrecipitationText(total, locale)
-            Text(
-                stringResource(R.string.next24_total, totalText.ifEmpty { "0" }),
-                style = pogodaText(12f, 400, color = palette.ink2, tabular = true),
-            )
-        }
-        Text(outlookText(outlook, zone), style = pogodaText(15f, 600, lineHeight = 1.3f))
-        HourBars(points, Modifier.padding(top = 4.dp))
-        HourAxis(points, zone)
-    }
-}
-
-@Composable
-private fun outlookText(outlook: PrecipitationOutlook, zone: ZoneId): String = when (outlook) {
-    PrecipitationOutlook.None -> stringResource(R.string.next24_none)
-    is PrecipitationOutlook.Ongoing -> {
-        val kind = kindName(outlook.kind)
-        if (outlook.until == null) {
-            stringResource(R.string.outlook_all_day, kind)
-        } else {
-            stringResource(R.string.outlook_until, kind, clockText(outlook.until, zone))
-        }
-    }
-    is PrecipitationOutlook.Starts -> stringResource(R.string.outlook_from, kindName(outlook.kind), clockText(outlook.at, zone))
-}
-
-@Composable
-private fun kindName(kind: PrecipitationKind): String = stringResource(
-    when (kind) {
-        PrecipitationKind.Generic -> R.string.kind_generic
-        PrecipitationKind.Rain -> R.string.kind_rain
-        PrecipitationKind.Storm -> R.string.kind_storm
-        PrecipitationKind.Snow -> R.string.kind_snow
-        PrecipitationKind.Drizzle -> R.string.kind_drizzle
-    },
-)
-
-private val BarsHeight = 58.dp
-
-/** Подписи часов под столбиками: четыре, через шесть часов; пятое место пустое. */
-private const val AXIS_LABELS = 4
-private const val AXIS_STEP_HOURS = 6
-
-/** Столбики осадков по часам; первый (текущий час) обведён. Высота от наибольшего значения, но не меньше шкалы в 1 мм. */
-@Composable
-private fun HourBars(points: List<HourPoint>, modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
-    val scale = maxOf(1.0, points.maxOfOrNull { it.precipitationMm } ?: 0.0)
-    Row(
-        modifier
-            .fillMaxWidth()
-            .height(BarsHeight),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        points.forEachIndexed { index, point ->
-            val wet = point.precipitationMm > 0.0
-            val fraction = if (wet) maxOf(0.06, point.precipitationMm / scale) else 0.03
-            val shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp, bottomStart = 1.dp, bottomEnd = 1.dp)
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height((BarsHeight.value * fraction).dp.coerceAtLeast(2.dp))
-                    .then(if (index == 0) Modifier.border(1.5.dp, palette.ink, shape) else Modifier)
-                    .background(if (wet) palette.bar else palette.bar.copy(alpha = 0.28f), shape),
-            )
-        }
-    }
-}
-
-/** Подписи часов под столбиками: начало, 6, 12 и 18 часов от текущего; пятая пустая, чтобы подписи легли на четверти ширины. */
-@Composable
-private fun HourAxis(points: List<HourPoint>, zone: ZoneId) {
-    val palette = LocalPogodaPalette.current
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        for (step in 0..AXIS_LABELS) {
-            val point = if (step < AXIS_LABELS) points.getOrNull(step * AXIS_STEP_HOURS) else null
-            val label = point?.let { "%02d".format(Locale.ROOT, it.time.atZone(zone).hour) }.orEmpty()
-            Text(label, style = pogodaText(11f, 500, color = palette.ink2, tabular = true))
-        }
     }
 }

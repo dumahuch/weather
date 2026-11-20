@@ -104,7 +104,8 @@ object OpenMeteoParser {
     /**
      * Осадки в ответе относятся к часу, который закончился в указанное время,
      * а точка ленты описывает час, который начинается. Поэтому осадки берутся из следующей записи,
-     * а последняя запись служит только для этого и в ленту не попадает.
+     * а последняя запись служит только для этого и в ленту не попадает. Вероятность осадков Open-Meteo тоже даёт за
+     * прошедший час (https://open-meteo.com/en/docs, precipitation_probability: «of the preceding hour»), сдвиг тот же.
      */
     private fun parseHours(hourly: JSONObject): List<HourPoint> {
         val times = hourly.getJSONArray("time")
@@ -113,6 +114,7 @@ object OpenMeteoParser {
         val isDay = hourly.getJSONArray("is_day")
         val precipitation = hourly.getJSONArray("precipitation")
         val cloudCover = hourly.optJSONArray("cloud_cover")
+        val probability = hourly.optJSONArray("precipitation_probability")
         val count = times.length()
         if (count < 2) throw ForecastException("В ответе слишком мало часов: $count")
         if (listOf(temperatures, codes, isDay, precipitation).any { it.length() < count }) {
@@ -126,6 +128,7 @@ object OpenMeteoParser {
                 isDay = isDay.getInt(i) == 1,
                 precipitationMm = precipitation.optNumber(i + 1),
                 cloudCover = cloudCover.numberAt(i)?.let { Math.round(it).toInt().coerceIn(0, 100) },
+                precipitationProbability = probability.numberAt(i + 1)?.let { Math.round(it).toInt().coerceIn(0, 100) },
             )
         }
     }

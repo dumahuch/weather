@@ -60,9 +60,6 @@
     <string name="forecast_far_note">Nach dem 10. Tag ist die Vorhersage weniger zuverlässig</string>
     <string name="forecast_missing_title">Noch keine Tagesvorhersage</string>
     <string name="forecast_missing_text">Aktualisiere die Vorhersage, um die nächsten Tage zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
-
-    <string name="next24_title">Nächste 24 Stunden</string>
-    <string name="next24_total">%1$s mm in 24 Std.</string>
     <string name="next24_none">Kein Niederschlag erwartet</string>
     <string name="precip_today_parts">Niederschlag %1$s</string>
     <string-array name="precip_day_parts">
@@ -97,7 +94,6 @@
     <string name="precip_chance">Wahrscheinlichkeit %1$s</string>
     <string name="gusts_up_to">Böen bis %1$d %2$s</string>
     <!-- Böen mit dem Beaufort-Wort der Böe (Zeile nur ab 20 km/h und über der Stufe des mittleren Winds) -->
-    <string name="gusts_with_word">Böen bis %1$d %2$s: %3$s</string>
     <string name="uv_low">Niedrig</string>
     <string name="uv_moderate">Mäßig</string>
     <string name="uv_high">Hoch</string>
@@ -188,7 +184,6 @@
         <item>W</item>
     </string-array>
     <string name="tile_pressure">Luftdruck</string>
-    <string name="hpa_unit">hPa</string>
     <string name="trend_rising">Steigend</string>
     <string name="trend_steady">Stabil</string>
     <string name="trend_falling">Fallend</string>
@@ -198,7 +193,6 @@
     <string name="pressure_level_high">Hoher Druck</string>
     <string name="pressure_trend_level">%1$s · %2$s</string>
     <string name="tile_humidity">Luftfeuchte</string>
-    <string name="visibility_line">Sicht: %1$s km</string>
     <string name="tile_sun_moon">Sonne &amp; Mond</string>
     <string name="sunrise">Aufgang</string>
     <string name="sunset">Untergang</string>
@@ -447,4 +441,35 @@
     <string name="channel_update_hint">Eine neue Version von PogodaApp. Lautlos.</string>
     <string name="about_updates_title">Updates</string>
     <string name="about_updates_text">Prüfung auf neue Versionen bei GitHub (api.github.com, github.com): einmal am Tag und auf Wunsch. Der Ort wird nicht übertragen.</string>
+
+    <!-- Страницы подробностей влажности, ветра и осадков (0.8.70) и давление в единицах языка -->
+    <string name="metric_day">Im Tagesverlauf</string>
+    <string name="metric_day_max">Tageshöchstwert</string>
+    <string name="metric_max_today">Höchstwert heute</string>
+    <string name="metric_strongest">Am stärksten</string>
+    <string name="metric_at_time">%1$s um %2$s</string>
+    <string name="metric_gusts_max">Stärkste Böen</string>
+    <string name="metric_chance">Wahrscheinlichkeit</string>
+    <string name="metric_visibility">Sicht</string>
+    <string name="metric_strip_wind">Unten: Böen, km/h</string>
+    <string name="metric_strip_rain">Unten: Niederschlag, mm</string>
+    <string name="metric_strip_humidity">Unten: Taupunkt</string>
+    <string name="metric_days_kmh">Von–bis, km/h</string>
+    <string name="metric_days_percent" formatted="false">Von–bis, %</string>
+    <string name="metric_days_rain">Wahrscheinlichkeit und mm</string>
+    <string name="metric_spans">%1$s %2$s</string>
+    <string name="km_unit">km</string>
+    <string name="pressure_unit">hPa</string>
+    <string-array name="visibility_levels">
+        <item>Sehr schlecht</item>
+        <item>Schlecht</item>
+        <item>Mäßig</item>
+        <item>Gut</item>
+        <item>Sehr gut</item>
+        <item>Ausgezeichnet</item>
+    </string-array>
+    <string-array name="mugginess_levels">
+        <item>Spürbar schwül</item>
+        <item>Schwül</item>
+    </string-array>
 </resources>

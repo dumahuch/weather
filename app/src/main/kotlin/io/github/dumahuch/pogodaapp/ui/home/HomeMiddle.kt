@@ -156,6 +156,7 @@ internal fun ColumnScope.ContentMiddle(
             scale.value,
             heroModifier = Modifier.onSizeChanged { layout.hero = it.height }.scrimRegion(regions, ScrimRegions.Kind.Hero),
             infoModifier = Modifier.scrimRegion(regions, ScrimRegions.Kind.Info),
+            onOpenMetric = actions.onOpenMetric,
         )
     }
     val shown = plan?.shown ?: alerts.size

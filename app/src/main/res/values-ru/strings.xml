@@ -62,9 +62,6 @@
     <string name="forecast_far_note">После 10-го дня прогноз менее надёжен</string>
     <string name="forecast_missing_title">Прогноза по дням пока нет</string>
     <string name="forecast_missing_text">Обновите прогноз, чтобы увидеть ближайшие дни. Для этого нужна сеть.</string>
-
-    <string name="next24_title">Ближайшие 24 часа</string>
-    <string name="next24_total">%1$s мм за сутки</string>
     <string name="next24_none">Осадков не ожидается</string>
     <string name="precip_today_parts">Осадки %1$s</string>
     <string-array name="precip_day_parts">
@@ -99,7 +96,6 @@
     <string name="precip_chance">Вероятность %1$s</string>
     <string name="gusts_up_to">Порывы до %1$d %2$s</string>
     <!-- Порывы со словом по шкале Бофорта (строка только от 20 км/ч и выше ступени среднего ветра) -->
-    <string name="gusts_with_word">Порывы до %1$d %2$s: %3$s</string>
     <string name="uv_low">Низкий</string>
     <string name="uv_moderate">Умеренный</string>
     <string name="uv_high">Высокий</string>
@@ -190,7 +186,6 @@
         <item>З</item>
     </string-array>
     <string name="tile_pressure">Давление</string>
-    <string name="hpa_unit">гПа</string>
     <string name="trend_rising">Растёт</string>
     <string name="trend_steady">Стабильно</string>
     <string name="trend_falling">Падает</string>
@@ -200,7 +195,6 @@
     <string name="pressure_level_high">Повышенное</string>
     <string name="pressure_trend_level">%1$s · %2$s</string>
     <string name="tile_humidity">Влажность</string>
-    <string name="visibility_line">Видимость: %1$s км</string>
     <string name="tile_sun_moon">Солнце и Луна</string>
     <string name="sunrise">Восход</string>
     <string name="sunset">Закат</string>
@@ -451,4 +445,35 @@
     <string name="channel_update_hint">Новая версия PogodaApp. Без звука.</string>
     <string name="about_updates_title">Обновления</string>
     <string name="about_updates_text">Проверка выпуска на GitHub (api.github.com, github.com): раз в сутки и по кнопке. Место в запросе не передаётся.</string>
+
+    <!-- Страницы подробностей влажности, ветра и осадков (0.8.70) и давление в единицах языка -->
+    <string name="metric_day">За день</string>
+    <string name="metric_day_max">Максимум за день</string>
+    <string name="metric_max_today">Максимум сегодня</string>
+    <string name="metric_strongest">Сильнее всего</string>
+    <string name="metric_at_time">%1$s в %2$s</string>
+    <string name="metric_gusts_max">Самые сильные порывы</string>
+    <string name="metric_chance">Вероятность</string>
+    <string name="metric_visibility">Видимость</string>
+    <string name="metric_strip_wind">Внизу порывы, км/ч</string>
+    <string name="metric_strip_rain">Внизу осадки, мм</string>
+    <string name="metric_strip_humidity">Внизу точка росы</string>
+    <string name="metric_days_kmh">От и до, км/ч</string>
+    <string name="metric_days_percent" formatted="false">От и до, %</string>
+    <string name="metric_days_rain">Вероятность и мм</string>
+    <string name="metric_spans">%1$s %2$s</string>
+    <string name="km_unit">км</string>
+    <string name="pressure_unit">мм рт. ст.</string>
+    <string-array name="visibility_levels">
+        <item>Очень плохая</item>
+        <item>Плохая</item>
+        <item>Умеренная</item>
+        <item>Хорошая</item>
+        <item>Очень хорошая</item>
+        <item>Отличная</item>
+    </string-array>
+    <string-array name="mugginess_levels">
+        <item>Ощутимо влажно</item>
+        <item>Душно</item>
+    </string-array>
 </resources>

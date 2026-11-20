@@ -1,9 +1,10 @@
 package io.github.dumahuch.pogodaapp.ui
 
-/** Слой окна: страница вкладки, подробности дня поверх «Прогноза», список мест, настройки. */
+/** Слой окна: страница вкладки, подробности дня поверх «Прогноза», страница показателя поверх «Главной», места, настройки. */
 internal enum class Layer(val depth: Int) {
     Tab(0),
     Day(1),
+    Metric(1),
     Places(1),
     Settings(1),
 }
@@ -18,6 +19,8 @@ internal data class ScreenKey(
     val isMap: Boolean = false,
     /** Открытый день (дни от 1970 года) у слоя [Layer.Day]: уходящее окно помнит свой день, пока анимируется. */
     val day: Long = 0L,
+    /** Номер показателя ([io.github.dumahuch.pogodaapp.forecast.Metric]) у слоя [Layer.Metric]. */
+    val metric: Int = 0,
 )
 
 /** Как переходить из одного окна в другое. */

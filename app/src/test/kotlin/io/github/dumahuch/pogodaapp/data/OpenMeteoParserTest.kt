@@ -93,6 +93,17 @@ class OpenMeteoParserTest {
     }
 
     @Test
+    fun precipitationProbabilityOfAnHourComesFromTheNextRecordAndStaysEmptyInOldAnswers() {
+        // Вероятность, как и осадки, относится к прошедшему часу: точка 0:00 берёт запись 1:00.
+        val json = small().replace(
+            "\"precipitation\":[9.0,0.4,0.0,2.5]",
+            "\"precipitation\":[9.0,0.4,0.0,2.5],\"precipitation_probability\":[90,35.4,null,100]",
+        )
+        assertEquals(listOf<Int?>(35, null, 100), OpenMeteoParser.parse(json).hours.map { it.precipitationProbability })
+        assertTrue(OpenMeteoParser.parse(small()).hours.all { it.precipitationProbability == null })
+    }
+
+    @Test
     fun lastRecordIsOnlyUsedForPrecipitation() {
         val forecast = OpenMeteoParser.parse(small())
         assertEquals(3, forecast.hours.size)

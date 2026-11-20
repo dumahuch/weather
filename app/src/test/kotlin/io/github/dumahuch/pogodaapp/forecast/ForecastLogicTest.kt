@@ -94,11 +94,6 @@ class ForecastLogicTest {
     }
 
     @Test
-    fun totalIsTheSumOfHours() {
-        assertEquals(0.9, PrecipitationOutlooks.totalMm(hours(0.4, 0.0, 0.5)), 0.0001)
-    }
-
-    @Test
     fun dayPrecipitationTextHidesZerosAndUsesTheLocale() {
         assertEquals("", dayPrecipitationText(0.0, Locale.GERMANY))
         assertEquals("", dayPrecipitationText(0.04, Locale.GERMANY))

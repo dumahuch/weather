@@ -54,7 +54,7 @@ class StringsResourcesTest {
      * «сегодня» и «завтра» в середине периода предупреждения («Сегодня 15:00 – завтра 06:00»), а также «с юга» и подобные: они идут после слова о силе ветра («Умеренный ветер с юга»).
      */
     private val continuations = setOf(
-        "mm_unit", "kmh_unit", "hpa_unit", "map_legend_unit", "map_legend_unit_wind", "data_age_under_hour", "data_age_hours", "moonrise_at", "moonset_at",
+        "mm_unit", "kmh_unit", "pressure_unit", "km_unit", "map_legend_unit", "map_legend_unit_wind", "data_age_under_hour", "data_age_hours", "moonrise_at", "moonset_at",
         "precip_day_parts", "alert_starts_in", "alert_from", "alert_from_tomorrow", "alert_until", "alert_until_tomorrow",
         "alert_until_day", "alert_day_today_mid", "alert_day_tomorrow_mid", "wind_from",
     )

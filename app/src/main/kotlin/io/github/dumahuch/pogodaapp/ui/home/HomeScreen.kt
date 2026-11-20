@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
+import io.github.dumahuch.pogodaapp.forecast.Metric
 import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.HomeUiState
@@ -88,6 +89,8 @@ data class HomeActions(
     /** Плашка предупреждения (по идентификатору) открывает его подробности, строка «Ещё N» весь список. */
     val onOpenAlert: (String) -> Unit = {},
     val onOpenAlerts: () -> Unit = {},
+    /** Показатель под температурой (влажность, ветер, осадки) открывает свою страницу подробностей. */
+    val onOpenMetric: (Metric) -> Unit = {},
 )
 
 /**
@@ -327,6 +330,7 @@ internal fun ContentTop(
     heroScale: Float,
     heroModifier: Modifier,
     infoModifier: Modifier = Modifier,
+    onOpenMetric: (Metric) -> Unit = {},
 ) {
     val palette = LocalPogodaPalette.current
     val forecast = state.forecast
@@ -343,8 +347,14 @@ internal fun ContentTop(
     val humidityText = details?.humidity?.let(::percentText) ?: dash
     val windText = details?.windKmh?.let { "${it.roundToInt()}\u00A0$kmh" } ?: dash
     val captions = listOf(
-        Caption(LineIcons.Drop, CaptionHue.Humidity, humidityText, "${stringResource(R.string.tile_humidity)} $humidityText"),
-        Caption(LineIcons.Wind, CaptionHue.Wind, windText, "${stringResource(R.string.tile_wind_now)} $windText"),
+        Caption(
+            LineIcons.Drop,
+            CaptionHue.Humidity,
+            humidityText,
+            "${stringResource(R.string.tile_humidity)} $humidityText",
+            metric = Metric.Humidity,
+        ),
+        Caption(LineIcons.Wind, CaptionHue.Wind, windText, "${stringResource(R.string.tile_wind_now)} $windText", metric = Metric.Wind),
         Caption(
             LineIcons.Rain,
             CaptionHue.Precipitation,
@@ -352,6 +362,7 @@ internal fun ContentTop(
             if (noRainAhead && wetNow) stringResource(R.string.precip_today_now) else precipitationText(rain),
             faded = noRainAhead && !wetNow,
             wide = true,
+            metric = Metric.Precipitation,
         ),
     )
     val heroDay = LocalHeroSolarHourOverride.current?.let { it in DAY_FROM_HOUR..DAY_TO_HOUR } ?: current.isDay
@@ -389,7 +400,8 @@ internal fun ContentTop(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp),
         )
-        CaptionRow(captions, Modifier.padding(top = 12.dp))
+        // Отступ 8 dp: у самих показателей отступ по высоте стал на 4 dp больше (см. [CaptionRow]), строка стоит там же.
+        CaptionRow(captions, Modifier.padding(top = 8.dp), onOpen = onOpenMetric)
         if (state.offline) {
             OfflinePill(
                 title = stringResource(R.string.offline_title),

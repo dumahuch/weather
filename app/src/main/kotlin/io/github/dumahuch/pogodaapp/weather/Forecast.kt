@@ -23,6 +23,7 @@ data class CurrentWeather(
 /**
  * Один час ленты. Температура и вид погоды относятся к началу часа,
  * осадки (мм) к часу, который начинается в это время. [cloudCover] облачность в процентах (пусто, если модель её не дала).
+ * [precipitationProbability] вероятность осадков за этот час в процентах (пусто у прогноза, сохранённого до 0.8.70).
  */
 data class HourPoint(
     val time: Instant,
@@ -31,6 +32,7 @@ data class HourPoint(
     val isDay: Boolean,
     val precipitationMm: Double,
     val cloudCover: Int? = null,
+    val precipitationProbability: Int? = null,
 )
 
 /** Наибольшая и наименьшая температура сегодняшних суток по местному времени. */

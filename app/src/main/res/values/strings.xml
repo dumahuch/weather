@@ -64,9 +64,6 @@
     <string name="forecast_far_note">Forecast is less reliable after day 10</string>
     <string name="forecast_missing_title">No daily forecast yet</string>
     <string name="forecast_missing_text">Update the forecast to see the coming days. This needs an internet connection.</string>
-
-    <string name="next24_title">Next 24 hours</string>
-    <string name="next24_total">%1$s mm in 24 h</string>
     <string name="next24_none">No precipitation expected</string>
     <string name="precip_today_parts">Precipitation %1$s</string>
     <string-array name="precip_day_parts">
@@ -101,7 +98,6 @@
     <string name="precip_chance">%1$s chance</string>
     <string name="gusts_up_to">Gusts up to %1$d %2$s</string>
     <!-- Gusts with the Beaufort word of the gust (shown only from 20 km/h and above the mean wind step) -->
-    <string name="gusts_with_word">Gusts up to %1$d %2$s: %3$s</string>
     <string name="uv_low">Low</string>
     <string name="uv_moderate">Moderate</string>
     <string name="uv_high">High</string>
@@ -193,7 +189,6 @@
         <item>W</item>
     </string-array>
     <string name="tile_pressure">Pressure</string>
-    <string name="hpa_unit">hPa</string>
     <string name="trend_rising">Rising</string>
     <string name="trend_steady">Steady</string>
     <string name="trend_falling">Falling</string>
@@ -203,7 +198,6 @@
     <string name="pressure_level_high">High</string>
     <string name="pressure_trend_level">%1$s · %2$s</string>
     <string name="tile_humidity">Humidity</string>
-    <string name="visibility_line">Visibility: %1$s km</string>
     <string name="tile_sun_moon">Sun &amp; Moon</string>
     <string name="sunrise">Sunrise</string>
     <string name="sunset">Sunset</string>
@@ -458,4 +452,35 @@
     <string name="channel_update_hint">A new version of PogodaApp. Silent.</string>
     <string name="about_updates_title">Updates</string>
     <string name="about_updates_text">Release check on GitHub (api.github.com, github.com): once a day and on request. The request carries no location.</string>
+
+    <!-- Страницы подробностей влажности, ветра и осадков (0.8.70) и давление в единицах языка -->
+    <string name="metric_day">Over the day</string>
+    <string name="metric_day_max">Highest of the day</string>
+    <string name="metric_max_today">Highest today</string>
+    <string name="metric_strongest">Strongest</string>
+    <string name="metric_at_time">%1$s at %2$s</string>
+    <string name="metric_gusts_max">Strongest gusts</string>
+    <string name="metric_chance">Chance</string>
+    <string name="metric_visibility">Visibility</string>
+    <string name="metric_strip_wind">Gusts below, km/h</string>
+    <string name="metric_strip_rain">Precipitation below, mm</string>
+    <string name="metric_strip_humidity">Dew point below</string>
+    <string name="metric_days_kmh">Low–high, km/h</string>
+    <string name="metric_days_percent" formatted="false">Low–high, %</string>
+    <string name="metric_days_rain">Chance and mm</string>
+    <string name="metric_spans">%1$s %2$s</string>
+    <string name="km_unit">km</string>
+    <string name="pressure_unit">hPa</string>
+    <string-array name="visibility_levels">
+        <item>Very poor</item>
+        <item>Poor</item>
+        <item>Moderate</item>
+        <item>Good</item>
+        <item>Very good</item>
+        <item>Excellent</item>
+    </string-array>
+    <string-array name="mugginess_levels">
+        <item>Sticky</item>
+        <item>Oppressive</item>
+    </string-array>
 </resources>

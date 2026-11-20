@@ -37,7 +37,7 @@ object TemperatureRange {
     }
 }
 
-/** Что будет с осадками в ближайшие часы (карточка «Ближайшие 24 часа»). */
+/** Что будет с осадками в ближайшие часы (подпись «Сегодня» на странице осадков). */
 sealed interface PrecipitationOutlook {
 
     /** Осадков не ожидается. */
@@ -76,8 +76,6 @@ object PrecipitationOutlooks {
         val dry = points.indexOfFirst { it.precipitationMm <= 0.0 }
         return PrecipitationOutlook.Ongoing(kind, if (dry < 0) null else points[dry].time)
     }
-
-    fun totalMm(points: List<HourPoint>): Double = points.sumOf { it.precipitationMm }
 }
 
 /** Осадки меньше этого за остаток дня не в счёт: тот же порог, что у строки дня (ниже округляются до «0,0»). */

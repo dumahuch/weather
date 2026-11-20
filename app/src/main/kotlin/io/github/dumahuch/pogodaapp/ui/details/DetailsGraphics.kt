@@ -21,6 +21,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.forecast.PressurePoint
+import io.github.dumahuch.pogodaapp.forecast.PressureUnits
 import io.github.dumahuch.pogodaapp.forecast.monotoneTangents
 import io.github.dumahuch.pogodaapp.forecast.pressureAxis
 import io.github.dumahuch.pogodaapp.forecast.smoothSeries
@@ -149,11 +150,12 @@ private const val GAP_DEGREES = 13.9f
  * плавной кривой без выбросов ([monotoneTangents]); ось и линии сетки считает [pressureAxis].
  */
 @Composable
-internal fun PressureChart(points: List<PressurePoint>, nowIndex: Int, zone: ZoneId, modifier: Modifier = Modifier) {
+internal fun PressureChart(points: List<PressurePoint>, nowIndex: Int, zone: ZoneId, mmHg: Boolean, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val measurer = rememberTextMeasurer()
     val labelStyle = remember(palette.ink2) { pogodaText(9.5f, 500, color = palette.ink2, lineHeight = 1f) }
-    val smooth = remember(points) { smoothSeries(points.map { it.hpa }) }
+    // Ось подписана в тех же единицах, что число на плитке (мм рт. ст. в русском интерфейсе).
+    val smooth = remember(points, mmHg) { smoothSeries(points.map { PressureUnits.shown(it.hpa, mmHg) }) }
     val axis = remember(smooth) { pressureAxis(smooth) }
     val timeFormat = remember { DateTimeFormatter.ofPattern("HH:mm") }
     Canvas(modifier.fillMaxWidth().height(CHART_HEIGHT)) {
