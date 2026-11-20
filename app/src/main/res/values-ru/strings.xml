@@ -78,9 +78,6 @@
     <string name="precip_short_none">Нет</string>
     <string name="precip_short_now">Сейчас</string>
     <string name="precip_today_now">Осадки сейчас</string>
-    <string name="outlook_until">%1$s до %2$s</string>
-    <string name="outlook_from">%1$s с %2$s</string>
-    <string name="outlook_all_day">%1$s весь день</string>
     <string name="kind_generic">Осадки</string>
     <string name="kind_rain">Дождь</string>
     <string name="kind_storm">Гроза с дождём</string>

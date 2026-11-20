@@ -76,9 +76,6 @@
     <string name="precip_short_none">Keiner</string>
     <string name="precip_short_now">Jetzt</string>
     <string name="precip_today_now">Niederschlag jetzt</string>
-    <string name="outlook_until">%1$s bis %2$s</string>
-    <string name="outlook_from">%1$s ab %2$s</string>
-    <string name="outlook_all_day">%1$s den ganzen Tag</string>
     <string name="kind_generic">Niederschlag</string>
     <string name="kind_rain">Regen</string>
     <string name="kind_storm">Gewitter mit Regen</string>

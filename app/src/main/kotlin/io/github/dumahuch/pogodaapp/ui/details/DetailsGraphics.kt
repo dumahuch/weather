@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
@@ -74,74 +73,6 @@ internal fun ScaleBar(fraction: Float, colors: List<Color>, stepped: Boolean, mo
         drawCircle(palette.ink, markerRadius, center, style = Stroke(width = 2.dp.toPx()))
     }
 }
-
-/**
- * Компас ветра как в макете (с 0.4.4): тонкое кольцо с разрывами, на четырёх сторонах света буквы [letters] (север, восток,
- * юг, запад; буквы зависят от языка интерфейса) и длинная стрелка цветом акцента с открытым наконечником. Стрелка смотрит туда,
- * куда ветер дует ([blowsTowardDegrees], 0 это на север, по часовой стрелке). Рисунок в долях стороны (в макете 74 единицы,
- * кольцо радиусом 29 в середине), поэтому не зависит от размера; размер букв не следует за размером шрифта системы.
- */
-@Composable
-internal fun Compass(blowsTowardDegrees: Float, letters: List<String>, modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
-    val measurer = rememberTextMeasurer()
-    val letterStyle = remember(palette.ink2) { pogodaText(10f, 500, color = palette.ink2, lineHeight = 1f) }
-    Canvas(modifier.size(COMPASS_SIZE)) {
-        val unit = size.minDimension / 74f
-        val center = Offset(size.width / 2, size.height / 2)
-        val radius = 29f * unit
-        val ring = palette.ink.copy(alpha = 0.5f)
-        // Кольцо четырьмя дугами: перед каждой буквой разрыв.
-        for (quarter in 0..3) {
-            drawArc(
-                ring,
-                startAngle = -90f + quarter * 90f + GAP_DEGREES,
-                sweepAngle = 90f - 2 * GAP_DEGREES,
-                useCenter = false,
-                topLeft = Offset(center.x - radius, center.y - radius),
-                size = Size(2 * radius, 2 * radius),
-                style = Stroke(width = 1.3f * unit),
-            )
-        }
-        val style = letterStyle.copy(fontSize = (10f * unit).toSp(), lineHeight = (10f * unit).toSp())
-        val spots = listOf(
-            Offset(center.x, center.y - radius),
-            Offset(center.x + radius, center.y),
-            Offset(center.x, center.y + radius),
-            Offset(center.x - radius, center.y),
-        )
-        spots.forEachIndexed { index, spot ->
-            val letter = letters.getOrNull(index) ?: return@forEachIndexed
-            val layout = measurer.measure(letter, style)
-            drawText(layout, topLeft = Offset(spot.x - layout.size.width / 2f, spot.y - layout.size.height / 2f))
-        }
-        rotate(blowsTowardDegrees, center) {
-            val tip = Offset(center.x, center.y - 20f * unit)
-            val arrow = Path().apply {
-                moveTo(tip.x, tip.y)
-                lineTo(center.x, center.y + 14f * unit)
-                moveTo(tip.x, tip.y)
-                lineTo(center.x - 6f * unit, center.y - 12f * unit)
-                moveTo(tip.x, tip.y)
-                lineTo(center.x + 6f * unit, center.y - 12f * unit)
-            }
-            drawPath(
-                arrow,
-                palette.accent,
-                style = Stroke(width = 2.4f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round),
-            )
-        }
-    }
-}
-
-/** Сторона компаса: кольцо радиусом 29 единиц макета помещается с запасом для букв (рисунок 74 единицы). */
-private val COMPASS_SIZE = 60.dp
-
-/**
- * Половина разрыва кольца вокруг буквы, градусы: в макете разрыв это круг радиусом 7 единиц на кольце радиусом 29,
- * то есть угол 2·asin(7 / 58) в обе стороны от середины буквы.
- */
-private const val GAP_DEGREES = 13.9f
 
 /**
  * График давления на плитке (вариант Б, решение Димы 30.10.2026): линия цветом акцента с заливкой под ней, горизонтальные
