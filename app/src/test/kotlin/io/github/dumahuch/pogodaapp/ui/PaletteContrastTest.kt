@@ -78,8 +78,8 @@ class PaletteContrastTest {
     }
 
     @Test
-    fun textIsReadableOnTheMatteSettingsPlate() {
-        // Карточки настроек и шторка предупреждений лежат на плотной плите без прозрачности (0.8.68).
+    fun textIsReadableOnTheMatteAlertSheet() {
+        // Шторка предупреждений лежит на плотной плите без прозрачности (0.8.68).
         val plate = matteBase(PogodaPalette.Neutral)
         assertTrue("плита непрозрачна", plate.alpha == 1f)
         for ((name, ink) in listOf("Ink" to PogodaColors.Ink, "Ink2" to PogodaColors.Ink2)) {
