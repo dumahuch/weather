@@ -66,14 +66,14 @@ import io.github.dumahuch.pogodaapp.weather.HourPoint
 import java.time.ZoneId
 import java.util.Locale
 
-private val ColumnWidth = HourlyGeometry.COLUMN_WIDTH.dp
-private val StripHeight = HourlyGeometry.HEIGHT.dp
+internal val HourColumnWidth = HourlyGeometry.COLUMN_WIDTH.dp
+internal val HourStripHeight = HourlyGeometry.HEIGHT.dp
 
 /**
  * Насколько верх подписи температуры выше точки кривой: 22 в макете минус 2,5, потому что Compose ставит
  * базовую линию строки высотой в 1 em ниже, чем браузер (там строка обрезается поровну сверху и снизу).
  */
-private const val TEMPERATURE_LABEL_RISE = 24.5f
+internal const val TEMPERATURE_LABEL_RISE = 24.5f
 
 /** Карточка «По часам»: заголовок и своё содержимое (лента или заглушки). */
 @Composable
@@ -133,7 +133,7 @@ fun HourlyStrip(
     val curve = remember(rounded) { HourlyGeometry.curveY(rounded) }
     val bars = remember(points) { HourlyGeometry.barHeights(points.map { it.precipitationMm }) }
     val density = LocalDensity.current
-    val scroll = rememberScrollState(with(density) { (ColumnWidth * initialColumn).roundToPx() })
+    val scroll = rememberScrollState(with(density) { (HourColumnWidth * initialColumn).roundToPx() })
     val panels = remember(points, details) {
         val byTime = details.associateBy { it.time }
         points.map { hourPanelOf(byTime[it.time]) }
@@ -153,8 +153,8 @@ fun HourlyStrip(
         ) {
             Box(
                 Modifier
-                    .width(ColumnWidth * points.size)
-                    .height(StripHeight),
+                    .width(HourColumnWidth * points.size)
+                    .height(HourStripHeight),
             ) {
                 CurveLayer(curve, Modifier.matchParentSize())
                 Row(Modifier.matchParentSize()) {
@@ -190,12 +190,12 @@ fun HourlyStrip(
 }
 
 @Composable
-private fun CurveLayer(curve: List<Float>, modifier: Modifier) {
+internal fun CurveLayer(curve: List<Float>, modifier: Modifier) {
     val palette = LocalPogodaPalette.current
     Canvas(modifier) {
         if (curve.isEmpty()) return@Canvas
         val unit = density
-        val width = ColumnWidth.toPx()
+        val width = HourColumnWidth.toPx()
         fun x(index: Int) = index * width + width / 2
         val path = Path()
         path.moveTo(x(0), curve[0] * unit)
@@ -229,7 +229,7 @@ private fun HourColumn(
     val showDetails = stringResource(R.string.hour_show_details)
     Box(
         Modifier
-            .width(ColumnWidth)
+            .width(HourColumnWidth)
             .fillMaxHeight()
             .then(if (selected) Modifier.selectedColumn(palette.ink, palette.accent) else Modifier)
             .then(if (isMidnight) Modifier.dayDivider(palette.ink) else Modifier)
@@ -358,7 +358,7 @@ private fun Modifier.dayDivider(ink: Color): Modifier = drawBehind {
 }
 
 /** Края ленты плавно гаснут, показывая, что её можно листать. */
-private fun Modifier.edgeFade(width: Dp): Modifier = this
+internal fun Modifier.edgeFade(width: Dp): Modifier = this
     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
     .drawWithContent {
         drawContent()

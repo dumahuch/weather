@@ -72,9 +72,12 @@ object HourlyGeometry {
         }
     }
 
-    /** Высота столбика осадков; 0 для часов без осадков (там рисуется тонкая полоска). */
-    fun barHeights(mm: List<Double>): List<Float> {
-        val scale = maxOf(MIN_SCALE_MM, mm.maxOrNull() ?: 0.0)
-        return mm.map { v -> if (v > 0.0) maxOf(BAR_MIN, (v / scale * BAR_MAX).toFloat()) else 0f }
+    /**
+     * Высота столбика; 0 для часов без значения (там рисуется тонкая полоска). Шкала от наибольшего значения, но не
+     * меньше [minScale]: у осадков 1,5 мм, у порывов на странице ветра своя.
+     */
+    fun barHeights(values: List<Double>, minScale: Double = MIN_SCALE_MM): List<Float> {
+        val scale = maxOf(minScale, values.maxOrNull() ?: 0.0)
+        return values.map { v -> if (v > 0.0) maxOf(BAR_MIN, (v / scale * BAR_MAX).toFloat()) else 0f }
     }
 }

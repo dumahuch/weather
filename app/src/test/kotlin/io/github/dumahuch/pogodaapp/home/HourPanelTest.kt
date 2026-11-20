@@ -24,7 +24,7 @@ class HourPanelTest {
     @Test
     fun valuesAreRoundedAsShown() {
         val panel = hourPanelOf(details())!!
-        assertEquals(1012, panel.pressureHpa)
+        assertEquals(1012.4, panel.pressureHpa!!, 0.0)
         assertEquals(78, panel.humidityPercent)
         assertEquals(22, panel.windKmh)
         assertEquals(4, panel.windStep)

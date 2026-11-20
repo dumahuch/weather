@@ -12,7 +12,8 @@ import kotlin.math.roundToInt
  * старой версией»: такая строка в панели не показывается.
  */
 data class HourPanel(
-    val pressureHpa: Int?,
+    /** Давление как есть (гПа): экран показывает его в единицах языка (мм рт. ст. в русском) и сам округляет. */
+    val pressureHpa: Double?,
     val feelsLikeC: Double?,
     val humidityPercent: Int?,
     val dewPointC: Double?,
@@ -37,7 +38,7 @@ fun hourPanelOf(details: HourDetails?): HourPanel? {
     val step = wind?.let { beaufortOf(it) }
     val gust = details.gustKmh?.roundToInt()
     val panel = HourPanel(
-        pressureHpa = details.pressureHpa?.roundToInt(),
+        pressureHpa = details.pressureHpa,
         feelsLikeC = details.feelsLikeC,
         humidityPercent = details.humidity,
         dewPointC = details.dewPointC,

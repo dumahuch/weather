@@ -25,16 +25,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
+import io.github.dumahuch.pogodaapp.forecast.PressureUnits
 import io.github.dumahuch.pogodaapp.home.HourPanel
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import java.time.ZoneId
+import kotlin.math.roundToInt
 import java.util.Locale
 
 /** Выбранный час с его панелью; [point] и [panel] есть всегда вместе. */
@@ -94,12 +97,15 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
     val panel = selection.panel
     val hour = selection.point.time.atZone(zone).hour
     val kmh = stringResource(R.string.kmh_unit)
-    val hpa = stringResource(R.string.hpa_unit)
+    val pressureUnit = stringResource(R.string.pressure_unit)
+    val mmHg = booleanResource(R.bool.pressure_mmhg)
     val directions = stringArrayResource(R.array.wind_from)
     val strengths = stringArrayResource(R.array.beaufort_names)
 
     val cells = buildList {
-        panel.pressureHpa?.let { add(stringResource(R.string.tile_pressure) to "$it $hpa") }
+        panel.pressureHpa?.let {
+            add(stringResource(R.string.tile_pressure) to "${PressureUnits.shown(it, mmHg).roundToInt()} $pressureUnit")
+        }
         panel.feelsLikeC?.let { add(stringResource(R.string.feels_like) to temperatureText(it)) }
         panel.humidityPercent?.let { add(stringResource(R.string.tile_humidity) to "$it %") }
         panel.dewPointC?.let { add(stringResource(R.string.hour_dew_point) to temperatureText(it)) }

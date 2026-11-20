@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -17,11 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
+import io.github.dumahuch.pogodaapp.forecast.Metric
 import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.ui.CaptionHue
 import io.github.dumahuch.pogodaapp.ui.CaptionTints
@@ -79,6 +82,8 @@ internal class Caption(
     val description: String,
     val faded: Boolean = false,
     val wide: Boolean = false,
+    /** Какую страницу подробностей открывает нажатие (с 0.8.70); пусто: показатель не нажимается. */
+    val metric: Metric? = null,
 )
 
 /**
@@ -87,8 +92,9 @@ internal class Caption(
  * (цифра 17 sp, значок 18 dp). Цвет приглушён ([QuietInk]): это второстепенные данные, контраст не выше нужного.
  */
 @Composable
-internal fun CaptionRow(items: List<Caption>, modifier: Modifier = Modifier) {
+internal fun CaptionRow(items: List<Caption>, modifier: Modifier = Modifier, onOpen: (Metric) -> Unit = {}) {
     val palette = LocalPogodaPalette.current
+    val openLabel = stringResource(R.string.hour_show_details)
     val text = QuietInk.text(palette.ink, palette.infoBackdrop)
     Row(
         modifier.fillMaxWidth().height(IntrinsicSize.Min),
@@ -99,9 +105,19 @@ internal fun CaptionRow(items: List<Caption>, modifier: Modifier = Modifier) {
             if (index > 0) {
                 Box(Modifier.fillMaxHeight().width(1.dp).background(text.copy(alpha = 0.3f)))
             }
+            val metric = item.metric
             Row(
                 (if (item.wide) Modifier.weight(1f, fill = false) else Modifier)
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    // Нажатие открывает страницу подробностей показателя (решение Димы 20.11.2026); отступ по высоте
+                    // чуть больше прежнего (6 dp вместо 2), чтобы попасть пальцем было проще.
+                    .then(
+                        if (metric != null) {
+                            Modifier.clickable(role = Role.Button, onClickLabel = openLabel) { onOpen(metric) }
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
                     .clearAndSetSemantics { contentDescription = item.description },
                 horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,

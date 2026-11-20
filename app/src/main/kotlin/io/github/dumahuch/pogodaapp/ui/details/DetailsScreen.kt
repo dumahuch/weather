@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -43,17 +44,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
-import io.github.dumahuch.pogodaapp.forecast.CompassPoint
+import io.github.dumahuch.pogodaapp.forecast.PressureUnits
 import io.github.dumahuch.pogodaapp.forecast.PressureLevel
 import io.github.dumahuch.pogodaapp.forecast.PressureOutlook
 import io.github.dumahuch.pogodaapp.forecast.PressurePoint
 import io.github.dumahuch.pogodaapp.forecast.PressureTrend
 import io.github.dumahuch.pogodaapp.forecast.continuationCase
-import io.github.dumahuch.pogodaapp.forecast.gustBeaufort
 import io.github.dumahuch.pogodaapp.forecast.UvLevel
-import io.github.dumahuch.pogodaapp.forecast.beaufortOf
 import io.github.dumahuch.pogodaapp.forecast.fitArcHeight
-import io.github.dumahuch.pogodaapp.forecast.visibilityText
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.DetailsSkeleton
@@ -83,7 +81,8 @@ import kotlin.math.roundToInt
 import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 
 /**
- * Вкладка «Подробно»: плитки с воздухом, пыльцой, ветром, давлением, УФ-индексом, влажностью, видимостью, солнцем и луной.
+ * Вкладка «Подробно»: плитки с воздухом, пыльцой, давлением, УФ-индексом, солнцем и луной (ветер и влажность с 0.8.70
+ * открываются с «Главной» своими страницами).
  * Макет: страница «Подробно» в живом макете. Пыльца (DWD, только Германия, версия 0.4.3) стоит рядом с воздухом.
  * Значения берутся для текущего часа из прогноза; качество воздуха приходит отдельным запросом ([AirQuality]).
  * Если места или данных нет, показывается та же карточка состояния, что на «Главной».
@@ -194,13 +193,10 @@ private fun DetailsContent(
             AirTile(air, Modifier.weight(1f).fillMaxHeight())
             PollenTile(pollen, today, Modifier.weight(1f).fillMaxHeight())
         }
+        // Ветер и влажность с 0.8.70 открываются с «Главной» своими страницами (решение Димы 20.11): здесь их плиток нет.
         Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
-            WindTile(details, Modifier.weight(1f).fillMaxHeight())
             PressureTile(details, pressurePoints, nowIndex, forecast.zone, trend, Modifier.weight(1f).fillMaxHeight())
-        }
-        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
             UvTile(details, Modifier.weight(1f).fillMaxHeight())
-            HumidityTile(details, Modifier.weight(1f).fillMaxHeight())
         }
         SunMoonTile(place, forecast, now, fit, Modifier.fillMaxWidth())
     }
@@ -327,35 +323,6 @@ private fun PollenDots(level: PollenLevel, description: String, modifier: Modifi
 }
 
 @Composable
-private fun WindTile(details: HourDetails?, modifier: Modifier = Modifier) {
-    val kmh = stringResource(R.string.kmh_unit)
-    val directions = stringArrayResource(R.array.wind_directions)
-    val strength = stringArrayResource(R.array.beaufort_names)
-    val letters = stringArrayResource(R.array.compass_letters).toList()
-    val speed = details?.windKmh?.roundToInt()
-    val locale = LocalLocale.current.platformLocale
-    DetailTile(stringResource(R.string.tile_wind_now), modifier) {
-        // Компас справа от числа и слова силы ветра; подписи ниже занимают всю ширину плитки.
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                BigValue(speed?.toString() ?: "–", kmh)
-                // Слово по шкале Бофорта по средней скорости, как число на плитке (штиль, лёгкий, слабый, ..., ураган).
-                speed?.let { SubText(strength[beaufortOf(it)]) }
-            }
-            details?.windDirection?.let { Compass(blowsTowardDegrees = it + 180f, letters = letters) }
-        }
-        details?.gustKmh?.let { gust ->
-            val gustRounded = gust.roundToInt()
-            // Порывы пишутся, только когда есть что сказать: слово по шкале Бофорта выше слова среднего ветра.
-            gustBeaufort(speed, gustRounded)?.let { step ->
-                SubText(stringResource(R.string.gusts_with_word, gustRounded, kmh, continuationCase(strength[step], locale)))
-            }
-        }
-        details?.windDirection?.let { SubText(directions[CompassPoint.of(it).ordinal]) }
-    }
-}
-
-@Composable
 private fun PressureTile(
     details: HourDetails?,
     points: List<PressurePoint>,
@@ -365,7 +332,12 @@ private fun PressureTile(
     modifier: Modifier = Modifier,
 ) {
     DetailTile(stringResource(R.string.tile_pressure), modifier) {
-        BigValue(details?.pressureHpa?.roundToInt()?.toString() ?: "–", stringResource(R.string.hpa_unit))
+        // В русском интерфейсе миллиметры ртутного столба (решение Димы 20.11), уровень и тенденция считаются в гПа.
+        val mmHg = booleanResource(R.bool.pressure_mmhg)
+        BigValue(
+            details?.pressureHpa?.let { PressureUnits.shown(it, mmHg).roundToInt().toString() } ?: "–",
+            stringResource(R.string.pressure_unit),
+        )
         val locale = LocalLocale.current.platformLocale
         val level = details?.pressureHpa?.roundToInt()?.let { PressureLevel.ofHpa(it) }
         val levelText = level?.let { stringResource(pressureLevelLabel(it)) }
@@ -379,7 +351,7 @@ private fun PressureTile(
         }
         if (points.size >= 2) {
             Spacer(Modifier.weight(1f).heightIn(min = 6.dp))
-            PressureChart(points, nowIndex, zone)
+            PressureChart(points, nowIndex, zone, mmHg)
         }
     }
 }
@@ -404,18 +376,10 @@ private fun UvTile(details: HourDetails?, modifier: Modifier = Modifier) {
         BigValue(uv?.toString() ?: "–")
         if (uv != null) {
             SubText(stringResource(uvLevelLabel(UvLevel.of(uv))))
-            Spacer(Modifier.height(2.dp))
+            // Шкала прижата к низу плитки: рядом плитка давления с графиком выше.
+            Spacer(Modifier.weight(1f).heightIn(min = 2.dp))
             ScaleBar(fraction = (uv.coerceIn(0, UV_SCALE_MAX) / UV_SCALE_MAX.toFloat()), colors = UvScale, stepped = false)
         }
-    }
-}
-
-@Composable
-private fun HumidityTile(details: HourDetails?, modifier: Modifier = Modifier) {
-    val locale = LocalLocale.current.platformLocale
-    DetailTile(stringResource(R.string.tile_humidity), modifier) {
-        BigValue(details?.humidity?.toString() ?: "–", "%")
-        details?.visibilityM?.let { SubText(stringResource(R.string.visibility_line, visibilityText(it, locale))) }
     }
 }
 
