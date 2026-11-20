@@ -47,7 +47,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
@@ -68,8 +67,8 @@ import io.github.dumahuch.pogodaapp.ui.components.GlassCardBox
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
-import io.github.dumahuch.pogodaapp.ui.components.matteBase
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 import io.github.dumahuch.pogodaapp.update.UpdateStatus
 import io.github.dumahuch.pogodaapp.update.UpdateUi
 import io.github.dumahuch.pogodaapp.weather.PollenKind
@@ -138,12 +137,16 @@ fun SettingsScreen(
             onOpenedUpdates()
         }
     }
+    // Небо едет вместе с прокруткой, как на остальных экранах (0.8.71): на неподвижном небе размытый фон под карточками
+    // рвался при прокрутке (12.11, 36–58 px), из-за этого стекло в настройках было заменено плитой (0.7.17, 0.8.68).
+    val scroll = rememberScrollState()
+    ReportSkyScroll(scroll)
     Column(
         modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -437,7 +440,7 @@ private fun SourceLine(title: String, text: String) {
  * Раздел настроек: свёрнутый это название, строка о состоянии и стрелка вниз, развёрнутый та же карточка, увеличенная
  * на месте (стрелка повёрнута вверх). Нажатие по всей шапке. Строки раскрываются и сворачиваются вместе с высотой карточки и
  * гаснут по пути (с 0.7.13: раньше при сворачивании они пропадали сразу, и пустая карточка секунду висела прежнего размера).
- * Стекло без размытия: на прокручиваемой высокой карточке размытие давало серые полосы (0.7.17).
+ * Стекло с размытием, как на остальных экранах (0.8.71): высокая раскрытая карточка делит размытие на куски ([GlassCardBox]).
  */
 @Composable
 private fun SectionCard(
@@ -449,14 +452,8 @@ private fun SectionCard(
 ) {
     val palette = LocalPogodaPalette.current
     val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "settings-arrow")
-    // Без размытия: при прокрутке высокой карточки Haze догонял видимую часть с опозданием, и снизу вылезала серая полоса.
-    val glass = LocalGlass.current
-    val flatGlass = remember(glass) { glass.withoutBlur() }
-    GlassCardBox(CardShape, flatGlass, Modifier.fillMaxWidth()) {
-        // Плита без прозрачности (0.8.68): небо и капли за карточкой не мешают читать строки; кромка и тень остаются от стекла.
-        val plate = remember(palette) { matteBase(palette) }
-        val sheen = remember(palette) { Brush.linearGradient(0f to palette.sheen, 0.55f to Color.Transparent) }
-        Column(Modifier.fillMaxWidth().background(plate).background(sheen)) {
+    GlassCardBox(CardShape, LocalGlass.current, Modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth()) {
             Row(
                 Modifier
                     .fillMaxWidth()
