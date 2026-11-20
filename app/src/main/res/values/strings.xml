@@ -470,7 +470,6 @@
     <string name="metric_days_gusts">gusts</string>
     <string name="metric_days_wind_note">daily high, km/h</string>
     <string name="metric_gusts_short">gusts %1$s</string>
-    <string name="metric_days_rain_note">when and how much, mm</string>
     <string name="metric_days_humidity_note" formatted="false">humidity, %</string>
     <string name="metric_daytime">day</string>
     <string name="metric_night">night</string>
