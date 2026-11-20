@@ -120,17 +120,17 @@ private fun windPage(forecast: Forecast, date: LocalDate, today: LocalDate, now:
     val nowLabel = stringResource(R.string.now)
     val isToday = date == today
     val hours = remember(forecast, date) { MetricDays.detailsOf(forecast.hourDetails, zone, date) }
-    val peak = MetricDays.peakIndex(hours.map { it.windKmh })
-    val maxSpeed = peak?.let { hours[it].windKmh }?.roundToInt()
+    val peakHour = MetricDays.peakIndex(hours.map { it.windKmh })?.let { hours[it] }
+    val maxSpeed = peakHour?.windKmh?.roundToInt()
     val gustMax = hours.mapNotNull { it.gustKmh }.maxOrNull()?.roundToInt()
     val current = if (isToday) forecast.detailsAt(now) else null
     val shown = if (isToday) current?.windKmh?.roundToInt() else maxSpeed
     val direction = if (isToday) current?.windDirection else MetricDays.dominantDirection(hours)
     val rows = ArrayList<Pair<String, String>>()
-    if (maxSpeed != null && peak != null) {
-        val at = clockText(hours[peak].time, zone)
+    if (peakHour != null) {
+        val at = clockText(peakHour.time, zone)
         rows += if (isToday) {
-            stringResource(R.string.metric_max_today) to stringResource(R.string.metric_at_time, "$maxSpeed $kmh", at)
+            stringResource(R.string.metric_max_today) to stringResource(R.string.metric_at_time, "${maxSpeed ?: "–"} $kmh", at)
         } else {
             stringResource(R.string.metric_strongest) to at
         }
