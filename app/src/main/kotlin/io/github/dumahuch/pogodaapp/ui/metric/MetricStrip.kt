@@ -122,7 +122,7 @@ private fun DrawScope.drawStrip(spec: StripSpec, palette: PogodaPalette, styles:
     spec.directions?.forEachIndexed { i, d ->
         if (d != null) drawWindArrow(d, palette.ink, 22 * dp, Offset(x(i), (LABEL_ROW + ARROW_ROW / 2 + 6) * dp))
     }
-    val top = (LABEL_ROW + (if (spec.directions != null) ARROW_ROW + 12 else 22)) * dp
+    val top = (LABEL_ROW + (if (spec.directions != null) ARROW_ROW + 12f else 22f)) * dp
     val bottom = size.height - (if (spec.dots != null || spec.dashed != null) BOTTOM_ROW else 8f) * dp
     val lineSpan = (spec.lineMax - spec.lineMin).takeIf { it > 0.0 } ?: 1.0
     fun yLine(v: Double) = (bottom - ((v - spec.lineMin) / lineSpan).toFloat().coerceIn(0f, 1f) * (bottom - top)).toFloat()
