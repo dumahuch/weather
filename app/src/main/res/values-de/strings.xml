@@ -459,7 +459,6 @@
     <string name="metric_days_gusts">Böen</string>
     <string name="metric_days_wind_note">Tageshöchstwert, km/h</string>
     <string name="metric_gusts_short">Böen %1$s</string>
-    <string name="metric_days_rain_note">wann und wie viel, mm</string>
     <string name="metric_days_humidity_note" formatted="false">Feuchte, %</string>
     <string name="metric_daytime">tagsüber</string>
     <string name="metric_night">nachts</string>

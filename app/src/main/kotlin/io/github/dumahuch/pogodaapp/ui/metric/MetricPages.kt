@@ -319,8 +319,8 @@ internal fun RainPage(ctx: PageContext, side: Modifier) {
     val partNames = stringArrayResource(R.array.metric_parts)
     val allParts = remember(forecast, ctx.dates) { ctx.dates.map { MetricDays.partPeaks(forecast.hoursOf(it), zone) } }
     DaysCard(
-        ctx.dates, ctx.today, ctx.date, ctx.onSelect, stringResource(R.string.metric_days_rain_note), side,
-        legend = { Text(partNames.joinToString(" · "), style = pogodaText(11.5f, 600, color = palette.ink2)) },
+        ctx.dates, ctx.today, ctx.date, ctx.onSelect, "", side,
+        legend = { PartsHeader(partNames.toList(), stringResource(R.string.mm_unit)) },
     ) { i ->
         Canvas(Modifier.weight(1f).height(16.dp)) {
             val gap = 3.dp.toPx()

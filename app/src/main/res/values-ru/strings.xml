@@ -463,7 +463,6 @@
     <string name="metric_days_gusts">порывы</string>
     <string name="metric_days_wind_note">максимум за день, км/ч</string>
     <string name="metric_gusts_short">порывы %1$s</string>
-    <string name="metric_days_rain_note">когда идут и сколько, мм</string>
     <string name="metric_days_humidity_note" formatted="false">влажность, %</string>
     <string name="metric_daytime">днём</string>
     <string name="metric_night">ночью</string>

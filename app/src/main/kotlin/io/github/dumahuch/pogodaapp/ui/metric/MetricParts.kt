@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -42,6 +43,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
@@ -468,7 +470,7 @@ internal fun DaysCard(
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(stringResource(R.string.forecast_7_days), style = pogodaText(13f, 700), modifier = Modifier.alignByBaseline())
-            Text(note, style = pogodaText(12f, 400, color = palette.ink2), modifier = Modifier.alignByBaseline())
+            if (note.isNotEmpty()) Text(note, style = pogodaText(12f, 400, color = palette.ink2), modifier = Modifier.alignByBaseline())
         }
         Box(Modifier.padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 4.dp)) { legend() }
         dates.forEachIndexed { index, date ->
@@ -514,3 +516,27 @@ internal fun DayValue(value: String, note: String?, modifier: Modifier = Modifie
 }
 
 internal val DayValueWidth = 78.dp
+
+/**
+ * Шапка над строками дней: подписи над своими прямоугольниками и единица над правой колонкой.
+ * Отступы совпадают со строкой дня (колонка названия, зазор 8 dp, зазор 3 dp между частями), поэтому всё стоит ровно.
+ */
+@Composable
+internal fun PartsHeader(parts: List<String>, unit: String) {
+    val palette = LocalPogodaPalette.current
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Spacer(Modifier.width(DayColumnWidth))
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            parts.forEach { name ->
+                Text(
+                    name,
+                    style = pogodaText(11.5f, 600, color = palette.ink2),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
+        }
+        Text(unit, style = pogodaText(11.5f, 600, color = palette.ink2), modifier = Modifier.width(DayValueWidth), textAlign = TextAlign.End, maxLines = 1)
+    }
+}
