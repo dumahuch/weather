@@ -28,8 +28,12 @@ fun requiredEnv(name: String): String =
 
 android {
     namespace = "io.github.dumahuch.pogodaapp"
-    // Compose 1.12 требует компиляции против API 37. Работа на телефонах не меняется: minSdk 36, targetSdk 36.
-    compileSdk = 37
+    // Compose 1.13 требует компиляции против API 37.1. Работа на телефонах не меняется: minSdk 36, targetSdk 36.
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         applicationId = "io.github.dumahuch.pogodaapp"
