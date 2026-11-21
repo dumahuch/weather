@@ -1,6 +1,15 @@
 package io.github.dumahuch.pogodaapp.ui.pages
 
 import androidx.compose.foundation.Canvas
+import kotlin.math.roundToInt
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,15 +42,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -237,49 +243,95 @@ internal fun HourLine(
 }
 
 /**
- * Штрихи по часам суток (4 dp, круглые концы) цветом ступени; прошедшие часы тусклее, самый сильный час подписан
- * числом сверху. [scaleMax] наименьший верх шкалы, чтобы слабые значения не выглядели большими.
+ * Штрихи по часам суток (4 dp, круглые концы) цветом ступени, у всех полная яркость, как в легенде. Над графиком строка
+ * выбранного часа («17:00 · 21, хорошо»): нажми на столбик или проведи пальцем, по умолчанию выбран текущий час (у другого
+ * дня худший). Ниже строка лучшего или худшего часа дня с квадратиком его цвета. На текущем часе тонкая белая черта.
+ * [scaleMax] наименьший верх шкалы, чтобы слабые значения не выглядели большими; [describe] значение со словом ступени;
+ * [extremeLabel] «Худший час» или «Максимум».
  */
 @Composable
 internal fun HourBars(
     values: List<Double?>,
     nowIndex: Int?,
     colorOf: (Double) -> Color,
-    labelOf: (Double) -> String,
+    describe: (Double) -> String,
+    extremeLabel: String,
     scaleMax: Double,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPogodaPalette.current
     val measurer = rememberTextMeasurer()
     val label = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, color = palette.ink2)
-    Canvas(modifier.fillMaxWidth().height(124.dp)) {
-        val style = label.copy(fontSize = 11.dp.toSp())
-        val top = 20.dp.toPx()
-        val bottom = size.height - 24.dp.toPx()
-        fun x(fraction: Float) = 8.dp.toPx() + (size.width - 16.dp.toPx()) * fraction
-        val max = maxOf(scaleMax, values.filterNotNull().maxOrNull() ?: 0.0)
-        val peak = values.indices.filter { values[it] != null && values[it]!! > 0 }.maxByOrNull { values[it]!! }
-        val half = 2.dp.toPx()
-        values.forEachIndexed { i, v ->
-            val cx = x(i / HOURS.toFloat())
-            val value = v ?: 0.0
-            val h = if (value > 0) maxOf(4.dp.toPx(), (value / max * (bottom - top)).toFloat()) else 2.dp.toPx()
-            val color = if (value > 0) colorOf(value) else palette.ink.copy(alpha = 0.22f)
-            val alpha = if (nowIndex != null && i < nowIndex) 0.45f else 1f
-            drawRoundRect(color.copy(alpha = color.alpha * alpha), Offset(cx - half, bottom - h), Size(2 * half, h), CornerRadius(half))
-            if (i == peak) {
-                // Значение жирно, час рядом мельче и бледнее: «29 · 02:00».
-                val text = buildAnnotatedString {
-                    append(labelOf(value))
-                    withStyle(SpanStyle(fontSize = style.fontSize * 0.88f, fontWeight = FontWeight.Medium, color = palette.ink.copy(alpha = TIME_ALPHA))) {
-                        append(" · " + hourText(i))
-                    }
-                }
-                val layout = measurer.measure(text, style.copy(color = palette.ink, fontWeight = FontWeight.Bold))
-                drawText(layout, topLeft = Offset((cx - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), bottom - h - layout.size.height - 2.dp.toPx()))
+    val peak = values.indices.filter { values[it] != null && values[it]!! > 0 }.maxByOrNull { values[it]!! }
+    var selected by remember(values, nowIndex) { mutableIntStateOf(nowIndex ?: peak ?: HOURS / 2) }
+    val chosen = values.getOrNull(selected)
+    Column(modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(hourText(selected), style = pogodaText(12f, 600, color = palette.ink2, tabular = true), maxLines = 1)
+            Text(
+                chosen?.let { describe(it) } ?: stringResource(R.string.air_no_data),
+                style = pogodaText(14f, 700, tabular = true),
+                maxLines = 1,
+            )
+        }
+        if (peak != null) {
+            val best = values[peak]!!
+            Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Box(Modifier.size(9.dp).background(colorOf(best), RoundedCornerShape(3.dp)))
+                Text(
+                    stringResource(R.string.pg_peak_line, extremeLabel, describe(best), stringResource(R.string.metric_at, hourText(peak))),
+                    style = pogodaText(11.5f, 500, color = palette.ink2, tabular = true),
+                    maxLines = 1,
+                )
             }
         }
-        hourAxis(measurer, style, ::x, size.height - 16.dp.toPx())
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(104.dp)
+                .padding(top = 6.dp)
+                .pointerInput(Unit) {
+                    fun pick(x: Float) {
+                        val inner = size.width - 16.dp.toPx()
+                        selected = ((x - 8.dp.toPx()) / inner * HOURS).roundToInt().coerceIn(0, HOURS - 1)
+                    }
+                    detectTapGestures { pick(it.x) }
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures { change, _ ->
+                        val inner = size.width - 16.dp.toPx()
+                        selected = ((change.position.x - 8.dp.toPx()) / inner * HOURS).roundToInt().coerceIn(0, HOURS - 1)
+                    }
+                },
+        ) {
+            val style = label.copy(fontSize = 11.dp.toSp())
+            val top = 4.dp.toPx()
+            val bottom = size.height - 24.dp.toPx()
+            fun x(fraction: Float) = 8.dp.toPx() + (size.width - 16.dp.toPx()) * fraction
+            val max = maxOf(scaleMax, values.filterNotNull().maxOrNull() ?: 0.0)
+            val half = 2.dp.toPx()
+            nowIndex?.let {
+                val nx = x(it / HOURS.toFloat())
+                drawLine(Color.White.copy(alpha = 0.6f), Offset(nx, top), Offset(nx, bottom), 1.dp.toPx())
+            }
+            values.forEachIndexed { i, v ->
+                val cx = x(i / HOURS.toFloat())
+                val value = v ?: 0.0
+                val h = if (value > 0) maxOf(4.dp.toPx(), (value / max * (bottom - top)).toFloat()) else 2.dp.toPx()
+                val color = if (value > 0) colorOf(value) else palette.ink.copy(alpha = 0.22f)
+                drawRoundRect(color, Offset(cx - half, bottom - h), Size(2 * half, h), CornerRadius(half))
+            }
+            // Выбранный час: тонкая рамка вокруг его столбика.
+            val sx = x(selected / HOURS.toFloat())
+            drawRoundRect(
+                palette.ink.copy(alpha = 0.55f),
+                Offset(sx - 5.dp.toPx(), top - 2.dp.toPx()),
+                Size(10.dp.toPx(), bottom - top + 4.dp.toPx()),
+                CornerRadius(5.dp.toPx()),
+                style = Stroke(1.dp.toPx()),
+            )
+            hourAxis(measurer, style, ::x, size.height - 16.dp.toPx())
+        }
     }
 }
 

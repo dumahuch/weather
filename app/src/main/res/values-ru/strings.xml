@@ -671,4 +671,7 @@
         <item>Озон</item>
         <item>Диоксид серы</item>
     </string-array>
+    <string name="pg_peak_max">Максимум</string>
+    <string name="pg_peak_worst">Худший час</string>
+    <string name="pg_peak_line">%1$s: %2$s %3$s</string>
 </resources>

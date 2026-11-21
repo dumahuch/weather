@@ -97,7 +97,8 @@ internal fun AirPage(ctx: PageState) {
                     values = values,
                     nowIndex = if (date == ctx.today) nowSlot(ctx) else null,
                     colorOf = { airColor(it.roundToInt()) },
-                    labelOf = { it.roundToInt().toString() },
+                    describe = { "${it.roundToInt()} · ${continuationCase(levels[AirLevel.of(it.roundToInt()).ordinal], locale)}" },
+                    extremeLabel = stringResource(R.string.pg_peak_worst),
                     scaleMax = AIR_SCALE,
                 )
             }
