@@ -99,6 +99,7 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
             when (background) {
                 WidgetBackground.Sky -> {
                     Text(stringResource(R.string.widget_shade, shade.roundToInt()))
+                    @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
                     Slider(
                         value = shade,
                         onValueChange = { shade = it },
@@ -108,6 +109,7 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
                 }
                 WidgetBackground.Glass -> {
                     Text(stringResource(R.string.widget_opacity, opacity.roundToInt()))
+                    @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
                     Slider(
                         value = opacity,
                         onValueChange = { opacity = it },
@@ -138,6 +140,7 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
 private fun DetailSlider(detail: WidgetDetail, onChange: (WidgetDetail) -> Unit) {
     val labels = listOf(R.string.widget_detail_minimum, R.string.widget_detail_normal, R.string.widget_detail_full)
     Column {
+        @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
         Slider(
             value = detail.ordinal.toFloat(),
             onValueChange = { onChange(WidgetDetail.fromIndex(it.roundToInt())) },

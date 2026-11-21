@@ -272,6 +272,7 @@ private fun ExpandedPanel(
 
         val hour = override.solarHour ?: snapshot?.solarHour ?: 12.0
         Caption(stringResource(R.string.check_time_title, clockText(hour)))
+        @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
         Slider(
             value = hour.toFloat(),
             onValueChange = { if (input != null) onOverride(override.copy(solarHour = it.toDouble())) },
