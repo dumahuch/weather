@@ -27,6 +27,15 @@ internal object SkyProbe {
     /** Туман, дождь и снег на самом небе. */
     var skyWeather by mutableStateOf(true)
 
+    /** Размытие карточек кусками по 360 dp ([io.github.dumahuch.pogodaapp.ui.components.chunkEdges]); выключено: одним куском на карточку. */
+    var blurChunks by mutableStateOf(true)
+
+    /** Яркость и насыщенность фона под карточками; выключено: размытый фон как есть. */
+    var blurColor by mutableStateOf(true)
+
+    /** Зерно на размытии карточек; выключено: без зерна. */
+    var blurNoise by mutableStateOf(true)
+
     fun reset() {
         clouds = true
         ridges = true
@@ -34,5 +43,8 @@ internal object SkyProbe {
         fullBlur = true
         glassWeather = true
         skyWeather = true
+        blurChunks = true
+        blurColor = true
+        blurNoise = true
     }
 }
