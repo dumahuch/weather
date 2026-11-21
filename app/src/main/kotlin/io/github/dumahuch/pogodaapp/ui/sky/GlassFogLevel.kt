@@ -15,8 +15,8 @@ import io.github.dumahuch.pogodaapp.sky.SkyOverride
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** За сколько плёнка тумана проступает или сходит целиком (мс). */
-private const val FADE_MILLIS = 5_000
+/** За сколько плёнка тумана проступает или сходит целиком (мс); до 0.8.76 было 5 с. */
+private const val FADE_MILLIS = 15_000
 
 /** Шагов густоты: ступень 0,02, проступание видно плавным, а карточки перерисовываются не каждый кадр. */
 private const val STEPS = 50f

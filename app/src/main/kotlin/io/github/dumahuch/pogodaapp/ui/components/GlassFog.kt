@@ -38,8 +38,8 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-/** Непрозрачность плёнки при густоте 1; ниже густоты [MIN_COVER] плёнки нет совсем. */
-private const val FOG_ALPHA = 0.4f
+/** Непрозрачность плёнки при густоте 1 (до 0.8.76 было 0,4, Дима 21.11: «слишком сильный»); ниже [MIN_COVER] плёнки нет. */
+private const val FOG_ALPHA = 0.26f
 private const val MIN_COVER = 0.02f
 
 /** Плёнка молочно-белая с долей цвета стекла (ночью не светится серым пятном). */
@@ -266,6 +266,8 @@ private class GlassFogNode(
                 GlassFrost.REFREEZE_SECONDS,
                 GlassFrost.CELL_DP,
                 GlassFrost.MAX_CELLS,
+                FogWipe.FROST_BRUSH_DP,
+                FogWipe.FROST_MAX_CLEAR,
             )
         } else {
             FogWipe(widthDp.toDouble(), heightDp.toDouble())
