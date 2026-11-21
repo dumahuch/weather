@@ -63,6 +63,8 @@ class StringsResourcesTest {
         "metric_days_humidity_note", "metric_daytime", "metric_night", "metric_daytime_hours", "metric_night_hours",
         "metric_parts", "metric_parts_when", "metric_and", "metric_beaufort", "metric_calm", "metric_hurricane", "metric_marker_now",
         "metric_marker_gusts", "metric_vis_fog", "metric_vis_far", "rain_intensity", "rain_chance", "metric_week_dry", "metric_dry_chance",
+        // «Солнце и Луна» (0.8.77): подписи легенды полосы света.
+        "light_day", "light_golden", "light_blue", "light_twilight", "light_night",
     )
 
     @Test

@@ -59,6 +59,7 @@ import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
 import io.github.dumahuch.pogodaapp.ui.map.MapPalette
 import io.github.dumahuch.pogodaapp.ui.metric.MetricScreen
+import io.github.dumahuch.pogodaapp.ui.sunmoon.SunMoonScreen
 import io.github.dumahuch.pogodaapp.ui.map.MapScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
@@ -129,6 +130,8 @@ fun PogodaApp(
     var dayCount by rememberSaveable { mutableIntStateOf(DEFAULT_DAY_COUNT) }
     // Страница показателя «Главной» (влажность, ветер, осадки), открытая нажатием под температурой.
     var openMetric by rememberSaveable { mutableStateOf<Metric?>(null) }
+    // Страница «Солнце и Луна», открытая нажатием на плитку «Подробно» (0.8.77).
+    var sunMoonOpen by rememberSaveable { mutableStateOf(false) }
 
     var placesOpen by rememberSaveable { mutableStateOf(false) }
     var searching by rememberSaveable { mutableStateOf(false) }
@@ -162,6 +165,7 @@ fun PogodaApp(
         settingsOpen = false
         openDay = null
         openMetric = null
+        sunMoonOpen = false
         tab = AppTab.Home
         closeAlerts()
         val match = AlertNotices.pick(request, shown)
@@ -193,6 +197,7 @@ fun PogodaApp(
     BackHandler(enabled = placesOpen && !searching) { closePlaces() }
     BackHandler(enabled = !placesOpen && openDay != null) { openDay = null }
     BackHandler(enabled = !placesOpen && openMetric != null) { openMetric = null }
+    BackHandler(enabled = !placesOpen && sunMoonOpen) { sunMoonOpen = false }
 
     // Название выбранного не текущего места (закреплённого или открытого для просмотра) и признак просмотра.
     val chosenName = when (val choice = places.selection) {
@@ -213,6 +218,7 @@ fun PogodaApp(
             },
             onOpenAlerts = { alertsListOpen = true },
             onOpenMetric = { openMetric = it },
+            onOpenSunMoon = { sunMoonOpen = true },
             // Список полон: «Закрепить» ведёт в список, где видно сообщение и можно открепить одно из мест.
             onPinPreview = {
                 if (listFull) {
@@ -235,6 +241,7 @@ fun PogodaApp(
         placesOpen -> ScreenKey(Layer.Places)
         tab == AppTab.Home && openMetric != null && content != null ->
             ScreenKey(Layer.Metric, tab.ordinal, metric = openMetric?.ordinal ?: 0)
+        tab == AppTab.Details && sunMoonOpen && content != null -> ScreenKey(Layer.SunMoon, tab.ordinal)
         tab == AppTab.Forecast && openDay != null && content != null ->
             ScreenKey(Layer.Day, tab.ordinal, day = openDay ?: 0L)
         else -> ScreenKey(Layer.Tab, tab.ordinal, isMap = tab == AppTab.Map)
@@ -270,6 +277,7 @@ fun PogodaApp(
         tab = target
         openDay = null
         openMetric = null
+        sunMoonOpen = false
         closeAlerts()
     }
 
@@ -298,7 +306,7 @@ fun PogodaApp(
             }
         }
     }
-    BackHandler(enabled = !placesOpen && openDay == null && openMetric == null && tab != AppTab.Home) { selectTab(AppTab.Home) }
+    BackHandler(enabled = !placesOpen && openDay == null && openMetric == null && !sunMoonOpen && tab != AppTab.Home) { selectTab(AppTab.Home) }
 
     // На карте свои тёмные цвета и стекло без размытия (под стеклом карта, а не небо), вместе с панелью вкладок.
     val skyPalette = LocalPogodaPalette.current
@@ -446,6 +454,11 @@ fun PogodaApp(
                     )
                 }
 
+                // «Солнце и Луна» открывается с «Подробно», всегда на небе.
+                Layer.SunMoon -> if (content != null) {
+                    SunMoonScreen(state = content, onRetry = actions.onRetry)
+                }
+
                 // День открывается из «Прогноза», всегда на небе.
                 Layer.Day -> if (content != null) {
                     DayDetailScreen(
@@ -479,7 +492,8 @@ fun PogodaApp(
             LocalContentColor provides if (onMap) MapPalette.ink else skyContent,
         ) {
             AnimatedVisibility(
-                visible = screen.layer == Layer.Tab || screen.layer == Layer.Day || screen.layer == Layer.Metric,
+                visible = screen.layer == Layer.Tab || screen.layer == Layer.Day || screen.layer == Layer.Metric ||
+                    screen.layer == Layer.SunMoon,
                 modifier = Modifier.align(Alignment.BottomCenter),
                 enter = fadeIn(tween(BAR_FADE_IN_MS)),
                 exit = fadeOut(tween(BAR_FADE_OUT_MS)),

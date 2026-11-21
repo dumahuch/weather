@@ -526,4 +526,76 @@
         <item>Spürbar schwül</item>
         <item>Schwül</item>
     </string-array>
+
+    <!-- «Солнце и Луна» (0.8.77) -->
+    <string name="sun_moon_sun">Sonne</string>
+    <string name="sun_moon_night">Nacht</string>
+    <string name="sun_moon_until_sunset">Sonnenuntergang in %1$s</string>
+    <string name="sun_moon_until_sunrise">Sonnenaufgang in %1$s</string>
+    <string name="sun_moon_polar_day">Die Sonne geht nicht unter</string>
+    <string name="sun_moon_polar_night">Die Sonne geht nicht auf</string>
+    <string name="minutes_only">%1$d Min.</string>
+    <string name="sun_moon_shorter">%1$d Min. kürzer als gestern</string>
+    <string name="sun_moon_longer">%1$d Min. länger als gestern</string>
+    <string name="sun_moon_same">Wie gestern</string>
+    <string name="sun_moon_noon">Sonnenmittag</string>
+    <string name="sun_moon_sun_height">Sonne auf %1$d°</string>
+    <string name="sun_moon_rises">Geht auf</string>
+    <string name="sun_moon_sets">Geht unter</string>
+    <string name="sun_moon_light">Licht zum Fotografieren</string>
+    <string name="light_day">Tag</string>
+    <string name="light_golden">golden</string>
+    <string name="light_blue">blau</string>
+    <string name="light_twilight">Dämmerung</string>
+    <string name="light_night">Nacht</string>
+    <string name="sun_moon_morning">Morgens</string>
+    <string name="sun_moon_evening">Abends</string>
+    <string name="blue_hour">Blaue Stunde</string>
+    <string name="golden_hour">Goldene Stunde</string>
+    <string name="sun_moon_clouds">Wolken</string>
+    <string name="cloud_layer_low">Vor allem tief</string>
+    <string name="cloud_layer_mid">Vor allem mittelhoch</string>
+    <string name="cloud_layer_high">Vor allem hoch</string>
+    <string name="cloud_clear">Klar</string>
+    <string name="sun_moon_light_note">Goldene Stunde: Sonne zwischen −4° und +6°, blaue: zwischen −6° und −4°.</string>
+    <string name="twilight_title">Dämmerung</string>
+    <string name="twilight_civil">Bürgerliche</string>
+    <string name="twilight_civil_note">Hell genug ohne Licht</string>
+    <string name="twilight_nautical">Nautische</string>
+    <string name="twilight_nautical_note">Horizont noch erkennbar</string>
+    <string name="twilight_astro">Astronomische</string>
+    <string name="twilight_astro_note">Himmel fast dunkel</string>
+    <string name="twilight_note">Bürgerliche bis −6°, nautische bis −12°, astronomische bis −18°.</string>
+    <string name="moon_title">Mond</string>
+    <string name="moon_lit">Beleuchtet · Tag %1$d des Zyklus</string>
+    <string name="moonrise">Mondaufgang</string>
+    <string name="moonset">Monduntergang</string>
+    <string name="moon_highest">Am höchsten</string>
+    <string name="moon_height">Auf %1$d°</string>
+    <string name="moon_below">Unter dem Horizont</string>
+    <string name="moon_rise_on">Mondaufgang %1$s</string>
+    <string name="shoot_blue">Blaue Stunde um %1$s</string>
+    <string name="shoot_golden">Goldene Stunde um %1$s</string>
+    <string name="shoot_sunrise">Aufgang um %1$s</string>
+    <string name="shoot_sunset">Untergang um %1$s</string>
+    <string name="sun_moon_days_sun">Auf- und Untergang</string>
+    <string name="sun_moon_days_golden">Goldene Stunde abends</string>
+    <string name="sun_moon_days_clouds">Wolken %1$s</string>
+    <string name="sun_moon_open">Sonne und Mond öffnen</string>
+    <string-array name="compass_in">
+        <item>Im Norden</item>
+        <item>Im Nordosten</item>
+        <item>Im Osten</item>
+        <item>Im Südosten</item>
+        <item>Im Süden</item>
+        <item>Im Südwesten</item>
+        <item>Im Westen</item>
+        <item>Im Nordwesten</item>
+    </string-array>
+    <string-array name="moon_quarters">
+        <item>Neumond</item>
+        <item>Erstes Viertel</item>
+        <item>Vollmond</item>
+        <item>Letztes Viertel</item>
+    </string-array>
 </resources>

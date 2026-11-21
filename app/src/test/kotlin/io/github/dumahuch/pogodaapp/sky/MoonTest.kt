@@ -120,4 +120,40 @@ class MoonTest {
         val result = Moon.eventsOn(LocalDate.parse("2026-11-13"), ZoneId.of("Europe/Berlin"), 52.37, 9.74)
         assertTrue(result.rise!!.isBefore(result.set!!))
     }
+
+    @Test
+    fun quartersAfterTwentyFirstOfNovemberMatchPyEphemWithinAnHour() {
+        // PyEphem 4: полнолуние 24.11 14:53, последняя четверть 01.12 06:09, новолуние 09.12 00:52, первая четверть 17.12 05:43 (UTC).
+        val quarters = Moon.nextQuarters(Instant.parse("2026-11-21T00:00:00Z"))
+        val expected = listOf(
+            Moon.Quarter.Full to "2026-11-24T14:53:29Z",
+            Moon.Quarter.LastQuarter to "2026-12-01T06:08:35Z",
+            Moon.Quarter.New to "2026-12-09T00:51:47Z",
+            Moon.Quarter.FirstQuarter to "2026-12-17T05:42:36Z",
+        )
+        assertEquals(expected.map { it.first }, quarters.map { it.first })
+        expected.zip(quarters).forEach { (want, got) ->
+            val delta = Math.abs(Instant.parse(want.second).epochSecond - got.second.epochSecond)
+            assertTrue("${want.first}: ${got.second}", delta <= 3600)
+        }
+    }
+
+    @Test
+    fun moonriseAzimuthAndHighestPointMatchPyEphem() {
+        // PyEphem 4, Ганновер 21.11.2026: восход 13:26 UTC на азимуте 73,3°; выше всего 20:32 UTC на высоте 49,5°.
+        val zone = ZoneId.of("Europe/Berlin")
+        val date = LocalDate.parse("2026-11-21")
+        val rise = Moon.eventsOn(date, zone, 52.374, 9.738).rise!!
+        assertEquals(73.3, Moon.positionAt(rise, 52.374, 9.738).azimuth, 2.0)
+        val top = Moon.transitOn(date, zone, 52.374, 9.738)
+        assertTrue("${top.time}", Math.abs(top.time.epochSecond - Instant.parse("2026-11-21T20:32:24Z").epochSecond) <= 600)
+        assertEquals(49.45, top.elevation, 1.0)
+    }
+
+    @Test
+    fun ageCountsDaysFromNewMoon() {
+        assertEquals(0, Moon.ageDays(Moon.Phase(0.0, 0.01)))
+        assertEquals(14, Moon.ageDays(Moon.Phase(1.0, 0.5)))
+        assertEquals(29, Moon.ageDays(Moon.Phase(0.0, 0.999)))
+    }
 }

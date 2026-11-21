@@ -137,7 +137,15 @@ fun DetailsScreen(
                             modifier = Modifier.padding(horizontal = 20.dp),
                         )
                     } else {
-                        DetailsContent(state.place, state.forecast, state.airQuality, state.pollen, fit, Modifier.padding(horizontal = 20.dp))
+                        DetailsContent(
+                            state.place,
+                            state.forecast,
+                            state.airQuality,
+                            state.pollen,
+                            fit,
+                            actions.onOpenSunMoon,
+                            Modifier.padding(horizontal = 20.dp),
+                        )
                     }
 
                     HomeUiState.NoPermission -> NoPermissionTop(permanentlyDenied, actions)
@@ -167,7 +175,7 @@ fun DetailsScreen(
 /** Зазор между нижней плиткой и панелью вкладок сверх отступа под панель (его уже включает [bottomContentPadding]). */
 private val ARC_GAP = 6.dp
 
-/** Ниже этой высоты дугу не сжимаем: если и так не помещается, страница прокручивается. */
+/** Ниже этой высоты кривую не сжимаем: если и так не помещается, страница прокручивается. */
 private val ARC_MIN_HEIGHT = 40.dp
 
 private val TileSpacing = 8.dp
@@ -179,6 +187,7 @@ private fun DetailsContent(
     air: AirQuality?,
     pollen: PollenForecast?,
     fit: ArcFit,
+    onOpenSunMoon: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val now = remember(forecast) { Instant.now() }
@@ -198,7 +207,7 @@ private fun DetailsContent(
             PressureTile(details, pressurePoints, nowIndex, forecast.zone, trend, Modifier.weight(1f).fillMaxHeight())
             UvTile(details, Modifier.weight(1f).fillMaxHeight())
         }
-        SunMoonTile(place, forecast, now, fit, Modifier.fillMaxWidth())
+        SunMoonTile(place, forecast, now, fit, onOpenSunMoon, Modifier.fillMaxWidth())
     }
 }
 

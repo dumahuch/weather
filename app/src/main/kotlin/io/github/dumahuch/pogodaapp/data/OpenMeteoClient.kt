@@ -45,10 +45,11 @@ class OpenMeteoClient(
 
         /**
          * Часовые значения вкладки «Подробно» и панели под лентой часов (мгновенные); видимость в метрах, ветер в км/ч
-         * (см. wind_speed_unit), температуры в градусах Цельсия.
+         * (см. wind_speed_unit), температуры в градусах Цельсия, облачность по слоям в процентах («Солнце и Луна», 0.8.77).
          */
         const val HOURLY_DETAIL_FIELDS = "relative_humidity_2m,pressure_msl,visibility,wind_speed_10m," +
-            "wind_direction_10m,wind_gusts_10m,uv_index,apparent_temperature,dew_point_2m"
+            "wind_direction_10m,wind_gusts_10m,uv_index,apparent_temperature,dew_point_2m," +
+            "cloud_cover_low,cloud_cover_mid,cloud_cover_high"
 
         /** Суточные поля; ветер в км/ч, время восхода и заката в секундах Unix вместе с остальным временем. */
         const val DAILY_FIELDS = "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum," +

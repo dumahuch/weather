@@ -6,6 +6,7 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sin
+import kotlin.math.tan
 
 /**
  * Положение солнца по координатам места и времени. Приближённые формулы Астрономического ежегодника
@@ -27,6 +28,22 @@ internal object SunPosition {
         val solarHours = secondOfDay / 3600.0 + longitude / 15.0 + coordinates.equationOfTimeHours
         val solarHour = solarHours - 24.0 * floor(solarHours / 24.0)
         return Sun(elevation(latitude, coordinates.declination, solarHour), solarHour)
+    }
+
+    /** Высота над горизонтом и азимут в градусах (азимут от севера по часовой стрелке: 90 восток, 180 юг, 270 запад). */
+    data class Horizontal(val elevation: Double, val azimuth: Double)
+
+    /** Где солнце на небе места в момент [time]: высота (без рефракции) и азимут. */
+    fun horizontal(latitude: Double, longitude: Double, time: Instant): Horizontal {
+        val coordinates = coordinates(time)
+        val sun = at(latitude, longitude, time)
+        val lat = Math.toRadians(latitude)
+        val hourAngle = Math.toRadians((sun.solarHour - 12) * 15)
+        // Азимут от юга к западу (Meeus, гл. 13), затем от севера: плюс 180°.
+        val fromSouth = Math.toDegrees(
+            atan2(sin(hourAngle), cos(hourAngle) * sin(lat) - tan(coordinates.declination) * cos(lat)),
+        )
+        return Horizontal(sun.elevation, reduce(fromSouth + 180.0))
     }
 
     /**

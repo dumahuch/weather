@@ -293,4 +293,22 @@ class OpenMeteoParserTest {
         assertEquals(5.0, details[1].dewPointC!!, 0.0)
         assertEquals(null, details[2].dewPointC)
     }
+
+    @Test
+    fun cloudLayersAreReadAsPercentAndStayEmptyInOldAnswers() {
+        val old = OpenMeteoParser.parse(fixture("hannover-15d.json")).hourDetails
+        assertEquals(null, old.first().cloudLowPercent)
+
+        val json = small(extra = "").replace(
+            """"precipitation":[9.0,0.4,0.0,2.5]""",
+            """"precipitation":[9.0,0.4,0.0,2.5],"relative_humidity_2m":[50,60,70,80],""" +
+                """"cloud_cover_low":[80,null,0,104],"cloud_cover_mid":[10.4,20,30,40],"cloud_cover_high":[0,0,99.6,5]""",
+        )
+        val details = OpenMeteoParser.parse(json).hourDetails
+        assertEquals(80, details[0].cloudLowPercent)
+        assertEquals(null, details[1].cloudLowPercent)
+        assertEquals(100, details[3].cloudLowPercent)
+        assertEquals(10, details[0].cloudMidPercent)
+        assertEquals(100, details[2].cloudHighPercent)
+    }
 }

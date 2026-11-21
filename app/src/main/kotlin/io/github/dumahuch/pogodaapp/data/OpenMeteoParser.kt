@@ -149,6 +149,9 @@ object OpenMeteoParser {
         val uv = hourly.optJSONArray("uv_index")
         val feelsLike = hourly.optJSONArray("apparent_temperature")
         val dewPoint = hourly.optJSONArray("dew_point_2m")
+        val cloudLow = hourly.optJSONArray("cloud_cover_low")
+        val cloudMid = hourly.optJSONArray("cloud_cover_mid")
+        val cloudHigh = hourly.optJSONArray("cloud_cover_high")
         if (listOf(humidity, pressure, visibility, wind, direction, gusts, uv).all { it == null }) return emptyList()
         return (0 until times.length()).map { i ->
             HourDetails(
@@ -162,6 +165,9 @@ object OpenMeteoParser {
                 uvIndex = uv.numberAt(i),
                 feelsLikeC = feelsLike.numberAt(i),
                 dewPointC = dewPoint.numberAt(i),
+                cloudLowPercent = cloudLow.percentAt(i),
+                cloudMidPercent = cloudMid.percentAt(i),
+                cloudHighPercent = cloudHigh.percentAt(i),
             )
         }
     }
@@ -169,6 +175,9 @@ object OpenMeteoParser {
     /** Число из массива или null, если массива нет, он короче или в нём пусто. */
     private fun JSONArray?.numberAt(index: Int): Double? =
         if (this == null || index >= length() || isNull(index)) null else getDouble(index)
+
+    /** Процент из массива (округлённый, от 0 до 100) или null. */
+    private fun JSONArray?.percentAt(index: Int): Int? = numberAt(index)?.let { Math.round(it).toInt().coerceIn(0, 100) }
 
     /** Момент из массива: секунды Unix (формат запроса) или запасной вариант «2026-10-29T07:20» по времени места. */
     private fun JSONArray?.instantAt(index: Int, zone: ZoneId): Instant? {
