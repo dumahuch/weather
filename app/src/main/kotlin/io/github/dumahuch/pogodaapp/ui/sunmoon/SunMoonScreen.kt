@@ -29,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.SunDay
@@ -45,7 +45,6 @@ import io.github.dumahuch.pogodaapp.ui.forecast.dayName
 import io.github.dumahuch.pogodaapp.ui.forecast.fullDate
 import io.github.dumahuch.pogodaapp.ui.forecast.percentText
 import io.github.dumahuch.pogodaapp.ui.home.StateCard
-import io.github.dumahuch.pogodaapp.ui.metric.DayValue
 import io.github.dumahuch.pogodaapp.ui.metric.DaysCard
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
@@ -59,8 +58,9 @@ import kotlinx.coroutines.launch
 
 /**
  * Страница «Солнце и Луна» (шаг В, 21.11.2026, макет https://claude.ai/artifact/1nRbyKdjC7NTVMDYS1g1B3). Открывается
- * нажатием на плитку «Подробно», закрывается жестом «назад». Карточки: Солнце (кривая пути, световой день, полдень, где
- * восходит и садится), свет для съёмки (полоса суток, золотой и синий час, облака в эти часы), сумерки, Луна, 7 дней.
+ * нажатием на плитку «Подробно», закрывается жестом «назад». Версия 3 после разбора Димы: Солнце (кривая пути, световой
+ * день, полдень и длина теней), свет для съёмки (полоса суток, «Утро / Вечер», события света по порядку, облака в золотой
+ * час), куда смотреть (стороны восхода и заката солнца и луны), Луна, 7 дней.
  * Нажатие на день в списке показывает его выше. Солнце и луна считаются на телефоне, облака берутся из прогноза.
  */
 @Composable
@@ -110,11 +110,12 @@ fun SunMoonScreen(state: HomeUiState.Content, onRetry: () -> Unit, modifier: Mod
             )
         } else {
             val ctx = SunMoonContext(place, forecast, zone, now, today, date, days)
+            val moon = remember(ctx.date, place, zone) { moonDay(ctx) }
             Column(side, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SunCard(ctx, day)
                 LightCard(ctx, day)
-                TwilightCard(day, zone)
-                MoonCard(ctx)
+                DirectionCard(ctx, day, moon)
+                MoonCard(ctx, moon)
                 WeekCard(ctx, dates) { picked ->
                     chosen = picked.toEpochDay()
                     scope.launch { scroll.animateScrollTo(0) }
@@ -151,11 +152,15 @@ internal fun durationText(duration: Duration): String {
     }
 }
 
-/** Список «7 дней»: восход и закат с длиной дня, начало вечернего золотого часа и облака в нём, фаза луны. */
+/**
+ * Список «7 дней»: подписи столбцов стоят над своими столбцами (как в строках: колонка дня, зазор 8 dp); восход и закат с
+ * длиной дня, начало вечернего золотого часа золотым цветом и облака в нём, освещённость луны в процентах.
+ */
 @Composable
 private fun WeekCard(ctx: SunMoonContext, dates: List<LocalDate>, onSelect: (LocalDate) -> Unit) {
     val palette = LocalPogodaPalette.current
-    val north = ctx.place.latitude >= 0
+    val gold = goldInk()
+    val header = pogodaText(11.5f, 600, color = palette.ink2)
     DaysCard(
         dates = dates,
         today = ctx.today,
@@ -163,9 +168,11 @@ private fun WeekCard(ctx: SunMoonContext, dates: List<LocalDate>, onSelect: (Loc
         onSelect = onSelect,
         note = "",
         legend = {
-            Row(Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.sun_moon_days_sun), style = pogodaText(11.5f, 600, color = palette.ink2), modifier = Modifier.weight(1f))
-                Text(stringResource(R.string.sun_moon_days_golden), style = pogodaText(11.5f, 600, color = palette.ink2))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.width(DAY_COLUMN))
+                Text(stringResource(R.string.week_sun), style = header, modifier = Modifier.weight(1f), maxLines = 1)
+                Text(stringResource(R.string.golden_hour), style = header, modifier = Modifier.width(GOLDEN_COLUMN), textAlign = TextAlign.End, maxLines = 1)
+                Text(stringResource(R.string.moon_title), style = header, modifier = Modifier.width(MOON_COLUMN), textAlign = TextAlign.Center, maxLines = 1)
             }
         },
     ) { index ->
@@ -178,70 +185,25 @@ private fun WeekCard(ctx: SunMoonContext, dates: List<LocalDate>, onSelect: (Loc
             day?.daylight?.let { Text(durationText(it), style = pogodaText(11f, 500, color = palette.ink2), maxLines = 1) }
         }
         val golden = day?.eveningGolden
-        val clouds = golden?.let { goldenClouds(ctx.forecast, it) }
-        DayValue(
-            golden?.let { clockText(it.from, ctx.zone) } ?: "–",
-            clouds?.let { stringResource(R.string.sun_moon_days_clouds, percentText(it.percent)) },
-        )
-        val phase = remember(date, ctx.zone) { Moon.phaseAt(date.atTime(12, 0).atZone(ctx.zone).toInstant()) }
-        MoonGlyph(phase.illumination, litOnRight = phase.waxing == north, modifier = Modifier.size(22.dp))
-    }
-}
-
-/** Таблица «подпись · утро · вечер» карточек света и сумерек. */
-@Composable
-internal fun TimeTable(rows: List<TimeRow>, modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
-    Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-            Spacer(Modifier.weight(1f))
-            Text(stringResource(R.string.sun_moon_morning), style = pogodaText(11.5f, 600, color = palette.ink2), modifier = Modifier.width(TIME_COLUMN))
-            Text(stringResource(R.string.sun_moon_evening), style = pogodaText(11.5f, 600, color = palette.ink2), modifier = Modifier.width(TIME_COLUMN))
-        }
-        rows.forEach { row ->
-            Box(Modifier.fillMaxWidth().height(1.dp).background(palette.glassLine))
-            Row(Modifier.fillMaxWidth().padding(vertical = 8.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (row.color != null) {
-                            Box(Modifier.size(10.dp).background(rgb(row.color), RoundedCornerShape(3.dp)))
-                            Spacer(Modifier.width(7.dp))
-                        }
-                        Text(row.label, style = pogodaText(13.5f, 600), maxLines = 1)
-                    }
-                    row.note?.let {
-                        Text(
-                            it,
-                            style = pogodaText(11.5f, 500, color = palette.ink2),
-                            modifier = Modifier.padding(start = if (row.color != null) 17.dp else 0.dp),
-                        )
-                    }
-                }
-                TimeCell(row.morning, row.morningNote)
-                TimeCell(row.evening, row.eveningNote)
+        val clouds = golden?.let { spanClouds(ctx.forecast, it) }
+        Column(Modifier.width(GOLDEN_COLUMN), horizontalAlignment = Alignment.End) {
+            Text(golden?.let { clockText(it.from, ctx.zone) } ?: "–", style = pogodaText(15f, 700, color = gold, tabular = true), maxLines = 1)
+            clouds?.let {
+                Text(stringResource(R.string.sun_moon_days_clouds, percentText(it.percent)), style = pogodaText(11f, 500, color = palette.ink2, tabular = true), maxLines = 1)
             }
         }
+        val phase = remember(date, ctx.zone) { Moon.phaseAt(date.atTime(21, 0).atZone(ctx.zone).toInstant()) }
+        Text(
+            percentText(phase.percent),
+            style = pogodaText(12.5f, 600, color = palette.ink2, tabular = true),
+            modifier = Modifier.width(MOON_COLUMN),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
     }
 }
 
-@Composable
-private fun TimeCell(value: String, note: String?) {
-    val palette = LocalPogodaPalette.current
-    Column(Modifier.width(TIME_COLUMN)) {
-        Text(value, style = pogodaText(13.5f, 600, tabular = true), maxLines = 1)
-        note?.let { Text(it, style = pogodaText(11f, 500, color = palette.ink2), maxLines = 2) }
-    }
-}
-
-/** Строка таблицы: образец цвета (как на полосе), подпись с пояснением, значения утром и вечером. */
-internal class TimeRow(
-    val label: String,
-    val morning: String,
-    val evening: String,
-    val color: Int? = null,
-    val note: String? = null,
-    val morningNote: String? = null,
-    val eveningNote: String? = null,
-)
-
-private val TIME_COLUMN = 92.dp
+/** Ширины столбцов «7 дней»: колонка дня как в [DaysCard], золотой час и луна. */
+private val DAY_COLUMN = 62.dp
+private val GOLDEN_COLUMN = 78.dp
+private val MOON_COLUMN = 44.dp

@@ -48,4 +48,24 @@ class SunMoonShapeTest {
         val colors = LightPhase.entries.map { Rgb.hex(SunMoonColors.of(it)) }
         colors.zipWithNext().forEach { (a, b) -> assertTrue("${contrast(a, b)}", contrast(a, b) >= 1.25) }
     }
+
+    @Test
+    fun compassArcGoesThroughTheSideOfTheHighestPoint() {
+        // Ганновер, ноябрь: восход 123°, закат 237°, полдень на юге: по часовой через юг.
+        assertEquals(114.0, arcSweep(123.0, 237.0, 180.0), 1e-9)
+        // Сидней, июнь: восход 62°, закат 298°, полдень на севере: против часовой через север.
+        assertEquals(-124.0, arcSweep(62.0, 298.0, 0.0), 1e-9)
+        // Луна с востока на запад через юг.
+        assertEquals(192.0, arcSweep(84.0, 276.0, 180.0), 1e-9)
+    }
+
+    @Test
+    fun runsGroupEqualNeighboursAndOnlyGoldenAndBlueGlow() {
+        val phases = listOf(LightPhase.Night, LightPhase.Night, LightPhase.Blue, LightPhase.Golden, LightPhase.Golden, LightPhase.Day)
+        assertEquals(
+            listOf(LightPhase.Night to 0..1, LightPhase.Blue to 2..2, LightPhase.Golden to 3..4, LightPhase.Day to 5..5),
+            runs(phases),
+        )
+        assertEquals(setOf(LightPhase.Golden, LightPhase.Blue), LightPhase.entries.filter { it.glows }.toSet())
+    }
 }

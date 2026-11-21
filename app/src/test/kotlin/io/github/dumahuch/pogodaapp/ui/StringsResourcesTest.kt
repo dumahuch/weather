@@ -65,6 +65,8 @@ class StringsResourcesTest {
         "metric_marker_gusts", "metric_vis_fog", "metric_vis_far", "rain_intensity", "rain_chance", "metric_week_dry", "metric_dry_chance",
         // «Солнце и Луна» (0.8.77): подписи легенды полосы света.
         "light_day", "light_golden", "light_blue", "light_twilight", "light_night",
+        // Продолжение после крупного процента освещённости: «89 % освещено · 12-й день цикла».
+        "moon_lit_line",
     )
 
     @Test
