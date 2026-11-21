@@ -34,6 +34,7 @@ import io.github.dumahuch.pogodaapp.ui.metric.DaysCard
 import io.github.dumahuch.pogodaapp.ui.metric.TileText
 import io.github.dumahuch.pogodaapp.ui.metric.TwoTiles
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.ui.sunmoon.drawGlowPath
 import io.github.dumahuch.pogodaapp.weather.HourDetails
 import java.time.Duration
 import java.time.Instant
@@ -158,9 +159,6 @@ internal fun PressurePage(ctx: PageState) {
 
     if (dates.size >= 2) {
         val perDay = remember(ctx.forecast, dates) { dates.map { hoursOn(ctx.forecast.hourDetails, it, ctx.zone) } }
-        val all = perDay.flatten().mapNotNull { it.pressureHpa }
-        val scaleLow = all.minOrNull() ?: 0.0
-        val scaleHigh = all.maxOrNull() ?: 0.0
         DaysCard(
             dates = dates,
             today = ctx.today,
@@ -186,7 +184,7 @@ internal fun PressurePage(ctx: PageState) {
                 textAlign = TextAlign.End,
                 maxLines = 1,
             )
-            DayLine(byHour(hours, ctx.zone, { it.time }) { it.pressureHpa }, scaleLow, scaleHigh)
+            DayLine(byHour(hours, ctx.zone, { it.time }) { h -> h.pressureHpa?.let { shown(it) } }, isToday = dates[index] == ctx.today)
         }
     }
     SourceNote(stringResource(R.string.pg_pressure_note))
@@ -195,19 +193,29 @@ internal fun PressurePage(ctx: PageState) {
 private val NOON_COLUMN = 56.dp
 private val SPARK_COLUMN = 74.dp
 
-/** Маленькая линия дня в строке списка: у всех дней одна шкала, чтобы было видно, где давление выше. */
+/** Наименьший размах шкалы линии дня (мм или гПа), как у большого графика: ровный день остаётся ровным. */
+private const val MIN_DAY_SPAN = 6.0
+
+/**
+ * Маленькая линия дня в строке списка: тот же цвет, закруглённые концы и свечение, что у большого графика «По часам»;
+ * у каждого дня своя шкала с наименьшим размахом, чтобы по форме можно было сравнить с сегодняшним днём.
+ */
 @Composable
-private fun DayLine(values: List<Double?>, low: Double, high: Double) {
-    Canvas(Modifier.size(width = SPARK_COLUMN, height = 22.dp)) {
+private fun DayLine(values: List<Double?>, isToday: Boolean) {
+    Canvas(Modifier.size(width = SPARK_COLUMN, height = 28.dp)) {
+        val known = values.filterNotNull()
+        if (known.size < 2) return@Canvas
+        val mid = (known.min() + known.max()) / 2
+        val span = maxOf(known.max() - known.min(), MIN_DAY_SPAN)
+        val pad = 4.dp.toPx()
         val points = values.mapIndexedNotNull { i, v ->
             v?.let {
-                val y = if (high > low) size.height - 3.dp.toPx() - ((it - low) / (high - low)).toFloat() * (size.height - 6.dp.toPx()) else size.height / 2
-                Offset(2.dp.toPx() + (size.width - 4.dp.toPx()) * i / (HOURS - 1), y)
+                val y = size.height / 2 - ((it - mid) / span).toFloat() * (size.height - 2 * pad)
+                Offset(pad + (size.width - 2 * pad) * i / (HOURS - 1), y)
             }
         }
-        if (points.size < 2) return@Canvas
         val path = Path().apply { points.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }
-        drawPath(path, PressureLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+        if (isToday) drawGlowPath(path, PressureLine, 2.dp.toPx()) else drawPath(path, PressureLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
     }
 }
 
@@ -276,7 +284,7 @@ internal fun UvPage(ctx: PageState) {
         val legend = UvLevel.entries.take(4).map { level ->
             Triple(Mark.Square, UvColors[level.ordinal], continuationCase(stringResource(uvLevelLabel(level)), locale))
         }
-        ChartCard(hourlyTitle(ctx), null, legend) {
+        ChartCard(hourlyTitle(ctx), stringResource(R.string.tile_uv), legend) {
             HourBars(
                 values = values,
                 nowIndex = nowSlot(ctx),

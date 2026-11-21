@@ -50,6 +50,7 @@ class PageLogicTest {
         assertEquals(90.0, AirDay.daily(hours, date, ZoneOffset.UTC, Pollutant.O3)!!, 1e-9)
         assertNull(AirDay.daily(hours.take(3), date, ZoneOffset.UTC, Pollutant.Pm25))
         assertEquals(43, AirDay.worst(hours, date, ZoneOffset.UTC))
+        assertEquals(at(23), AirDay.worstHour(hours, date, ZoneOffset.UTC)?.time)
         assertEquals(listOf(date), AirDay.dates(hours, ZoneOffset.UTC, date))
         assertEquals(Pollutant.O3, AirDay.main(mapOf(Pollutant.Pm25 to 0.7, Pollutant.O3 to 0.9)))
     }

@@ -32,6 +32,7 @@ import io.github.dumahuch.pogodaapp.forecast.Pollutant
 import io.github.dumahuch.pogodaapp.forecast.continuationCase
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.details.PollenDots
+import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.forecast.dayName
 import io.github.dumahuch.pogodaapp.ui.metric.DaysCard
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -53,7 +54,6 @@ internal fun airColor(eaqi: Int): Color = AirColors[AirLevel.of(eaqi).ordinal]
 
 /** Полоса вещества доходит до 140 % нормы: дальше всё равно «выше нормы». */
 private const val SHARE_TOP = 1.4f
-private const val SHARE_LOW = 0.5f
 private const val AIR_DAYS = 5
 
 @Composable
@@ -114,13 +114,22 @@ internal fun AirPage(ctx: PageState) {
                     WeekHeader(stringResource(R.string.pg_week_worst), stringResource(R.string.air_unit), null, WORST_COLUMN, 0.dp)
                 },
             ) { index ->
-                val worst = AirDay.worst(hours, dates[index], ctx.zone)
-                Text(
-                    worst?.let { levels[AirLevel.of(it).ordinal] } ?: "–",
-                    style = pogodaText(14f, 700, color = worst?.let { airColor(it) } ?: Color.Unspecified),
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                )
+                val hour = AirDay.worstHour(hours, dates[index], ctx.zone)
+                val worst = hour?.eaqi
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        worst?.let { levels[AirLevel.of(it).ordinal] } ?: "–",
+                        style = pogodaText(14f, 700, color = worst?.let { airColor(it) } ?: Color.Unspecified),
+                        maxLines = 1,
+                    )
+                    hour?.let {
+                        Text(
+                            stringResource(R.string.metric_at, clockText(it.time, ctx.zone)),
+                            style = pogodaText(11f, 500, color = LocalPogodaPalette.current.ink2, tabular = true),
+                            maxLines = 1,
+                        )
+                    }
+                }
                 Text(worst?.toString() ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(WORST_COLUMN), textAlign = TextAlign.End, maxLines = 1)
             }
         }
@@ -132,22 +141,15 @@ internal fun AirPage(ctx: PageState) {
 private const val AIR_SCALE = 40.0
 private val WORST_COLUMN = 48.dp
 
-/** Цвет доли нормы: до половины спокойный, до нормы жёлтый, выше нормы красный. */
-private fun shareColor(share: Double): Color = when {
-    share < SHARE_LOW -> AirColors[0]
-    share < 1.0 -> AirColors[2]
-    else -> AirColors[4]
-}
+/** Цвет доли нормы: до нормы зелёный, от нормы красный (черта нормы на полосе та же граница). */
+private fun shareColor(share: Double): Color = if (share < 1.0) AirColors[0] else AirColors[4]
 
 /** Вещества за сутки против норм ВОЗ: название, полоса доли нормы с чертой нормы, «N % нормы», значение «из нормы». */
 @Composable
 private fun SubstancesCard(daily: List<Pair<Pollutant, Double>>, names: Array<String>, words: Array<String>) {
     val palette = LocalPogodaPalette.current
     Card {
-        Row(Modifier.fillMaxWidth()) {
-            CardTitle(stringResource(R.string.pg_substances), Modifier.weight(1f))
-            Text(stringResource(R.string.pg_ugm3), style = pogodaText(12f, 600, color = palette.ink2), maxLines = 1)
-        }
+        CardTitle(stringResource(R.string.pg_substances))
         MapLegend(
             listOf(
                 Triple(Mark.Line, AirColors[0], stringResource(R.string.pg_legend_day_mean)),
@@ -176,10 +178,10 @@ private fun SubstancesCard(daily: List<Pair<Pollutant, Double>>, names: Array<St
                         maxLines = 1,
                     )
                 }
-                Column(Modifier.width(52.dp), horizontalAlignment = Alignment.End) {
+                Column(Modifier.width(58.dp), horizontalAlignment = Alignment.End) {
                     Text(value.roundToInt().toString(), style = pogodaText(15f, 700, tabular = true), maxLines = 1)
                     Text(
-                        stringResource(R.string.pg_out_of, pollutant.guideline.roundToInt().toString()),
+                        stringResource(R.string.pg_ugm3),
                         style = pogodaText(11f, 500, color = palette.ink2, tabular = true),
                         maxLines = 1,
                     )
