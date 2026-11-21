@@ -1,11 +1,11 @@
 # Версии проверены 28.10.2026 по реестрам Google Maven и Maven Central (шаг 1: lifecycle, coroutines, org.json).
 [versions]
-agp = "9.5.0"
+agp = "9.5.1"
 kotlin = "2.4.21"
-composeBom = "2026.09.00"
+composeBom = "2026.11.01"
 activityCompose = "1.13.0"
 junit = "4.13.2"
-lifecycle = "2.11.0"
+lifecycle = "2.11.1"
 kotlinxCoroutines = "1.11.0"
 orgJson = "20260814"
 haze = "2.1.0"

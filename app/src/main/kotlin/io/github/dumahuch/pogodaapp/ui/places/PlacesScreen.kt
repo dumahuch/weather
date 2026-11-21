@@ -427,6 +427,7 @@ private fun SearchField(initial: String, onQuery: (String) -> Unit, modifier: Mo
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            @Suppress("DEPRECATION") // Compose 1.13: переход на TextFieldState отложен (claude/topics/open-questions.md)
             BasicTextField(
                 value = text,
                 onValueChange = {

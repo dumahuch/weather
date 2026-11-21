@@ -29,9 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import io.github.dumahuch.pogodaapp.forecast.Metric
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.notify.AlertNotices
@@ -250,6 +252,13 @@ fun PogodaApp(
     }
     DisposableEffect(Unit) { onDispose { SkyPause.active = false } }
 
+    // Колода вкладок собрана всегда и лежит под окнами-страницами: при возврате с них она не собирается заново (см. [TabUnderlay]).
+    val tabsOnTop = tabsAreOnTop(screen)
+    val underlay = remember { TabUnderlay(tabsOnTop) }
+    LaunchedEffect(tabsOnTop, animate) {
+        if (animate) underlay.animateTo(tabsOnTop) else underlay.snapTo(tabsOnTop)
+    }
+
     // Смена вкладки: прежняя уходит картинкой, новая ставится под ней и приходит картинкой (см. [TabMotion]).
     val tabMotion = remember { TabMotion() }
     val tabLayer = rememberGraphicsLayer()
@@ -297,13 +306,17 @@ fun PogodaApp(
     val skyContent = LocalContentColor.current
     val mapGlass = remember { Glass.flat(MapPalette) }
     Box(modifier.fillMaxSize()) {
-        AnimatedContent(
-            targetState = screen,
-            modifier = Modifier
+        // Колода вкладок с небом вне перехода окон: ниже всех окон, собрана всегда. По просьбе [TabMotion] её кадр
+        // записывается в слой для картинки; пока идёт смена вкладки, живая колода спрятана: на экране небо и картинка.
+        Box(
+            Modifier
                 .fillMaxSize()
+                .graphicsLayer {
+                    alpha = underlay.alpha.value
+                    translationX = underlay.shift.value * size.width
+                }
+                .then(if (tabsOnTop) Modifier else Modifier.clearAndSetSemantics { })
                 .drawWithContent {
-                    // Обычно содержимое рисуется как есть; по просьбе [TabMotion] кадр записывается в слой для картинки.
-                    // Пока идёт смена, живое содержимое спрятано: на экране только небо и картинка.
                     val request = tabMotion.request
                     val hidden = tabMotion.hidden
                     if (request != null) {
@@ -314,6 +327,54 @@ fun PogodaApp(
                         drawContent()
                     }
                 },
+        ) {
+            TabDeck(
+                active = tab.ordinal,
+                all = SKY_TABS,
+                ready = content != null,
+                modifier = Modifier.fillMaxSize(),
+            ) { index ->
+                when (AppTab.entries[index]) {
+                    AppTab.Home -> HomeScreen(
+                        state = state,
+                        refreshing = refreshing,
+                        permanentlyDenied = permanentlyDenied,
+                        actions = linked,
+                        pinnedName = chosenName,
+                        preview = previewing,
+                    )
+
+                    AppTab.Details -> DetailsScreen(
+                        state = state,
+                        permanentlyDenied = permanentlyDenied,
+                        actions = linked,
+                    )
+
+                    AppTab.Forecast -> ForecastScreen(
+                        state = state,
+                        permanentlyDenied = permanentlyDenied,
+                        dayCount = dayCount,
+                        actions = linked,
+                        onDayCount = { dayCount = it },
+                        onOpenDay = { openDay = it.toEpochDay() },
+                    )
+
+                    AppTab.Map -> Unit
+                }
+            }
+        }
+        // Под страницей колода не принимает нажатий: окна-страницы прозрачны, и без этого нажатия шли бы сквозь них.
+        if (!tabsOnTop) {
+            Box(Modifier.fillMaxSize().pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } })
+        }
+        AnimatedContent(
+            targetState = screen,
+            modifier = Modifier
+                .fillMaxSize()
+                .drawWithContent {
+                    // Окно теперь держит только карту; пока идёт смена вкладки, она спрятана вместе с колодой.
+                    if (!tabMotion.hidden) drawContent()
+                },
             transitionSpec = {
                 if (animate) {
                     screenTransition(transitionKind(initialState, targetState))
@@ -322,7 +383,7 @@ fun PogodaApp(
                 }
             },
             label = "screen",
-            // Все вкладки живут в одном окне с колодой [TabDeck]: при смене между ними (и с картой) окно не пересобирается.
+            // Все вкладки живут в одном окне: при смене между ними (и с картой) окно не пересобирается.
             contentKey = { if (it.layer == Layer.Tab) SKY_TABS_KEY else it },
         ) { key ->
             when (key.layer) {
@@ -359,42 +420,8 @@ fun PogodaApp(
                     onClose = ::closePlaces,
                 )
 
-                // Вкладки с небом держатся собранными и под картой: после карты они не собираются заново.
+                // Колода вкладок вне перехода (см. выше); здесь только карта: она рисуется своей поверхностью.
                 Layer.Tab -> Box(Modifier.fillMaxSize()) {
-                    TabDeck(
-                        active = key.tabIndex,
-                        all = SKY_TABS,
-                        ready = content != null,
-                        modifier = Modifier.fillMaxSize(),
-                    ) { index ->
-                        when (AppTab.entries[index]) {
-                            AppTab.Home -> HomeScreen(
-                                state = state,
-                                refreshing = refreshing,
-                                permanentlyDenied = permanentlyDenied,
-                                actions = linked,
-                                pinnedName = chosenName,
-                                preview = previewing,
-                            )
-
-                            AppTab.Details -> DetailsScreen(
-                                state = state,
-                                permanentlyDenied = permanentlyDenied,
-                                actions = linked,
-                            )
-
-                            AppTab.Forecast -> ForecastScreen(
-                                state = state,
-                                permanentlyDenied = permanentlyDenied,
-                                dayCount = dayCount,
-                                actions = linked,
-                                onDayCount = { dayCount = it },
-                                onOpenDay = { openDay = it.toEpochDay() },
-                            )
-
-                            AppTab.Map -> Unit
-                        }
-                    }
                     if (key.isMap) {
                         CompositionLocalProvider(
                             LocalPogodaPalette provides MapPalette,
