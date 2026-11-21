@@ -15,13 +15,15 @@ class GlassFogTest {
         assertEquals(1.0, GlassFog.density(Condition.Fog, null, null, null), 1e-9)
         assertEquals(1.0, GlassFog.density(Condition.Fog, null, null, 150.0), 1e-9)
         assertEquals(0.6, GlassFog.density(Condition.Fog, null, null, 2000.0), 1e-9)
-        assertEquals(0.55, GlassFog.density(Condition.Rain, 0.1, 60, null), 1e-9)
+        assertEquals(0.35, GlassFog.density(Condition.Rain, 0.1, 60, null), 1e-9)
         assertEquals(0.0, GlassFog.density(Condition.Rain, 3.0, 60, null), 1e-9)
         assertEquals(0.0, GlassFog.density(Condition.Clear, null, 70, null), 1e-9)
         assertEquals(0.5, GlassFog.density(Condition.Cloudy, null, 99, null), 1e-9)
-        assertTrue(GlassFog.density(Condition.Cloudy, null, 92, null) in 0.1..0.4)
+        assertTrue(GlassFog.density(Condition.Cloudy, null, 96, null) in 0.1..0.4)
+        // С 0.8.76 обычная сырость (до 93 %) стекло не туманит.
+        assertEquals(0.0, GlassFog.density(Condition.Cloudy, null, 92, null), 1e-9)
         // Сильный дождь при сырости: плёнка от влажности остаётся.
-        assertEquals(0.5, GlassFog.density(Condition.Rain, 3.0, 98, null), 1e-9)
+        assertEquals(0.5, GlassFog.density(Condition.Rain, 3.0, 100, null), 1e-9)
         assertEquals(0.0, GlassFog.density(Condition.Storm, null, null, null), 1e-9)
     }
 
@@ -35,8 +37,9 @@ class GlassFogTest {
         assertEquals(clearest, glass.cover(index(glass, 60.0, 102.0)), 1e-6f)
         assertEquals(1f, glass.cover(index(glass, 150.0, 200.0)), 1e-6f)
         assertEquals(1f, glass.cover(index(glass, 320.0, 100.0)), 1e-6f)
-        // След широкий: чисто на 5 dp от середины, а к краю плёнка густеет плавно, не обрывом.
-        assertEquals(clearest, glass.cover(index(glass, 150.0, 100.0 + 5.0)), 1e-6f)
+        // Середина следа самая чистая, но влажная (палец убирает не всю плёнку), к краю плёнка густеет плавно, не обрывом.
+        assertTrue(clearest > 0.3f)
+        assertEquals(clearest, glass.cover(index(glass, 150.0, 100.0 + 3.0)), 1e-6f)
         val covers = (0..8).map { glass.cover(index(glass, 150.0, 100.0 + it * FogWipe.BRUSH_DP / 8)) }
         assertTrue(covers.zipWithNext().all { (a, b) -> b >= a - 0.12f })
         assertTrue("$covers", covers.zipWithNext().maxOf { (a, b) -> abs(b - a) } < 0.4f)
@@ -54,21 +57,22 @@ class GlassFogTest {
         val centre = index(glass, 150.0, 100.0)
         val edge = index(glass, 150.0, 100.0 + FogWipe.BRUSH_DP * 0.5)
         val clearest = 1f - FogWipe.MAX_CLEAR
-        run(glass, 2.0)
+        // Первые секунды след держится.
+        run(glass, FogWipe.HOLD_SECONDS - 1.0)
         assertEquals(clearest, glass.cover(centre), 1e-6f)
         val edgeAtStart = glass.cover(edge)
         // Дальше плёнка наползает с краёв: край затягивается раньше середины, след сужается.
-        run(glass, 7.0)
+        run(glass, 11.0)
         assertTrue("${glass.cover(edge)} ${glass.cover(centre)}", glass.cover(edge) > glass.cover(centre) + 0.2f)
         assertTrue(glass.cover(edge) > edgeAtStart)
         // Середина затягивается последней и плавно: за кадр меняется на доли процента.
-        run(glass, 5.0)
+        run(glass, 8.0)
         assertTrue("${glass.cover(centre)}", glass.cover(centre) > clearest)
         val before = glass.cover(centre)
         glass.step(0.016)
         assertTrue(abs(glass.cover(centre) - before) < 0.01f)
         assertTrue(glass.cover(centre) > before - 1e-6f)
-        run(glass, 10.0)
+        run(glass, 24.0)
         assertEquals(1f, glass.cover(centre), 1e-6f)
         assertEquals(1f, glass.cover(edge), 1e-6f)
         assertFalse(glass.active)
@@ -79,12 +83,24 @@ class GlassFogTest {
     fun wipingAgainOverARecoveringTrailClearsItAgain() {
         val glass = FogWipe(350.0, 250.0)
         glass.wipe(100.0, 100.0, 200.0, 100.0)
-        run(glass, 15.0)
+        run(glass, 36.0)
         val centre = index(glass, 150.0, 100.0)
         val faded = glass.cover(centre)
         assertTrue(faded > 0.5f)
         glass.wipe(100.0, 100.0, 200.0, 100.0)
         assertEquals(1f - FogWipe.MAX_CLEAR, glass.cover(centre), 1e-6f)
+    }
+
+    @Test
+    fun frostKeepsTheWideBrushAndTheClearCentre() {
+        val frost = FogWipe(350.0, 250.0, brushDp = FogWipe.FROST_BRUSH_DP, maxClear = FogWipe.FROST_MAX_CLEAR)
+        frost.wipe(100.0, 100.0, 200.0, 100.0)
+        assertEquals(1f - FogWipe.FROST_MAX_CLEAR, frost.cover(index(frost, 150.0, 105.0)), 1e-6f)
+        // Туман той же кистью на 20 dp от середины не стирается, иней ещё стирается.
+        val fog = FogWipe(350.0, 250.0)
+        fog.wipe(100.0, 100.0, 200.0, 100.0)
+        assertEquals(1f, fog.cover(index(fog, 150.0, 120.0)), 1e-6f)
+        assertTrue(frost.cover(index(frost, 150.0, 120.0)) < 1f)
     }
 
     @Test
