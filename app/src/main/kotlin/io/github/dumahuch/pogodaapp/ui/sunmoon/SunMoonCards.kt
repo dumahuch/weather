@@ -102,8 +102,9 @@ internal fun SunCard(ctx: SunMoonContext, day: SunDay) {
         if (!polar) {
             BellCurve(run?.fraction?.toFloat(), daytime, Modifier.fillMaxWidth().height(CURVE_HEIGHT))
             // Концы кривой: днём восход слева и закат справа, ночью наоборот (ночь идёт от заката к восходу).
-            val left = if (daytime) day.sunrise else run?.from
-            val right = if (daytime) day.sunset else run?.to
+            val night = run?.takeIf { !it.daytime }
+            val left = night?.from ?: day.sunrise
+            val right = night?.to ?: day.sunset
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 EndTime(left?.let { clockText(it, zone) } ?: "–", stringResource(if (daytime) R.string.sunrise else R.string.sunset), Alignment.Start, Modifier.weight(1f))
                 EndTime(right?.let { clockText(it, zone) } ?: "–", stringResource(if (daytime) R.string.sunset else R.string.sunrise), Alignment.End, Modifier.weight(1f))
