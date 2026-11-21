@@ -58,11 +58,11 @@ class StringsResourcesTest {
         "precip_day_parts", "alert_starts_in", "alert_from", "alert_from_tomorrow", "alert_until", "alert_until_tomorrow",
         "alert_until_day", "alert_day_today_mid", "alert_day_tomorrow_mid", "wind_from",
         // Страницы подробностей (0.8.72): подписи легенд, шкал и частей суток, слова в середине фразы.
-        "metric_at", "metric_legend_wind", "metric_legend_gusts", "metric_legend_blows", "metric_legend_rain", "metric_legend_chance",
-        "metric_legend_humidity", "metric_legend_dew", "metric_days_wind", "metric_days_gusts", "metric_days_wind_note", "metric_gusts_short",
-        "metric_days_humidity_note", "metric_daytime", "metric_night", "metric_daytime_hours", "metric_night_hours",
-        "metric_parts", "metric_parts_when", "metric_and", "metric_beaufort", "metric_calm", "metric_hurricane", "metric_marker_now",
-        "metric_marker_gusts", "metric_vis_fog", "metric_vis_far", "rain_intensity", "rain_chance", "metric_week_dry", "metric_dry_chance",
+        "metric_at", "metric_legend_wind", "metric_legend_gusts", "metric_legend_blows",
+        "metric_legend_humidity", "metric_gusts_short",
+        "metric_daytime_hours", "metric_night_hours",
+        "metric_parts_when", "metric_and", "metric_beaufort", "metric_calm", "metric_hurricane", "metric_marker_now",
+        "metric_marker_gusts", "metric_vis_fog", "metric_vis_far", "rain_intensity", "rain_chance",
         // «Солнце и Луна» (0.8.77): подписи легенды полосы света.
         "light_day", "light_golden", "light_blue", "light_twilight", "light_night",
         // Продолжение после крупного процента освещённости: «89 % освещено · 12-й день цикла».
@@ -72,6 +72,8 @@ class StringsResourcesTest {
         // Страницы давления, УФ, воздуха и пыльцы (0.8.80): легенды, единицы, подписи в середине строки.
         "pg_legend_past", "pg_legend_forecast", "pg_pressure_short", "pg_ugm3", "pg_legend_day_mean", "pg_legend_who",
         "pg_in_alerts",
+        // Ветер, осадки, влажность (0.8.83): «дует на восток», единица «мм/ч», «сухо» в центре круга осадков.
+        "pg_wind_to", "pg_mm_h", "pg_rain_dry",
     )
 
     @Test

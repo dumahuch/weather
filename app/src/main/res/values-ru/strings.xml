@@ -114,7 +114,6 @@
         <item>Крайне плохо</item>
     </string-array>
     <string name="tile_pollen">Пыльца</string>
-    <string name="pollen_source" translatable="false">DWD</string>
     <string-array name="pollen_kinds">
         <item>Лещина</item>
         <item>Ольха</item>
@@ -454,27 +453,12 @@
     <string name="metric_legend_wind">ветер, км/ч</string>
     <string name="metric_legend_gusts">порывы, км/ч</string>
     <string name="metric_legend_blows">куда дует</string>
-    <string name="metric_legend_rain">осадки, мм</string>
-    <string name="metric_legend_chance" formatted="false">вероятность, %</string>
     <string name="metric_legend_humidity" formatted="false">влажность, %</string>
-    <string name="metric_legend_dew">точка росы, °</string>
-    <string name="metric_days_wind">ветер</string>
-    <string name="metric_days_gusts">порывы</string>
-    <string name="metric_days_wind_note">максимум за день, км/ч</string>
     <string name="metric_gusts_short">порывы %1$s</string>
-    <string name="metric_days_humidity_note" formatted="false">влажность, %</string>
-    <string name="metric_daytime">днём</string>
-    <string name="metric_night">ночью</string>
     <string name="metric_daytime_tile">Днём</string>
     <string name="metric_night_tile">Ночью</string>
     <string name="metric_daytime_hours">с 12 до 18 ч</string>
     <string name="metric_night_hours">с 0 до 6 ч</string>
-    <string-array name="metric_parts">
-        <item>ночь</item>
-        <item>утро</item>
-        <item>день</item>
-        <item>вечер</item>
-    </string-array>
     <string-array name="metric_parts_when">
         <item>ночью</item>
         <item>утром</item>
@@ -491,9 +475,6 @@
     <string name="metric_vis_fog">туман</string>
     <string name="metric_vis_far">более 40 км</string>
     <string name="metric_fog">Туман</string>
-    <string name="metric_umbrella_yes">Зонт пригодится</string>
-    <string name="metric_umbrella_no">Зонт не нужен</string>
-    <string name="metric_next_rain">Ближайшие осадки</string>
     <string name="metric_no_rain_ahead">В ближайшие дни не ожидаются</string>
     <string-array name="rain_intensity">
         <item>слабые</item>
@@ -506,16 +487,6 @@
         <item>вероятно</item>
         <item>почти наверняка</item>
     </string-array>
-    <string name="metric_week_total">За 7 дней</string>
-    <string name="metric_week_dry">без осадков</string>
-    <plurals name="metric_wet_days">
-        <item quantity="one">%d день с осадками</item>
-        <item quantity="few">%d дня с осадками</item>
-        <item quantity="many">%d дней с осадками</item>
-        <item quantity="other">%d дня с осадками</item>
-    </plurals>
-    <string name="metric_dry_rest">До конца суток без осадков</string>
-    <string name="metric_dry_chance">вероятность не выше %1$s</string>
     <string name="metric_comfortable">Комфортно</string>
     <string name="km_unit">км</string>
     <string name="pressure_unit">мм рт. ст.</string>
@@ -674,4 +645,26 @@
     <string name="pg_peak_max">Максимум</string>
     <string name="pg_peak_worst">Худший час</string>
     <string name="pg_peak_line">%1$s: %2$s %3$s</string>
+    <!-- Ветер, осадки, влажность в едином стиле (0.8.83) -->
+    <string name="pg_wind_direction">Направление</string>
+    <string-array name="pg_wind_to">
+        <item>дует на север</item>
+        <item>дует на северо-восток</item>
+        <item>дует на восток</item>
+        <item>дует на юго-восток</item>
+        <item>дует на юг</item>
+        <item>дует на юго-запад</item>
+        <item>дует на запад</item>
+        <item>дует на северо-запад</item>
+    </string-array>
+    <string name="pg_week_to">Куда</string>
+    <string name="pg_wind_note">Сила ветра словами: шкала Бофорта (Met Office). Скорость на высоте 10 м, порывы: самый сильный порыв за час. Стрелка показывает, куда дует ветер. Прогноз: Open-Meteo.</string>
+    <string name="pg_mm_h">мм/ч</string>
+    <string name="pg_rain_hour">%1$s мм/ч · %2$s, вероятность %3$s</string>
+    <string name="pg_rain_hour_dry">Без осадков, вероятность %1$s</string>
+    <string name="pg_rain_dry">сухо</string>
+    <string name="pg_week_day_total">За сутки</string>
+    <string name="pg_rain_note">Сила осадков: AMS (слабые до 2,5 мм в час, умеренные до 7,6, сильные больше). Вероятность: осадки больше 0,1 мм за час по 30 расчётам ансамбля моделей. Дуга внутри круга: день золотой, ночь синяя. Прогноз: Open-Meteo.</string>
+    <string name="pg_week_feels">Ощущается</string>
+    <string name="pg_humidity_note">Ощущение по точке росы: NWS (до 13 °C комфортно, до 18 °C ощутимо влажно, выше душно). Видимость: шесть ступеней Met Office. Прогноз: Open-Meteo.</string>
 </resources>

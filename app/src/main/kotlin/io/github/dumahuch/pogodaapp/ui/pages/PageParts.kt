@@ -59,6 +59,7 @@ import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.details.BigValue
+import io.github.dumahuch.pogodaapp.ui.metric.drawWindArrow
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sunmoon.Card
 import io.github.dumahuch.pogodaapp.ui.sunmoon.CardTitle
@@ -157,6 +158,13 @@ internal const val HOURS = 24
 /** Высота полукруга от ширины: дуга и половина толщины метки. */
 private const val GAUGE_RATIO = 0.62f
 
+/** Полоса порывов на линии ветра: заливка и верхняя кромка. */
+private const val BAND_FILL = 0.18f
+private const val BAND_EDGE = 0.55f
+
+/** Стрелки «куда дует» под линией ветра: каждый третий час. */
+private const val ARROW_STEP = 3
+
 /** Время на оси и рядом с пиком второстепенное: мельче и бледнее значений. */
 private const val TIME_ALPHA = 0.62f
 
@@ -186,14 +194,16 @@ internal fun HourLine(
     high: Double,
     grid: List<Pair<Double, String>>,
     modifier: Modifier = Modifier,
+    band: List<Double?>? = null,
+    arrows: List<Int?>? = null,
 ) {
     val palette = LocalPogodaPalette.current
     val measurer = rememberTextMeasurer()
     val label = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, color = palette.ink2)
-    Canvas(modifier.fillMaxWidth().height(150.dp)) {
+    Canvas(modifier.fillMaxWidth().height(if (arrows != null) 178.dp else 150.dp)) {
         val style = label.copy(fontSize = 11.dp.toSp())
         val top = 22.dp.toPx()
-        val bottom = size.height - 24.dp.toPx()
+        val bottom = size.height - (if (arrows != null) 52.dp else 24.dp).toPx()
         fun x(fraction: Float) = 8.dp.toPx() + (size.width - 16.dp.toPx()) * fraction
         fun xi(i: Int) = x(i / HOURS.toFloat())
         fun y(v: Double) = (bottom - (v - low) / (high - low) * (bottom - top)).toFloat()
@@ -203,8 +213,24 @@ internal fun HourLine(
             drawText(layout, topLeft = Offset(size.width - layout.size.width, y(v) - layout.size.height - 1.dp.toPx()))
         }
         val points = values.mapIndexedNotNull { i, v -> v?.let { Offset(xi(i), y(it)) to i } }
+        fun path(list: List<Offset>) = Path().apply { list.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }
+        // Полоса порывов: от линии до верхней кромки, без свечения.
+        if (band != null) {
+            val pairs = values.indices.mapNotNull { i -> val v = values[i]; val b = band.getOrNull(i); if (v != null && b != null) Triple(xi(i), y(v), y(maxOf(b, v))) else null }
+            if (pairs.size >= 2) {
+                val edge = pairs.map { Offset(it.first, it.third) }
+                val area = path(edge).apply { pairs.asReversed().forEach { lineTo(it.first, it.second) }; close() }
+                drawPath(area, color.copy(alpha = BAND_FILL))
+                drawPath(path(edge), color.copy(alpha = BAND_EDGE), style = Stroke(1.dp.toPx(), cap = StrokeCap.Round))
+            }
+        }
+        // Стрелки «куда дует» через каждые 3 часа под графиком.
+        arrows?.forEachIndexed { i, from ->
+            if (from != null && i % ARROW_STEP == 1) {
+                drawWindArrow(from, palette.ink.copy(alpha = 0.8f), 18.dp.toPx(), Offset(xi(i), size.height - 36.dp.toPx()))
+            }
+        }
         if (points.size >= 2) {
-            fun path(list: List<Offset>) = Path().apply { list.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }
             if (nowIndex == null) {
                 drawPath(path(points.map { it.first }), color, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
             } else {
@@ -243,21 +269,24 @@ internal fun HourLine(
 }
 
 /**
- * Штрихи по часам суток (4 dp, круглые концы) цветом ступени, у всех полная яркость, как в легенде. Над графиком строка
- * выбранного часа («17:00 · 21, хорошо»): нажми на столбик или проведи пальцем, по умолчанию выбран текущий час (у другого
- * дня худший). Ниже строка лучшего или худшего часа дня с квадратиком его цвета. На текущем часе тонкая белая черта.
- * [scaleMax] наименьший верх шкалы, чтобы слабые значения не выглядели большими; [describe] значение со словом ступени;
- * [extremeLabel] «Худший час» или «Максимум».
+ * Штрихи по часам суток (4 dp, круглые концы) цветом ступени, у всех полная яркость, как в легенде (вариант 2, Дима
+ * 21.11): прошедшие часы сплошные, прогноз контуром того же цвета, выбранный час вдвое шире. Над графиком строка
+ * выбранного часа («17:00 · 21 · хорошо»): нажми на столбик или проведи пальцем, по умолчанию выбран текущий час (у
+ * другого дня самый сильный). Ниже строка самого сильного часа с квадратиком его цвета или [noneText], если его нет.
+ * [scaleMax] наименьший верх шкалы, чтобы слабые значения не выглядели большими; [describe] значение часа со словом
+ * ступени и единицей; [brief] то же коротко для строки самого сильного часа; [extremeLabel] «Худший час», «Максимум».
  */
 @Composable
 internal fun HourBars(
     values: List<Double?>,
     nowIndex: Int?,
     colorOf: (Double) -> Color,
-    describe: (Double) -> String,
+    describe: (value: Double, hour: Int) -> String,
+    brief: (Double) -> String,
     extremeLabel: String,
     scaleMax: Double,
     modifier: Modifier = Modifier,
+    noneText: String? = null,
 ) {
     val palette = LocalPogodaPalette.current
     val measurer = rememberTextMeasurer()
@@ -269,74 +298,74 @@ internal fun HourBars(
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(hourText(selected), style = pogodaText(12f, 600, color = palette.ink2, tabular = true), maxLines = 1)
             Text(
-                chosen?.let { describe(it) } ?: stringResource(R.string.air_no_data),
+                chosen?.let { describe(it, selected) } ?: stringResource(R.string.air_no_data),
                 style = pogodaText(14f, 700, tabular = true),
                 maxLines = 1,
             )
         }
-        if (peak != null) {
-            val best = values[peak]!!
+        val best = peak?.let { values[it] }
+        if (peak != null && best != null) {
             Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                 Box(Modifier.size(9.dp).background(colorOf(best), RoundedCornerShape(3.dp)))
                 Text(
-                    stringResource(R.string.pg_peak_line, extremeLabel, describe(best), stringResource(R.string.metric_at, hourText(peak))),
+                    stringResource(R.string.pg_peak_line, extremeLabel, brief(best), stringResource(R.string.metric_at, hourText(peak))),
                     style = pogodaText(11.5f, 500, color = palette.ink2, tabular = true),
                     maxLines = 1,
                 )
             }
+        } else if (noneText != null) {
+            Text(noneText, style = pogodaText(11.5f, 500, color = palette.ink2), modifier = Modifier.padding(top = 3.dp), maxLines = 1)
         }
         Canvas(
             Modifier
                 .fillMaxWidth()
                 .height(104.dp)
                 .padding(top = 6.dp)
-                .pointerInput(Unit) {
-                    fun pick(x: Float) {
-                        val inner = size.width - 16.dp.toPx()
-                        selected = ((x - 8.dp.toPx()) / inner * HOURS).roundToInt().coerceIn(0, HOURS - 1)
-                    }
-                    detectTapGestures { pick(it.x) }
-                }
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures { change, _ ->
-                        val inner = size.width - 16.dp.toPx()
-                        selected = ((change.position.x - 8.dp.toPx()) / inner * HOURS).roundToInt().coerceIn(0, HOURS - 1)
-                    }
-                },
+                .pointerInput(Unit) { detectTapGestures { selected = hourAt(it.x, size.width.toFloat()) } }
+                .pointerInput(Unit) { detectHorizontalDragGestures { change, _ -> selected = hourAt(change.position.x, size.width.toFloat()) } },
         ) {
             val style = label.copy(fontSize = 11.dp.toSp())
             val top = 4.dp.toPx()
             val bottom = size.height - 24.dp.toPx()
             fun x(fraction: Float) = 8.dp.toPx() + (size.width - 16.dp.toPx()) * fraction
             val max = maxOf(scaleMax, values.filterNotNull().maxOrNull() ?: 0.0)
-            val half = 2.dp.toPx()
-            nowIndex?.let {
-                val nx = x(it / HOURS.toFloat())
-                drawLine(Color.White.copy(alpha = 0.6f), Offset(nx, top), Offset(nx, bottom), 1.dp.toPx())
-            }
+            val line = 1.5.dp.toPx()
             values.forEachIndexed { i, v ->
                 val cx = x(i / HOURS.toFloat())
                 val value = v ?: 0.0
-                val h = if (value > 0) maxOf(4.dp.toPx(), (value / max * (bottom - top)).toFloat()) else 2.dp.toPx()
-                val color = if (value > 0) colorOf(value) else palette.ink.copy(alpha = 0.22f)
-                drawRoundRect(color, Offset(cx - half, bottom - h), Size(2 * half, h), CornerRadius(half))
+                val half = (if (i == selected) 4.dp else 2.dp).toPx()
+                if (value <= 0) {
+                    drawRoundRect(palette.ink.copy(alpha = 0.22f), Offset(cx - half, bottom - 2.dp.toPx()), Size(2 * half, 2.dp.toPx()), CornerRadius(1.dp.toPx()))
+                    return@forEachIndexed
+                }
+                val h = maxOf(4.dp.toPx(), (value / max * (bottom - top)).toFloat())
+                val color = colorOf(value)
+                if (nowIndex != null && i > nowIndex) {
+                    // Прогноз: контур того же цвета внутри размеров столбика.
+                    drawRoundRect(
+                        color,
+                        Offset(cx - half + line / 2, bottom - h + line / 2),
+                        Size(2 * half - line, (h - line).coerceAtLeast(line)),
+                        CornerRadius(half - line / 2),
+                        style = Stroke(line),
+                    )
+                } else {
+                    drawRoundRect(color, Offset(cx - half, bottom - h), Size(2 * half, h), CornerRadius(half))
+                }
             }
-            // Выбранный час: тонкая рамка вокруг его столбика.
-            val sx = x(selected / HOURS.toFloat())
-            drawRoundRect(
-                palette.ink.copy(alpha = 0.55f),
-                Offset(sx - 5.dp.toPx(), top - 2.dp.toPx()),
-                Size(10.dp.toPx(), bottom - top + 4.dp.toPx()),
-                CornerRadius(5.dp.toPx()),
-                style = Stroke(1.dp.toPx()),
-            )
             hourAxis(measurer, style, ::x, size.height - 16.dp.toPx())
         }
     }
 }
 
+/** Час суток под точкой касания [x] на холсте шириной [width] (поля по 8 dp). */
+private fun androidx.compose.ui.unit.Density.hourAt(x: Float, width: Float): Int {
+    val inner = width - 16.dp.toPx()
+    return ((x - 8.dp.toPx()) / inner * HOURS).roundToInt().coerceIn(0, HOURS - 1)
+}
+
 /** Образцы легенды, как у карт. */
-internal enum class Mark { Line, Dots, Square, Tick }
+internal enum class Mark { Line, Dots, Square, Tick, Outline, Band, Arrow }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -349,13 +378,22 @@ internal fun MapLegend(items: List<Triple<Mark, Color, String>>, modifier: Modif
     ) {
         items.forEach { (mark, color, text) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                Canvas(Modifier.size(width = if (mark == Mark.Square || mark == Mark.Tick) 9.dp else 16.dp, height = 10.dp)) {
+                Canvas(Modifier.size(width = if (mark == Mark.Square || mark == Mark.Tick || mark == Mark.Outline) 9.dp else if (mark == Mark.Arrow) 12.dp else 16.dp, height = 10.dp)) {
                     val y = size.height / 2
                     when (mark) {
                         Mark.Line -> drawLine(color, Offset(0f, y), Offset(size.width, y), 3.dp.toPx(), StrokeCap.Round)
                         Mark.Dots -> drawLine(color, Offset(1.dp.toPx(), y), Offset(size.width, y), 2.dp.toPx(), StrokeCap.Round, PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.dp.toPx())))
                         Mark.Square -> drawRoundRect(color, Offset(0f, (size.height - size.width) / 2), Size(size.width, size.width), CornerRadius(3.dp.toPx()))
                         Mark.Tick -> drawLine(color, Offset(size.width / 2, 0f), Offset(size.width / 2, size.height), 2.dp.toPx(), StrokeCap.Round)
+                        Mark.Outline -> drawRoundRect(
+                            color,
+                            Offset(0.75.dp.toPx(), (size.height - size.width) / 2 + 0.75.dp.toPx()),
+                            Size(size.width - 1.5.dp.toPx(), size.width - 1.5.dp.toPx()),
+                            CornerRadius(2.5.dp.toPx()),
+                            style = Stroke(1.5.dp.toPx()),
+                        )
+                        Mark.Band -> drawRoundRect(color.copy(alpha = BAND_FILL * 2), Offset(0f, 1.dp.toPx()), Size(size.width, size.height - 2.dp.toPx()), CornerRadius(2.dp.toPx()))
+                        Mark.Arrow -> drawWindArrow(225, color, size.height + 2.dp.toPx())
                     }
                 }
                 Text(text, style = pogodaText(11f, 600, color = palette.ink2), maxLines = 1)
@@ -364,15 +402,14 @@ internal fun MapLegend(items: List<Triple<Mark, Color, String>>, modifier: Modif
     }
 }
 
-/** Карточка графика: заголовок, справа единица, легенда, сам график. */
+/**
+ * Карточка графика: заголовок, легенда, сам график. Единицы в углу нет (Дима 22.11: «опять где-то в углу»): она стоит
+ * рядом со значением в строке выбранного часа и у подписей сетки.
+ */
 @Composable
-internal fun ChartCard(title: String, unit: String?, legend: List<Triple<Mark, Color, String>>, chart: @Composable () -> Unit) {
-    val palette = LocalPogodaPalette.current
+internal fun ChartCard(title: String, legend: List<Triple<Mark, Color, String>>, chart: @Composable () -> Unit) {
     Card {
-        Row(Modifier.fillMaxWidth()) {
-            CardTitle(title, Modifier.weight(1f))
-            unit?.let { Text(it, style = pogodaText(12f, 600, color = palette.ink2), maxLines = 1) }
-        }
+        CardTitle(title)
         if (legend.isNotEmpty()) MapLegend(legend, Modifier.padding(top = 8.dp, bottom = 2.dp))
         chart()
     }

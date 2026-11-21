@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,10 +17,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalLocale
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.CompassPoint
@@ -30,7 +32,6 @@ import io.github.dumahuch.pogodaapp.forecast.MetricDays
 import io.github.dumahuch.pogodaapp.forecast.Mugginess
 import io.github.dumahuch.pogodaapp.forecast.PrecipitationKind
 import io.github.dumahuch.pogodaapp.forecast.RainChance
-import io.github.dumahuch.pogodaapp.forecast.RainIntensity
 import io.github.dumahuch.pogodaapp.forecast.VisibilityLevel
 import io.github.dumahuch.pogodaapp.forecast.beaufortOf
 import io.github.dumahuch.pogodaapp.forecast.continuationCase
@@ -39,21 +40,36 @@ import io.github.dumahuch.pogodaapp.forecast.visibilityText
 import io.github.dumahuch.pogodaapp.home.precipitationText
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
-import io.github.dumahuch.pogodaapp.ui.components.LineIconView
-import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.forecast.dayName
 import io.github.dumahuch.pogodaapp.ui.forecast.percentText
-import io.github.dumahuch.pogodaapp.ui.home.HourlyFrame
+import io.github.dumahuch.pogodaapp.ui.pages.ChartCard
+import io.github.dumahuch.pogodaapp.ui.pages.HOURS
+import io.github.dumahuch.pogodaapp.ui.pages.HourBars
+import io.github.dumahuch.pogodaapp.ui.pages.HourLine
+import io.github.dumahuch.pogodaapp.ui.pages.Mark
+import io.github.dumahuch.pogodaapp.ui.pages.NowCard
+import io.github.dumahuch.pogodaapp.ui.pages.SourceNote
+import io.github.dumahuch.pogodaapp.ui.pages.StepGauge
+import io.github.dumahuch.pogodaapp.ui.pages.WeekHeader
+import io.github.dumahuch.pogodaapp.ui.pages.byHour
+import io.github.dumahuch.pogodaapp.ui.pages.forecastMark
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.ui.sunmoon.Card
+import io.github.dumahuch.pogodaapp.ui.sunmoon.CardTitle
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourDetails
-import io.github.dumahuch.pogodaapp.weather.HourPoint
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
 import kotlin.math.roundToInt
+
+/*
+ * Страницы ветра, осадков и влажности в едином стиле (claude/rules-style.md, 0.8.83; макет
+ * https://claude.ai/artifact/KcpRCjaazEbEVi9YBNSPKP): «Сейчас» с символом справа, график по часам, «7 дней» плашками,
+ * неброское пояснение шкал и источников в конце.
+ */
 
 /** Всё, что нужно странице: прогноз, выбранный день, сегодня, сейчас, дни списка и выбор дня. */
 internal class PageContext(
@@ -66,48 +82,54 @@ internal class PageContext(
 ) {
     val zone: ZoneId get() = forecast.zone
     val isToday: Boolean get() = date == today
+    val nowIndex: Int? get() = if (isToday) now.atZone(zone).hour else null
 }
 
-/** С какого часа открывается лента не сегодняшнего дня, если нечего показать раньше. */
-private const val MORNING_COLUMN = 6
-
-/** Шкалы: ветер и порывы не уже 0…20 км/ч, столбики осадков не ниже 1,5 мм (как на «Главной»), влажность не уже 20 пунктов. */
+/** Шкалы: ветер не уже 0…20 км/ч, влажность не уже 20 пунктов, столбики осадков не ниже 1,5 мм (как на «Главной»). */
 private const val WIND_SCALE_KMH = 20.0
-private const val MIN_RAIN_SCALE_MM = 1.5
 private const val MIN_HUMIDITY_SPAN = 20.0
 private const val HUMIDITY_PAD = 8.0
+private const val MIN_RAIN_SCALE_MM = 1.5
 
-private fun hourText(time: Instant, zone: ZoneId): String = "%02d".format(Locale.ROOT, time.atZone(zone).hour)
+/** Часы, которые показывает список направлений: сейчас, через 6 и через 12 часов (у другого дня 06, 12 и 18). */
+private const val DIRECTION_STEP_HOURS = 6L
+private val OTHER_DAY_HOURS = listOf(6, 12, 18)
 
-private fun nowIndexOf(times: List<Instant>, isToday: Boolean, now: Instant): Int? =
-    if (!isToday) null else times.indexOfLast { !it.isAfter(now) }.takeIf { it >= 0 }
-
-private fun firstColumn(nowIndex: Int?, fallback: Int): Int = nowIndex?.let { (it - 1).coerceAtLeast(0) } ?: fallback
+private const val BEAUFORT_TOP = 12f
 
 @Composable
-private fun labelsOf(times: List<Instant>, zone: ZoneId, nowIndex: Int?): List<String> {
-    val now = stringResource(R.string.now)
-    return times.mapIndexed { i, t -> if (i == nowIndex) now else hourText(t, zone) }
+private fun hourlyTitle(ctx: PageContext): String {
+    if (ctx.isToday) return stringResource(R.string.hourly_title)
+    val names = stringArrayResource(R.array.days_short).toList()
+    return stringResource(R.string.pg_hourly_day, dayName(ctx.date, names))
 }
 
-/** Подпись под заголовком карточки «По часам»: легенда с образцами цвета. */
+/** Легенда линии: цвет линии и «прогноз» точками (только сегодня). */
 @Composable
-private fun StripCard(side: Modifier, legend: List<Pair<Swatch, String>>, content: @Composable () -> Unit) {
-    HourlyFrame(caption = "", modifier = side) {
-        Legend(legend, Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
-        content()
-    }
-}
+private fun lineLegend(ctx: PageContext, color: Color, name: String): List<Triple<Mark, Color, String>> =
+    listOf(Triple(Mark.Line, color, name)) +
+        if (ctx.isToday) listOf(Triple(Mark.Dots, LocalPogodaPalette.current.ink.copy(alpha = 0.7f), stringResource(R.string.pg_legend_forecast))) else emptyList()
+
+private fun hourOf(time: Instant, zone: ZoneId): Double = time.atZone(zone).let { it.hour + it.minute / 60.0 }
 
 // ---------------------------------------------------------------- ветер
 
+/** Цвет ступени Бофорта: от спокойного цвета ветра к тёплому, как на шкале. */
 @Composable
-internal fun WindPage(ctx: PageContext, side: Modifier) {
+private fun beaufortColor(step: Int): Color {
+    val palette = LocalPogodaPalette.current
+    return lerp(palette.accent, palette.warning, step / BEAUFORT_TOP)
+}
+
+@Composable
+internal fun WindPage(ctx: PageContext) {
     val zone = ctx.zone
     val forecast = ctx.forecast
+    val palette = LocalPogodaPalette.current
     val kmh = stringResource(R.string.kmh_unit)
     val strength = stringArrayResource(R.array.beaufort_names)
     val directions = stringArrayResource(R.array.wind_directions)
+    val blowsTo = stringArrayResource(R.array.pg_wind_to)
     val hours = remember(forecast, ctx.date) { MetricDays.detailsOf(forecast.hourDetails, zone, ctx.date) }
     val current = if (ctx.isToday) forecast.detailsAt(ctx.now) else null
     val peakIndex = MetricDays.peakIndex(hours.map { it.windKmh })
@@ -118,15 +140,22 @@ internal fun WindPage(ctx: PageContext, side: Modifier) {
     val gustShown = if (ctx.isToday) current?.gustKmh?.roundToInt() else gustMax
     val direction = if (ctx.isToday) current?.windDirection else MetricDays.dominantDirection(hours)
     val step = shown?.let { beaufortOf(it) }
-    TopCard(
+    NowCard(
         title = stringResource(if (ctx.isToday) R.string.now else R.string.metric_day_max),
         value = shown?.toString() ?: "–",
         unit = kmh,
-        lines = listOfNotNull(step?.let { strength[it] }, direction?.let { directions[CompassPoint.of(it).ordinal] }),
-        modifier = side,
-        picture = direction?.let { { BigCompass(it) } },
+        word = step?.let { strength[it] },
+        note = listOfNotNull(
+            direction?.let { directions[CompassPoint.of(it).ordinal] },
+            gustShown?.let { stringResource(R.string.metric_gusts_short, "$it $kmh") },
+        ).joinToString(", ").ifEmpty { null },
+        symbol = { direction?.let { WindCompass(it, 104.dp) } },
     ) {
-        if (step != null) BeaufortScale(step, gustShown?.let { beaufortOf(it) }, stringResource(R.string.metric_marker_now))
+        if (step != null) {
+            Box(Modifier.padding(top = 12.dp)) {
+                BeaufortScale(step, gustShown?.let { beaufortOf(it) }, stringResource(R.string.metric_marker_now))
+            }
+        }
         if (maxSpeed != null && gustMax != null) {
             TwoTiles(
                 TileText(
@@ -142,61 +171,80 @@ internal fun WindPage(ctx: PageContext, side: Modifier) {
             )
         }
     }
-    if (hours.isNotEmpty()) {
-        Spacer(Modifier.height(12.dp))
-        val nowIndex = nowIndexOf(hours.map { it.time }, ctx.isToday, ctx.now)
-        val labels = labelsOf(hours.map { it.time }, zone, nowIndex)
-        val gustTop = (hours.maxOf { maxOf(it.windKmh ?: 0.0, it.gustKmh ?: 0.0) }).coerceAtLeast(WIND_SCALE_KMH)
-        val spec = remember(hours, labels, nowIndex) {
-            StripSpec(
-                labels = labels,
-                nowIndex = nowIndex,
-                directions = hours.map { it.windDirection },
-                line = Series(hours.map { it.windKmh }, hours.map { it.windKmh?.roundToInt()?.toString() ?: "–" }),
-                band = Series(
-                    hours.map { h -> h.gustKmh?.let { g -> maxOf(g, h.windKmh ?: g) } },
-                    hours.map { it.gustKmh?.roundToInt()?.toString() ?: "–" },
-                ),
-                lineMin = 0.0,
-                lineMax = gustTop * 1.05,
-                description = hours.mapIndexed { i, h -> "${labels[i]}: ${h.windKmh?.roundToInt() ?: "–"}, ${h.gustKmh?.roundToInt() ?: "–"}" },
-            )
+
+    // Направление: большой компас со скоростью и список «сейчас / через 6 ч / через 12 ч».
+    val moments: List<Pair<String, HourDetails?>> = if (ctx.isToday) {
+        listOf(stringResource(R.string.now) to current) + (1L..2L).map { n ->
+            val at = ctx.now.plus(Duration.ofHours(DIRECTION_STEP_HOURS * n))
+            val details = forecast.detailsAt(at)
+            (details?.let { clockText(it.time, zone) } ?: "") to details
         }
-        StripCard(
-            side,
-            listOf(
-                Swatch.Line to stringResource(R.string.metric_legend_wind),
-                Swatch.Band to stringResource(R.string.metric_legend_gusts),
-                Swatch.Arrow to stringResource(R.string.metric_legend_blows),
-            ),
-        ) {
-            androidx.compose.runtime.key(ctx.date) { MetricStrip(spec, firstColumn(nowIndex, MORNING_COLUMN)) }
-        }
-        Spacer(Modifier.height(12.dp))
-        val perDay = remember(forecast, ctx.dates) { ctx.dates.map { MetricDays.detailsOf(forecast.hourDetails, zone, it) } }
-        val windHigh = perDay.map { day -> day.mapNotNull { it.windKmh }.maxOrNull() ?: 0.0 }
-        val gustHigh = perDay.mapIndexed { i, day -> maxOf(windHigh[i], day.mapNotNull { it.gustKmh }.maxOrNull() ?: 0.0) }
-        val scale = maxOf(WIND_SCALE_KMH, gustHigh.max())
-        val palette = LocalPogodaPalette.current
-        DaysCard(
-            ctx.dates, ctx.today, ctx.date, ctx.onSelect, stringResource(R.string.metric_days_wind_note), side,
-            legend = {
-                Legend(listOf(Swatch.Bar to stringResource(R.string.metric_days_wind), Swatch.Band to stringResource(R.string.metric_days_gusts)))
-            },
-        ) { i ->
-            Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) {
-                MetricDays.dominantDirection(perDay[i])?.let { WindArrow(it, 22.dp, palette.ink) }
+    } else {
+        OTHER_DAY_HOURS.map { h -> "%02d:00".format(java.util.Locale.ROOT, h) to hours.firstOrNull { it.time.atZone(zone).hour == h } }
+    }
+    val compassFrom = moments.first().second?.windDirection ?: direction
+    if (compassFrom != null) {
+        val speed = moments.first().second?.windKmh?.roundToInt() ?: shown
+        Card {
+            CardTitle(stringResource(R.string.pg_wind_direction))
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                WindCompass(compassFrom, 168.dp, speed = speed?.toString(), unit = kmh)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    moments.forEach { (label, details) ->
+                        val from = details?.windDirection ?: return@forEach
+                        val point = CompassPoint.of(from).ordinal
+                        Column(Modifier.semantics(mergeDescendants = true) {}) {
+                            Text(label, style = pogodaText(11.5f, 600, color = palette.ink2), maxLines = 1)
+                            Text(directions[point], style = pogodaText(14f, 700), maxLines = 1)
+                            Text(blowsTo[point], style = pogodaText(11.5f, 500, color = palette.ink2), maxLines = 1)
+                        }
+                    }
+                }
             }
-            Canvas(Modifier.weight(1f).height(10.dp)) {
-                val radius = CornerRadius(size.height / 2)
-                drawRoundRect(palette.ink.copy(alpha = 0.08f), size = size, cornerRadius = radius)
-                drawRoundRect(palette.accent.copy(alpha = BAND_ALPHA), size = Size((gustHigh[i] / scale).toFloat() * size.width, size.height), cornerRadius = radius)
-                drawRoundRect(palette.accent, size = Size((windHigh[i] / scale).toFloat() * size.width, size.height), cornerRadius = radius)
-            }
-            DayValue(windHigh[i].roundToInt().toString(), stringResource(R.string.metric_gusts_short, gustHigh[i].roundToInt().toString()))
         }
     }
+
+    if (hours.isNotEmpty()) {
+        val speeds = byHour(hours, zone, { it.time }) { it.windKmh }
+        val gusts = byHour(hours, zone, { it.time }) { it.gustKmh }
+        val arrows = byHour(hours, zone, { it.time }) { it.windDirection?.toDouble() }.map { it?.roundToInt() }
+        val top = maxOf(WIND_SCALE_KMH, (gusts + speeds).filterNotNull().maxOrNull() ?: 0.0) * 1.05
+        val grid = listOf(20.0, 40.0, 60.0, 80.0, 100.0).filter { it < top }.takeLast(3).map { it to "${it.roundToInt()} $kmh" }
+        ChartCard(
+            hourlyTitle(ctx),
+            lineLegend(ctx, palette.accent, stringResource(R.string.metric_legend_wind)) + listOf(
+                Triple(Mark.Band, palette.accent, stringResource(R.string.metric_legend_gusts)),
+                Triple(Mark.Arrow, palette.ink, stringResource(R.string.metric_legend_blows)),
+            ),
+        ) {
+            HourLine(speeds, ctx.nowIndex, palette.accent, 0.0, top, grid, band = gusts, arrows = arrows)
+        }
+    }
+
+    val perDay = remember(forecast, ctx.dates) { ctx.dates.map { MetricDays.detailsOf(forecast.hourDetails, zone, it) } }
+    DaysCard(
+        ctx.dates, ctx.today, ctx.date, ctx.onSelect,
+        legend = { WeekHeader(stringResource(R.string.metric_strongest), "", stringResource(R.string.pg_week_to), DayValueWidth, ARROW_COLUMN) },
+    ) { i ->
+        val day = perDay[i]
+        val high = day.mapNotNull { it.windKmh }.maxOrNull()?.roundToInt()
+        val gust = day.mapNotNull { it.gustKmh }.maxOrNull()?.roundToInt()
+        val s = high?.let { beaufortOf(it) }
+        Text(
+            s?.let { strength[it] } ?: "–",
+            style = pogodaText(14f, 700, color = s?.let { beaufortColor(it) } ?: Color.Unspecified, lineHeight = 1.15f),
+            modifier = Modifier.weight(1f),
+            maxLines = 2,
+        )
+        DayValue(high?.let { "$it $kmh" } ?: "–", gust?.let { stringResource(R.string.metric_gusts_short, it.toString()) })
+        Box(Modifier.width(ARROW_COLUMN), contentAlignment = Alignment.Center) {
+            MetricDays.dominantDirection(day)?.let { WindArrow(it, 22.dp, palette.ink) }
+        }
+    }
+    SourceNote(stringResource(R.string.pg_wind_note))
 }
+
+private val ARROW_COLUMN = 40.dp
 
 // ---------------------------------------------------------------- осадки
 
@@ -212,11 +260,12 @@ private fun kindName(kind: PrecipitationKind): String = stringResource(
 )
 
 @Composable
-internal fun RainPage(ctx: PageContext, side: Modifier) {
+internal fun RainPage(ctx: PageContext) {
     val zone = ctx.zone
     val forecast = ctx.forecast
     val locale = LocalLocale.current.platformLocale
     val mm = stringResource(R.string.mm_unit)
+    val mmH = stringResource(R.string.pg_mm_h)
     val points = remember(forecast, ctx.date) { forecast.hoursOf(ctx.date) }
     val day = forecast.days.firstOrNull { it.date == ctx.date }
     val total = day?.precipitationMm ?: points.sumOf { it.precipitationMm }
@@ -242,118 +291,110 @@ internal fun RainPage(ctx: PageContext, side: Modifier) {
     }
     val spellText = spell?.let {
         val start = it.start.atZone(zone).toLocalDate()
-        val prefix = if (start == ctx.today && ctx.isToday || !ctx.isToday) "" else dayName(start, dayNames) + ", "
-        val clock = "${clockText(it.start, zone)}–${clockText(it.end, zone)}"
-        "$prefix$clock · ${intensityWords[RainIntensity.ofMmPerHour(it.peakMm).ordinal]} · ${precipitationText(it.totalMm, locale)} $mm"
-    } ?: stringResource(R.string.metric_no_rain_ahead)
-    val perDayTotals = remember(forecast, ctx.dates) {
-        ctx.dates.map { d -> forecast.days.firstOrNull { it.date == d }?.precipitationMm ?: forecast.hoursOf(d).sumOf { it.precipitationMm } }
+        val prefix = if (start == ctx.date) "" else dayName(start, dayNames) + ", "
+        "$prefix${clockText(it.start, zone)}–${clockText(it.end, zone)}, ${intensityWords[rainLevel(it.peakMm)]}"
     }
-    val weekTotal = perDayTotals.sum()
-    val wetDays = perDayTotals.count { it >= MIN_NOTICEABLE_MM }
-    val chance = day?.precipitationProbability
-    val palette = LocalPogodaPalette.current
-    TopCard(
+    val amounts = remember(points) { byHour(points, zone, { it.time }) { p -> p.precipitationMm.takeIf { it >= MIN_NOTICEABLE_MM } ?: 0.0 } }
+    val chances = remember(points) { byHour(points, zone, { it.time }) { p -> p.precipitationProbability?.toDouble() } }
+    val sunrise = day?.sunrise?.let { hourOf(it, zone) }
+    val sunset = day?.sunset?.let { hourOf(it, zone) }
+    NowCard(
         title = stringResource(if (ctx.isToday) R.string.today else R.string.metric_day),
         value = dayPrecipitationText(total, locale).ifEmpty { "0" },
         unit = mm,
-        lines = listOf(headline, stringResource(if (willRain) R.string.metric_umbrella_yes else R.string.metric_umbrella_no)),
-        modifier = side,
-        picture = { Umbrella(willRain) },
+        word = headline,
+        note = spellText ?: stringResource(R.string.metric_no_rain_ahead),
+        symbol = {
+            if (points.isNotEmpty()) {
+                RainRing(amounts, ctx.nowIndex, sunrise, sunset, { precipitationText(it, locale) }, stringResource(R.string.pg_rain_dry), mmH)
+            }
+        },
     ) {
-        Text(
-            stringResource(if (ctx.isToday) R.string.metric_next_rain else R.string.metric_strongest),
-            style = pogodaText(12.5f, 600, color = palette.ink2),
-        )
-        Text(spellText, style = pogodaText(14.5f, 600, lineHeight = 1.3f), modifier = Modifier.padding(top = 2.dp))
+        val strongest = amounts.indices.maxByOrNull { amounts[it] ?: 0.0 }?.takeIf { (amounts[it] ?: 0.0) > 0 }
+        val chance = day?.precipitationProbability
         TwoTiles(
+            TileText(
+                stringResource(R.string.metric_strongest),
+                strongest?.let { "${precipitationText(amounts[it]!!, locale)} $mmH" } ?: "–",
+                strongest?.let { stringResource(R.string.pg_level_at, intensityWords[rainLevel(amounts[it]!!)], "%02d:00".format(java.util.Locale.ROOT, it)) },
+            ),
             TileText(
                 stringResource(R.string.metric_chance),
                 chance?.let(::percentText) ?: "–",
                 chance?.let { chanceWords[RainChance.of(it).ordinal] },
             ),
-            TileText(
-                stringResource(R.string.metric_week_total),
-                "${dayPrecipitationText(weekTotal, locale).ifEmpty { "0" }} $mm",
-                if (wetDays == 0) stringResource(R.string.metric_week_dry) else pluralStringResource(R.plurals.metric_wet_days, wetDays, wetDays),
-            ),
         )
     }
+
     if (points.isNotEmpty()) {
-        Spacer(Modifier.height(12.dp))
-        val nowIndex = nowIndexOf(points.map { it.time }, ctx.isToday, ctx.now)
-        val left = if (nowIndex != null) points.drop(nowIndex) else points
-        val anyWet = left.any { it.precipitationMm >= MIN_NOTICEABLE_MM }
-        if (!anyWet) {
-            HourlyFrame(caption = "", modifier = side) { DryNote(left, ctx.isToday) }
-        } else {
-            val labels = labelsOf(points.map { it.time }, zone, nowIndex)
-            val spec = remember(points, labels, nowIndex) {
-                StripSpec(
-                    labels = labels,
-                    nowIndex = nowIndex,
-                    bars = Series(
-                        points.map { it.precipitationMm },
-                        points.map { if (it.precipitationMm >= MIN_NOTICEABLE_MM) precipitationText(it.precipitationMm, locale) else "" },
-                    ),
-                    dashed = Series(
-                        points.map { it.precipitationProbability?.toDouble() },
-                        points.map { it.precipitationProbability?.let(::percentText) ?: "–" },
-                    ),
-                    barMax = maxOf(MIN_RAIN_SCALE_MM, points.maxOf { it.precipitationMm }),
-                    description = points.mapIndexed { i, p -> "${labels[i]}: ${precipitationText(p.precipitationMm, locale)}" },
-                )
-            }
-            val firstWet = points.indexOfFirst { it.precipitationMm >= MIN_NOTICEABLE_MM }
-            StripCard(
-                side,
-                listOf(Swatch.Bar to stringResource(R.string.metric_legend_rain), Swatch.Dashed to stringResource(R.string.metric_legend_chance)),
-            ) {
-                androidx.compose.runtime.key(ctx.date) {
-                    MetricStrip(spec, firstColumn(nowIndex, if (firstWet > 0) firstWet - 1 else MORNING_COLUMN))
-                }
-            }
+        val legend = intensityWords.mapIndexed { i, w -> Triple(Mark.Square, RainColors[i], w) } + forecastMark(ctx.isToday)
+        fun chanceOf(hour: Int) = chances.getOrNull(hour)?.let { percentText(it.roundToInt()) } ?: "–"
+        // Строки с подстановками берутся заранее: подпись часа собирается вне компоновки.
+        val wetHour = stringResource(R.string.pg_rain_hour)
+        val dryHour = stringResource(R.string.pg_rain_hour_dry)
+        ChartCard(hourlyTitle(ctx), legend) {
+            HourBars(
+                values = amounts,
+                nowIndex = ctx.nowIndex,
+                colorOf = { RainColors[rainLevel(it)] },
+                describe = { v, h ->
+                    if (v > 0) wetHour.format(precipitationText(v, locale), intensityWords[rainLevel(v)], chanceOf(h)) else dryHour.format(chanceOf(h))
+                },
+                brief = { "${precipitationText(it, locale)} $mmH" },
+                extremeLabel = stringResource(R.string.metric_strongest),
+                scaleMax = MIN_RAIN_SCALE_MM,
+                noneText = stringResource(R.string.next24_none),
+            )
         }
     }
-    Spacer(Modifier.height(12.dp))
-    val partNames = stringArrayResource(R.array.metric_parts)
-    val allParts = remember(forecast, ctx.dates) { ctx.dates.map { MetricDays.partPeaks(forecast.hoursOf(it), zone) } }
+
+    val perDay = remember(forecast, ctx.dates) {
+        ctx.dates.map { d -> byHour(forecast.hoursOf(d), zone, { it.time }) { p -> p.precipitationMm.takeIf { it >= MIN_NOTICEABLE_MM } ?: 0.0 } }
+    }
+    val totals = remember(forecast, ctx.dates) {
+        ctx.dates.map { d -> forecast.days.firstOrNull { it.date == d }?.precipitationMm ?: forecast.hoursOf(d).sumOf { it.precipitationMm } }
+    }
     DaysCard(
-        ctx.dates, ctx.today, ctx.date, ctx.onSelect, "", side,
-        legend = { PartsHeader(partNames.toList(), stringResource(R.string.mm_unit)) },
+        ctx.dates, ctx.today, ctx.date, ctx.onSelect,
+        legend = {
+            WeekHeader(stringResource(R.string.hourly_title), stringResource(R.string.pg_week_day_total), stringResource(R.string.metric_chance), TOTAL_COLUMN, CHANCE_COLUMN)
+        },
     ) { i ->
-        Canvas(Modifier.weight(1f).height(16.dp)) {
-            val gap = 3.dp.toPx()
-            val segment = (size.width - gap * 3) / 4
-            allParts[i].forEachIndexed { k, peak ->
-                val color = if (peak >= MIN_NOTICEABLE_MM) {
-                    palette.accent.copy(alpha = 0.45f + minOf(peak, 3.0).toFloat() / 3f * 0.45f)
-                } else {
-                    palette.ink.copy(alpha = 0.08f)
-                }
-                drawRoundRect(color, Offset(k * (segment + gap), 0f), Size(segment, size.height), CornerRadius(4.dp.toPx()))
-            }
-        }
-        val amount = perDayTotals[i]
-        DayValue(
-            if (amount >= MIN_NOTICEABLE_MM) dayPrecipitationText(amount, locale) else "–",
-            forecast.days.firstOrNull { it.date == ctx.dates[i] }?.precipitationProbability?.let(::percentText),
+        DayBars(perDay[i], Modifier.weight(1f))
+        Text(
+            if (totals[i] >= MIN_NOTICEABLE_MM) "${dayPrecipitationText(totals[i], locale)} $mm" else "–",
+            style = pogodaText(15f, 700, tabular = true),
+            modifier = Modifier.width(TOTAL_COLUMN),
+            textAlign = TextAlign.End,
+            maxLines = 1,
+        )
+        Text(
+            forecast.days.firstOrNull { it.date == ctx.dates[i] }?.precipitationProbability?.let(::percentText) ?: "–",
+            style = pogodaText(14f, 600, tabular = true),
+            modifier = Modifier.width(CHANCE_COLUMN),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
         )
     }
+    SourceNote(stringResource(R.string.pg_rain_note))
 }
 
-/** Вместо пустой ленты с нулями: одна строка, что осадков не будет, и самая высокая вероятность. */
+private val TOTAL_COLUMN = 64.dp
+private val CHANCE_COLUMN = 78.dp
+
+/** Маленькие столбики суток в строке дня: те же цвета силы, что у большого графика и круга. */
 @Composable
-private fun DryNote(left: List<HourPoint>, isToday: Boolean) {
+private fun DayBars(values: List<Double?>, modifier: Modifier) {
     val palette = LocalPogodaPalette.current
-    val top = left.mapNotNull { it.precipitationProbability }.maxOrNull()
-    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
-        Text(
-            stringResource(if (isToday) R.string.metric_dry_rest else R.string.next24_none),
-            style = pogodaText(14.5f, 600),
-        )
-        top?.let {
-            Text(stringResource(R.string.metric_dry_chance, percentText(it)), style = pogodaText(12.5f, 500, color = palette.ink2))
+    Canvas(modifier.height(24.dp)) {
+        val max = maxOf(MIN_RAIN_SCALE_MM, values.filterNotNull().maxOrNull() ?: 0.0)
+        val step = size.width / HOURS
+        val w = (step * 0.6f).coerceAtMost(2.4.dp.toPx())
+        values.forEachIndexed { h, v ->
+            val value = v ?: 0.0
+            val height = if (value > 0) maxOf(3.dp.toPx(), (value / max).toFloat() * size.height) else 1.5.dp.toPx()
+            val color = if (value > 0) RainColors[rainLevel(value)] else palette.ink.copy(alpha = 0.22f)
+            drawRoundRect(color, Offset(h * step + (step - w) / 2, size.height - height), Size(w, height), CornerRadius(w / 2))
         }
     }
 }
@@ -361,10 +402,11 @@ private fun DryNote(left: List<HourPoint>, isToday: Boolean) {
 // ---------------------------------------------------------------- влажность
 
 @Composable
-internal fun HumidityPage(ctx: PageContext, side: Modifier) {
+internal fun HumidityPage(ctx: PageContext) {
     val zone = ctx.zone
     val forecast = ctx.forecast
     val locale = LocalLocale.current.platformLocale
+    val palette = LocalPogodaPalette.current
     val km = stringResource(R.string.km_unit)
     val dewLabel = stringResource(R.string.hour_dew_point)
     val visibilityLevels = stringArrayResource(R.array.visibility_levels)
@@ -375,26 +417,19 @@ internal fun HumidityPage(ctx: PageContext, side: Modifier) {
     val humidity = if (ctx.isToday) current?.humidity else hours.mapNotNull { it.humidity }.takeIf { it.isNotEmpty() }?.average()?.roundToInt()
     val dew = if (ctx.isToday) current?.dewPointC else hours.mapNotNull { it.dewPointC }.takeIf { it.isNotEmpty() }?.average()
     val sight = if (ctx.isToday) current?.visibilityM else hours.mapNotNull { it.visibilityM }.minOrNull()
-    val feel = dew?.let { d -> Mugginess.ofDewPoint(d)?.let { mugginess[it.ordinal] } ?: comfortable }
-    fun mean(range: IntRange): Int? = MetricDays.meanOver(hours, zone, range) { it.humidity?.toDouble() }?.roundToInt()
-    val dayMean = mean(MetricDays.DAYTIME_HOURS)
-    val nightMean = mean(MetricDays.NIGHT_HOURS)
-    TopCard(
+    fun feelOf(d: Double) = Mugginess.ofDewPoint(d)?.let { mugginess[it.ordinal] } ?: comfortable
+    fun feelColor(d: Double) = DewColors[Mugginess.ofDewPoint(d)?.let { it.ordinal + 1 } ?: 0]
+    fun mean(details: List<HourDetails>, range: IntRange): Int? = MetricDays.meanOver(details, zone, range) { it.humidity?.toDouble() }?.roundToInt()
+    NowCard(
         title = stringResource(if (ctx.isToday) R.string.now else R.string.metric_day),
         value = humidity?.toString() ?: "–",
         unit = "%",
-        lines = listOfNotNull(feel, dew?.let { "$dewLabel ${temperatureText(it)}" }),
-        modifier = side,
-        picture = humidity?.let { { DropGauge(it) } },
+        word = dew?.let { feelOf(it) },
+        note = dew?.let { "$dewLabel ${temperatureText(it)}" },
+        symbol = { dew?.let { StepGauge(dewFraction(it), DewBands, DewColors) } },
     ) {
-        if (sight != null) {
-            val level = VisibilityLevel.ofMeters(sight)
-            LabelRow(
-                stringResource(R.string.metric_visibility),
-                "${visibilityText(sight, locale)} $km · " + continuationCase(visibilityLevels[level.ordinal], locale),
-            )
-            VisibilityScale(level.ordinal, VisibilityLevel.entries.size)
-        }
+        val dayMean = mean(hours, MetricDays.DAYTIME_HOURS)
+        val nightMean = mean(hours, MetricDays.NIGHT_HOURS)
         if (dayMean != null && nightMean != null) {
             TwoTiles(
                 TileText(stringResource(R.string.metric_daytime_tile), percentText(dayMean), stringResource(R.string.metric_daytime_hours)),
@@ -402,79 +437,62 @@ internal fun HumidityPage(ctx: PageContext, side: Modifier) {
             )
         }
     }
-    if (hours.isNotEmpty()) {
-        Spacer(Modifier.height(12.dp))
-        val nowIndex = nowIndexOf(hours.map { it.time }, ctx.isToday, ctx.now)
-        val labels = labelsOf(hours.map { it.time }, zone, nowIndex)
-        val known = hours.mapNotNull { it.humidity }
-        val spec = remember(hours, labels, nowIndex) {
-            val low = (known.minOrNull() ?: 0).toDouble()
-            val high = (known.maxOrNull() ?: 100).toDouble()
-            val padded = maxOf(MIN_HUMIDITY_SPAN, high - low + 2 * HUMIDITY_PAD)
-            val min = (((low + high) / 2) - padded / 2).coerceAtLeast(0.0)
-            StripSpec(
-                labels = labels,
-                nowIndex = nowIndex,
-                line = Series(hours.map { it.humidity?.toDouble() }, hours.map { it.humidity?.toString() ?: "–" }),
-                dots = Series(hours.map { it.dewPointC }, hours.map { it.dewPointC?.let(::temperatureText) ?: "–" }),
-                lineMin = min,
-                lineMax = min + padded,
-                description = hours.mapIndexed { i, h -> "${labels[i]}: ${h.humidity ?: "–"} %, $dewLabel ${h.dewPointC?.let(::temperatureText) ?: "–"}" },
-            )
-        }
-        StripCard(
-            side,
-            listOf(Swatch.Line to stringResource(R.string.metric_legend_humidity), Swatch.Dot to stringResource(R.string.metric_legend_dew)),
-        ) {
-            androidx.compose.runtime.key(ctx.date) { MetricStrip(spec, firstColumn(nowIndex, MORNING_COLUMN)) }
+
+    if (sight != null) {
+        val level = VisibilityLevel.ofMeters(sight)
+        Card {
+            CardTitle(stringResource(R.string.metric_visibility))
+            Row(Modifier.padding(top = 4.dp, bottom = 10.dp).semantics(mergeDescendants = true) {}, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${visibilityText(sight, locale)} $km", style = pogodaText(20f, 600, tabular = true), maxLines = 1)
+                Text(continuationCase(visibilityLevels[level.ordinal], locale), style = pogodaText(14f, 600, color = palette.ink2), modifier = Modifier.padding(bottom = 2.dp), maxLines = 1)
+            }
+            VisibilityScale(level.ordinal, VisibilityLevel.entries.size)
         }
     }
-    Spacer(Modifier.height(12.dp))
-    val palette = LocalPogodaPalette.current
+
+    val values = remember(hours) { byHour(hours, zone, { it.time }) { it.humidity?.toDouble() } }
+    val known = values.filterNotNull()
+    if (known.size >= 2) {
+        val low = known.min()
+        val high = known.max()
+        val span = maxOf(MIN_HUMIDITY_SPAN, high - low + 2 * HUMIDITY_PAD)
+        val bottom = ((low + high) / 2 - span / 2).coerceAtLeast(0.0)
+        val top = (bottom + span).coerceAtMost(100.0 + HUMIDITY_PAD)
+        val grid = listOf(low, (low + high) / 2, high).map { it.roundToInt() }.distinct().map { it.toDouble() to "$it %" }
+        ChartCard(hourlyTitle(ctx), lineLegend(ctx, palette.accent, stringResource(R.string.metric_legend_humidity))) {
+            HourLine(values, ctx.nowIndex, palette.accent, bottom, top, grid)
+        }
+    }
+
     val perDay = remember(forecast, ctx.dates) { ctx.dates.map { MetricDays.detailsOf(forecast.hourDetails, zone, it) } }
     DaysCard(
-        ctx.dates, ctx.today, ctx.date, ctx.onSelect, stringResource(R.string.metric_days_humidity_note), side,
+        ctx.dates, ctx.today, ctx.date, ctx.onSelect,
         legend = {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconLabel(LineIcons.Sun, stringResource(R.string.metric_daytime))
-                IconLabel(LineIcons.Moon, stringResource(R.string.metric_night))
-            }
+            WeekHeader(
+                stringResource(R.string.pg_week_feels),
+                stringResource(R.string.metric_daytime_tile),
+                stringResource(R.string.metric_night_tile),
+                PERCENT_COLUMN,
+                PERCENT_COLUMN,
+            )
         },
     ) { i ->
         val day = perDay[i]
         val fog = day.mapNotNull { it.visibilityM }.minOrNull()?.let { it < FOG_BELOW_M } == true
-        val word = day.mapNotNull { it.dewPointC }.maxOrNull()?.let { d -> Mugginess.ofDewPoint(d)?.let { mugginess[it.ordinal] } ?: comfortable }
+        val dewHigh = day.mapNotNull { it.dewPointC }.maxOrNull()
         Text(
-            if (fog) stringResource(R.string.metric_fog) else word.orEmpty(),
-            style = pogodaText(14f, if (fog) 700 else 600, color = if (fog) palette.ink else palette.ink2),
+            if (fog) stringResource(R.string.metric_fog) else dewHigh?.let { feelOf(it) } ?: "–",
+            style = pogodaText(14f, 700, color = if (fog || dewHigh == null) palette.ink else feelColor(dewHigh), lineHeight = 1.15f),
             modifier = Modifier.weight(1f),
             maxLines = 2,
         )
-        val d = MetricDays.meanOver(day, zone, MetricDays.DAYTIME_HOURS) { it.humidity?.toDouble() }?.roundToInt()
-        val n = MetricDays.meanOver(day, zone, MetricDays.NIGHT_HOURS) { it.humidity?.toDouble() }?.roundToInt()
-        IconValue(LineIcons.Sun, d?.toString() ?: "–", palette.warning)
-        IconValue(LineIcons.Moon, n?.toString() ?: "–", palette.accent)
+        Text(mean(day, MetricDays.DAYTIME_HOURS)?.let(::percentText) ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(PERCENT_COLUMN), textAlign = TextAlign.End, maxLines = 1)
+        Text(mean(day, MetricDays.NIGHT_HOURS)?.let(::percentText) ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(PERCENT_COLUMN), textAlign = TextAlign.Center, maxLines = 1)
     }
+    SourceNote(stringResource(R.string.pg_humidity_note))
 }
+
+private val PERCENT_COLUMN = 56.dp
 
 /** Туман: видимость меньше километра (ступень Met Office «очень плохая»). */
 private const val FOG_BELOW_M = 1_000.0
-
-@Composable
-private fun IconLabel(icon: io.github.dumahuch.pogodaapp.ui.components.LineIcon, text: String) {
-    val palette = LocalPogodaPalette.current
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        LineIconView(icon, 14.dp, palette.ink2, strokeWidth = 1.8f)
-        Text(text, style = pogodaText(11.5f, 600, color = palette.ink2))
-    }
-}
-
-@Composable
-private fun IconValue(icon: io.github.dumahuch.pogodaapp.ui.components.LineIcon, text: String, tint: androidx.compose.ui.graphics.Color) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.width(IconValueWidth)) {
-        LineIconView(icon, 15.dp, tint, strokeWidth = 1.8f)
-        Text(text, style = pogodaText(15f, 700, tabular = true), maxLines = 1)
-    }
-}
-
-private val IconValueWidth = 44.dp

@@ -116,7 +116,6 @@
         <item>Extremely poor</item>
     </string-array>
     <string name="tile_pollen">Pollen</string>
-    <string name="pollen_source" translatable="false">DWD</string>
     <string-array name="pollen_kinds">
         <item>Hazel</item>
         <item>Alder</item>
@@ -461,27 +460,12 @@
     <string name="metric_legend_wind">wind, km/h</string>
     <string name="metric_legend_gusts">gusts, km/h</string>
     <string name="metric_legend_blows">blowing to</string>
-    <string name="metric_legend_rain">precipitation, mm</string>
-    <string name="metric_legend_chance" formatted="false">chance, %</string>
     <string name="metric_legend_humidity" formatted="false">humidity, %</string>
-    <string name="metric_legend_dew">dew point, °</string>
-    <string name="metric_days_wind">wind</string>
-    <string name="metric_days_gusts">gusts</string>
-    <string name="metric_days_wind_note">daily high, km/h</string>
     <string name="metric_gusts_short">gusts %1$s</string>
-    <string name="metric_days_humidity_note" formatted="false">humidity, %</string>
-    <string name="metric_daytime">day</string>
-    <string name="metric_night">night</string>
     <string name="metric_daytime_tile">Daytime</string>
     <string name="metric_night_tile">Night</string>
     <string name="metric_daytime_hours">12:00–18:00</string>
     <string name="metric_night_hours">00:00–06:00</string>
-    <string-array name="metric_parts">
-        <item>night</item>
-        <item>morning</item>
-        <item>day</item>
-        <item>evening</item>
-    </string-array>
     <string-array name="metric_parts_when">
         <item>at night</item>
         <item>in the morning</item>
@@ -498,9 +482,6 @@
     <string name="metric_vis_fog">fog</string>
     <string name="metric_vis_far">over 40 km</string>
     <string name="metric_fog">Fog</string>
-    <string name="metric_umbrella_yes">Take an umbrella</string>
-    <string name="metric_umbrella_no">No umbrella needed</string>
-    <string name="metric_next_rain">Next precipitation</string>
     <string name="metric_no_rain_ahead">None expected in the next days</string>
     <string-array name="rain_intensity">
         <item>light</item>
@@ -513,14 +494,6 @@
         <item>likely</item>
         <item>almost certain</item>
     </string-array>
-    <string name="metric_week_total">Next 7 days</string>
-    <string name="metric_week_dry">dry</string>
-    <plurals name="metric_wet_days">
-        <item quantity="one">%d day with precipitation</item>
-        <item quantity="other">%d days with precipitation</item>
-    </plurals>
-    <string name="metric_dry_rest">Dry for the rest of the day</string>
-    <string name="metric_dry_chance">chance at most %1$s</string>
     <string name="metric_comfortable">Comfortable</string>
     <string name="km_unit">km</string>
     <string name="pressure_unit">hPa</string>
@@ -677,4 +650,26 @@
     <string name="pg_peak_max">Maximum</string>
     <string name="pg_peak_worst">Worst hour</string>
     <string name="pg_peak_line">%1$s: %2$s %3$s</string>
+    <!-- Ветер, осадки, влажность в едином стиле (0.8.83) -->
+    <string name="pg_wind_direction">Direction</string>
+    <string-array name="pg_wind_to">
+        <item>blows north</item>
+        <item>blows north-east</item>
+        <item>blows east</item>
+        <item>blows south-east</item>
+        <item>blows south</item>
+        <item>blows south-west</item>
+        <item>blows west</item>
+        <item>blows north-west</item>
+    </string-array>
+    <string name="pg_week_to">Blows to</string>
+    <string name="pg_wind_note">Wind strength in words: Beaufort scale (Met Office). Speed at 10 m, gusts: the strongest gust within the hour. The arrow shows where the wind blows. Forecast: Open-Meteo.</string>
+    <string name="pg_mm_h">mm/h</string>
+    <string name="pg_rain_hour">%1$s mm/h · %2$s, chance %3$s</string>
+    <string name="pg_rain_hour_dry">Dry, chance %1$s</string>
+    <string name="pg_rain_dry">dry</string>
+    <string name="pg_week_day_total">Day total</string>
+    <string name="pg_rain_note">Intensity: AMS (light up to 2.5 mm per hour, moderate up to 7.6, heavy above). Chance: precipitation over 0.1 mm in the hour, from 30 ensemble runs. Inner arc of the circle: day in gold, night in blue. Forecast: Open-Meteo.</string>
+    <string name="pg_week_feels">Feels</string>
+    <string name="pg_humidity_note">Feel by dew point: NWS (up to 13 °C comfortable, up to 18 °C noticeably humid, above that oppressive). Visibility: six Met Office levels. Forecast: Open-Meteo.</string>
 </resources>
