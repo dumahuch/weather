@@ -147,12 +147,8 @@ internal fun PressurePage(ctx: PageState) {
         val high = known.max()
         // Не уже 6 единиц, чтобы ровный день не выглядел скачущим; три линии сетки: низ, середина, верх дня.
         val pad = maxOf(1.0, (6.0 - (high - low)) / 2)
-        val grid = listOf(low, (low + high) / 2, high).map { it to it.roundToInt().toString() }.distinctBy { it.second }
-        ChartCard(
-            title = hourlyTitle(ctx),
-            unit = stringResource(R.string.pressure_unit),
-            legend = pastFutureLegend(ctx, PressureLine),
-        ) {
+        val grid = listOf(low, (low + high) / 2, high).map { it to "${it.roundToInt()} $short" }.distinctBy { it.second }
+        ChartCard(title = hourlyTitle(ctx), legend = pastFutureLegend(ctx, PressureLine)) {
             HourLine(values, nowIndex, PressureLine, low - pad, high + pad, grid)
         }
     }
@@ -164,7 +160,6 @@ internal fun PressurePage(ctx: PageState) {
             today = ctx.today,
             selected = ctx.date,
             onSelect = ctx.onSelect,
-            note = "",
             legend = {
                 WeekHeader(stringResource(R.string.pg_week_course), stringResource(R.string.pg_week_noon), "", NOON_COLUMN, SPARK_COLUMN)
             },
@@ -226,6 +221,11 @@ internal fun hourlyTitle(ctx: PageState): String {
     return stringResource(R.string.pg_hourly_day, dayName(ctx.date, names))
 }
 
+/** Образец «прогноз» контуром для легенды столбиков; у другого дня его нет (все столбики сплошные). */
+@Composable
+internal fun forecastMark(isToday: Boolean): List<Triple<Mark, Color, String>> =
+    if (isToday) listOf(Triple(Mark.Outline, LocalPogodaPalette.current.ink.copy(alpha = 0.8f), stringResource(R.string.pg_legend_forecast))) else emptyList()
+
 /** Легенда линии: «прошло» цветом линии и «прогноз» точками; у другого дня легенды нет (линия одна). */
 @Composable
 private fun pastFutureLegend(ctx: PageState, color: Color): List<Triple<Mark, Color, String>> =
@@ -283,14 +283,17 @@ internal fun UvPage(ctx: PageState) {
     if (values.any { it != null }) {
         val legend = UvLevel.entries.take(4).map { level ->
             Triple(Mark.Square, UvColors[level.ordinal], continuationCase(stringResource(uvLevelLabel(level)), locale))
-        }
+        } + forecastMark(ctx.isToday)
         val words = UvLevel.entries.map { continuationCase(stringResource(uvLevelLabel(it)), locale) }
-        ChartCard(hourlyTitle(ctx), stringResource(R.string.tile_uv), legend) {
+        val uv = stringResource(R.string.tile_uv)
+        fun text(v: Double) = "$uv ${v.roundToInt()} · ${words[UvLevel.of(v.roundToInt()).ordinal]}"
+        ChartCard(hourlyTitle(ctx), legend) {
             HourBars(
                 values = values,
                 nowIndex = nowSlot(ctx),
                 colorOf = { uvColor(it.roundToInt()) },
-                describe = { "${it.roundToInt()} · ${words[UvLevel.of(it.roundToInt()).ordinal]}" },
+                describe = { v, _ -> text(v) },
+                brief = ::text,
                 extremeLabel = stringResource(R.string.pg_peak_max),
                 scaleMax = UvDay.PROTECT_FROM.toDouble(),
             )
@@ -305,7 +308,6 @@ internal fun UvPage(ctx: PageState) {
             today = ctx.today,
             selected = ctx.date,
             onSelect = ctx.onSelect,
-            note = "",
             legend = {
                 WeekHeader(stringResource(R.string.pg_week_peak), stringResource(R.string.pg_week_uv), stringResource(R.string.pg_week_protect), UV_COLUMN, PROTECT_COLUMN)
             },

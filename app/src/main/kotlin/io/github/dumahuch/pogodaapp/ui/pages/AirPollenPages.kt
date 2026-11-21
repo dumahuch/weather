@@ -91,13 +91,16 @@ internal fun AirPage(ctx: PageState) {
         if (values.any { it != null }) {
             val legend = AirLevel.entries.take(4).map { level ->
                 Triple(Mark.Square, AirColors[level.ordinal], continuationCase(levels[level.ordinal], locale))
-            }
-            ChartCard(hourlyTitle(ctx), stringResource(R.string.air_unit), legend) {
+            } + forecastMark(date == ctx.today)
+            val unit = stringResource(R.string.air_unit)
+            fun text(v: Double) = "$unit ${v.roundToInt()} · ${continuationCase(levels[AirLevel.of(v.roundToInt()).ordinal], locale)}"
+            ChartCard(hourlyTitle(ctx), legend) {
                 HourBars(
                     values = values,
                     nowIndex = if (date == ctx.today) nowSlot(ctx) else null,
                     colorOf = { airColor(it.roundToInt()) },
-                    describe = { "${it.roundToInt()} · ${continuationCase(levels[AirLevel.of(it.roundToInt()).ordinal], locale)}" },
+                    describe = { v, _ -> text(v) },
+                    brief = ::text,
                     extremeLabel = stringResource(R.string.pg_peak_worst),
                     scaleMax = AIR_SCALE,
                 )
@@ -109,7 +112,6 @@ internal fun AirPage(ctx: PageState) {
                 today = ctx.today,
                 selected = date,
                 onSelect = ctx.onSelect,
-                note = "",
                 title = stringResource(R.string.pg_days_5),
                 legend = {
                     WeekHeader(stringResource(R.string.pg_week_worst), stringResource(R.string.air_unit), null, WORST_COLUMN, 0.dp)
@@ -279,10 +281,7 @@ private fun PollenGrid(pollen: PollenForecast, dates: List<LocalDate>, order: Li
     }
     val days = dates.map { pollen.on(it) }
     Card {
-        Row(Modifier.fillMaxWidth()) {
-            CardTitle(stringResource(R.string.pg_days_3), Modifier.weight(1f))
-            Text(stringResource(R.string.pollen_source), style = pogodaText(12f, 600, color = palette.ink2), maxLines = 1)
-        }
+        CardTitle(stringResource(R.string.pg_days_3))
         Row(Modifier.padding(top = 8.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(2, 4, 6).forEach { halves ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {

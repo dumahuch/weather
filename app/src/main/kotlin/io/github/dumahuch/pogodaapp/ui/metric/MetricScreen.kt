@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.metric
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,7 @@ import kotlinx.coroutines.launch
  * https://claude.ai/artifact/JctK99dLV2y258xD3xHbSb). Открывается нажатием на показатель под температурой, закрывается
  * жестом «назад». Сверху карточка «Сейчас» (или выбранного дня) в виде плиток «Подробно», ниже лента по часам как на
  * «Главной», последним список дней как на «Прогнозе». Нажатие на день в списке показывает его в карточке и ленте.
+ * С 0.8.83 в едином стиле страниц «Подробно» (макет https://claude.ai/artifact/KcpRCjaazEbEVi9YBNSPKP).
  */
 @Composable
 fun MetricScreen(
@@ -94,10 +96,12 @@ fun MetricScreen(
                     scope.launch { scroll.animateScrollTo(0) }
                 },
             )
-            when (metric) {
-                Metric.Wind -> WindPage(ctx, side)
-                Metric.Precipitation -> RainPage(ctx, side)
-                Metric.Humidity -> HumidityPage(ctx, side)
+            Column(side, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (metric) {
+                    Metric.Wind -> WindPage(ctx)
+                    Metric.Precipitation -> RainPage(ctx)
+                    Metric.Humidity -> HumidityPage(ctx)
+                }
             }
         }
         Spacer(Modifier.height(bottomContentPadding()))

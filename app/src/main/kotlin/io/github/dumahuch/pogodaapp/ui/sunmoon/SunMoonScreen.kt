@@ -166,7 +166,6 @@ private fun WeekCard(ctx: SunMoonContext, dates: List<LocalDate>, onSelect: (Loc
         today = ctx.today,
         selected = ctx.date,
         onSelect = onSelect,
-        note = "",
         legend = {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Spacer(Modifier.width(DAY_COLUMN))
