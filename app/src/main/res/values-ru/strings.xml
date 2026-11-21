@@ -628,7 +628,7 @@
     <string name="pg_highest_today">Выше всего сегодня</string>
     <string name="pg_lowest_today">Ниже всего сегодня</string>
     <string name="pg_week_course">Ход за день</string>
-    <string name="pg_week_noon">В полдень</string>
+    <string name="pg_week_noon">Полдень</string>
     <string name="pg_pressure_note">Давление приведено к уровню моря. Ниже 1000 гПа (750 мм) пониженное, выше 1025 гПа (769 мм) повышенное; середина шкалы около 1013 гПа (760 мм), стандартная атмосфера. Прогноз: Open-Meteo.</string>
     <string name="pg_uv_protect">Защита нужна %1$s–%2$s</string>
     <string name="pg_uv_no_protect">Защита сегодня не нужна</string>
@@ -646,11 +646,10 @@
     <string name="pg_ugm3">мкг/м³</string>
     <string name="pg_legend_day_mean">среднее за сутки</string>
     <string name="pg_legend_who">норма ВОЗ</string>
-    <string name="pg_of_norm">%1$d %% нормы</string>
-    <string name="pg_out_of">из %1$s</string>
+    <string name="pg_of_norm">%1$d %% нормы ВОЗ</string>
     <string name="pg_days_5">5 дней</string>
     <string name="pg_days_3">3 дня</string>
-    <string name="pg_week_worst">Хуже всего</string>
+    <string name="pg_week_worst">Худший час</string>
     <string name="pg_air_note">Индекс EAQI и его ступени: Европейское агентство по окружающей среде (EEA). Нормы веществ: рекомендации ВОЗ 2021, средние за сутки, у озона за 8 часов. Данные: модель CAMS через Open-Meteo, только Европа.</string>
     <string name="pg_pollen_none">Нет</string>
     <string name="pg_pollen_none_word">Пыльцы в воздухе нет</string>

@@ -87,9 +87,12 @@ object AirDay {
         }.maxOrNull() ?: values.filterNotNull().average()
     }
 
+    /** Худший час суток по EAQI (при равенстве первый). */
+    fun worstHour(hours: List<AirHour>, date: LocalDate, zone: ZoneId): AirHour? =
+        hours.filter { it.eaqi != null && it.time.atZone(zone).toLocalDate() == date }.maxByOrNull { it.eaqi!! }
+
     /** Наихудший индекс EAQI за сутки (для «Дней»). */
-    fun worst(hours: List<AirHour>, date: LocalDate, zone: ZoneId): Int? =
-        hours.filter { it.time.atZone(zone).toLocalDate() == date }.mapNotNull { it.eaqi }.maxOrNull()
+    fun worst(hours: List<AirHour>, date: LocalDate, zone: ZoneId): Int? = worstHour(hours, date, zone)?.eaqi
 
     /** Сутки, на которые в ответе есть индекс, по порядку. */
     fun dates(hours: List<AirHour>, zone: ZoneId, from: LocalDate): List<LocalDate> =

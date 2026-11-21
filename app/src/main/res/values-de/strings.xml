@@ -620,7 +620,7 @@
     <string name="pg_highest_today">Heute am höchsten</string>
     <string name="pg_lowest_today">Heute am tiefsten</string>
     <string name="pg_week_course">Im Tagesverlauf</string>
-    <string name="pg_week_noon">Mittags</string>
+    <string name="pg_week_noon">Mittag</string>
     <string name="pg_pressure_note">Der Luftdruck ist auf Meereshöhe umgerechnet. Unter 1000 hPa niedrig, über 1025 hPa hoch; die Mitte der Skala liegt bei etwa 1013 hPa, der Standardatmosphäre. Vorhersage: Open-Meteo.</string>
     <string name="pg_uv_protect">Schutz nötig %1$s–%2$s</string>
     <string name="pg_uv_no_protect">Heute kein Schutz nötig</string>
@@ -638,11 +638,10 @@
     <string name="pg_ugm3">µg/m³</string>
     <string name="pg_legend_day_mean">Tagesmittel</string>
     <string name="pg_legend_who">WHO-Richtwert</string>
-    <string name="pg_of_norm">%1$d %% des Richtwerts</string>
-    <string name="pg_out_of">von %1$s</string>
+    <string name="pg_of_norm">%1$d %% des WHO-Richtwerts</string>
     <string name="pg_days_5">5 Tage</string>
     <string name="pg_days_3">3 Tage</string>
-    <string name="pg_week_worst">Am schlechtesten</string>
+    <string name="pg_week_worst">Schlechteste Stunde</string>
     <string name="pg_air_note">Index EAQI und seine Stufen: Europäische Umweltagentur (EEA). Richtwerte der Schadstoffe: WHO 2021, Tagesmittel, bei Ozon über 8 Stunden. Daten: Modell CAMS über Open-Meteo, nur Europa.</string>
     <string name="pg_pollen_none">Keine</string>
     <string name="pg_pollen_none_word">Kein Pollenflug</string>

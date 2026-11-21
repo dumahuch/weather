@@ -631,7 +631,7 @@
     <string name="pg_highest_today">Highest today</string>
     <string name="pg_lowest_today">Lowest today</string>
     <string name="pg_week_course">Over the day</string>
-    <string name="pg_week_noon">At noon</string>
+    <string name="pg_week_noon">Noon</string>
     <string name="pg_pressure_note">Pressure is reduced to sea level. Below 1000 hPa is low, above 1025 hPa high; the middle of the scale is about 1013 hPa, the standard atmosphere. Forecast: Open-Meteo.</string>
     <string name="pg_uv_protect">Protection needed %1$s–%2$s</string>
     <string name="pg_uv_no_protect">No protection needed today</string>
@@ -649,11 +649,10 @@
     <string name="pg_ugm3">µg/m³</string>
     <string name="pg_legend_day_mean">daily mean</string>
     <string name="pg_legend_who">WHO guideline</string>
-    <string name="pg_of_norm">%1$d %% of guideline</string>
-    <string name="pg_out_of">of %1$s</string>
+    <string name="pg_of_norm">%1$d %% of WHO guideline</string>
     <string name="pg_days_5">5 days</string>
     <string name="pg_days_3">3 days</string>
-    <string name="pg_week_worst">Worst</string>
+    <string name="pg_week_worst">Worst hour</string>
     <string name="pg_air_note">EAQI index and its levels: European Environment Agency (EEA). Pollutant guidelines: WHO 2021, daily means, ozone over 8 hours. Data: CAMS model via Open-Meteo, Europe only.</string>
     <string name="pg_pollen_none">None</string>
     <string name="pg_pollen_none_word">No pollen in the air</string>

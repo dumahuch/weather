@@ -33,12 +33,15 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -148,10 +151,16 @@ internal const val HOURS = 24
 /** Высота полукруга от ширины: дуга и половина толщины метки. */
 private const val GAUGE_RATIO = 0.62f
 
-/** Подписи часов под графиком: 00, 06, 12, 18, 24. */
+/** Время на оси и рядом с пиком второстепенное: мельче и бледнее значений. */
+private const val TIME_ALPHA = 0.62f
+
+private fun hourText(hour: Int) = hour.toString().padStart(2, '0') + ":00"
+
+/** Подписи часов под графиком: 00:00, 06:00, 12:00, 18:00, 24:00 (с минутами, чтобы не принять за дату). */
 private fun DrawScope.hourAxis(measurer: TextMeasurer, style: TextStyle, x: (Float) -> Float, y: Float) {
+    val small = style.copy(fontSize = style.fontSize * 0.94f, color = style.color.copy(alpha = style.color.alpha * TIME_ALPHA))
     listOf(0, 6, 12, 18, 24).forEach { hour ->
-        val text = measurer.measure(hour.toString().padStart(2, '0'), style)
+        val text = measurer.measure(hourText(hour), small)
         val left = (x(hour / 24f) - text.size.width / 2f).coerceIn(0f, size.width - text.size.width)
         drawText(text, topLeft = Offset(left, y))
     }
@@ -259,7 +268,14 @@ internal fun HourBars(
             val alpha = if (nowIndex != null && i < nowIndex) 0.45f else 1f
             drawRoundRect(color.copy(alpha = color.alpha * alpha), Offset(cx - half, bottom - h), Size(2 * half, h), CornerRadius(half))
             if (i == peak) {
-                val layout = measurer.measure(labelOf(value), style.copy(color = palette.ink, fontWeight = FontWeight.Bold))
+                // Значение жирно, час рядом мельче и бледнее: «29 · 02:00».
+                val text = buildAnnotatedString {
+                    append(labelOf(value))
+                    withStyle(SpanStyle(fontSize = style.fontSize * 0.88f, fontWeight = FontWeight.Medium, color = palette.ink.copy(alpha = TIME_ALPHA))) {
+                        append(" · " + hourText(i))
+                    }
+                }
+                val layout = measurer.measure(text, style.copy(color = palette.ink, fontWeight = FontWeight.Bold))
                 drawText(layout, topLeft = Offset((cx - layout.size.width / 2f).coerceIn(0f, size.width - layout.size.width), bottom - h - layout.size.height - 2.dp.toPx()))
             }
         }
