@@ -51,6 +51,7 @@ import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import io.github.dumahuch.pogodaapp.ui.PogodaPalette
+import io.github.dumahuch.pogodaapp.ui.sky.SkyProbe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -117,7 +118,9 @@ fun rememberGlass(
     flash: State<Float>? = null,
 ): Glass {
     val step = (palette.smoke.coerceIn(0f, 1f) * SMOKE_STEPS).roundToInt()
-    val cardBlur = remember(step) { GlassBlur.card(step / SMOKE_STEPS.toFloat()) }
+    val color = SkyProbe.blurColor
+    val grain = SkyProbe.blurNoise
+    val cardBlur = remember(step, color, grain) { GlassBlur.card(step / SMOKE_STEPS.toFloat(), color, grain) }
     return remember(palette, haze, cardBlur, lifted, snow, rain, fog, frost, flash) { Glass(palette, haze, cardBlur, lifted, snow, rain, fog, frost, flash) }
 }
 
@@ -148,10 +151,13 @@ internal object GlassBlur {
         return matrix
     }
 
-    fun card(smoke: Float): HazeBlurStyle = HazeBlurStyle {
+    /** Стиль размытия карточки; [color] и [grain] выключают яркость с насыщением и зерно только для замера на экране проверки. */
+    fun card(smoke: Float, color: Boolean = true, grain: Boolean = true): HazeBlurStyle = HazeBlurStyle {
         blurRadius(Radius)
-        noiseFactor(noise(smoke))
-        colorEffects(listOf(HazeColorEffect.colorFilter(ColorFilter.colorMatrix(colorMatrix(saturation(smoke), brightness(smoke))))))
+        noiseFactor(if (grain) noise(smoke) else 0f)
+        if (color) {
+            colorEffects(listOf(HazeColorEffect.colorFilter(ColorFilter.colorMatrix(colorMatrix(saturation(smoke), brightness(smoke))))))
+        }
     }
 
     val Button: HazeBlurStyle = HazeBlurStyle {
@@ -298,7 +304,7 @@ private fun ChunkedBlur(glass: Glass, modifier: Modifier) {
     SubcomposeLayout(modifier) { constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
-        val edges = chunkEdges(height, BlurChunk.roundToPx())
+        val edges = if (SkyProbe.blurChunks) chunkEdges(height, BlurChunk.roundToPx()) else listOf(0, height)
         val placed = (0 until edges.size - 1).map { index ->
             val top = edges[index]
             val bottom = edges[index + 1]

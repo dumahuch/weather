@@ -550,6 +550,15 @@ private fun ProbeSection(onChange: () -> Unit) {
         Probe(stringResource(R.string.check_probe_sky_weather, state(SkyProbe.skyWeather)), SkyProbe.skyWeather) {
             SkyProbe.skyWeather = !SkyProbe.skyWeather
         },
+        Probe(stringResource(R.string.check_probe_chunks, state(SkyProbe.blurChunks)), SkyProbe.blurChunks) {
+            SkyProbe.blurChunks = !SkyProbe.blurChunks
+        },
+        Probe(stringResource(R.string.check_probe_blur_color, state(SkyProbe.blurColor)), SkyProbe.blurColor) {
+            SkyProbe.blurColor = !SkyProbe.blurColor
+        },
+        Probe(stringResource(R.string.check_probe_blur_grain, state(SkyProbe.blurNoise)), SkyProbe.blurNoise) {
+            SkyProbe.blurNoise = !SkyProbe.blurNoise
+        },
         Probe(stringResource(R.string.check_probe_reset), false) { SkyProbe.reset() },
     )
     Caption(stringResource(R.string.check_probe_title))
