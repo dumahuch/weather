@@ -541,8 +541,6 @@
     <string name="sun_moon_polar_day">Солнце не заходит</string>
     <string name="sun_moon_polar_night">Солнце не восходит</string>
     <string name="minutes_only">%1$d мин</string>
-    <string name="sun_moon_shorter">На %1$d мин короче, чем вчера</string>
-    <string name="sun_moon_longer">На %1$d мин длиннее, чем вчера</string>
     <string name="sun_moon_same">Как вчера</string>
     <string name="sun_moon_noon">Полдень</string>
     <string name="sun_moon_light">Свет для съёмки</string>
@@ -603,7 +601,6 @@
     <string name="tl_night_after">Потом ночь</string>
     <string name="dir_title">Куда смотреть</string>
     <string name="moon_set_on">Заход Луны %1$s</string>
-    <string name="dir_note">Север сверху. Жёлтая дуга: путь Солнца сегодня, пунктир: путь Луны. Залитая точка: восход, пустая: заход.</string>
     <string name="moon_lit_line">освещено · %1$d-й день цикла</string>
     <string name="moon_high">Высоко над горизонтом</string>
     <string name="moon_mid">Невысоко над горизонтом</string>
@@ -616,4 +613,9 @@
         <item quantity="many">Через %1$d дней, восход в %2$s</item>
         <item quantity="other">Через %1$d дня, восход в %2$s</item>
     </plurals>
+
+    <!-- «Солнце и Луна» (0.8.79) -->
+    <string name="dir_legend_sun">путь Солнца</string>
+    <string name="dir_legend_moon">путь Луны</string>
+    <string name="sun_moon_change">%1$s мин за сутки</string>
 </resources>

@@ -535,8 +535,6 @@
     <string name="sun_moon_polar_day">Die Sonne geht nicht unter</string>
     <string name="sun_moon_polar_night">Die Sonne geht nicht auf</string>
     <string name="minutes_only">%1$d Min.</string>
-    <string name="sun_moon_shorter">%1$d Min. kürzer als gestern</string>
-    <string name="sun_moon_longer">%1$d Min. länger als gestern</string>
     <string name="sun_moon_same">Wie gestern</string>
     <string name="sun_moon_noon">Sonnenmittag</string>
     <string name="sun_moon_light">Licht zum Fotografieren</string>
@@ -597,7 +595,6 @@
     <string name="tl_night_after">Danach Nacht</string>
     <string name="dir_title">Wohin schauen</string>
     <string name="moon_set_on">Monduntergang %1$s</string>
-    <string name="dir_note">Norden oben. Gelber Bogen: Weg der Sonne heute, gepunktet: Weg des Mondes. Voller Punkt: Aufgang, leerer: Untergang.</string>
     <string name="moon_lit_line">beleuchtet · Tag %1$d des Zyklus</string>
     <string name="moon_high">Hoch über dem Horizont</string>
     <string name="moon_mid">Mäßig hoch über dem Horizont</string>
@@ -608,4 +605,9 @@
         <item quantity="one">In %1$d Tag, Aufgang um %2$s</item>
         <item quantity="other">In %1$d Tagen, Aufgang um %2$s</item>
     </plurals>
+
+    <!-- «Солнце и Луна» (0.8.79) -->
+    <string name="dir_legend_sun">Weg der Sonne</string>
+    <string name="dir_legend_moon">Weg des Mondes</string>
+    <string name="sun_moon_change">%1$s Min. seit gestern</string>
 </resources>

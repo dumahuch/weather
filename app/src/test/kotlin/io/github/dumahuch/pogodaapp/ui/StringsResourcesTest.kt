@@ -67,6 +67,8 @@ class StringsResourcesTest {
         "light_day", "light_golden", "light_blue", "light_twilight", "light_night",
         // Продолжение после крупного процента освещённости: «89 % освещено · 12-й день цикла».
         "moon_lit_line",
+        // Подписи легенды круга «Куда смотреть» (0.8.79).
+        "dir_legend_sun", "dir_legend_moon",
     )
 
     @Test

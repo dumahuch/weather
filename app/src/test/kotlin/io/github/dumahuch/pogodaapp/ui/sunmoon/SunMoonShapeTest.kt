@@ -60,12 +60,16 @@ class SunMoonShapeTest {
     }
 
     @Test
-    fun runsGroupEqualNeighboursAndOnlyGoldenAndBlueGlow() {
+    fun runsGroupEqualNeighboursAndTheStripBlendsSmoothlyInOrder() {
         val phases = listOf(LightPhase.Night, LightPhase.Night, LightPhase.Blue, LightPhase.Golden, LightPhase.Golden, LightPhase.Day)
         assertEquals(
             listOf(LightPhase.Night to 0..1, LightPhase.Blue to 2..2, LightPhase.Golden to 3..4, LightPhase.Day to 5..5),
             runs(phases),
         )
-        assertEquals(setOf(LightPhase.Golden, LightPhase.Blue), LightPhase.entries.filter { it.glows }.toSet())
+        // Опорные точки идут по возрастанию и не выходят за полосу; у каждого отрезка две точки.
+        val stops = stripStops(phases).map { it.first }
+        assertEquals(8, stops.size)
+        assertTrue("$stops", stops.zipWithNext().all { (a, b) -> b >= a })
+        assertTrue(stops.first() > 0f && stops.last() < 1f)
     }
 }
