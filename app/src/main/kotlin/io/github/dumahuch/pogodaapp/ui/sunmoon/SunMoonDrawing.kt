@@ -21,18 +21,23 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.LightPhase
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.Manrope
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
+import io.github.dumahuch.pogodaapp.ui.pogodaText
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.ln
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /*
@@ -50,6 +55,7 @@ internal object SunMoonColors {
     const val MOON_FILL = 0x2F5FB3
     const val MOON_ICON = 0xFFFFFF
     const val MOON_LIT = 0xE9EEF6
+    const val GOLD_TEXT = 0xF5C451
 
     const val NIGHT = 0x141D36
     const val ASTRONOMICAL = 0x26335F
@@ -223,16 +229,18 @@ internal fun LightStrip(phases: List<LightPhase>, nowFraction: Float?, nowLabel:
         val stripHeight = 18.dp.toPx()
         val radius = stripHeight / 2
         val shape = Path().apply { addRoundRect(RoundRect(Rect(0f, stripTop, w, stripTop + stripHeight), CornerRadius(radius))) }
+        // Золотой и синий час светятся, как их образцы в легенде и метки в ленте событий (одно обозначение везде).
+        runs(phases).filter { it.first.glows }.forEach { (phase, range) ->
+            val left = w * range.first / phases.size
+            val right = w * (range.last + 1) / phases.size
+            drawGlowRect(Rect(left, stripTop, right, stripTop + stripHeight), rgb(SunMoonColors.of(phase)), radius)
+        }
         clipPath(shape) {
-            var start = 0
-            while (start < phases.size) {
-                var end = start + 1
-                while (end < phases.size && phases[end] == phases[start]) end++
-                val left = w * start / phases.size
-                val right = w * end / phases.size
+            runs(phases).forEach { (phase, range) ->
+                val left = w * range.first / phases.size
+                val right = w * (range.last + 1) / phases.size
                 // Чуть внахлёст, чтобы между отрезками не было волосяных щелей.
-                drawRect(rgb(SunMoonColors.of(phases[start])), Offset(left, stripTop), Size(right - left + 1f, stripHeight))
-                start = end
+                drawRect(rgb(SunMoonColors.of(phase)), Offset(left, stripTop), Size(right - left + 1f, stripHeight))
             }
         }
         val textStyle = labelStyle.copy(fontSize = 11.dp.toSp())
@@ -255,6 +263,148 @@ internal fun LightStrip(phases: List<LightPhase>, nowFraction: Float?, nowLabel:
             }
         }
     }
+}
+
+/** Отрезки одинакового света подряд: фаза и номера отрезков. */
+internal fun runs(phases: List<LightPhase>): List<Pair<LightPhase, IntRange>> {
+    val result = ArrayList<Pair<LightPhase, IntRange>>()
+    var start = 0
+    while (start < phases.size) {
+        var end = start + 1
+        while (end < phases.size && phases[end] == phases[start]) end++
+        result += phases[start] to (start until end)
+        start = end
+    }
+    return result
+}
+
+/** Светятся только золотой и синий час: главное для съёмки (правило стиля: свечение у главного). */
+internal val LightPhase.glows: Boolean get() = this == LightPhase.Golden || this == LightPhase.Blue
+
+/** Свечение вокруг прямоугольника: несколько расширенных прозрачных скруглённых прямоугольников под ним. */
+internal fun DrawScope.drawGlowRect(rect: Rect, color: Color, radius: Float) {
+    RECT_GLOW.forEach { (spreadDp, alpha) ->
+        val spread = spreadDp.dp.toPx()
+        drawRoundRect(
+            color.copy(alpha = alpha),
+            Offset(rect.left - spread, rect.top - spread),
+            Size(rect.width + 2 * spread, rect.height + 2 * spread),
+            CornerRadius(radius + spread),
+        )
+    }
+}
+
+/** Расширение (dp) и прозрачность слоёв свечения прямоугольника. */
+private val RECT_GLOW = listOf(7f to 0.06f, 4.5f to 0.11f, 2.5f to 0.18f)
+
+/** Образец цвета (легенда, лента событий): скруглённый прямоугольник, у золотого и синего со свечением. */
+@Composable
+internal fun GlowSwatch(phase: LightPhase, modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val color = rgb(SunMoonColors.of(phase))
+        val radius = minOf(size.width, size.height) / 2.5f
+        if (phase.glows) drawGlowRect(Rect(Offset.Zero, size), color, radius)
+        drawRoundRect(color, Offset.Zero, size, CornerRadius(radius))
+    }
+}
+
+/** Цвет текста золотого и синего часа: на тёмном небе светлый, на светлом тёмный (читаемость). */
+@Composable
+internal fun goldInk(): Color = rgb(if (LocalPogodaPalette.current.darkInk) GOLD_ON_LIGHT else SunMoonColors.GOLD_TEXT)
+
+@Composable
+internal fun blueInk(): Color = rgb(if (LocalPogodaPalette.current.darkInk) SunMoonColors.MOON_FILL else SunMoonColors.MOON_LINE)
+
+private const val GOLD_ON_LIGHT = 0x8A5A00
+
+/**
+ * Стороны горизонта для съёмки: север сверху, буквы и деления как у компаса ветра. Жёлтая светящаяся дуга по краю:
+ * где солнце идёт по небу (от восхода к закату через сторону полудня), пунктир внутри: путь луны. Залитая точка восход,
+ * пустая заход. Азимуты в градусах от севера; пустые не рисуются.
+ */
+@Composable
+internal fun SkyCompass(sun: SkyPath?, moon: SkyPath?, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    val letters = stringArrayResource(R.array.compass_letters).toList()
+    val measurer = rememberTextMeasurer()
+    val letterStyle = remember(palette) { pogodaText(11f, 800, color = palette.ink.copy(alpha = 0.75f), lineHeight = 1f) }
+    val northStyle = remember(palette) { letterStyle.copy(color = palette.warning) }
+    Canvas(modifier) {
+        val c = center
+        val outer = size.minDimension / 2 - 8.dp.toPx()
+        drawCircle(palette.ink.copy(alpha = 0.05f), outer, c)
+        drawCircle(palette.ink.copy(alpha = 0.18f), outer, c, style = Stroke(1.dp.toPx()))
+        for (degrees in 0 until 360 step 15) {
+            val cardinal = degrees % 90 == 0
+            val length = if (cardinal) 7.dp.toPx() else 3.5.dp.toPx()
+            val color = when {
+                degrees == 0 -> palette.warning
+                cardinal -> palette.ink.copy(alpha = 0.6f)
+                else -> palette.ink.copy(alpha = 0.25f)
+            }
+            drawLine(color, c + point(degrees.toDouble(), outer), c + point(degrees.toDouble(), outer - length), 1.2.dp.toPx(), StrokeCap.Round)
+        }
+        val letterRadius = outer - 17.dp.toPx()
+        listOf(0, 90, 180, 270).forEachIndexed { index, degrees ->
+            val letter = letters.getOrNull(index) ?: return@forEachIndexed
+            val layout = measurer.measure(letter, if (index == 0) northStyle else letterStyle)
+            val at = c + point(degrees.toDouble(), letterRadius)
+            drawText(layout, topLeft = Offset(at.x - layout.size.width / 2f, at.y - layout.size.height / 2f))
+        }
+        val sunColor = rgb(SunMoonColors.SUN)
+        val moonColor = rgb(SunMoonColors.MOON_LINE)
+        if (sun != null) {
+            val arc = arcOf(sun, c, outer)
+            GLOW.forEach { (scale, alpha) ->
+                drawPath(arc, sunColor.copy(alpha = alpha), style = Stroke(2.2.dp.toPx() * scale, cap = StrokeCap.Round))
+            }
+            drawPath(arc, sunColor, style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round))
+        }
+        val moonRadius = outer - 10.dp.toPx()
+        if (moon != null) {
+            drawPath(
+                arcOf(moon, c, moonRadius),
+                moonColor,
+                style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.dp.toPx()))),
+            )
+        }
+        fun dot(azimuth: Double?, ring: Float, color: Color, filled: Boolean, dotRadius: Float) {
+            if (azimuth == null) return
+            val at = c + point(azimuth, ring)
+            if (filled) drawCircle(color, dotRadius, at) else drawCircle(color, dotRadius - 1.dp.toPx(), at, style = Stroke(2.dp.toPx()))
+        }
+        dot(sun?.rise, outer, sunColor, true, 5.dp.toPx())
+        dot(sun?.set, outer, sunColor, false, 5.dp.toPx())
+        dot(moon?.rise, moonRadius, moonColor, true, 4.dp.toPx())
+        dot(moon?.set, moonRadius, moonColor, false, 4.dp.toPx())
+        drawCircle(palette.ink.copy(alpha = 0.6f), 2.5.dp.toPx(), c)
+    }
+}
+
+/** Путь по горизонту: азимут восхода и захода и сторона, через которую тело идёт (азимут самой высокой точки). */
+internal data class SkyPath(val rise: Double?, val set: Double?, val via: Double)
+
+/** Смещение от центра для азимута (север вверх, восток вправо). */
+private fun point(azimuth: Double, radius: Float): Offset {
+    val a = Math.toRadians(azimuth)
+    return Offset((sin(a) * radius).toFloat(), (-cos(a) * radius).toFloat())
+}
+
+/** Дуга по кругу от восхода к заходу через сторону [SkyPath.via]; без восхода или захода пустая. */
+private fun arcOf(path: SkyPath, c: Offset, radius: Float): Path {
+    val rise = path.rise ?: return Path()
+    val set = path.set ?: return Path()
+    val sweep = arcSweep(rise, set, path.via)
+    return Path().apply {
+        arcTo(Rect(c, radius), (rise - 90).toFloat(), sweep.toFloat(), true)
+    }
+}
+
+/** Угол дуги от [from] до [to] (градусы, по часовой плюс) так, чтобы она прошла через [via]. */
+internal fun arcSweep(from: Double, to: Double, via: Double): Double {
+    val clockwise = (((to - from) % 360) + 360) % 360
+    val viaOffset = (((via - from) % 360) + 360) % 360
+    return if (viaOffset <= clockwise) clockwise else clockwise - 360
 }
 
 /**

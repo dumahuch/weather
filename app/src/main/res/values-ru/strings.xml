@@ -545,9 +545,6 @@
     <string name="sun_moon_longer">На %1$d мин длиннее, чем вчера</string>
     <string name="sun_moon_same">Как вчера</string>
     <string name="sun_moon_noon">Полдень</string>
-    <string name="sun_moon_sun_height">Солнце на высоте %1$d°</string>
-    <string name="sun_moon_rises">Восходит</string>
-    <string name="sun_moon_sets">Садится</string>
     <string name="sun_moon_light">Свет для съёмки</string>
     <string name="light_day">день</string>
     <string name="light_golden">золотой</string>
@@ -558,34 +555,21 @@
     <string name="sun_moon_evening">Вечер</string>
     <string name="blue_hour">Синий час</string>
     <string name="golden_hour">Золотой час</string>
-    <string name="sun_moon_clouds">Облака</string>
-    <string name="cloud_layer_low">В основном низкие</string>
-    <string name="cloud_layer_mid">В основном средние</string>
-    <string name="cloud_layer_high">В основном высокие</string>
+    <string name="cloud_layer_low">В основном низкие, до 3 км</string>
+    <string name="cloud_layer_mid">В основном средние, 3–8 км</string>
+    <string name="cloud_layer_high">В основном высокие, выше 8 км</string>
     <string name="cloud_clear">Ясно</string>
-    <string name="sun_moon_light_note">Золотой час: Солнце от −4° до +6°, синий: от −6° до −4°.</string>
-    <string name="twilight_title">Сумерки</string>
-    <string name="twilight_civil">Гражданские</string>
-    <string name="twilight_civil_note">Светло без фонарей</string>
-    <string name="twilight_nautical">Навигационные</string>
-    <string name="twilight_nautical_note">Горизонт ещё различим</string>
-    <string name="twilight_astro">Астрономические</string>
-    <string name="twilight_astro_note">Небо почти тёмное</string>
-    <string name="twilight_note">Гражданские до −6°, навигационные до −12°, астрономические до −18°.</string>
+    <string name="sun_moon_light_note">Золотой час: Солнце от −4° до +6° над горизонтом, синий: от −6° до −4°.</string>
     <string name="moon_title">Луна</string>
-    <string name="moon_lit">Освещено · %1$d-й день цикла</string>
     <string name="moonrise">Восход Луны</string>
     <string name="moonset">Заход Луны</string>
     <string name="moon_highest">Выше всего</string>
-    <string name="moon_height">На высоте %1$d°</string>
     <string name="moon_below">Под горизонтом</string>
     <string name="moon_rise_on">Восход Луны %1$s</string>
     <string name="shoot_blue">Синий час в %1$s</string>
     <string name="shoot_golden">Золотой час в %1$s</string>
     <string name="shoot_sunrise">Восход в %1$s</string>
     <string name="shoot_sunset">Закат в %1$s</string>
-    <string name="sun_moon_days_sun">Восход и закат</string>
-    <string name="sun_moon_days_golden">Вечерний золотой час</string>
     <string name="sun_moon_days_clouds">Облака %1$s</string>
     <string name="sun_moon_open">Открыть «Солнце и Луна»</string>
     <string-array name="compass_in">
@@ -604,4 +588,32 @@
         <item>Полнолуние</item>
         <item>Последняя четверть</item>
     </string-array>
+
+    <!-- «Солнце и Луна», версия 3 (0.8.78) -->
+    <string name="shadow_ratio">Тени в %1$s раза длиннее предметов</string>
+    <string name="sun_moon_dark">Совсем темно</string>
+    <string name="sun_moon_dark_note">Сумерки закончились</string>
+    <string name="light_cloud_plaque">Облака в золотой час: %1$s</string>
+    <string name="tl_astro">Астрономические сумерки</string>
+    <string name="tl_nautical">Навигационные сумерки</string>
+    <string name="tl_astro_morning">Небо ещё почти тёмное</string>
+    <string name="tl_nautical_morning">Горизонт уже различим</string>
+    <string name="tl_nautical_evening">Горизонт ещё различим</string>
+    <string name="tl_blue_note">Ровный холодный свет</string>
+    <string name="tl_night_after">Потом ночь</string>
+    <string name="dir_title">Куда смотреть</string>
+    <string name="moon_set_on">Заход Луны %1$s</string>
+    <string name="dir_note">Север сверху. Жёлтая дуга: путь Солнца сегодня, пунктир: путь Луны. Залитая точка: восход, пустая: заход.</string>
+    <string name="moon_lit_line">освещено · %1$d-й день цикла</string>
+    <string name="moon_high">Высоко над горизонтом</string>
+    <string name="moon_mid">Невысоко над горизонтом</string>
+    <string name="moon_low">Низко над горизонтом</string>
+    <string name="moon_tomorrow_side">Завтра, %1$s</string>
+    <string name="week_sun">Восход – закат</string>
+    <plurals name="full_moon_in">
+        <item quantity="one">Через %1$d день, восход в %2$s</item>
+        <item quantity="few">Через %1$d дня, восход в %2$s</item>
+        <item quantity="many">Через %1$d дней, восход в %2$s</item>
+        <item quantity="other">Через %1$d дня, восход в %2$s</item>
+    </plurals>
 </resources>
