@@ -674,4 +674,7 @@
         <item>Ozone</item>
         <item>Sulphur dioxide</item>
     </string-array>
+    <string name="pg_peak_max">Maximum</string>
+    <string name="pg_peak_worst">Worst hour</string>
+    <string name="pg_peak_line">%1$s: %2$s %3$s</string>
 </resources>

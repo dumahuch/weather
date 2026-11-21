@@ -284,12 +284,14 @@ internal fun UvPage(ctx: PageState) {
         val legend = UvLevel.entries.take(4).map { level ->
             Triple(Mark.Square, UvColors[level.ordinal], continuationCase(stringResource(uvLevelLabel(level)), locale))
         }
+        val words = UvLevel.entries.map { continuationCase(stringResource(uvLevelLabel(it)), locale) }
         ChartCard(hourlyTitle(ctx), stringResource(R.string.tile_uv), legend) {
             HourBars(
                 values = values,
                 nowIndex = nowSlot(ctx),
                 colorOf = { uvColor(it.roundToInt()) },
-                labelOf = { it.roundToInt().toString() },
+                describe = { "${it.roundToInt()} · ${words[UvLevel.of(it.roundToInt()).ordinal]}" },
+                extremeLabel = stringResource(R.string.pg_peak_max),
                 scaleMax = UvDay.PROTECT_FROM.toDouble(),
             )
         }
