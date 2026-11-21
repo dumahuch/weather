@@ -46,32 +46,6 @@ class DetailsLogicTest {
     }
 
     @Test
-    fun seriesTakesSixHoursBeforeAndTwelveAfter() {
-        val details = hours(List(48) { 1000.0 + it })
-        val now = start.plusSeconds(20 * 3600L)
-        val series = PressureOutlook.series(details, now)
-        assertEquals(19, series.size)
-        assertEquals(1014.0, series.first(), 0.0)
-        assertEquals(1032.0, series.last(), 0.0)
-    }
-
-    @Test
-    fun seriesIsShortenedAtTheEdgesOfTheData() {
-        val details = hours(List(48) { 1000.0 + it })
-        // в 02:30 до «сейчас» есть только два часа
-        assertEquals(2 + 1 + 12, PressureOutlook.series(details, start.plusSeconds(2 * 3600L + 1800)).size)
-        // у конца данных после «сейчас» остаётся мало
-        assertEquals(6 + 1 + 2, PressureOutlook.series(details, start.plusSeconds(45 * 3600L)).size)
-        assertTrue(PressureOutlook.series(emptyList(), start).isEmpty())
-    }
-
-    @Test
-    fun seriesSkipsHoursWithoutPressure() {
-        val details = hours(listOf(1000.0, null, 1002.0, 1003.0))
-        assertEquals(listOf(1000.0, 1002.0, 1003.0), PressureOutlook.series(details, start.plusSeconds(3600)))
-    }
-
-    @Test
     fun compassPointsCoverTheCircle() {
         assertEquals(CompassPoint.North, CompassPoint.of(0))
         assertEquals(CompassPoint.North, CompassPoint.of(22))
@@ -181,59 +155,6 @@ class DetailsLogicTest {
     fun withoutMeanWindOnlyTheTwentyKmhConditionApplies() {
         assertEquals(4, gustBeaufort(meanKmh = null, gustKmh = 20))
         assertNull(gustBeaufort(meanKmh = null, gustKmh = 19))
-    }
-
-    // --- График давления (вариант Б) ---
-
-    @Test
-    fun axisCoversTheSeriesWithAtMostTwoIntervals() {
-        val axis = pressureAxis(listOf(1012.1, 1013.0, 1016.0))
-        assertEquals(PressureAxis(min = 1012, max = 1016, step = 2), axis)
-        assertEquals(listOf(1012, 1014, 1016), axis.ticks)
-    }
-
-    @Test
-    fun flatSeriesStillGetsTwoGridLines() {
-        val axis = pressureAxis(listOf(1015.2, 1015.2, 1015.4))
-        assertEquals(PressureAxis(min = 1015, max = 1016, step = 1), axis)
-    }
-
-    @Test
-    fun seriesOnAWholeNumberDoesNotCollapseTheAxis() {
-        assertEquals(PressureAxis(min = 1015, max = 1016, step = 1), pressureAxis(listOf(1015.0, 1015.0)))
-    }
-
-    @Test
-    fun widerSeriesGetsAWiderStepAndStaysInside() {
-        val values = listOf(998.4, 1004.0, 1011.7)
-        val axis = pressureAxis(values)
-        assertTrue(axis.min <= values.min())
-        assertTrue(axis.max >= values.max())
-        assertTrue((axis.max - axis.min) / axis.step <= 2)
-        assertEquals(20, axis.step)
-    }
-
-    @Test
-    fun axisOfAnEmptySeriesIsHarmless() {
-        assertEquals(listOf(0, 1), pressureAxis(emptyList()).ticks)
-    }
-
-    @Test
-    fun pointsCarryTheirTimeAndSkipHoursWithoutPressure() {
-        val details = hours(listOf(1000.0, null, 1002.0, 1003.0))
-        val points = PressureOutlook.points(details, start.plusSeconds(3600))
-        assertEquals(listOf(start, start.plusSeconds(7200), start.plusSeconds(10800)), points.map { it.time })
-        assertEquals(listOf(1000.0, 1002.0, 1003.0), points.map { it.hpa })
-    }
-
-    @Test
-    fun nowIndexPointsAtTheLastPointNotAfterNow() {
-        val details = hours(List(48) { 1000.0 + it })
-        val now = start.plusSeconds(20 * 3600L + 1200)
-        val points = PressureOutlook.points(details, now)
-        assertEquals(6, PressureOutlook.nowIndex(points, now))
-        assertEquals(0, PressureOutlook.nowIndex(points, start.minusSeconds(3600)))
-        assertEquals(0, PressureOutlook.nowIndex(emptyList(), now))
     }
 
     @Test

@@ -105,7 +105,6 @@
     <string name="details_missing_title">No current details yet</string>
     <string name="details_missing_text">Update the forecast to see air, wind, pressure and more. This needs an internet connection.</string>
     <string name="tile_air">Air quality</string>
-    <string name="air_source" translatable="false">CAMS</string>
     <string name="air_unit" translatable="false">EAQI</string>
     <string name="air_no_data">No data</string>
     <string-array name="air_levels">
@@ -621,4 +620,59 @@
     <string name="dir_legend_sun">sun\'s path</string>
     <string name="dir_legend_moon">moon\'s path</string>
     <string name="sun_moon_change">%1$s min since yesterday</string>
+
+    <!-- Страницы давления, УФ, воздуха и пыльцы (0.8.80). -->
+    <string name="pg_legend_past">past</string>
+    <string name="pg_legend_forecast">forecast</string>
+    <string name="pg_hourly_day">Hourly, %1$s</string>
+    <string name="pg_pressure_short">hPa</string>
+    <string name="pg_pressure_3h">%1$s: %2$s in 3 hours</string>
+    <string name="pg_pressure_3h_steady">No change in 3 hours</string>
+    <string name="pg_highest_today">Highest today</string>
+    <string name="pg_lowest_today">Lowest today</string>
+    <string name="pg_week_course">Over the day</string>
+    <string name="pg_week_noon">At noon</string>
+    <string name="pg_pressure_note">Pressure is reduced to sea level. Below 1000 hPa is low, above 1025 hPa high; the middle of the scale is about 1013 hPa, the standard atmosphere. Forecast: Open-Meteo.</string>
+    <string name="pg_uv_protect">Protection needed %1$s–%2$s</string>
+    <string name="pg_uv_no_protect">No protection needed today</string>
+    <string name="pg_level_at">%1$s, at %2$s</string>
+    <string name="pg_uv_protect_title">Protection from UV 3</string>
+    <string name="pg_uv_not_needed">Not needed</string>
+    <string name="pg_hours_short">%1$d h</string>
+    <string name="pg_uv_below">Below 3 all day</string>
+    <string name="pg_week_peak">Peak</string>
+    <string name="pg_week_uv">UV</string>
+    <string name="pg_week_protect">Protection</string>
+    <string name="pg_uv_note">UV index and its five levels: WHO. Protection is advised from index 3. Forecast: Open-Meteo.</string>
+    <string name="pg_air_main">Main pollutant: %1$s</string>
+    <string name="pg_substances">Pollutants</string>
+    <string name="pg_ugm3">µg/m³</string>
+    <string name="pg_legend_day_mean">daily mean</string>
+    <string name="pg_legend_who">WHO guideline</string>
+    <string name="pg_of_norm">%1$d %% of guideline</string>
+    <string name="pg_out_of">of %1$s</string>
+    <string name="pg_days_5">5 days</string>
+    <string name="pg_days_3">3 days</string>
+    <string name="pg_week_worst">Worst</string>
+    <string name="pg_air_note">EAQI index and its levels: European Environment Agency (EEA). Pollutant guidelines: WHO 2021, daily means, ozone over 8 hours. Data: CAMS model via Open-Meteo, Europe only.</string>
+    <string name="pg_pollen_none">None</string>
+    <string name="pg_pollen_none_word">No pollen in the air</string>
+    <string name="pg_pollen_more">Also: %1$s</string>
+    <string name="pg_in_alerts">in notifications</string>
+    <string name="pg_pollen_note">Load: index of the German Weather Service (DWD) from 0 to 3 with intermediate steps. Germany only, updated around 11:00. Datenbasis: Deutscher Wetterdienst.</string>
+    <string name="pg_tomorrow">Tomorrow</string>
+    <string-array name="pg_pollutant_names">
+        <item>PM2.5</item>
+        <item>PM10</item>
+        <item>NO₂</item>
+        <item>O₃</item>
+        <item>SO₂</item>
+    </string-array>
+    <string-array name="pg_pollutant_words">
+        <item>Fine dust</item>
+        <item>Dust</item>
+        <item>Nitrogen dioxide</item>
+        <item>Ozone</item>
+        <item>Sulphur dioxide</item>
+    </string-array>
 </resources>

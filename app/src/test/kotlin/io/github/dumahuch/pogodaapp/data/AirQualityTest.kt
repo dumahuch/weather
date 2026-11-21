@@ -19,7 +19,7 @@ class AirQualityTest {
     @Test
     fun takesTheHourThatContainsNow() {
         val json = response(listOf(hour - 3600, hour, hour + 3600), "[30,24.4,60]")
-        assertEquals(AirQuality(24), AirQualityParser.parse(json, noon))
+        assertEquals(24, AirQualityParser.parse(json, noon)?.eaqi)
     }
 
     @Test
@@ -31,7 +31,7 @@ class AirQualityTest {
     @Test
     fun skipsEmptyValuesAndKeepsTheLatestKnownOne() {
         val json = response(listOf(hour - 3600, hour), "[18,null]")
-        assertEquals(AirQuality(18), AirQualityParser.parse(json, noon))
+        assertEquals(18, AirQualityParser.parse(json, noon)?.eaqi)
     }
 
     @Test
@@ -72,8 +72,27 @@ class AirQualityTest {
             url,
             url.startsWith("https://air-quality-api.open-meteo.com/v1/air-quality?latitude=52.365&longitude=9.745"),
         )
-        for (part in listOf("hourly=european_aqi", "timezone=auto", "timeformat=unixtime", "forecast_days=2")) {
+        for (part in listOf("hourly=european_aqi", "timezone=auto", "timeformat=unixtime", "forecast_days=5")) {
             assertTrue("в адресе нет $part: $url", url.contains(part))
         }
+    }
+
+    @Test
+    fun readsPollutantsPerHourAndKeepsEmptyValuesEmpty() {
+        val json = """{"hourly":{"time":[${hour - 3600},$hour],"european_aqi":[20,22],""" +
+            """"pm2_5":[5.5,null],"pm10":[9,10],"nitrogen_dioxide":[18,17],"ozone":[50,52],"sulphur_dioxide":[1,2]}}"""
+        val air = AirQualityParser.parse(json, noon)!!
+        assertEquals(22, air.eaqi)
+        assertEquals(2, air.hours.size)
+        assertEquals(5.5, air.hours[0].pm25!!, 0.0)
+        assertNull(air.hours[1].pm25)
+        assertEquals(52.0, air.hours[1].o3!!, 0.0)
+    }
+
+    @Test
+    fun requestsIndexAndPollutantsForFiveDays() {
+        val url = OpenMeteoAirQualityClient().buildUrl(52.37, 9.74)
+        assertTrue(url, url.contains("hourly=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide"))
+        assertTrue(url, url.contains("forecast_days=5"))
     }
 }

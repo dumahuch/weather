@@ -59,6 +59,8 @@ import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
 import io.github.dumahuch.pogodaapp.ui.map.MapPalette
 import io.github.dumahuch.pogodaapp.ui.metric.MetricScreen
+import io.github.dumahuch.pogodaapp.ui.pages.DetailPage
+import io.github.dumahuch.pogodaapp.ui.pages.DetailPageScreen
 import io.github.dumahuch.pogodaapp.ui.sunmoon.SunMoonScreen
 import io.github.dumahuch.pogodaapp.ui.map.MapScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
@@ -130,8 +132,8 @@ fun PogodaApp(
     var dayCount by rememberSaveable { mutableIntStateOf(DEFAULT_DAY_COUNT) }
     // Страница показателя «Главной» (влажность, ветер, осадки), открытая нажатием под температурой.
     var openMetric by rememberSaveable { mutableStateOf<Metric?>(null) }
-    // Страница «Солнце и Луна», открытая нажатием на плитку «Подробно» (0.8.77).
-    var sunMoonOpen by rememberSaveable { mutableStateOf(false) }
+    // Страница плитки «Подробно» («Солнце и Луна», давление, УФ, воздух, пыльца), открытая нажатием на плитку.
+    var openPage by rememberSaveable { mutableStateOf<DetailPage?>(null) }
 
     var placesOpen by rememberSaveable { mutableStateOf(false) }
     var searching by rememberSaveable { mutableStateOf(false) }
@@ -165,7 +167,7 @@ fun PogodaApp(
         settingsOpen = false
         openDay = null
         openMetric = null
-        sunMoonOpen = false
+        openPage = null
         tab = AppTab.Home
         closeAlerts()
         val match = AlertNotices.pick(request, shown)
@@ -197,7 +199,7 @@ fun PogodaApp(
     BackHandler(enabled = placesOpen && !searching) { closePlaces() }
     BackHandler(enabled = !placesOpen && openDay != null) { openDay = null }
     BackHandler(enabled = !placesOpen && openMetric != null) { openMetric = null }
-    BackHandler(enabled = !placesOpen && sunMoonOpen) { sunMoonOpen = false }
+    BackHandler(enabled = !placesOpen && openPage != null) { openPage = null }
 
     // Название выбранного не текущего места (закреплённого или открытого для просмотра) и признак просмотра.
     val chosenName = when (val choice = places.selection) {
@@ -218,7 +220,7 @@ fun PogodaApp(
             },
             onOpenAlerts = { alertsListOpen = true },
             onOpenMetric = { openMetric = it },
-            onOpenSunMoon = { sunMoonOpen = true },
+            onOpenPage = { openPage = it },
             // Список полон: «Закрепить» ведёт в список, где видно сообщение и можно открепить одно из мест.
             onPinPreview = {
                 if (listFull) {
@@ -241,7 +243,8 @@ fun PogodaApp(
         placesOpen -> ScreenKey(Layer.Places)
         tab == AppTab.Home && openMetric != null && content != null ->
             ScreenKey(Layer.Metric, tab.ordinal, metric = openMetric?.ordinal ?: 0)
-        tab == AppTab.Details && sunMoonOpen && content != null -> ScreenKey(Layer.SunMoon, tab.ordinal)
+        tab == AppTab.Details && openPage != null && content != null ->
+            ScreenKey(Layer.Page, tab.ordinal, metric = openPage?.ordinal ?: 0)
         tab == AppTab.Forecast && openDay != null && content != null ->
             ScreenKey(Layer.Day, tab.ordinal, day = openDay ?: 0L)
         else -> ScreenKey(Layer.Tab, tab.ordinal, isMap = tab == AppTab.Map)
@@ -277,7 +280,7 @@ fun PogodaApp(
         tab = target
         openDay = null
         openMetric = null
-        sunMoonOpen = false
+        openPage = null
         closeAlerts()
     }
 
@@ -306,7 +309,7 @@ fun PogodaApp(
             }
         }
     }
-    BackHandler(enabled = !placesOpen && openDay == null && openMetric == null && !sunMoonOpen && tab != AppTab.Home) { selectTab(AppTab.Home) }
+    BackHandler(enabled = !placesOpen && openDay == null && openMetric == null && openPage == null && tab != AppTab.Home) { selectTab(AppTab.Home) }
 
     // На карте свои тёмные цвета и стекло без размытия (под стеклом карта, а не небо), вместе с панелью вкладок.
     val skyPalette = LocalPogodaPalette.current
@@ -454,9 +457,17 @@ fun PogodaApp(
                     )
                 }
 
-                // «Солнце и Луна» открывается с «Подробно», всегда на небе.
-                Layer.SunMoon -> if (content != null) {
-                    SunMoonScreen(state = content, onRetry = actions.onRetry)
+                // Страницы плиток «Подробно» открываются с этой вкладки, всегда на небе.
+                Layer.Page -> if (content != null) {
+                    when (DetailPage.entries[key.metric]) {
+                        DetailPage.SunMoon -> SunMoonScreen(state = content, onRetry = actions.onRetry)
+                        else -> DetailPageScreen(
+                            state = content,
+                            page = DetailPage.entries[key.metric],
+                            pollenKinds = pollenKinds,
+                            onRetry = actions.onRetry,
+                        )
+                    }
                 }
 
                 // День открывается из «Прогноза», всегда на небе.
@@ -493,7 +504,7 @@ fun PogodaApp(
         ) {
             AnimatedVisibility(
                 visible = screen.layer == Layer.Tab || screen.layer == Layer.Day || screen.layer == Layer.Metric ||
-                    screen.layer == Layer.SunMoon,
+                    screen.layer == Layer.Page,
                 modifier = Modifier.align(Alignment.BottomCenter),
                 enter = fadeIn(tween(BAR_FADE_IN_MS)),
                 exit = fadeOut(tween(BAR_FADE_OUT_MS)),

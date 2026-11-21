@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.Metric
+import io.github.dumahuch.pogodaapp.ui.pages.DetailPage
 import io.github.dumahuch.pogodaapp.forecast.PrecipitationCaption
 import io.github.dumahuch.pogodaapp.forecast.precipitationCaption
 import io.github.dumahuch.pogodaapp.home.HomeUiState
@@ -91,8 +92,8 @@ data class HomeActions(
     val onOpenAlerts: () -> Unit = {},
     /** Показатель под температурой (влажность, ветер, осадки) открывает свою страницу подробностей. */
     val onOpenMetric: (Metric) -> Unit = {},
-    /** Нажата плитка «Солнце и Луна» на «Подробно»: открыть её страницу. */
-    val onOpenSunMoon: () -> Unit = {},
+    /** Нажата плитка на «Подробно»: открыть её страницу. */
+    val onOpenPage: (DetailPage) -> Unit = {},
 )
 
 /**
