@@ -3,7 +3,6 @@ package io.github.dumahuch.pogodaapp.forecast
 import io.github.dumahuch.pogodaapp.weather.HourDetails
 import java.time.Instant
 import java.util.Locale
-import kotlin.math.ceil
 import kotlin.math.floor
 
 /** Куда идёт давление ближайшие три часа (плитка «Давление»). */
@@ -45,60 +44,12 @@ enum class PressureLevel {
     }
 }
 
-/** Точка графика давления: час и давление на уровне моря, гПа. */
-data class PressurePoint(val time: Instant, val hpa: Double)
-
-/**
- * Ось графика давления: границы [min] и [max] и шаг линий сетки [step] (целые гПа). Линий не больше трёх (два промежутка),
- * чтобы подписи не слипались на плитке в половину ширины экрана. Весь ряд лежит между границами.
- */
-data class PressureAxis(val min: Int, val max: Int, val step: Int) {
-    val ticks: List<Int> get() = (min..max step step).toList()
-}
-
-private val AXIS_STEPS = intArrayOf(1, 2, 5, 10, 20, 50, 100)
-
-fun pressureAxis(values: List<Double>): PressureAxis {
-    if (values.isEmpty()) return PressureAxis(0, 1, 1)
-    val low = values.min()
-    val high = values.max()
-    fun axisFor(step: Int): PressureAxis {
-        val min = floor(low / step).toInt() * step
-        var max = ceil(high / step).toInt() * step
-        if (max == min) max = min + step
-        return PressureAxis(min, max, step)
-    }
-    return AXIS_STEPS.map(::axisFor).firstOrNull { (it.max - it.min) / it.step <= 2 } ?: axisFor(AXIS_STEPS.last())
-}
-
-/** Давление: ряд для графика и тенденция. [details] идут по часам. */
+/** Давление: тенденция на ближайшие три часа (плитка «Подробно»). [details] идут по часам. */
 object PressureOutlook {
-    /** Сколько часов до «сейчас» и после него идут по графику. */
-    const val HOURS_BEFORE = 6
-    const val HOURS_AFTER = 12
     private const val TREND_HOURS = 3
 
     private fun indexOf(details: List<HourDetails>, now: Instant): Int =
         details.indexOfLast { !it.time.isAfter(now) }.coerceAtLeast(0)
-
-    /**
-     * Точки графика: давление за шесть часов до часа «сейчас» (сколько есть в данных: прогноз начинается с полуночи) и за
-     * двенадцать после. Часы без значения пропускаются.
-     */
-    fun points(details: List<HourDetails>, now: Instant): List<PressurePoint> {
-        if (details.isEmpty()) return emptyList()
-        val index = indexOf(details, now)
-        val from = (index - HOURS_BEFORE).coerceAtLeast(0)
-        val to = (index + HOURS_AFTER + 1).coerceAtMost(details.size)
-        return details.subList(from, to).mapNotNull { hour -> hour.pressureHpa?.let { PressurePoint(hour.time, it) } }
-    }
-
-    /** То же, только значения. */
-    fun series(details: List<HourDetails>, now: Instant): List<Double> = points(details, now).map { it.hpa }
-
-    /** Номер точки «сейчас» среди [points]: последняя, что не позже [now]; первая, если все позже. */
-    fun nowIndex(points: List<PressurePoint>, now: Instant): Int =
-        points.indexOfLast { !it.time.isAfter(now) }.coerceAtLeast(0)
 
     /** Тенденция: давление через три часа минус давление сейчас; пусто, если одного из значений нет. */
     fun trend(details: List<HourDetails>, now: Instant): PressureTrend? {

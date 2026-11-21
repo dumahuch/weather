@@ -1,14 +1,14 @@
 package io.github.dumahuch.pogodaapp.ui
 
 /**
- * Слой окна: страница вкладки, подробности дня поверх «Прогноза», страница показателя поверх «Главной», «Солнце и Луна»
- * поверх «Подробно», места, настройки.
+ * Слой окна: страница вкладки, подробности дня поверх «Прогноза», страница показателя поверх «Главной», страница плитки
+ * поверх «Подробно» ([io.github.dumahuch.pogodaapp.ui.pages.DetailPage], номер в [ScreenKey.metric]), места, настройки.
  */
 internal enum class Layer(val depth: Int) {
     Tab(0),
     Day(1),
     Metric(1),
-    SunMoon(1),
+    Page(1),
     Places(1),
     Settings(1),
 }
@@ -23,7 +23,7 @@ internal data class ScreenKey(
     val isMap: Boolean = false,
     /** Открытый день (дни от 1970 года) у слоя [Layer.Day]: уходящее окно помнит свой день, пока анимируется. */
     val day: Long = 0L,
-    /** Номер показателя ([io.github.dumahuch.pogodaapp.forecast.Metric]) у слоя [Layer.Metric]. */
+    /** Номер показателя ([io.github.dumahuch.pogodaapp.forecast.Metric]) у слоя [Layer.Metric] или страницы плитки у [Layer.Page]. */
     val metric: Int = 0,
 )
 

@@ -103,7 +103,6 @@
     <string name="details_missing_title">Текущих подробностей пока нет</string>
     <string name="details_missing_text">Обновите прогноз, чтобы увидеть воздух, ветер, давление и остальное. Для этого нужен интернет.</string>
     <string name="tile_air">Качество воздуха</string>
-    <string name="air_source" translatable="false">CAMS</string>
     <string name="air_unit" translatable="false">EAQI</string>
     <string name="air_no_data">Нет данных</string>
     <string-array name="air_levels">
@@ -618,4 +617,59 @@
     <string name="dir_legend_sun">путь Солнца</string>
     <string name="dir_legend_moon">путь Луны</string>
     <string name="sun_moon_change">%1$s мин за сутки</string>
+
+    <!-- Страницы давления, УФ, воздуха и пыльцы (0.8.80). -->
+    <string name="pg_legend_past">прошло</string>
+    <string name="pg_legend_forecast">прогноз</string>
+    <string name="pg_hourly_day">По часам, %1$s</string>
+    <string name="pg_pressure_short">мм</string>
+    <string name="pg_pressure_3h">%1$s: %2$s за 3 часа</string>
+    <string name="pg_pressure_3h_steady">Без изменений за 3 часа</string>
+    <string name="pg_highest_today">Выше всего сегодня</string>
+    <string name="pg_lowest_today">Ниже всего сегодня</string>
+    <string name="pg_week_course">Ход за день</string>
+    <string name="pg_week_noon">В полдень</string>
+    <string name="pg_pressure_note">Давление приведено к уровню моря. Ниже 1000 гПа (750 мм) пониженное, выше 1025 гПа (769 мм) повышенное; середина шкалы около 1013 гПа (760 мм), стандартная атмосфера. Прогноз: Open-Meteo.</string>
+    <string name="pg_uv_protect">Защита нужна %1$s–%2$s</string>
+    <string name="pg_uv_no_protect">Защита сегодня не нужна</string>
+    <string name="pg_level_at">%1$s, в %2$s</string>
+    <string name="pg_uv_protect_title">Защита от УФ 3</string>
+    <string name="pg_uv_not_needed">Не нужна</string>
+    <string name="pg_hours_short">%1$d ч</string>
+    <string name="pg_uv_below">Весь день ниже 3</string>
+    <string name="pg_week_peak">Максимум</string>
+    <string name="pg_week_uv">УФ</string>
+    <string name="pg_week_protect">Защита</string>
+    <string name="pg_uv_note">УФ-индекс и пять ступеней: ВОЗ. Защита рекомендуется с индекса 3. Прогноз: Open-Meteo.</string>
+    <string name="pg_air_main">Главное вещество: %1$s</string>
+    <string name="pg_substances">Вещества</string>
+    <string name="pg_ugm3">мкг/м³</string>
+    <string name="pg_legend_day_mean">среднее за сутки</string>
+    <string name="pg_legend_who">норма ВОЗ</string>
+    <string name="pg_of_norm">%1$d %% нормы</string>
+    <string name="pg_out_of">из %1$s</string>
+    <string name="pg_days_5">5 дней</string>
+    <string name="pg_days_3">3 дня</string>
+    <string name="pg_week_worst">Хуже всего</string>
+    <string name="pg_air_note">Индекс EAQI и его ступени: Европейское агентство по окружающей среде (EEA). Нормы веществ: рекомендации ВОЗ 2021, средние за сутки, у озона за 8 часов. Данные: модель CAMS через Open-Meteo, только Европа.</string>
+    <string name="pg_pollen_none">Нет</string>
+    <string name="pg_pollen_none_word">Пыльцы в воздухе нет</string>
+    <string name="pg_pollen_more">Ещё: %1$s</string>
+    <string name="pg_in_alerts">в уведомлениях</string>
+    <string name="pg_pollen_note">Нагрузка: индекс Немецкой метеослужбы (DWD) от 0 до 3 с промежуточными ступенями. Только Германия, обновляется около 11:00. Datenbasis: Deutscher Wetterdienst.</string>
+    <string name="pg_tomorrow">Завтра</string>
+    <string-array name="pg_pollutant_names">
+        <item>PM2,5</item>
+        <item>PM10</item>
+        <item>NO₂</item>
+        <item>O₃</item>
+        <item>SO₂</item>
+    </string-array>
+    <string-array name="pg_pollutant_words">
+        <item>Мелкая пыль</item>
+        <item>Пыль</item>
+        <item>Диоксид азота</item>
+        <item>Озон</item>
+        <item>Диоксид серы</item>
+    </string-array>
 </resources>

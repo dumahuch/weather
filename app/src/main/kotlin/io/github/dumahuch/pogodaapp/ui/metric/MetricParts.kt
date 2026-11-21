@@ -455,6 +455,7 @@ internal fun DaysCard(
     onSelect: (LocalDate) -> Unit,
     note: String,
     modifier: Modifier = Modifier,
+    title: String? = null,
     legend: @Composable () -> Unit,
     row: @Composable RowScope.(index: Int) -> Unit,
 ) {
@@ -469,7 +470,7 @@ internal fun DaysCard(
             .padding(start = 10.dp, top = 14.dp, end = 10.dp, bottom = 8.dp),
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.forecast_7_days), style = pogodaText(13f, 700), modifier = Modifier.alignByBaseline())
+            Text(title ?: stringResource(R.string.forecast_7_days), style = pogodaText(13f, 700), modifier = Modifier.alignByBaseline())
             if (note.isNotEmpty()) Text(note, style = pogodaText(12f, 400, color = palette.ink2), modifier = Modifier.alignByBaseline())
         }
         Box(Modifier.padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 4.dp)) { legend() }

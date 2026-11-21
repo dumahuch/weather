@@ -101,7 +101,6 @@
     <string name="details_missing_title">Noch keine aktuellen Details</string>
     <string name="details_missing_text">Aktualisiere die Vorhersage, um Luft, Wind, Luftdruck und mehr zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
     <string name="tile_air">Luftqualität</string>
-    <string name="air_source" translatable="false">CAMS</string>
     <string name="air_unit" translatable="false">EAQI</string>
     <string name="air_no_data">Keine Daten</string>
     <string-array name="air_levels">
@@ -610,4 +609,59 @@
     <string name="dir_legend_sun">Weg der Sonne</string>
     <string name="dir_legend_moon">Weg des Mondes</string>
     <string name="sun_moon_change">%1$s Min. seit gestern</string>
+
+    <!-- Страницы давления, УФ, воздуха и пыльцы (0.8.80). -->
+    <string name="pg_legend_past">vergangen</string>
+    <string name="pg_legend_forecast">Prognose</string>
+    <string name="pg_hourly_day">Stündlich, %1$s</string>
+    <string name="pg_pressure_short">hPa</string>
+    <string name="pg_pressure_3h">%1$s: %2$s in 3 Stunden</string>
+    <string name="pg_pressure_3h_steady">Keine Änderung in 3 Stunden</string>
+    <string name="pg_highest_today">Heute am höchsten</string>
+    <string name="pg_lowest_today">Heute am tiefsten</string>
+    <string name="pg_week_course">Im Tagesverlauf</string>
+    <string name="pg_week_noon">Mittags</string>
+    <string name="pg_pressure_note">Der Luftdruck ist auf Meereshöhe umgerechnet. Unter 1000 hPa niedrig, über 1025 hPa hoch; die Mitte der Skala liegt bei etwa 1013 hPa, der Standardatmosphäre. Vorhersage: Open-Meteo.</string>
+    <string name="pg_uv_protect">Schutz nötig %1$s–%2$s</string>
+    <string name="pg_uv_no_protect">Heute kein Schutz nötig</string>
+    <string name="pg_level_at">%1$s, um %2$s</string>
+    <string name="pg_uv_protect_title">Schutz ab UV 3</string>
+    <string name="pg_uv_not_needed">Nicht nötig</string>
+    <string name="pg_hours_short">%1$d Std.</string>
+    <string name="pg_uv_below">Ganztags unter 3</string>
+    <string name="pg_week_peak">Maximum</string>
+    <string name="pg_week_uv">UV</string>
+    <string name="pg_week_protect">Schutz</string>
+    <string name="pg_uv_note">UV-Index und seine fünf Stufen: WHO. Schutz wird ab Index 3 empfohlen. Vorhersage: Open-Meteo.</string>
+    <string name="pg_air_main">Hauptschadstoff: %1$s</string>
+    <string name="pg_substances">Schadstoffe</string>
+    <string name="pg_ugm3">µg/m³</string>
+    <string name="pg_legend_day_mean">Tagesmittel</string>
+    <string name="pg_legend_who">WHO-Richtwert</string>
+    <string name="pg_of_norm">%1$d %% des Richtwerts</string>
+    <string name="pg_out_of">von %1$s</string>
+    <string name="pg_days_5">5 Tage</string>
+    <string name="pg_days_3">3 Tage</string>
+    <string name="pg_week_worst">Am schlechtesten</string>
+    <string name="pg_air_note">Index EAQI und seine Stufen: Europäische Umweltagentur (EEA). Richtwerte der Schadstoffe: WHO 2021, Tagesmittel, bei Ozon über 8 Stunden. Daten: Modell CAMS über Open-Meteo, nur Europa.</string>
+    <string name="pg_pollen_none">Keine</string>
+    <string name="pg_pollen_none_word">Kein Pollenflug</string>
+    <string name="pg_pollen_more">Außerdem: %1$s</string>
+    <string name="pg_in_alerts">in Benachrichtigungen</string>
+    <string name="pg_pollen_note">Belastung: Index des Deutschen Wetterdienstes (DWD) von 0 bis 3 mit Zwischenstufen. Nur Deutschland, aktualisiert gegen 11:00. Datenbasis: Deutscher Wetterdienst.</string>
+    <string name="pg_tomorrow">Morgen</string>
+    <string-array name="pg_pollutant_names">
+        <item>PM2,5</item>
+        <item>PM10</item>
+        <item>NO₂</item>
+        <item>O₃</item>
+        <item>SO₂</item>
+    </string-array>
+    <string-array name="pg_pollutant_words">
+        <item>Feinstaub</item>
+        <item>Staub</item>
+        <item>Stickstoffdioxid</item>
+        <item>Ozon</item>
+        <item>Schwefeldioxid</item>
+    </string-array>
 </resources>

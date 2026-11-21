@@ -618,7 +618,7 @@ class HomeViewModelTest {
         model.onResumed(permissionGranted = true)
 
         assertEquals(1, air.calls)
-        assertEquals(AirQuality(23), model.content().airQuality)
+        assertEquals(23, model.content().airQuality?.eaqi)
     }
 
     @Test
@@ -645,7 +645,7 @@ class HomeViewModelTest {
         val air = FakeAir(airJson(23))
         val model = viewModel(air)
         model.onResumed(permissionGranted = true)
-        assertEquals(AirQuality(23), model.content().airQuality)
+        assertEquals(23, model.content().airQuality?.eaqi)
 
         // Через четыре часа воздух не получается, прогноз обновляется: старый индекс уже не показывается.
         clock.now = now.plus(Duration.ofHours(4))
