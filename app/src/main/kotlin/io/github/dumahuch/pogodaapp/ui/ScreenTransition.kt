@@ -18,9 +18,9 @@ internal const val PUSH_MS = 320
 internal const val PUSH_COVER_MS = 120
 
 /** Возврат: пока уходящее окно гаснет, прежнее проявляется с небольшим сдвигом по времени. */
-private const val POP_DELAY_MS = 60
+internal const val POP_DELAY_MS = 60
 private const val POP_OUT_MS = 140
-private const val POP_IN_MS = 200
+internal const val POP_IN_MS = 200
 
 /** Короткое проявление (редкие сочетания окон одного слоя). */
 private const val FADE_IN_MS = 220
@@ -30,7 +30,7 @@ private const val FADE_OUT_MS = 160
 internal const val TRANSITION_MAX_MS = 360L
 
 /** Доля ширины, на которую прежнее окно уходит под новое при углублении (и приходит обратно при возврате). */
-private const val UNDER_SHIFT = 5
+internal const val UNDER_SHIFT = 5
 
 /**
  * Анимация перехода вида [kind]. Двигается только содержимое: небо стоит, панель вкладок не едет.
