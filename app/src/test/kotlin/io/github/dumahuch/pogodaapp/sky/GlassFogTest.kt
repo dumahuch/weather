@@ -38,7 +38,7 @@ class GlassFogTest {
         assertEquals(1f, glass.cover(index(glass, 150.0, 200.0)), 1e-6f)
         assertEquals(1f, glass.cover(index(glass, 320.0, 100.0)), 1e-6f)
         // Середина следа самая чистая, но влажная (палец убирает не всю плёнку), к краю плёнка густеет плавно, не обрывом.
-        assertTrue(clearest > 0.3f)
+        assertTrue(clearest > 0.2f)
         assertEquals(clearest, glass.cover(index(glass, 150.0, 100.0 + 3.0)), 1e-6f)
         val covers = (0..8).map { glass.cover(index(glass, 150.0, 100.0 + it * FogWipe.BRUSH_DP / 8)) }
         assertTrue(covers.zipWithNext().all { (a, b) -> b >= a - 0.12f })

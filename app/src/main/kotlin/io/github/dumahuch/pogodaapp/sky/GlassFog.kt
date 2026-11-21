@@ -162,8 +162,8 @@ internal class FogWipe(
         private const val GRAIN = 0.1f
         private const val SPREAD = 0.2f
 
-        /** Доля плёнки, которую палец убирает у самой чистой середины: туман 0,6 (до 0.8.76 было 0,9), иней 0,9. */
-        const val MAX_CLEAR = 0.6f
+        /** Доля плёнки, которую палец убирает у самой чистой середины: туман 0,75 (0.8.76: 0,6; до него 0,9), иней 0,9. */
+        const val MAX_CLEAR = 0.75f
         const val FROST_MAX_CLEAR = 0.9f
 
         /** Туман начинает возвращаться через [HOLD_SECONDS] и возвращается целиком за [RETURN_SECONDS]. */

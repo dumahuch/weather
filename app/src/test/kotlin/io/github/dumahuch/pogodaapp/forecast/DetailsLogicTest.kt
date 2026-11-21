@@ -1,15 +1,11 @@
 package io.github.dumahuch.pogodaapp.forecast
 
-import io.github.dumahuch.pogodaapp.weather.Condition
-import io.github.dumahuch.pogodaapp.weather.DayForecast
 import io.github.dumahuch.pogodaapp.weather.HourDetails
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
-import java.time.LocalDate
 import java.util.Locale
 
 class DetailsLogicTest {
@@ -101,69 +97,6 @@ class DetailsLogicTest {
         assertEquals("0,2", visibilityText(200.0, de))
         assertEquals("0", visibilityText(20.0, de))
         assertEquals("3.5", visibilityText(3500.0, Locale.US))
-    }
-
-    private fun day(date: String, rise: String?, set: String?) = DayForecast(
-        date = LocalDate.parse(date),
-        condition = Condition.Clear,
-        max = 10.0,
-        min = 2.0,
-        precipitationMm = 0.0,
-        precipitationProbability = null,
-        windMaxKmh = 10.0,
-        gustMaxKmh = 20.0,
-        uvMax = 1.0,
-        sunrise = rise?.let { Instant.parse(it) },
-        sunset = set?.let { Instant.parse(it) },
-    )
-
-    private val today = day("2026-10-29", "2026-10-29T06:20:00Z", "2026-10-29T15:40:00Z")
-    private val tomorrow = day("2026-10-30", "2026-10-30T06:22:00Z", "2026-10-30T15:38:00Z")
-
-    @Test
-    fun sunIsHalfwayAtSolarNoon() {
-        val position = arcPosition(Instant.parse("2026-10-29T11:00:00Z"), today, tomorrow)!!
-        assertTrue(position.daytime)
-        assertEquals(0.5, position.fraction, 1e-9)
-    }
-
-    @Test
-    fun nightAfterSunsetRunsToTomorrowsSunrise() {
-        // ночь от 15:40 до 06:22 следующего дня: 14 ч 42 мин; прошло 3 ч 40 мин
-        val position = arcPosition(Instant.parse("2026-10-29T19:20:00Z"), today, tomorrow)!!
-        assertEquals(false, position.daytime)
-        assertEquals(220.0 / 882.0, position.fraction, 1e-9)
-    }
-
-    @Test
-    fun nightAfterSunsetWithoutTomorrowUsesTodaysSunrisePlusADay() {
-        val position = arcPosition(Instant.parse("2026-10-29T19:20:00Z"), today, null)!!
-        // до 06:20 завтра: ночь 14 ч 40 мин = 880 мин, прошло 220
-        assertEquals(220.0 / 880.0, position.fraction, 1e-9)
-    }
-
-    @Test
-    fun nightBeforeSunriseRunsFromYesterdaysSunset() {
-        // вчерашний закат принимается за 15:40 − 24 ч, то есть вчера 15:40; до 06:20 сегодня это 14 ч 40 мин (880 мин);
-        // в 03:00 прошло 11 ч 20 мин (680 мин)
-        val position = arcPosition(Instant.parse("2026-10-29T03:00:00Z"), today, tomorrow)!!
-        assertEquals(false, position.daytime)
-        assertEquals(680.0 / 880.0, position.fraction, 1e-9)
-    }
-
-    @Test
-    fun arcIsMissingWithoutSunriseOrSunset() {
-        assertNull(arcPosition(Instant.parse("2026-10-29T11:00:00Z"), day("2026-10-29", null, null), null))
-        assertNull(arcPosition(Instant.parse("2026-10-29T11:00:00Z"), day("2026-10-29", "2026-10-29T06:20:00Z", null), null))
-        // закат раньше восхода: данные не годятся
-        assertNull(
-            arcPosition(
-                Instant.parse("2026-10-29T11:00:00Z"),
-                day("2026-10-29", "2026-10-29T15:40:00Z", "2026-10-29T06:20:00Z"),
-                null,
-            ),
-        )
-        assertNotNull(arcPosition(Instant.parse("2026-10-29T11:00:00Z"), today, null))
     }
 
     @Test

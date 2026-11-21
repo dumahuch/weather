@@ -73,6 +73,13 @@ data class HourDetails(
     /** Температура «ощущается как» и точка росы, °C. У прогноза в сохранённом старом формате (до 0.8.43) пусты. */
     val feelsLikeC: Double? = null,
     val dewPointC: Double? = null,
+    /**
+     * Облачность по слоям в процентах (Open-Meteo: низкие облака и туман до 3 км, средние 3–8 км, высокие выше 8 км);
+     * нужна странице «Солнце и Луна» для золотого и синего часа. У прогноза, сохранённого до 0.8.77, пусто.
+     */
+    val cloudLowPercent: Int? = null,
+    val cloudMidPercent: Int? = null,
+    val cloudHighPercent: Int? = null,
 )
 
 data class Forecast(

@@ -1,6 +1,8 @@
 package io.github.dumahuch.pogodaapp.ui.details
 
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +10,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -17,86 +22,121 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathMeasure
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
-import io.github.dumahuch.pogodaapp.forecast.ArcPosition
-import io.github.dumahuch.pogodaapp.forecast.arcPosition
-import io.github.dumahuch.pogodaapp.forecast.daylight
+import io.github.dumahuch.pogodaapp.forecast.ShootingEvent
+import io.github.dumahuch.pogodaapp.forecast.SunLight
 import io.github.dumahuch.pogodaapp.forecast.sentenceCase
 import io.github.dumahuch.pogodaapp.sky.Moon
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.components.LineIconView
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
+import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
+import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
-import io.github.dumahuch.pogodaapp.ui.forecast.hoursAndMinutes
 import io.github.dumahuch.pogodaapp.ui.forecast.percentText
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import io.github.dumahuch.pogodaapp.ui.sunmoon.BellCurve
+import io.github.dumahuch.pogodaapp.ui.sunmoon.MoonGlyph
+import io.github.dumahuch.pogodaapp.ui.sunmoon.SunMoonColors
+import io.github.dumahuch.pogodaapp.ui.sunmoon.durationText
+import io.github.dumahuch.pogodaapp.ui.sunmoon.rgb
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.Place
+import java.time.Duration
 import java.time.Instant
 import kotlin.math.roundToInt
 
 /**
- * Плитка «Солнце и Луна»: дуга дня с меткой («сейчас»), время восхода, длина дня и время заката, ниже фаза и время
- * восхода и захода луны. Время солнца берётся из прогноза, луна считается на телефоне ([Moon]).
- * Если солнце в эти сутки не встаёт или не садится (полярная ночь и день), дуги нет, а время показывается прочерком.
+ * Плитка «Солнце и Луна» на «Подробно» (0.8.77, макет https://claude.ai/artifact/1nRbyKdjC7NTVMDYS1g1B3): справа вверху
+ * ближайшее событие для съёмки (синий час, золотой час, восход, закат), «До заката …» (ночью «До восхода …»), кривая пути
+ * в общем стиле графиков, восход, длина дня и закат, строка луны. Нажатие открывает страницу «Солнце и Луна».
+ * Солнце и луна считаются на телефоне ([SunLight], [Moon]). В полярный день и полярную ночь кривой нет.
  */
 @Composable
-internal fun SunMoonTile(place: Place, forecast: Forecast, now: Instant, fit: ArcFit, modifier: Modifier = Modifier) {
+internal fun SunMoonTile(place: Place, forecast: Forecast, now: Instant, fit: ArcFit, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
     val zone = forecast.zone
-    val today = remember(forecast, now) {
-        val date = now.atZone(zone).toLocalDate()
-        forecast.days.firstOrNull { it.date == date }
+    val date = remember(now, zone) { now.atZone(zone).toLocalDate() }
+    val days = remember(place, zone, date) {
+        (-1L..1L).map { SunLight.day(date.plusDays(it), zone, place.latitude, place.longitude) }
     }
-    val tomorrow = remember(forecast, today) { today?.let { day -> forecast.days.firstOrNull { it.date == day.date.plusDays(1) } } }
-    val position = remember(today, tomorrow, now) { today?.let { arcPosition(now, it, tomorrow) } }
+    val (yesterday, today, tomorrow) = days
+    val run = remember(days, now) { SunLight.run(now, yesterday, today, tomorrow) }
+    val next = remember(days, now) { SunLight.nextShootingEvent(now, today) ?: SunLight.nextShootingEvent(now, tomorrow) }
     val dash = "–"
-    DetailTile(stringResource(R.string.tile_sun_moon), modifier) {
-        if (position != null) {
-            SunArc(position, fit)
+    Column(
+        modifier
+            .glassCard(RoundedCornerShape(22.dp), LocalGlass.current)
+            .clickable(role = Role.Button, onClickLabel = stringResource(R.string.sun_moon_open), onClick = onOpen)
+            .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.tile_sun_moon), style = pogodaText(12.5f, 700, color = palette.ink2), modifier = Modifier.weight(1f), maxLines = 1)
+            if (next != null) {
+                val sun = rgb(SunMoonColors.SUN)
+                Text(
+                    shootingText(next.first, clockText(next.second, zone)),
+                    style = pogodaText(11.5f, 700),
+                    maxLines = 1,
+                    modifier = Modifier
+                        .background(sun.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .border(1.dp, sun.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 9.dp, vertical = 2.dp),
+                )
+            }
+        }
+        val big = when {
+            run == null -> stringResource(if (today.noonElevation > 0) R.string.sun_moon_polar_day else R.string.sun_moon_polar_night)
+            run.daytime -> stringResource(R.string.sun_moon_until_sunset, durationText(Duration.between(now, run.to)))
+            else -> stringResource(R.string.sun_moon_until_sunrise, durationText(Duration.between(now, run.to)))
+        }
+        Text(big, style = pogodaText(22f, 300, lineHeight = 1.15f, tabular = true), maxLines = 1)
+        if (run != null) {
+            val density = LocalDensity.current
+            val sizing = if (fit.forcedPx >= 0) {
+                Modifier.fillMaxWidth().height(with(density) { fit.forcedPx.toDp() })
+            } else {
+                Modifier.fillMaxWidth().aspectRatio(ARC_ASPECT)
+            }
+            BellCurve(
+                run.fraction.toFloat(),
+                run.daytime,
+                sizing.onSizeChanged {
+                    fit.current = it.height
+                    fit.natural = (it.width / ARC_ASPECT).roundToInt()
+                },
+            )
         } else {
             Spacer(Modifier.height(6.dp))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TimeColumn(
-                stringResource(R.string.sunrise),
-                today?.sunrise?.let { clockText(it, zone) } ?: dash,
-                Alignment.Start,
-            )
-            TimeColumn(
-                stringResource(R.string.tile_daylight),
-                today?.let(::daylight)?.let {
-                    val (hours, minutes) = hoursAndMinutes(it)
-                    stringResource(R.string.hours_minutes, hours, minutes)
-                } ?: dash,
-                Alignment.CenterHorizontally,
-            )
-            TimeColumn(
-                stringResource(R.string.sunset),
-                today?.sunset?.let { clockText(it, zone) } ?: dash,
-                Alignment.End,
-            )
+            TimeColumn(stringResource(R.string.sunrise), today.sunrise?.let { clockText(it, zone) } ?: dash, Alignment.Start)
+            TimeColumn(stringResource(R.string.tile_daylight), today.daylight?.let { durationText(it) } ?: dash, Alignment.CenterHorizontally)
+            TimeColumn(stringResource(R.string.sunset), today.sunset?.let { clockText(it, zone) } ?: dash, Alignment.End)
         }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(4.dp))
         MoonRow(place, forecast, now)
     }
 }
+
+@Composable
+private fun shootingText(event: ShootingEvent, time: String): String = stringResource(
+    when (event) {
+        ShootingEvent.BlueHour -> R.string.shoot_blue
+        ShootingEvent.GoldenHour -> R.string.shoot_golden
+        ShootingEvent.Sunrise -> R.string.shoot_sunrise
+        ShootingEvent.Sunset -> R.string.shoot_sunset
+    },
+    time,
+)
 
 @Composable
 private fun TimeColumn(label: String, value: String, alignment: Alignment.Horizontal) {
@@ -107,7 +147,7 @@ private fun TimeColumn(label: String, value: String, alignment: Alignment.Horizo
     }
 }
 
-/** Фаза луны и время её восхода и захода в хронологическом порядке. */
+/** Фаза луны рисунком, освещённость и время восхода и захода в хронологическом порядке, стрелка «открыть». */
 @Composable
 private fun MoonRow(place: Place, forecast: Forecast, now: Instant) {
     val zone = forecast.zone
@@ -126,30 +166,31 @@ private fun MoonRow(place: Place, forecast: Forecast, now: Instant) {
         val locale = LocalLocale.current.platformLocale
         parts.mapIndexed { index, part -> if (index == 0) sentenceCase(part, locale) else part }.joinToString(" · ")
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        LineIconView(LineIcons.Moon, 20.dp, palette.ink)
-        Column {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(palette.ink.copy(alpha = 0.07f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        MoonGlyph(phase.illumination, litOnRight = phase.waxing == (place.latitude >= 0), modifier = Modifier.size(24.dp))
+        Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.moon_phase_percent, phaseName, percent), style = pogodaText(13.5f, 600, lineHeight = 1.3f))
             if (times.isNotEmpty()) {
                 Text(times, style = pogodaText(12.5f, 500, color = palette.ink2, lineHeight = 1.35f))
             }
         }
+        LineIconView(LineIcons.ChevronRight, 18.dp, palette.ink2)
     }
 }
 
-/** Ширина рисунка дуги в единицах макета. */
-internal const val ARC_WIDTH = 320f
-private const val ARC_HEIGHT = 70f
-
-/** Сколько единиц макета сверху срезано: до верха метки на вершине дуги остаётся запас. */
-private const val ARC_TOP = 8f
-
-/** Высота дуги в единицах макета после среза верха: так же высока естественная дуга, и основание лежит на нижнем краю. */
-private const val ARC_UNITS = ARC_HEIGHT - ARC_TOP
+/** Пропорции кривой на плитке (ширина к высоте) до подгонки под экран. */
+private const val ARC_ASPECT = 320f / 84f
 
 /**
- * Высота дуги, которую плитка «Подробно» подгоняет под остаток экрана (с 0.4.4). Дуга сообщает сюда свою нынешнюю и
- * естественную (по ширине) высоту, а страница по запасу высоты окна задаёт [forcedPx]: пока он не задан, дуга естественная.
+ * Высота кривой, которую плитка «Подробно» подгоняет под остаток экрана (с 0.4.4). Кривая сообщает сюда свою нынешнюю и
+ * естественную (по ширине) высоту, а страница по запасу высоты окна задаёт [forcedPx]: пока он не задан, кривая естественная.
  */
 @Stable
 internal class ArcFit {
@@ -161,133 +202,3 @@ internal class ArcFit {
         const val NOT_FORCED = -1
     }
 }
-
-/**
- * Форма дуги в единицах макета (320 по ширине, [ARC_UNITS] по высоте): где лежит линия горизонта ([baseY]), куда тянется
- * управляющая точка кривой ([controlY]) и с какого конца идёт путь. Днём дуга над горизонтом, солнце идёт слева направо
- * (от восхода к закату). Ночью горизонт поднят, дуга зеркально под ним, луна идёт справа налево (от заката к восходу):
- * подписи «Восход» слева и «Закат» справа остаются верными в любое время суток.
- */
-internal data class SunArcShape(val baseY: Float, val controlY: Float, val startsAtRight: Boolean) {
-    /** Самая дальняя от горизонта точка дуги (вершина днём, низ ночью). */
-    val apexY: Float get() = (baseY + controlY) / 2f
-
-    companion object {
-        const val LEFT_X = 24f
-        const val RIGHT_X = 296f
-
-        /**
-         * Длина затухания линии горизонта у каждого края (единицы макета). Концы дуги лежат внутри полной яркости
-         * линии, не в затухающей части, поэтому точки на концах всегда стоят на видимой линии.
-         */
-        const val HORIZON_FADE = 20f
-
-        /** Дневная дуга: основание на нижнем краю, вершина на 48 единиц выше (как до 0.5.1). */
-        val Day = SunArcShape(baseY = ARC_UNITS, controlY = -26f - ARC_TOP, startsAtRight = false)
-
-        /** Ночная: горизонт на 14 единиц от верха (место для метки), низ дуги на 38 единиц ниже горизонта. */
-        val Night = SunArcShape(baseY = 14f, controlY = 14f + 2f * 38f, startsAtRight = true)
-
-        fun of(daytime: Boolean): SunArcShape = if (daytime) Day else Night
-    }
-}
-
-/** Цвета меток дуги (RGB): солнце жёлтое с тёмной пиктограммой, луна синяя с белой. Читаемость сверяет `SunMoonShapeTest`. */
-internal object SunMoonColors {
-    const val SUN_FILL = 0xF2B01E
-    const val SUN_ICON = 0x3B2A00
-    const val SUN_LINE = 0xE09A0A
-    const val MOON_FILL = 0x2F5FB3
-    const val MOON_ICON = 0xFFFFFF
-    const val MOON_LINE = 0x7FA6EE
-}
-
-private fun rgb(value: Int) = Color(0xFF000000.toInt() or value)
-
-private const val HORIZON_ALPHA = 0.28f
-private const val REST_ALPHA = 0.8f
-private const val REST_WIDTH_DP = 1.3f
-private const val PASSED_WIDTH_DP = 2f
-private const val END_DOT_DP = 2.6f
-
-/**
- * Дуга пути солнца или луны (по образцу Димы): тонкая сплошная линия, точки на концах, бледный горизонт с затуханием
- * у краёв, пройденная часть цветом (жёлтая днём, синяя ночью), метка на текущем месте. По ширине рисунок как в макете, по высоте сжимается, когда страница не помещается на экран ([ArcFit]); метка и толщина линий остаются прежними.
- */
-@Composable
-private fun SunArc(position: ArcPosition, fit: ArcFit, modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
-    val density = LocalDensity.current
-    val shape = SunArcShape.of(position.daytime)
-    val lineColor = rgb(if (position.daytime) SunMoonColors.SUN_LINE else SunMoonColors.MOON_LINE)
-    val icon = remember(position.daytime) {
-        val source = if (position.daytime) LineIcons.Sun else LineIcons.Moon
-        source.paths.map { PathParser().parsePathString(it).toPath() }
-    }
-    val sizing = if (fit.forcedPx >= 0) {
-        Modifier.fillMaxWidth().height(with(density) { fit.forcedPx.toDp() })
-    } else {
-        Modifier.fillMaxWidth().aspectRatio(ARC_WIDTH / ARC_UNITS)
-    }
-    Canvas(
-        modifier.then(sizing).onSizeChanged {
-            fit.current = it.height
-            fit.natural = (it.width * ARC_UNITS / ARC_WIDTH).roundToInt()
-        },
-    ) {
-        val sx = size.width / ARC_WIDTH
-        val sy = size.height / ARC_UNITS
-        val baseY = shape.baseY * sy
-        // Горизонт: бледная линия на всю ширину, у краёв плавно гаснет (образец Димы).
-        val fade = SunArcShape.HORIZON_FADE / ARC_WIDTH
-        val horizon = palette.ink.copy(alpha = HORIZON_ALPHA)
-        drawLine(
-            Brush.horizontalGradient(
-                0f to horizon.copy(alpha = 0f),
-                fade to horizon,
-                1f - fade to horizon,
-                1f to horizon.copy(alpha = 0f),
-                startX = 0f,
-                endX = size.width,
-            ),
-            Offset(0f, baseY),
-            Offset(size.width, baseY),
-            strokeWidth = 1.dp.toPx(),
-        )
-        val fromX = (if (shape.startsAtRight) SunArcShape.RIGHT_X else SunArcShape.LEFT_X) * sx
-        val toX = (if (shape.startsAtRight) SunArcShape.LEFT_X else SunArcShape.RIGHT_X) * sx
-        val arc = Path().apply {
-            moveTo(fromX, baseY)
-            quadraticTo(160f * sx, shape.controlY * sy, toX, baseY)
-        }
-        // Остаток пути: тонкая сплошная линия без утолщений на концах, на концах маленькие точки.
-        val rest = palette.ink.copy(alpha = REST_ALPHA)
-        drawPath(arc, rest, style = Stroke(width = REST_WIDTH_DP.dp.toPx()))
-        val measure = PathMeasure().apply { setPath(arc, false) }
-        val passed = measure.length * position.fraction.toFloat()
-        val done = Path()
-        measure.getSegment(0f, passed, done, true)
-        drawPath(done, lineColor, style = Stroke(width = PASSED_WIDTH_DP.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-        drawCircle(rest, END_DOT_DP.dp.toPx(), Offset(fromX, baseY))
-        drawCircle(rest, END_DOT_DP.dp.toPx(), Offset(toX, baseY))
-        drawMarker(measure.getPosition(passed), position.daytime, icon)
-    }
-}
-
-/** Метка: залитый круг (жёлтый с солнцем днём, синий с месяцем ночью) в светлом ободке, чтобы читалась на любом небе. */
-private fun DrawScope.drawMarker(at: Offset, daytime: Boolean, icon: List<Path>) {
-    val radius = 10.dp.toPx()
-    val fill = rgb(if (daytime) SunMoonColors.SUN_FILL else SunMoonColors.MOON_FILL)
-    val ink = rgb(if (daytime) SunMoonColors.SUN_ICON else SunMoonColors.MOON_ICON)
-    drawCircle(Color.White.copy(alpha = 0.92f), radius + 1.5.dp.toPx(), at)
-    drawCircle(fill, radius, at)
-    val side = 14.dp.toPx()
-    withTransform({
-        translate(at.x - side / 2, at.y - side / 2)
-        scale(side / MOON_VIEWPORT, side / MOON_VIEWPORT, pivot = Offset.Zero)
-    }) {
-        icon.forEach { drawPath(it, ink, style = Stroke(width = 2f, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
-    }
-}
-
-private const val MOON_VIEWPORT = 24f

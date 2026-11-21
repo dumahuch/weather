@@ -75,6 +75,82 @@ internal object Moon {
         return Events(rise, set)
     }
 
+    /** Самое высокое положение луны в сутки [date]: момент и высота центра диска (градусы; ниже нуля, если луна весь день под горизонтом). */
+    data class Transit(val time: Instant, val elevation: Double)
+
+    fun transitOn(date: LocalDate, zone: ZoneId, latitude: Double, longitude: Double): Transit {
+        val start = date.atStartOfDay(zone).toInstant().epochSecond
+        val end = date.plusDays(1).atStartOfDay(zone).toInstant().epochSecond
+        fun elevation(second: Long) = horizontal(second.toDouble(), latitude, longitude).elevation
+        var best = start
+        var bestElevation = elevation(start)
+        var t = start
+        while (t < end) {
+            t = minOf(t + STEP_SECONDS, end)
+            val e = elevation(t)
+            if (e > bestElevation) {
+                best = t
+                bestElevation = e
+            }
+        }
+        // Уточнение троичным поиском в соседних шагах (до минуты); у краёв суток не выходит за них.
+        var a = maxOf(start, best - STEP_SECONDS)
+        var b = minOf(end, best + STEP_SECONDS)
+        while (b - a > 60) {
+            val m1 = a + (b - a) / 3
+            val m2 = b - (b - a) / 3
+            if (elevation(m1) < elevation(m2)) a = m1 else b = m2
+        }
+        val top = (a + b) / 2
+        return Transit(Instant.ofEpochSecond(top), elevation(top))
+    }
+
+    /** Главные фазы: новолуние, первая четверть, полнолуние, последняя четверть (доля месяца 0, ¼, ½, ¾). */
+    enum class Quarter(val cycle: Double) { New(0.0), FirstQuarter(0.25), Full(0.5), LastQuarter(0.75) }
+
+    /**
+     * Ближайшие главные фазы после [from], по одной каждого вида, по порядку. Ищется момент, когда доля месяца проходит
+     * через ¼, ½, ¾ и 0 (шаг 6 часов, уточнение до минуты). Ошибка положения луны около 0,3° даёт ошибку времени фазы
+     * меньше часа: для даты на экране с запасом.
+     */
+    fun nextQuarters(from: Instant): List<Pair<Quarter, Instant>> {
+        val result = ArrayList<Pair<Quarter, Instant>>()
+        var t = from.epochSecond
+        var previous = phaseAt(from).cycle
+        val end = t + SEARCH_DAYS * 86_400L
+        while (t < end && result.size < Quarter.entries.size) {
+            val next = t + QUARTER_STEP_SECONDS
+            val current = phaseAt(Instant.ofEpochSecond(next)).cycle
+            for (quarter in Quarter.entries) {
+                if (result.any { it.first == quarter }) continue
+                if (passes(previous, current, quarter.cycle)) {
+                    result += quarter to Instant.ofEpochSecond(refineQuarter(t, next, quarter.cycle))
+                }
+            }
+            t = next
+            previous = current
+        }
+        return result.sortedBy { it.second }
+    }
+
+    /** Доля месяца растёт от 0 до 1 и перескакивает к 0 в новолуние: прошла ли она через [target] между двумя значениями. */
+    private fun passes(before: Double, after: Double, target: Double): Boolean =
+        if (after >= before) target > before && target <= after else target > before || target <= after
+
+    private fun refineQuarter(from: Long, to: Long, target: Double): Long {
+        var a = from
+        var b = to
+        val start = phaseAt(Instant.ofEpochSecond(a)).cycle
+        while (b - a > 60) {
+            val m = (a + b) / 2
+            if (passes(start, phaseAt(Instant.ofEpochSecond(m)).cycle, target)) b = m else a = m
+        }
+        return b
+    }
+
+    /** Возраст луны в сутках от новолуния (по доле месяца, средний синодический месяц 29,53 суток). */
+    fun ageDays(phase: Phase): Int = (phase.cycle * SYNODIC_DAYS).toInt()
+
     /** Положение луны на эклиптике: долгота и широта в градусах, горизонтальный параллакс в градусах. */
     private class Ecliptic(val longitude: Double, val latitude: Double, val parallax: Double)
 
@@ -106,8 +182,11 @@ internal object Moon {
         return horizontal(epochSecond, latitude, longitude).elevation - (PARALLAX_FACTOR * moon.parallax - REFRACTION_DEGREES)
     }
 
-    /** Где луна на небе места: [elevation] высота центра диска в градусах, [hourAngleHours] часовой угол в часах (0 на юге, минус к востоку, плюс к западу). */
-    class Position(val elevation: Double, val hourAngleHours: Double)
+    /**
+     * Где луна на небе места: [elevation] высота центра диска в градусах, [hourAngleHours] часовой угол в часах (0 на юге,
+     * минус к востоку, плюс к западу), [azimuth] азимут в градусах от севера по часовой стрелке (90 восток, 270 запад).
+     */
+    class Position(val elevation: Double, val hourAngleHours: Double, val azimuth: Double = 0.0)
 
     fun positionAt(time: Instant, latitude: Double, longitude: Double): Position =
         horizontal(time.epochSecond + time.nano / 1e9, latitude, longitude)
@@ -126,7 +205,9 @@ internal object Moon {
         val sinAltitude = sin(lat) * sin(declination) + cos(lat) * cos(declination) * cos(hourAngle)
         val altitude = Math.toDegrees(asin(sinAltitude.coerceIn(-1.0, 1.0)))
         val wrapped = Math.toDegrees(atan2(sin(hourAngle), cos(hourAngle))) / 15.0
-        return Position(altitude, wrapped)
+        // Азимут от юга к западу (Meeus, гл. 13), затем от севера.
+        val fromSouth = Math.toDegrees(atan2(sin(hourAngle), cos(hourAngle) * sin(lat) - tan(declination) * cos(lat)))
+        return Position(altitude, wrapped, reduce(fromSouth + 180.0))
     }
 
     /** Момент пересечения порога между [from] и [to]: ложное положение, восемь шагов. */
@@ -160,4 +241,7 @@ internal object Moon {
     private const val REFINE_STEPS = 8
     private const val PARALLAX_FACTOR = 0.7275
     private const val REFRACTION_DEGREES = 34.0 / 60.0
+    private const val QUARTER_STEP_SECONDS = 6 * 3600L
+    private const val SEARCH_DAYS = 32L
+    private const val SYNODIC_DAYS = 29.530589
 }
