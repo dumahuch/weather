@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -17,7 +16,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
@@ -113,9 +111,16 @@ internal fun DrawScope.drawGlowPath(path: Path, color: Color, width: Float) {
     drawPath(path, color, style = Stroke(width, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
-/** Ореол метки: круг, гаснущий от середины к краю. */
+/** Ореол метки: круг, мягко гаснущий от середины к краю (три ступени, Дима 21.11: вдвое меньше и мягче). */
 internal fun DrawScope.drawHalo(at: Offset, color: Color, radius: Float) {
-    drawCircle(Brush.radialGradient(listOf(color.copy(alpha = 0.55f), color.copy(alpha = 0f)), at, radius), radius, at)
+    val brush = Brush.radialGradient(
+        0f to color.copy(alpha = 0.4f),
+        0.45f to color.copy(alpha = 0.16f),
+        1f to color.copy(alpha = 0f),
+        center = at,
+        radius = radius,
+    )
+    drawCircle(brush, radius, at)
 }
 
 /**
@@ -201,7 +206,7 @@ internal fun BellCurve(fraction: Float?, daytime: Boolean, modifier: Modifier = 
 private fun DrawScope.drawMarker(at: Offset, daytime: Boolean, icon: List<Path>, radius: Float) {
     val fill = rgb(if (daytime) SunMoonColors.SUN else SunMoonColors.MOON_FILL)
     val ink = rgb(if (daytime) SunMoonColors.SUN_ICON else SunMoonColors.MOON_ICON)
-    drawHalo(at, if (daytime) fill else rgb(SunMoonColors.MOON_LINE), radius * 3.2f)
+    drawHalo(at, if (daytime) fill else rgb(SunMoonColors.MOON_LINE), radius * HALO_SCALE)
     drawCircle(Color.White.copy(alpha = 0.92f), radius + 1.5.dp.toPx(), at)
     drawCircle(fill, radius, at)
     val side = radius * 1.4f
@@ -214,8 +219,9 @@ private fun DrawScope.drawMarker(at: Offset, daytime: Boolean, icon: List<Path>,
 }
 
 /**
- * Полоса суток по свету: отрезки цветом фазы, метка «сейчас» со свечением и временем над ней ([nowFraction] доля
- * суток; пусто, если день не сегодняшний), под полосой часы 00, 06, 12, 18, 24.
+ * Полоса суток по свету: фазы переходят одна в другую плавно, как на настоящем небе, без свечения (Дима 21.11: пятна
+ * свечения выглядели чужеродно). Метка «сейчас» тонкой белой чертой с временем над ней ([nowFraction] доля суток; пусто,
+ * если день не сегодняшний), под полосой часы 00, 06, 12, 18, 24.
  */
 @Composable
 internal fun LightStrip(phases: List<LightPhase>, nowFraction: Float?, nowLabel: String?, modifier: Modifier = Modifier) {
@@ -228,21 +234,12 @@ internal fun LightStrip(phases: List<LightPhase>, nowFraction: Float?, nowLabel:
         val stripTop = 18.dp.toPx()
         val stripHeight = 18.dp.toPx()
         val radius = stripHeight / 2
-        val shape = Path().apply { addRoundRect(RoundRect(Rect(0f, stripTop, w, stripTop + stripHeight), CornerRadius(radius))) }
-        // Золотой и синий час светятся, как их образцы в легенде и метки в ленте событий (одно обозначение везде).
-        runs(phases).filter { it.first.glows }.forEach { (phase, range) ->
-            val left = w * range.first / phases.size
-            val right = w * (range.last + 1) / phases.size
-            drawGlowRect(Rect(left, stripTop, right, stripTop + stripHeight), rgb(SunMoonColors.of(phase)), radius)
-        }
-        clipPath(shape) {
-            runs(phases).forEach { (phase, range) ->
-                val left = w * range.first / phases.size
-                val right = w * (range.last + 1) / phases.size
-                // Чуть внахлёст, чтобы между отрезками не было волосяных щелей.
-                drawRect(rgb(SunMoonColors.of(phase)), Offset(left, stripTop), Size(right - left + 1f, stripHeight))
-            }
-        }
+        drawRoundRect(
+            Brush.horizontalGradient(*stripStops(phases).toTypedArray(), startX = 0f, endX = w),
+            Offset(0f, stripTop),
+            Size(w, stripHeight),
+            CornerRadius(radius),
+        )
         val textStyle = labelStyle.copy(fontSize = 11.dp.toSp())
         listOf(0, 6, 12, 18, 24).forEach { hour ->
             val text = measurer.measure(hour.mod(24).toString().padStart(2, '0'), textStyle)
@@ -251,11 +248,7 @@ internal fun LightStrip(phases: List<LightPhase>, nowFraction: Float?, nowLabel:
         }
         if (nowFraction != null) {
             val x = w * nowFraction.coerceIn(0f, 1f)
-            val bar = Path().apply {
-                moveTo(x, stripTop - 5.dp.toPx())
-                lineTo(x, stripTop + stripHeight + 5.dp.toPx())
-            }
-            drawGlowPath(bar, Color.White, 2.dp.toPx())
+            drawLine(Color.White, Offset(x, stripTop - 5.dp.toPx()), Offset(x, stripTop + stripHeight + 5.dp.toPx()), 2.dp.toPx(), StrokeCap.Round)
             if (nowLabel != null) {
                 val text = measurer.measure(nowLabel, textStyle.copy(color = palette.ink, fontWeight = FontWeight.Bold))
                 val left = (x - text.size.width / 2f).coerceIn(0f, w - text.size.width)
@@ -278,33 +271,28 @@ internal fun runs(phases: List<LightPhase>): List<Pair<LightPhase, IntRange>> {
     return result
 }
 
-/** Светятся только золотой и синий час: главное для съёмки (правило стиля: свечение у главного). */
-internal val LightPhase.glows: Boolean get() = this == LightPhase.Golden || this == LightPhase.Blue
-
-/** Свечение вокруг прямоугольника: несколько расширенных прозрачных скруглённых прямоугольников под ним. */
-internal fun DrawScope.drawGlowRect(rect: Rect, color: Color, radius: Float) {
-    RECT_GLOW.forEach { (spreadDp, alpha) ->
-        val spread = spreadDp.dp.toPx()
-        drawRoundRect(
-            color.copy(alpha = alpha),
-            Offset(rect.left - spread, rect.top - spread),
-            Size(rect.width + 2 * spread, rect.height + 2 * spread),
-            CornerRadius(radius + spread),
-        )
+/**
+ * Опорные точки плавной полосы: у каждого отрезка свет держится ровным в середине, а к краям на треть отрезка
+ * (не больше [BLEND_STEPS] шагов) переходит в соседний.
+ */
+internal fun stripStops(phases: List<LightPhase>): List<Pair<Float, Color>> {
+    val n = phases.size.toFloat()
+    return runs(phases).flatMap { (phase, range) ->
+        val length = (range.last + 1 - range.first).toFloat()
+        val blend = minOf(length / 3f, BLEND_STEPS)
+        val color = rgb(SunMoonColors.of(phase))
+        listOf((range.first + blend) / n to color, (range.last + 1 - blend) / n to color)
     }
 }
 
-/** Расширение (dp) и прозрачность слоёв свечения прямоугольника. */
-private val RECT_GLOW = listOf(7f to 0.06f, 4.5f to 0.11f, 2.5f to 0.18f)
+/** Ширина перехода между фазами в шагах полосы (шаг 10 минут). */
+private const val BLEND_STEPS = 1.2f
 
-/** Образец цвета (легенда, лента событий): скруглённый прямоугольник, у золотого и синего со свечением. */
+/** Образец цвета фазы (легенда, лента событий): скруглённый прямоугольник без свечения. */
 @Composable
-internal fun GlowSwatch(phase: LightPhase, modifier: Modifier = Modifier) {
+internal fun PhaseSwatch(phase: LightPhase, modifier: Modifier = Modifier) {
     Canvas(modifier) {
-        val color = rgb(SunMoonColors.of(phase))
-        val radius = minOf(size.width, size.height) / 2.5f
-        if (phase.glows) drawGlowRect(Rect(Offset.Zero, size), color, radius)
-        drawRoundRect(color, Offset.Zero, size, CornerRadius(radius))
+        drawRoundRect(rgb(SunMoonColors.of(phase)), Offset.Zero, size, CornerRadius(minOf(size.width, size.height) / 2.5f))
     }
 }
 
@@ -437,6 +425,7 @@ internal fun MoonGlyph(illumination: Double, litOnRight: Boolean, modifier: Modi
 }
 
 private const val MARKER_DP = 9f
+private const val HALO_SCALE = 2f
 private const val END_DOT_DP = 2.6f
 private const val ICON_VIEWPORT = 24f
 private const val EDGE_FADE = 0.08f

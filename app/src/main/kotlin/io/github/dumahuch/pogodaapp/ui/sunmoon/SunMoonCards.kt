@@ -24,7 +24,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.pluralStringResource
@@ -183,7 +186,7 @@ private fun shadowNote(elevation: Double): String? {
     return stringResource(R.string.shadow_ratio, text)
 }
 
-/** «На 2 мин короче, чем вчера» и подобное; ночью наоборот: короче день, значит длиннее ночь. */
+/** «+3 мин за сутки» (короткая строка, помещается в плитку); ночью наоборот: короче день, значит длиннее ночь. */
 @Composable
 private fun changeNote(day: SunDay, yesterday: SunDay?, night: Boolean): String? {
     val now = day.daylight ?: return null
@@ -192,8 +195,8 @@ private fun changeNote(day: SunDay, yesterday: SunDay?, night: Boolean): String?
     if (night) minutes = -minutes
     val rounded = minutes.roundToInt()
     return when {
-        rounded > 0 -> stringResource(R.string.sun_moon_longer, rounded)
-        rounded < 0 -> stringResource(R.string.sun_moon_shorter, -rounded)
+        rounded > 0 -> stringResource(R.string.sun_moon_change, "+$rounded")
+        rounded < 0 -> stringResource(R.string.sun_moon_change, "−${-rounded}")
         else -> stringResource(R.string.sun_moon_same)
     }
 }
@@ -291,7 +294,7 @@ private fun StepRow(step: LightStep, zone: ZoneId) {
         Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 9.dp).semantics(mergeDescendants = true) {},
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        GlowSwatch(step.phase, Modifier.width(5.dp).fillMaxHeight())
+        PhaseSwatch(step.phase, Modifier.width(5.dp).fillMaxHeight())
         Column(Modifier.weight(1f)) {
             Text(step.name, style = pogodaText(15f, 600, color = nameColor), maxLines = 1)
             step.note?.let { Text(it, style = pogodaText(12f, 500, color = palette.ink2), maxLines = 1) }
@@ -356,7 +359,7 @@ private fun LightLegend(modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         items.forEach { (phase, text) ->
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                GlowSwatch(phase, Modifier.size(9.dp))
+                PhaseSwatch(phase, Modifier.size(9.dp))
                 Text(stringResource(text), style = pogodaText(11f, 600, color = palette.ink2), maxLines = 1)
             }
         }
@@ -372,7 +375,6 @@ internal fun sideOf(azimuth: Double?, sides: Array<String>): String? = azimuth?.
  */
 @Composable
 internal fun DirectionCard(ctx: SunMoonContext, day: SunDay, moon: MoonDay) {
-    val palette = LocalPogodaPalette.current
     val zone = ctx.zone
     val lat = ctx.place.latitude
     val lon = ctx.place.longitude
@@ -397,7 +399,8 @@ internal fun DirectionCard(ctx: SunMoonContext, day: SunDay, moon: MoonDay) {
     val moonSetSide = moon.set?.let { sideOf(Moon.positionAt(it, lat, lon).azimuth, sides) }
     Card {
         CardTitle(stringResource(R.string.dir_title))
-        Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        PathLegend(sunColor, moonColor, Modifier.padding(top = 8.dp))
+        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             SkyCompass(sunPath, moonPath, Modifier.size(136.dp))
             Spacer(Modifier.width(10.dp))
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -407,11 +410,34 @@ internal fun DirectionCard(ctx: SunMoonContext, day: SunDay, moon: MoonDay) {
                 DirectionRow(moonColor, false, moon.set?.let { stringResource(R.string.moon_set_on, clockText(it, zone)) }, moonSetSide)
             }
         }
-        Text(
-            stringResource(R.string.dir_note),
-            style = pogodaText(11f, 500, color = palette.ink2, lineHeight = 1.35f),
-            modifier = Modifier.padding(top = 10.dp),
-        )
+    }
+}
+
+/** Легенда круга, как у карт: образец линии и подпись (жёлтая линия путь Солнца, голубой пунктир путь Луны). */
+@Composable
+private fun PathLegend(sun: Color, moon: Color, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        listOf(true to R.string.dir_legend_sun, false to R.string.dir_legend_moon).forEach { (isSun, text) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Canvas(Modifier.size(width = 16.dp, height = 10.dp)) {
+                    val y = size.height / 2
+                    if (isSun) {
+                        drawLine(sun, Offset(0f, y), Offset(size.width, y), 2.5.dp.toPx(), StrokeCap.Round)
+                    } else {
+                        drawLine(
+                            moon,
+                            Offset(1.dp.toPx(), y),
+                            Offset(size.width, y),
+                            1.8.dp.toPx(),
+                            StrokeCap.Round,
+                            PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.dp.toPx())),
+                        )
+                    }
+                }
+                Text(stringResource(text), style = pogodaText(11f, 600, color = palette.ink2), maxLines = 1)
+            }
+        }
     }
 }
 

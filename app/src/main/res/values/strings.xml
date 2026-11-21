@@ -546,8 +546,6 @@
     <string name="sun_moon_polar_day">The sun does not set</string>
     <string name="sun_moon_polar_night">The sun does not rise</string>
     <string name="minutes_only">%1$d min</string>
-    <string name="sun_moon_shorter">%1$d min shorter than yesterday</string>
-    <string name="sun_moon_longer">%1$d min longer than yesterday</string>
     <string name="sun_moon_same">Same as yesterday</string>
     <string name="sun_moon_noon">Solar noon</string>
     <string name="sun_moon_light">Light for photos</string>
@@ -608,7 +606,6 @@
     <string name="tl_night_after">Then night</string>
     <string name="dir_title">Where to look</string>
     <string name="moon_set_on">Moonset %1$s</string>
-    <string name="dir_note">North is up. Yellow arc: the sun\'s path today, dotted: the moon\'s. Filled dot: rise, hollow: set.</string>
     <string name="moon_lit_line">lit · day %1$d of the cycle</string>
     <string name="moon_high">High above the horizon</string>
     <string name="moon_mid">Not high above the horizon</string>
@@ -619,4 +616,9 @@
         <item quantity="one">In %1$d day, rises at %2$s</item>
         <item quantity="other">In %1$d days, rises at %2$s</item>
     </plurals>
+
+    <!-- «Солнце и Луна» (0.8.79) -->
+    <string name="dir_legend_sun">sun\'s path</string>
+    <string name="dir_legend_moon">moon\'s path</string>
+    <string name="sun_moon_change">%1$s min since yesterday</string>
 </resources>
