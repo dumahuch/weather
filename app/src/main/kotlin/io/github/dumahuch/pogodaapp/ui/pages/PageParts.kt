@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -95,6 +96,7 @@ internal fun NowCard(
     word: String?,
     note: String?,
     symbol: @Composable () -> Unit,
+    wordDot: Color? = null,
     below: @Composable ColumnScope.() -> Unit = {},
 ) {
     val palette = LocalPogodaPalette.current
@@ -108,7 +110,12 @@ internal fun NowCard(
                         Text(unit, style = pogodaText(13f, 600, color = palette.ink2), modifier = Modifier.padding(start = 6.dp, bottom = 6.dp), maxLines = 1)
                     }
                 }
-                word?.let { Text(it, style = pogodaText(18f, 600, lineHeight = 1.2f)) }
+                word?.let {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        wordDot?.let { dot -> Box(Modifier.padding(end = 8.dp).size(11.dp).background(dot, CircleShape)) }
+                        Text(it, style = pogodaText(18f, 600, lineHeight = 1.2f))
+                    }
+                }
                 note?.let { Text(it, style = pogodaText(12.5f, 500, color = palette.ink2, lineHeight = 1.3f), modifier = Modifier.padding(top = 2.dp)) }
             }
             Box(Modifier.padding(start = 8.dp)) { symbol() }

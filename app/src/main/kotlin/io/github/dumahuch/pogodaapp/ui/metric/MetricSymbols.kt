@@ -1,7 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui.metric
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -67,9 +67,11 @@ internal fun WindCompass(fromDegrees: Int, size: Dp, modifier: Modifier = Modifi
     val letters = stringArrayResource(R.array.compass_letters).toList()
     val measurer = rememberTextMeasurer()
     val north = goldInk()
-    val letterStyle = remember(palette) { pogodaText(12f, 700, color = palette.ink, lineHeight = 1f) }
-    val numberStyle = remember(palette) { pogodaText(24f, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
-    val unitStyle = remember(palette) { pogodaText(10f, 600, color = palette.ink2, lineHeight = 1f) }
+    // Большой компас (страница «Направление») крупнее и по буквам, и по числу; мелкий остаётся прежним.
+    val scale = (size.value / COMPASS_BASE_DP).coerceIn(1f, MAX_FONT_SCALE)
+    val letterStyle = remember(palette, scale) { pogodaText(12f * scale, 700, color = palette.ink, lineHeight = 1f) }
+    val numberStyle = remember(palette, scale) { pogodaText(24f * scale, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
+    val unitStyle = remember(palette, scale) { pogodaText(10f * scale, 600, color = palette.ink2, lineHeight = 1f) }
     Canvas(modifier.size(size).semantics { contentDescription = listOfNotNull(speed, unit).joinToString(" ") }) {
         val c = center
         val k = this.size.minDimension / 120f
@@ -130,14 +132,18 @@ internal fun WindCompass(fromDegrees: Int, size: Dp, modifier: Modifier = Modifi
     }
 }
 
+private const val COMPASS_BASE_DP = 168f
+private const val MAX_FONT_SCALE = 1.4f
 private const val TICK_DEGREES = 3
 private const val CARDINAL_GAP = 7
 
 /**
- * Круг суток из столбиков осадков (сверху полночь, по часовой): столбик часа наружу, длина по количеству, цвет по силе;
- * прошедшие часы сплошные, прогноз контуром, выбранный час шире. Нажми или проведи по кругу: в центре время выбранного
- * часа и его осадки; по умолчанию выбран текущий час. Внутри тонкая дуга дня (золотая) и ночи (синяя) с плавными
- * рассветом и закатом через [sunriseHour] и [sunsetHour] (доли часа; пусто в полярный день и ночь, тогда дуги нет).
+ * Круг суток из столбиков осадков (сверху полночь, по часовой), размер задаёт [modifier] (макет 22.11: большой, во всю
+ * карточку): столбик часа наружу, длина по количеству, цвет по силе; прошедшие часы сплошные, прогноз контуром, выбранный
+ * час шире. Нажми на столбик или нажми, задержись и проведи: в центре время выбранного часа и его осадки; по умолчанию
+ * выбран текущий час (обычное проведение вдоль страницы прокручивает её, а не выбирает час). Внутри дуга дня (золотая)
+ * и ночи (тёмно-синяя) с плавными рассветом и закатом через [sunriseHour] и [sunsetHour] (доли часа; пусто в полярный
+ * день и ночь, тогда дуги нет); светлая кайма вдоль дуги держит её читаемой на тёмном ночном небе.
  */
 @Composable
 internal fun RainRing(
@@ -149,15 +155,13 @@ internal fun RainRing(
     dryText: String,
     unit: String,
     modifier: Modifier = Modifier,
-    size: Dp = 124.dp,
 ) {
     val palette = LocalPogodaPalette.current
     val measurer = rememberTextMeasurer()
     val peak = values.indices.filter { (values[it] ?: 0.0) > 0 }.maxByOrNull { values[it]!! }
     var selected by remember(values, nowIndex) { mutableIntStateOf(nowIndex ?: peak ?: HOURS / 2) }
-    val timeStyle = remember(palette) { pogodaText(10f, 600, color = palette.ink2, lineHeight = 1f, tabular = true) }
-    val valueStyle = remember(palette) { pogodaText(16f, 600, color = palette.ink, lineHeight = 1f, tabular = true) }
-    val unitStyle = remember(palette) { pogodaText(9.5f, 600, color = palette.ink2, lineHeight = 1f) }
+    val timeStyle = remember(palette) { pogodaText(26f, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
+    val valueStyle = remember(palette) { pogodaText(15f, 600, color = palette.ink2, lineHeight = 1f, tabular = true) }
     fun pick(at: Offset, side: Float) {
         val dx = at.x - side / 2
         val dy = at.y - side / 2
@@ -165,26 +169,28 @@ internal fun RainRing(
         if (angle < 0) angle += 360.0
         selected = floor(angle / DEGREES_PER_HOUR).toInt().coerceIn(0, HOURS - 1)
     }
+    val selectedValue = values.getOrNull(selected) ?: 0.0
+    val description = "%02d:00, %s".format(java.util.Locale.ROOT, selected, if (selectedValue > 0) "${valueText(selectedValue)} $unit" else dryText)
     Canvas(
         modifier
-            .size(size)
+            .semantics { contentDescription = description }
             .pointerInput(values) { detectTapGestures { pick(it, this.size.width.toFloat()) } }
-            .pointerInput(values) { detectDragGestures { change, _ -> pick(change.position, this.size.width.toFloat()) } },
+            .pointerInput(values) { detectDragGesturesAfterLongPress(onDragStart = { pick(it, this.size.width.toFloat()) }) { change, _ -> pick(change.position, this.size.width.toFloat()) } },
     ) {
         val c = center
         val k = this.size.minDimension / 120f
-        val inner = 27f * k
-        val longest = 22f * k
-        if (sunriseHour != null && sunsetHour != null) dayArc(c, 23f * k, 2.2f * k, sunriseHour, sunsetHour)
+        val inner = RING_INNER * k
+        val longest = RING_LONGEST * k
+        if (sunriseHour != null && sunsetHour != null) dayArc(c, RING_ARC_RADIUS * k, RING_ARC_WIDTH * k, sunriseHour, sunsetHour)
         val max = maxOf(MIN_RING_MM, values.filterNotNull().maxOrNull() ?: 0.0)
         val line = 1.5f * k
         values.forEachIndexed { h, v ->
             val value = v ?: 0.0
             val angle = (h + 0.5f) * DEGREES_PER_HOUR
-            val w = (if (h == selected) 6.5f else 3.6f) * k
+            val w = (if (h == selected) 3.6f else 2.0f) * k
             rotate(angle, c) {
                 if (value <= 0) {
-                    drawCircle(palette.ink.copy(alpha = 0.25f), (if (h == selected) 2.2f else 1.3f) * k, Offset(c.x, c.y - inner))
+                    drawCircle(palette.ink.copy(alpha = 0.28f), (if (h == selected) 1.5f else 0.9f) * k, Offset(c.x, c.y - inner))
                 } else {
                     val len = maxOf(3f * k, (value / max).toFloat() * longest)
                     val color = RainColors[rainLevel(value)]
@@ -203,34 +209,42 @@ internal fun RainRing(
             }
         }
         val time = measurer.measure("%02d:00".format(java.util.Locale.ROOT, selected), timeStyle)
-        val v = values.getOrNull(selected) ?: 0.0
-        val main = measurer.measure(if (v > 0) valueText(v) else dryText, if (v > 0) valueStyle else valueStyle.copy(fontSize = unitStyle.fontSize * 1.25f))
-        val sub = if (v > 0) measurer.measure(unit, unitStyle) else null
-        val total = time.size.height + main.size.height + (sub?.size?.height ?: 0) + 4f * k
+        val main = measurer.measure(if (selectedValue > 0) "${valueText(selectedValue)} $unit" else dryText, valueStyle)
+        val total = time.size.height + main.size.height + 6.dp.toPx()
         var y = c.y - total / 2
         drawText(time, topLeft = Offset(c.x - time.size.width / 2f, y))
-        y += time.size.height + 2f * k
+        y += time.size.height + 6.dp.toPx()
         drawText(main, topLeft = Offset(c.x - main.size.width / 2f, y))
-        y += main.size.height + 2f * k
-        sub?.let { drawText(it, topLeft = Offset(c.x - it.size.width / 2f, y)) }
     }
 }
 
 private const val HOURS = 24
 private const val DEGREES_PER_HOUR = 15f
 
+/** Размеры круга в долях k (одна k = 1/120 стороны): дуга суток, внутренний край и наибольшая длина столбиков. */
+private const val RING_ARC_RADIUS = 39f
+private const val RING_ARC_WIDTH = 3.4f
+private const val RING_INNER = 45f
+private const val RING_LONGEST = 13f
+
 /** Наименьший верх шкалы круга, мм за час: слабый дождь не должен выглядеть ливнем. */
 private const val MIN_RING_MM = 1.5
 
 internal fun rainLevel(mmPerHour: Double): Int = io.github.dumahuch.pogodaapp.forecast.RainIntensity.ofMmPerHour(mmPerHour).ordinal
 
-/** Ночь, рассвет, день: синий, персиковый, золотой; переход занимает по два часа в каждую сторону от восхода и заката. */
-private val NightTone = Color(0xFF8DB4F0)
-private val DawnTone = Color(0xFFF2B98A)
-private val DayTone = Color(0xFFF2B01E)
+/**
+ * Ночь, рассвет, день: тёмный индиго, персиковый, золотой (Дима 22.11: ночь должна выглядеть ночью, а не ясным небом);
+ * переход занимает по два часа в каждую сторону от восхода и заката.
+ */
+private val NightTone = Color(0xFF3A4A96)
+private val DawnTone = Color(0xFFEC9670)
+private val DayTone = Color(0xFFF4B61E)
 private const val TWILIGHT_HOURS = 2.0
 
-/** Дуга суток внутри круга: синяя ночью, золотая днём, с плавными рассветом и закатом. */
+/** Светлая кайма дуги: на тёмном небе отделяет индиго от фона, на светлом почти не видна. */
+private val ArcEdge = Color.White.copy(alpha = 0.55f)
+
+/** Дуга суток внутри круга: тёмно-синяя ночью, золотая днём, с плавными рассветом и закатом и светлой каймой. */
 private fun DrawScope.dayArc(c: Offset, radius: Float, width: Float, sunrise: Double, sunset: Double) {
     fun f(hour: Double) = (hour / HOURS).coerceIn(0.0, 1.0).toFloat()
     val stops = listOf(
@@ -243,14 +257,9 @@ private fun DrawScope.dayArc(c: Offset, radius: Float, width: Float, sunrise: Do
         f(sunset + TWILIGHT_HOURS) to NightTone,
         1f to NightTone,
     ).sortedBy { it.first }.toTypedArray()
+    drawCircle(ArcEdge, radius, c, style = Stroke(width + 2.6f * (width / RING_ARC_WIDTH)))
     // Градиент по кругу начинается справа (3 часа): поворот на −90°, чтобы полночь была сверху.
     rotate(-90f, c) {
-        drawCircle(
-            Brush.sweepGradient(*stops, center = c),
-            radius,
-            c,
-            alpha = 0.85f,
-            style = Stroke(width),
-        )
+        drawCircle(Brush.sweepGradient(*stops, center = c), radius, c, style = Stroke(width))
     }
 }

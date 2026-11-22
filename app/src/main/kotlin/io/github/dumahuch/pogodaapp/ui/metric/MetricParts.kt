@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -72,10 +73,25 @@ internal class TileText(val label: String, val value: String, val note: String?)
 
 /** Две плитки рядом вместо длинных строк «подпись … значение». */
 @Composable
-internal fun TwoTiles(left: TileText, right: TileText, modifier: Modifier = Modifier) {
+internal fun TwoTiles(left: TileText, right: TileText, modifier: Modifier = Modifier) = TileRow(listOf(left, right), modifier)
+
+/** Ряд плиток одной ширины. */
+@Composable
+internal fun TileRow(tiles: List<TileText>, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Tile(left, Modifier.weight(1f))
-        Tile(right, Modifier.weight(1f))
+        tiles.forEach { Tile(it, Modifier.weight(1f)) }
+    }
+}
+
+/**
+ * Слово ступени (Дима 22.11: голубой текст на стекле не читается): слово всегда цветом текста, цвет ступени стоит в точке
+ * перед ним.
+ */
+@Composable
+internal fun StepWord(text: String, dot: Color, modifier: Modifier = Modifier, size: Float = 14f) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.padding(end = 7.dp).size(10.dp).background(dot, CircleShape))
+        Text(text, style = pogodaText(size, 700, lineHeight = 1.15f), maxLines = 2)
     }
 }
 
@@ -121,7 +137,7 @@ internal fun WindArrow(fromDegrees: Int, size: Dp, color: Color, modifier: Modif
 }
 
 /**
- * Шкала Бофорта из 13 ступеней от штиля до урагана, от холодного цвета к тёплому: закрашено до ступени порывов,
+ * Шкала Бофорта из 13 ступеней от штиля до урагана, название слева над полоской, от холодного цвета к тёплому: закрашено до ступени порывов,
  * сплошной треугольник над ступенью «сейчас», контурный над ступенью порывов. Подписи концов и легенда ниже.
  */
 @Composable
@@ -129,6 +145,7 @@ internal fun BeaufortScale(step: Int, gustStep: Int?, nowLabel: String) {
     val palette = LocalPogodaPalette.current
     val top = gustStep ?: step
     Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
+        Text(stringResource(R.string.metric_beaufort), style = pogodaText(11.5f, 600, color = palette.ink2))
         Canvas(Modifier.fillMaxWidth().height(26.dp)) {
             val gap = 2.dp.toPx()
             val segment = size.width / BEAUFORT_STEPS
@@ -155,8 +172,6 @@ internal fun BeaufortScale(step: Int, gustStep: Int?, nowLabel: String) {
                 Box(Modifier.width(12.dp))
                 MarkerLegend(filled = false, text = stringResource(R.string.metric_marker_gusts))
             }
-            Box(Modifier.weight(1f))
-            Text(stringResource(R.string.metric_beaufort), style = pogodaText(11f, 600, color = palette.ink2))
         }
     }
 }
