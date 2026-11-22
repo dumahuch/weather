@@ -267,7 +267,7 @@ private fun DrawScope.dayArc(c: Offset, radius: Float, width: Float, sunrise: Do
 internal fun Windmill(speedKmh: Int?, size: Dp, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val moving = speedKmh != null && speedKmh >= 1
-    val period = if (moving) (WINDMILL_TURN_SECONDS / speedKmh!!).coerceIn(WINDMILL_FASTEST_S, WINDMILL_SLOWEST_S) else WINDMILL_SLOWEST_S
+    val period = if (speedKmh != null && moving) (WINDMILL_TURN_SECONDS / speedKmh).coerceIn(WINDMILL_FASTEST_S, WINDMILL_SLOWEST_S) else WINDMILL_SLOWEST_S
     val transition = rememberInfiniteTransition(label = "windmill")
     val turn by transition.animateFloat(
         initialValue = 0f,
