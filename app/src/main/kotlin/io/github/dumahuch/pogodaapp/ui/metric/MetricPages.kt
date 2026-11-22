@@ -306,7 +306,6 @@ internal fun RainPage(ctx: PageContext) {
     val chances = remember(points) { byHour(points, zone, { it.time }) { p -> p.precipitationProbability?.toDouble() } }
     val sunrise = day?.sunrise?.let { hourOf(it, zone) }
     val sunset = day?.sunset?.let { hourOf(it, zone) }
-    if (ctx.isToday) RadarCard(ctx.place, zone)
     RainRingPicker(amounts, ctx.nowIndex) { selected, ring ->
         NowCard(
             title = stringResource(if (ctx.isToday) R.string.today else R.string.metric_day),
@@ -340,6 +339,7 @@ internal fun RainPage(ctx: PageContext) {
             )
         }
     }
+    if (ctx.isToday) RadarCard(ctx.place, zone)
 
     val perDay = remember(forecast, ctx.dates) {
         ctx.dates.map { d -> byHour(forecast.hoursOf(d), zone, { it.time }) { p -> p.precipitationMm.takeIf { it >= MIN_NOTICEABLE_MM } ?: 0.0 } }

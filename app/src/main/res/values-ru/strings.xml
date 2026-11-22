@@ -536,7 +536,7 @@
     <string name="cloud_layer_mid">В основном средние, 3–8 км</string>
     <string name="cloud_layer_high">В основном высокие, выше 8 км</string>
     <string name="cloud_clear">Ясно</string>
-    <string name="sun_moon_light_note">Золотой час: Солнце от −4° до +6° над горизонтом, синий: от −6° до −4°.</string>
+    <string name="sun_moon_note">Золотой час: Солнце от −4° до +6° над горизонтом, синий: от −6° до −4°. Положение Солнца и Луны считается на телефоне; облака в золотой час и прогноз: Open-Meteo.</string>
     <string name="moon_title">Луна</string>
     <string name="moonrise">Восход Луны</string>
     <string name="moonset">Заход Луны</string>
@@ -601,6 +601,7 @@
     <!-- Страницы давления, УФ, воздуха и пыльцы (0.8.80). -->
     <string name="pg_legend_past">прошло</string>
     <string name="pg_legend_forecast">прогноз</string>
+    <string name="pg_legend_ahead">впереди</string>
     <string name="pg_hourly_day">По часам, %1$s</string>
     <string name="pg_pressure_short">мм</string>
     <string name="pg_pressure_3h">%1$s: %2$s за 3 часа</string>
@@ -669,7 +670,7 @@
     <string name="radar_failed">Радар сейчас недоступен</string>
     <string name="radar_axis_now">Сейчас</string>
     <string name="hourly_water_scale">1 мм/ч</string>
-    <string name="pg_rain_note">Сила осадков: AMS (слабые до 2,5 мм в час, умеренные до 7,6, сильные больше). Вероятность: осадки больше 0,1 мм за час по 30 расчётам ансамбля моделей. Дуга внутри круга: день золотой, ночь тёмно-синяя. Прогноз: Open-Meteo.</string>
+    <string name="pg_rain_note">Сила осадков: AMS (слабые до 2,5 мм в час, умеренные до 7,6, сильные больше). Вероятность: осадки больше 0,1 мм за час по 30 расчётам ансамбля моделей. Дуга внутри круга: день золотой, ночь тёмно-синяя. Прогноз: Open-Meteo. Радар: кадры DWD по пять минут, высота столбика в мм/ч, верх шкалы подписан на графике.</string>
     <string name="pg_week_feels">Ощущается</string>
     <string name="pg_humidity_note">Ощущение по точке росы: NWS (до 13 °C комфортно, до 18 °C ощутимо влажно, выше душно). Видимость: шесть ступеней Met Office. Прогноз: Open-Meteo.</string>
 </resources>

@@ -70,7 +70,7 @@ class StringsResourcesTest {
         // Подписи легенды круга «Куда смотреть» (0.8.79).
         "dir_legend_sun", "dir_legend_moon",
         // Страницы давления, УФ, воздуха и пыльцы (0.8.80): легенды, единицы, подписи в середине строки.
-        "pg_legend_past", "pg_legend_forecast", "pg_pressure_short", "pg_ugm3", "pg_legend_day_mean", "pg_legend_who",
+        "pg_legend_past", "pg_legend_forecast", "pg_legend_ahead", "pg_pressure_short", "pg_ugm3", "pg_legend_day_mean", "pg_legend_who",
         "pg_in_alerts",
         // Ветер, осадки, влажность (0.8.83): единица «мм/ч», «сухо» в центре круга осадков.
         "pg_mm_h", "pg_rain_dry",

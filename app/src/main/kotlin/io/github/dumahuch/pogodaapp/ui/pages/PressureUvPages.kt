@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalLocale
@@ -179,7 +180,10 @@ internal fun PressurePage(ctx: PageState) {
                 textAlign = TextAlign.End,
                 maxLines = 1,
             )
-            DayLine(byHour(hours, ctx.zone, { it.time }) { h -> h.pressureHpa?.let { shown(it) } }, isToday = dates[index] == ctx.today)
+            DayLine(
+                byHour(hours, ctx.zone, { it.time }) { h -> h.pressureHpa?.let { shown(it) } },
+                nowIndex = if (dates[index] == ctx.today) ctx.now.atZone(ctx.zone).hour else null,
+            )
         }
     }
     SourceNote(stringResource(R.string.pg_pressure_note))
@@ -192,11 +196,13 @@ private val SPARK_COLUMN = 74.dp
 private const val MIN_DAY_SPAN = 6.0
 
 /**
- * Маленькая линия дня в строке списка: тот же цвет, закруглённые концы и свечение, что у большого графика «По часам»;
- * у каждого дня своя шкала с наименьшим размахом, чтобы по форме можно было сравнить с сегодняшним днём.
+ * Маленькая линия дня в строке списка, как у большого графика «По часам»: у сегодняшнего дня пройденное светится, дальше
+ * точки ([nowIndex] текущий час); у других дней ровная линия без свечения. У каждого дня своя шкала с наименьшим
+ * размахом, чтобы по форме можно было сравнить с сегодняшним днём.
  */
 @Composable
-private fun DayLine(values: List<Double?>, isToday: Boolean) {
+private fun DayLine(values: List<Double?>, nowIndex: Int?) {
+    val ink = LocalPogodaPalette.current.ink
     Canvas(Modifier.size(width = SPARK_COLUMN, height = 28.dp)) {
         val known = values.filterNotNull()
         if (known.size < 2) return@Canvas
@@ -206,11 +212,24 @@ private fun DayLine(values: List<Double?>, isToday: Boolean) {
         val points = values.mapIndexedNotNull { i, v ->
             v?.let {
                 val y = size.height / 2 - ((it - mid) / span).toFloat() * (size.height - 2 * pad)
-                Offset(pad + (size.width - 2 * pad) * i / (HOURS - 1), y)
+                Offset(pad + (size.width - 2 * pad) * i / (HOURS - 1), y) to i
             }
         }
-        val path = Path().apply { points.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }
-        if (isToday) drawGlowPath(path, PressureLine, 2.dp.toPx()) else drawPath(path, PressureLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+        fun path(list: List<Offset>) = Path().apply { list.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }
+        if (nowIndex == null) {
+            drawPath(path(points.map { it.first }), PressureLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+            return@Canvas
+        }
+        val future = points.filter { it.second >= nowIndex }.map { it.first }
+        if (future.size >= 2) {
+            drawPath(
+                path(future),
+                ink.copy(alpha = 0.55f),
+                style = Stroke(1.5.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.dp.toPx()))),
+            )
+        }
+        val past = points.filter { it.second <= nowIndex }.map { it.first }
+        if (past.size >= 2) drawGlowPath(path(past), PressureLine, 2.dp.toPx())
     }
 }
 

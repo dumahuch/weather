@@ -343,10 +343,7 @@ internal fun SkyCompass(sun: SkyPath?, moon: SkyPath?, modifier: Modifier = Modi
         val sunColor = rgb(SunMoonColors.SUN)
         if (sun != null) {
             val arc = arcOf(sun, c, outer)
-            GLOW.forEach { (scale, alpha) ->
-                drawPath(arc, sunColor.copy(alpha = alpha), style = Stroke(2.2.dp.toPx() * scale, cap = StrokeCap.Round))
-            }
-            drawPath(arc, sunColor, style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round))
+            drawGlowPath(arc, sunColor, 2.2.dp.toPx())
         }
         val moonRadius = outer - 10.dp.toPx()
         if (moon != null) {
@@ -410,7 +407,6 @@ internal fun MoonGlyph(illumination: Double, litOnRight: Boolean, modifier: Modi
         drawCircle(palette.ink.copy(alpha = 0.18f), r, c, style = Stroke(1.dp.toPx()))
         val k = illumination.toFloat().coerceIn(0f, 1f)
         if (k < 0.01f) return@Canvas
-        drawCircle(Brush.radialGradient(listOf(lit.copy(alpha = 0.22f * k), lit.copy(alpha = 0f)), c, r * 1.35f), r * 1.35f, c)
         val rx = abs(2f * k - 1f) * r
         val disc = Rect(c.x - r, c.y - r, c.x + r, c.y + r)
         val terminator = Rect(c.x - rx, c.y - r, c.x + rx, c.y + r)
