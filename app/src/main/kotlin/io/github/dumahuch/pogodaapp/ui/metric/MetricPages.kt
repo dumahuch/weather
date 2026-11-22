@@ -135,6 +135,7 @@ internal fun WindPage(ctx: PageContext) {
     val kmh = stringResource(R.string.kmh_unit)
     val strength = stringArrayResource(R.array.beaufort_names)
     val directions = stringArrayResource(R.array.wind_directions)
+    val points = stringArrayResource(R.array.wind_points_short)
     val hours = remember(forecast, ctx.date) { MetricDays.detailsOf(forecast.hourDetails, zone, ctx.date) }
     val current = if (ctx.isToday) forecast.detailsAt(ctx.now) else null
     val peakIndex = MetricDays.peakIndex(hours.map { it.windKmh })
@@ -241,8 +242,11 @@ internal fun WindPage(ctx: PageContext) {
             Text("–", style = pogodaText(14f, 700), modifier = Modifier.weight(1f))
         }
         DayValue(high?.let { "$it $kmh" } ?: "–", gust?.let { stringResource(R.string.metric_gusts_short, it.toString()) })
-        Box(Modifier.width(ARROW_COLUMN), contentAlignment = Alignment.Center) {
-            MetricDays.dominantDirection(day)?.let { WindArrow(it, 22.dp, palette.ink) }
+        Column(Modifier.width(ARROW_COLUMN), horizontalAlignment = Alignment.CenterHorizontally) {
+            MetricDays.dominantDirection(day)?.let {
+                WindArrow(it, 20.dp, palette.ink)
+                Text(points[CompassPoint.of(it).ordinal], style = pogodaText(10.5f, 700, color = palette.ink2, lineHeight = 1.1f), maxLines = 1)
+            }
         }
     }
     SourceNote(stringResource(R.string.pg_wind_note))
@@ -302,35 +306,37 @@ internal fun RainPage(ctx: PageContext) {
     val chances = remember(points) { byHour(points, zone, { it.time }) { p -> p.precipitationProbability?.toDouble() } }
     val sunrise = day?.sunrise?.let { hourOf(it, zone) }
     val sunset = day?.sunset?.let { hourOf(it, zone) }
-    NowCard(
-        title = stringResource(if (ctx.isToday) R.string.today else R.string.metric_day),
-        value = dayPrecipitationText(total, locale).ifEmpty { "0" },
-        unit = mm,
-        word = headline,
-        note = spellText ?: stringResource(R.string.metric_no_rain_ahead),
-        symbol = {
-            if (points.isNotEmpty()) {
-                RainRing(
-                    amounts, ctx.nowIndex, sunrise, sunset, { precipitationText(it, locale) }, stringResource(R.string.pg_rain_dry), mmH,
-                    Modifier.size(RAIN_RING_DP.dp),
-                )
-            }
-        },
-    ) {
-        val strongest = amounts.indices.maxByOrNull { amounts[it] ?: 0.0 }?.takeIf { (amounts[it] ?: 0.0) > 0 }
-        val chance = day?.precipitationProbability
-        TwoTiles(
-            TileText(
-                stringResource(R.string.metric_strongest),
-                strongest?.let { "${precipitationText(amounts[it]!!, locale)} $mmH" } ?: "–",
-                strongest?.let { stringResource(R.string.pg_level_at, intensityWords[rainLevel(amounts[it]!!)], "%02d:00".format(java.util.Locale.ROOT, it)) },
-            ),
-            TileText(
-                stringResource(R.string.metric_chance),
-                chance?.let(::percentText) ?: "–",
-                chance?.let { chanceWords[RainChance.of(it).ordinal] },
-            ),
-        )
+    RainRingPicker(amounts, ctx.nowIndex) { selected, ring ->
+        NowCard(
+            title = stringResource(if (ctx.isToday) R.string.today else R.string.metric_day),
+            value = dayPrecipitationText(total, locale).ifEmpty { "0" },
+            unit = mm,
+            word = headline,
+            note = spellText ?: stringResource(R.string.metric_no_rain_ahead),
+            symbol = {
+                if (points.isNotEmpty()) {
+                    RainRing(
+                        amounts, selected, ctx.nowIndex, sunrise, sunset, { precipitationText(it, locale) }, stringResource(R.string.pg_rain_dry), mmH,
+                        Modifier.size(RAIN_RING_DP.dp).then(ring),
+                    )
+                }
+            },
+        ) {
+            val strongest = amounts.indices.maxByOrNull { amounts[it] ?: 0.0 }?.takeIf { (amounts[it] ?: 0.0) > 0 }
+            val chance = day?.precipitationProbability
+            TwoTiles(
+                TileText(
+                    stringResource(R.string.metric_strongest),
+                    strongest?.let { "${precipitationText(amounts[it]!!, locale)} $mmH" } ?: "–",
+                    strongest?.let { stringResource(R.string.pg_level_at, intensityWords[rainLevel(amounts[it]!!)], "%02d:00".format(java.util.Locale.ROOT, it)) },
+                ),
+                TileText(
+                    stringResource(R.string.metric_chance),
+                    chance?.let(::percentText) ?: "–",
+                    chance?.let { chanceWords[RainChance.of(it).ordinal] },
+                ),
+            )
+        }
     }
 
     if (points.isNotEmpty()) {

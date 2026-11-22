@@ -132,6 +132,16 @@
         <item>Hohe</item>
     </string-array>
     <string name="tile_wind_now">Wind</string>
+    <string-array name="wind_points_short">
+        <item>N</item>
+        <item>NO</item>
+        <item>O</item>
+        <item>SO</item>
+        <item>S</item>
+        <item>SW</item>
+        <item>W</item>
+        <item>NW</item>
+    </string-array>
     <string-array name="wind_directions">
         <item>Nord</item>
         <item>Nordost</item>
