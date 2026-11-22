@@ -83,6 +83,17 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = releaseSigning
         }
+        // Замерная сборка для стенда на ПК: код как в выпуске (R8, без отладки), но подпись отладочным ключом и имя
+        // отладочной сборки, чтобы ставиться поверх неё. Разрешён сбор трассы с ПК (profileable). Друзьям не раздаётся.
+        create("bench") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-bench"
+            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            isProfileable = true
+            matchingFallbacks += listOf("release")
+        }
     }
 
     compileOptions {
