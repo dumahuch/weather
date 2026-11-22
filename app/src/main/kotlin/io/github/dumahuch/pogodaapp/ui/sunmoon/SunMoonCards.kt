@@ -394,7 +394,7 @@ internal fun DirectionCard(ctx: SunMoonContext, day: SunDay, moon: MoonDay) {
         }
     }
     val sunColor = rgb(SunMoonColors.SUN)
-    val moonColor = rgb(SunMoonColors.MOON_LINE)
+    val moonColor = blueInk()
     val moonRiseSide = moon.rise?.let { sideOf(Moon.positionAt(it, lat, lon).azimuth, sides) }
     val moonSetSide = moon.set?.let { sideOf(Moon.positionAt(it, lat, lon).azimuth, sides) }
     Card {
@@ -429,9 +429,9 @@ private fun PathLegend(sun: Color, moon: Color, modifier: Modifier = Modifier) {
                             moon,
                             Offset(1.dp.toPx(), y),
                             Offset(size.width, y),
-                            1.8.dp.toPx(),
+                            2.2.dp.toPx(),
                             StrokeCap.Round,
-                            PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.dp.toPx())),
+                            PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.5.dp.toPx())),
                         )
                     }
                 }

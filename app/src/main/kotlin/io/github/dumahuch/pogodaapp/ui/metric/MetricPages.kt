@@ -46,7 +46,6 @@ import io.github.dumahuch.pogodaapp.ui.forecast.dayName
 import io.github.dumahuch.pogodaapp.ui.forecast.percentText
 import io.github.dumahuch.pogodaapp.ui.pages.ChartCard
 import io.github.dumahuch.pogodaapp.ui.pages.HOURS
-import io.github.dumahuch.pogodaapp.ui.pages.HourBars
 import io.github.dumahuch.pogodaapp.ui.pages.HourLine
 import io.github.dumahuch.pogodaapp.ui.pages.Mark
 import io.github.dumahuch.pogodaapp.ui.pages.NowCard
@@ -54,12 +53,12 @@ import io.github.dumahuch.pogodaapp.ui.pages.SourceNote
 import io.github.dumahuch.pogodaapp.ui.pages.StepGauge
 import io.github.dumahuch.pogodaapp.ui.pages.WeekHeader
 import io.github.dumahuch.pogodaapp.ui.pages.byHour
-import io.github.dumahuch.pogodaapp.ui.pages.forecastMark
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sunmoon.Card
 import io.github.dumahuch.pogodaapp.ui.sunmoon.CardTitle
 import io.github.dumahuch.pogodaapp.weather.Forecast
 import io.github.dumahuch.pogodaapp.weather.HourDetails
+import io.github.dumahuch.pogodaapp.weather.Place
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
@@ -79,6 +78,7 @@ internal class PageContext(
     val today: LocalDate,
     val now: Instant,
     val dates: List<LocalDate>,
+    val place: Place,
     val onSelect: (LocalDate) -> Unit,
 ) {
     val zone: ZoneId get() = forecast.zone
@@ -306,6 +306,7 @@ internal fun RainPage(ctx: PageContext) {
     val chances = remember(points) { byHour(points, zone, { it.time }) { p -> p.precipitationProbability?.toDouble() } }
     val sunrise = day?.sunrise?.let { hourOf(it, zone) }
     val sunset = day?.sunset?.let { hourOf(it, zone) }
+    if (ctx.isToday) RadarCard(ctx.place, zone)
     RainRingPicker(amounts, ctx.nowIndex) { selected, ring ->
         NowCard(
             title = stringResource(if (ctx.isToday) R.string.today else R.string.metric_day),
@@ -317,6 +318,7 @@ internal fun RainPage(ctx: PageContext) {
                 if (points.isNotEmpty()) {
                     RainRing(
                         amounts, selected, ctx.nowIndex, sunrise, sunset, { precipitationText(it, locale) }, stringResource(R.string.pg_rain_dry), mmH,
+                        chances.getOrNull(selected)?.let { percentText(it.roundToInt()) },
                         Modifier.size(RAIN_RING_DP.dp).then(ring),
                     )
                 }
@@ -335,28 +337,6 @@ internal fun RainPage(ctx: PageContext) {
                     chance?.let(::percentText) ?: "–",
                     chance?.let { chanceWords[RainChance.of(it).ordinal] },
                 ),
-            )
-        }
-    }
-
-    if (points.isNotEmpty()) {
-        val legend = intensityWords.mapIndexed { i, w -> Triple(Mark.Square, RainColors[i], w) } + forecastMark(ctx.isToday)
-        fun chanceOf(hour: Int) = chances.getOrNull(hour)?.let { percentText(it.roundToInt()) } ?: "–"
-        // Строки с подстановками берутся заранее: подпись часа собирается вне компоновки.
-        val wetHour = stringResource(R.string.pg_rain_hour)
-        val dryHour = stringResource(R.string.pg_rain_hour_dry)
-        ChartCard(hourlyTitle(ctx), legend) {
-            HourBars(
-                values = amounts,
-                nowIndex = ctx.nowIndex,
-                colorOf = { RainColors[rainLevel(it)] },
-                describe = { v, h ->
-                    if (v > 0) wetHour.format(precipitationText(v, locale), intensityWords[rainLevel(v)], chanceOf(h)) else dryHour.format(chanceOf(h))
-                },
-                brief = { "${precipitationText(it, locale)} $mmH" },
-                extremeLabel = stringResource(R.string.metric_strongest),
-                scaleMax = MIN_RAIN_SCALE_MM,
-                noneText = stringResource(R.string.next24_none),
             )
         }
     }

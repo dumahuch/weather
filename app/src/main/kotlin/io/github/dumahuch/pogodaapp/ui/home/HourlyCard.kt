@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +38,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLocale
@@ -46,6 +46,9 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -77,8 +80,7 @@ internal const val TEMPERATURE_LABEL_RISE = 24.5f
 
 /** Карточка «По часам»: заголовок и своё содержимое (лента или заглушки). */
 @Composable
-fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val palette = LocalPogodaPalette.current
+fun HourlyFrame(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val glass = LocalGlass.current
     Column(
         modifier
@@ -86,29 +88,18 @@ fun HourlyFrame(caption: String, modifier: Modifier = Modifier, content: @Compos
             .glassCard(RoundedCornerShape(26.dp), glass)
             .padding(top = 14.dp, bottom = 10.dp),
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 18.dp, end = 18.dp, bottom = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(
-                stringResource(R.string.hourly_title),
-                style = pogodaText(13f, 700),
-                modifier = Modifier.alignByBaseline(),
-            )
-            Text(
-                caption,
-                style = pogodaText(12f, 400, color = palette.ink2),
-                modifier = Modifier.alignByBaseline(),
-            )
-        }
+        // Подпись «Осадки, мм» в углу убрана (22.11.2026): единица стоит у самого количества над водой.
+        Text(
+            stringResource(R.string.hourly_title),
+            style = pogodaText(13f, 700),
+            modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 4.dp),
+        )
         content()
     }
 }
 
 /**
- * Лента часов: время, значок, температура на плавной линии, столбики осадков (мм).
+ * Лента часов: время, значок, температура на плавной линии, осадки водой снизу (вариант В1, 22.11.2026).
  * На «Главной» это 48 часов с первой колонкой «Сейчас» и подписью дня в полночь. В подробностях дня ([markNow] и
  * [dayBreaks] выключены) это сутки: подписи только часы, без отметки «Сейчас» и без границы суток, а лента
  * сразу прокручена на [initialColumn]-ю колонку (для сегодняшнего дня это текущий час).
@@ -131,7 +122,7 @@ fun HourlyStrip(
     val locale = LocalLocale.current.platformLocale
     val rounded = remember(points) { points.map { roundTemperature(it.temperature) } }
     val curve = remember(rounded) { HourlyGeometry.curveY(rounded) }
-    val bars = remember(points) { HourlyGeometry.barHeights(points.map { it.precipitationMm }) }
+    val precipitation = remember(points) { points.map { it.precipitationMm } }
     val density = LocalDensity.current
     val scroll = rememberScrollState(with(density) { (HourColumnWidth * initialColumn).roundToPx() })
     val panels = remember(points, details) {
@@ -156,6 +147,7 @@ fun HourlyStrip(
                     .width(HourColumnWidth * points.size)
                     .height(HourStripHeight),
             ) {
+                WaterLayer(precipitation, locale, Modifier.matchParentSize())
                 CurveLayer(curve, Modifier.matchParentSize())
                 Row(Modifier.matchParentSize()) {
                     points.forEachIndexed { index, point ->
@@ -170,7 +162,6 @@ fun HourlyStrip(
                             isMidnight = dayBreaks && index > 0 && local.hour == 0,
                             point = point,
                             curveY = curve[index],
-                            barHeight = bars[index],
                             locale = locale,
                             openable = panels[index] != null,
                             selected = index == selectedIndex,
@@ -188,6 +179,70 @@ fun HourlyStrip(
         )
     }
 }
+
+/**
+ * Осадки водой снизу ленты (вариант В1, решение Димы 22.11.2026): плавная заливка по часам, тёмная кромка того же тона
+ * (не белая: белого свечения на графиках нет), пунктир на 1 мм/ч и над самым сильным часом каждого дождя количество
+ * «0,6 мм». В сухие часы ничего (раньше черта и «–» в каждом часе). Высоты: [HourlyGeometry.waterHeight].
+ */
+@Composable
+internal fun WaterLayer(values: List<Double>, locale: Locale, modifier: Modifier) {
+    if (values.none { it > 0.0 }) return
+    val palette = LocalPogodaPalette.current
+    val measurer = rememberTextMeasurer()
+    val mm = stringResource(R.string.mm_unit)
+    val scale = stringResource(R.string.hourly_water_scale)
+    val labelStyle = remember(palette) { pogodaText(12f, 600, color = palette.ink, lineHeight = 1f, tabular = true) }
+    val scaleStyle = remember(palette) { pogodaText(10.5f, 500, color = palette.ink2, lineHeight = 1f) }
+    val heights = remember(values) { values.map { HourlyGeometry.waterHeight(it) } }
+    val peaks = remember(values) { HourlyGeometry.waterPeaks(values) }
+    val edge = if (palette.darkInk) WaterEdgeOnLight else WaterEdgeOnDark
+    Canvas(modifier) {
+        val unit = density
+        val width = HourColumnWidth.toPx()
+        val bottom = size.height
+        fun x(index: Int) = index * width + width / 2
+        fun y(index: Int) = bottom - heights[index] * unit
+        val surface = Path().apply {
+            moveTo(0f, y(0))
+            lineTo(x(0), y(0))
+            for (i in 1 until heights.size) {
+                val middle = (x(i - 1) + x(i)) / 2
+                cubicTo(middle, y(i - 1), middle, y(i), x(i), y(i))
+            }
+            lineTo(size.width, y(heights.lastIndex))
+        }
+        val water = Path().apply {
+            addPath(surface)
+            lineTo(size.width, bottom)
+            lineTo(0f, bottom)
+            close()
+        }
+        val oneMm = bottom - HourlyGeometry.WATER_ONE_MM * unit
+        drawLine(
+            palette.ink.copy(alpha = 0.35f),
+            Offset(0f, oneMm),
+            Offset(size.width, oneMm),
+            strokeWidth = 1f * unit,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f * unit, 4f * unit)),
+        )
+        val scaleText = measurer.measure(scale, scaleStyle)
+        drawText(scaleText, topLeft = Offset(4f * unit, oneMm - scaleText.size.height - 2f * unit))
+        drawPath(water, WaterFill)
+        // Кромка только над водой: у дна (сухие часы) линия не нужна.
+        clipRect(bottom = bottom - 1.5f * unit) {
+            drawPath(surface, edge, style = Stroke(width = 2f * unit, cap = StrokeCap.Round))
+        }
+        for (peak in peaks) {
+            val text = measurer.measure("${precipitationText(values[peak], locale)} $mm", labelStyle)
+            drawText(text, topLeft = Offset(x(peak) - text.size.width / 2f, y(peak) - text.size.height - 4f * unit))
+        }
+    }
+}
+
+private val WaterFill = Color(0xFF2A8FE0).copy(alpha = 0.62f)
+private val WaterEdgeOnLight = Color(0xFF0F4C9A)
+private val WaterEdgeOnDark = Color(0xFF8FC3F5)
 
 @Composable
 internal fun CurveLayer(curve: List<Float>, modifier: Modifier) {
@@ -219,7 +274,6 @@ private fun HourColumn(
     isMidnight: Boolean,
     point: HourPoint,
     curveY: Float,
-    barHeight: Float,
     locale: Locale,
     openable: Boolean,
     selected: Boolean,
@@ -227,6 +281,7 @@ private fun HourColumn(
 ) {
     val palette = LocalPogodaPalette.current
     val showDetails = stringResource(R.string.hour_show_details)
+    val mmUnit = stringResource(R.string.mm_unit)
     Box(
         Modifier
             .width(HourColumnWidth)
@@ -246,7 +301,11 @@ private fun HourColumn(
                     Modifier
                 },
             )
-            .semantics(mergeDescendants = true) { this.selected = selected },
+            .semantics(mergeDescendants = true) {
+                this.selected = selected
+                // Количество осадков нарисовано водой на общем слое; для чтения с экрана оно здесь, у своего часа.
+                if (point.precipitationMm > 0) stateDescription = "${precipitationText(point.precipitationMm, locale)} $mmUnit"
+            },
     ) {
         val labelStyle = pogodaText(
             size = 12f,
@@ -293,25 +352,6 @@ private fun HourColumn(
                 .align(Alignment.TopCenter)
                 .offset(y = (curveY - TEMPERATURE_LABEL_RISE).dp)
                 .wrapContentWidth(Alignment.CenterHorizontally, unbounded = true),
-        )
-
-        val barShape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 2.dp, bottomEnd = 2.dp)
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 28.dp)
-                .width(12.dp)
-                .height(if (barHeight > 0f) barHeight.dp else 2.dp)
-                .background(if (barHeight > 0f) palette.bar else palette.bar.copy(alpha = 0.35f), barShape),
-        )
-
-        Text(
-            precipitationText(point.precipitationMm, locale),
-            style = pogodaText(11.5f, 400, color = palette.ink2, tabular = true),
-            maxLines = 1,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 8.dp),
         )
     }
 }

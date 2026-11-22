@@ -14,7 +14,6 @@
     <string name="temp_high">Max</string>
     <string name="temp_low">Min</string>
     <string name="hourly_title">Stündlich</string>
-    <string name="hourly_caption">Niederschlag, mm</string>
 
     <string name="offline_title">Kein Netz</string>
     <string name="data_age_under_hour">Daten von vor weniger als 1 Std.</string>
@@ -653,10 +652,17 @@
     <string name="pg_wind_direction">Richtung</string>
     <string name="pg_wind_note">Windstärke in Worten: Beaufort-Skala (Met Office). Geschwindigkeit in 10 m Höhe, Böen: stärkste Böe der Stunde. Der Pfeil zeigt, wohin der Wind weht. Vorhersage: Open-Meteo.</string>
     <string name="pg_mm_h">mm/h</string>
-    <string name="pg_rain_hour">%1$s mm/h · %2$s, Wahrscheinlichkeit %3$s</string>
-    <string name="pg_rain_hour_dry">Trocken, Wahrscheinlichkeit %1$s</string>
     <string name="pg_rain_dry">trocken</string>
     <string name="pg_week_day_total">Am Tag</string>
+    <string name="radar_title">Nächste 2 Stunden</string>
+    <string name="radar_source">DWD-Radar</string>
+    <string name="radar_raining">Es regnet gerade</string>
+    <string name="radar_dry">Die nächsten 2 Stunden trocken</string>
+    <string name="radar_until">bis %1$s · etwa %2$s mm</string>
+    <string name="radar_loading">Radar wird geladen…</string>
+    <string name="radar_failed">Radar gerade nicht verfügbar</string>
+    <string name="radar_axis_now">jetzt</string>
+    <string name="hourly_water_scale">1 mm/h</string>
     <string name="pg_rain_note">Stärke: AMS (leicht bis 2,5 mm pro Stunde, mäßig bis 7,6, stark darüber). Wahrscheinlichkeit: Niederschlag über 0,1 mm in der Stunde, aus 30 Ensemble-Läufen. Innerer Bogen des Kreises: Tag golden, Nacht tiefblau. Vorhersage: Open-Meteo.</string>
     <string name="pg_week_feels">Gefühl</string>
     <string name="pg_humidity_note">Gefühl nach Taupunkt: NWS (bis 13 °C angenehm, bis 18 °C spürbar feucht, darüber schwül). Sichtweite: sechs Stufen des Met Office. Vorhersage: Open-Meteo.</string>

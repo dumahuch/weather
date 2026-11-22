@@ -41,13 +41,13 @@ object RainSoon {
     /** Одиночный кадр над порогом считается дождём, только если он вдвое сильнее порога; слабее нужны два кадра подряд (шум). */
     private const val SINGLE_FRAME_FACTOR = 2
 
-    fun outlook(frames: List<RadarFrame>, now: Instant): RainOutlook {
+    fun outlook(frames: List<RadarFrame>, now: Instant, window: Duration = WINDOW): RainOutlook {
         val sorted = frames.sortedBy { it.time }
         // Кадр с временем T описывает пять минут до T, поэтому «сейчас» это первый кадр, который не раньше текущего момента.
         val currentIndex = sorted.indexOfFirst { !it.time.isBefore(now) }
         if (currentIndex < 0) return RainOutlook.Unknown
         if (sorted[currentIndex].mmPerHour >= THRESHOLD_MM_PER_HOUR) return RainOutlook.Raining
-        val horizon = now.plus(WINDOW)
+        val horizon = now.plus(window)
         for (index in currentIndex + 1 until sorted.size) {
             val frame = sorted[index]
             val start = frame.time.minus(STEP)

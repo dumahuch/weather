@@ -30,6 +30,7 @@
     <string name="check_frost_hard" translatable="false">Мороз −15</string>
 
     <string name="check_moon_title" translatable="false">Луна</string>
+    <string name="check_moon_old" translatable="false">Прежний вид Луны</string>
     <string name="check_moon_real" translatable="false">Как есть</string>
     <string name="check_moon_waxing_crescent" translatable="false">Растущий серп</string>
     <string name="check_moon_first_quarter" translatable="false">Первая четверть</string>

@@ -93,16 +93,19 @@ class FormattingTest {
     }
 
     @Test
-    fun barHeightsScaleToTheLargestValueButNotBelowOneAndAHalfMillimetre() {
-        assertEquals(listOf(0f, 0f), HourlyGeometry.barHeights(listOf(0.0, 0.0)))
-        // Максимум 3,0 мм: столбик 3 мм достигает 26, а 1,5 мм вдвое ниже.
-        assertEquals(listOf(0f, 13f, 26f), HourlyGeometry.barHeights(listOf(0.0, 1.5, 3.0)))
-        // Шкала не меньше 1,5 мм: слабый дождь 0,75 мм это половина высоты, а не полная.
-        assertEquals(13f, HourlyGeometry.barHeights(listOf(0.75, 0.0))[0], 0.001f)
+    fun waterRisesInProportionUpToOneMillimetreAndThenEases() {
+        assertEquals(0f, HourlyGeometry.waterHeight(0.0), 0f)
+        assertEquals("любые осадки видны", 3f, HourlyGeometry.waterHeight(0.05), 0.001f)
+        assertEquals(HourlyGeometry.WATER_ONE_MM / 2, HourlyGeometry.waterHeight(0.5), 0.001f)
+        assertEquals(HourlyGeometry.WATER_ONE_MM, HourlyGeometry.waterHeight(1.0), 0.001f)
+        val heavy = HourlyGeometry.waterHeight(8.0)
+        assertTrue("ливень выше, но не выше предела: $heavy", heavy > HourlyGeometry.waterHeight(2.0) && heavy <= HourlyGeometry.WATER_MAX)
     }
 
     @Test
-    fun nonZeroPrecipitationAlwaysHasAVisibleBar() {
-        assertEquals(3f, HourlyGeometry.barHeights(listOf(0.01, 0.0))[0], 0.001f)
+    fun amountIsWrittenOverTheStrongestHourOfEachShower() {
+        assertEquals(emptyList<Int>(), HourlyGeometry.waterPeaks(listOf(0.0, 0.0)))
+        assertEquals(listOf(2, 6), HourlyGeometry.waterPeaks(listOf(0.0, 0.2, 0.6, 0.1, 0.0, 0.0, 0.4)))
+        assertEquals(listOf(0), HourlyGeometry.waterPeaks(listOf(0.3, 0.3, 0.0)))
     }
 }
