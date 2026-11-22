@@ -172,16 +172,20 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
         }
         val drawRidgesNow: DrawScope.() -> Unit = { drawRidges(loaded, look, pan, w, h) }
         val noRidges: DrawScope.() -> Unit = {}
-        val step = still?.step(stillKey(look, loaded, w, h)) ?: StillGate.Step.Direct
-        if (step == StillGate.Step.Record) still?.record(scope, drawBack, drawRidgesNow)
-        val drawFront: DrawScope.() -> Unit
-        if (still == null || step == StillGate.Step.Direct) {
-            scope.drawBack()
-            drawFront = if (ridges) drawRidgesNow else noRidges
-        } else {
-            scope.drawLayer(still.back)
-            val ridgesLayer = still.ridges
-            drawFront = if (ridges) ({ drawLayer(ridgesLayer) }) else noRidges
+        // Заднее небо и гряды готовыми картинками по отдельности: при прокрутке меняется только ключ гряд (подъём).
+        val backKey = stillKey(look, loaded, w, h)
+        val backStep = still?.backStep(backKey) ?: StillGate.Step.Direct
+        val ridgesStep = if (ridges) still?.ridgesStep(backKey + look.lift) ?: StillGate.Step.Direct else StillGate.Step.Direct
+        if (still != null && backStep == StillGate.Step.Record) still.record(still.back, scope, drawBack)
+        if (still != null && ridges && ridgesStep == StillGate.Step.Record) still.record(still.ridges, scope, drawRidgesNow)
+        if (still == null || backStep == StillGate.Step.Direct) scope.drawBack() else scope.drawLayer(still.back)
+        val drawFront: DrawScope.() -> Unit = when {
+            !ridges -> noRidges
+            still == null || ridgesStep == StillGate.Step.Direct -> drawRidgesNow
+            else -> {
+                val ridgesLayer = still.ridges
+                ({ drawLayer(ridgesLayer) })
+            }
         }
         // Облака и гряды в своём слое. Вуаль поверх облаков красит только их (SrcAtop на прозрачном слое), солнце под ними не задевает.
         // Во время молнии облака делятся на дальние и ближние (по порядку сверху вниз): молния лежит между ними своим светом, без
@@ -206,11 +210,12 @@ internal class DiPainter(private val store: DiBitmapStore, private val celestial
     }
 
     /**
-     * Всё, от чего зависят неподвижные картинки: время суток, погода и вуаль, солнце и луна, подъём прокруткой, размер и
-     * сами загруженные картины (пока солнце или слой не догрузились, ключ другой, и картинка потом перезапишется).
+     * Всё, от чего зависит заднее небо: время суток, погода и вуаль, солнце и луна, размер и сами загруженные картины (пока
+     * солнце или слой не догрузились, ключ другой, и картинка потом перезапишется). Подъёма прокруткой здесь нет: у слоя неба
+     * глубина 0 ([DiArt.Layer.Sky]); у гряд к этому ключу добавляется подъём.
      */
     private fun stillKey(look: SkyLook, loaded: List<SkyScene>, w: Double, h: Double): List<Any?> =
-        listOf<Any?>(look.weights, look.weather, look.veil, look.bodies, look.lift, w, h) +
+        listOf<Any?>(look.weights, look.weather, look.veil, look.bodies, w, h) +
             loaded.map { store.get(it) } + look.bodies.map { celestial.get(it.file) }
 
     private fun DrawScope.drawRidges(loaded: List<SkyScene>, look: SkyLook, pan: Double, w: Double, h: Double) {

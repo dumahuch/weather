@@ -81,6 +81,8 @@ import io.github.dumahuch.pogodaapp.ui.mixWith
 import io.github.dumahuch.pogodaapp.weather.Condition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import kotlin.math.abs
@@ -176,7 +178,7 @@ private const val TAG = "PogodaSky"
  * ([LocalPogodaPalette], [LocalContentColor]). Пока прогноза нет или картины не загрузились, фон спокойный
  * дневной градиент шага 1; небо проявляется за 0,6 с, и цвета интерфейса переходят вместе с ним.
  *
- * Цвета интерфейса пересчитываются по карте яркости 4 раза в секунду (быстрее, пока меняется цвет текста),
+ * Цвета интерфейса пересчитываются по карте яркости 4 раза в секунду (быстрее, пока меняется цвет текста) на фоновом потоке,
  * облака сдвигаются 20 раз в секунду. Если в системе выключены анимации или включена экономия энергии,
  * облака стоят на месте и цвета считаются один раз на каждое состояние неба.
  */
@@ -268,6 +270,8 @@ internal fun SkyHost(
     }
 
     val driver = remember(raster) { raster?.let { SkyThemeDriver(SkySampler(it)) } }
+    // Водитель цветов не потокобезопасен: прерванный счёт прежнего цикла мог ещё идти, когда начинается новый.
+    val driverLock = remember(driver) { Mutex() }
     var skyPalette by remember { mutableStateOf<PogodaPalette?>(null) }
     LaunchedEffect(driver, sky, animationsOn, started, diagnostics != null) {
         val themeDriver = driver ?: return@LaunchedEffect
@@ -284,12 +288,19 @@ internal fun SkyHost(
             last = at
             val cloudPosition = SkyDrift.position(state.pan, phase)
             val lift = DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble())
-            val scores = themeDriver.measure(state, cloudPosition, lift)
-            val palette = themeDriver.palette(scores, seconds)
-            skyPalette = palette.toUi()
+            // Кадр 41×89 и снятие цветов (стенд 22.11: около 50 мс каждые 300 мс в отладочной сборке) на фоновом потоке:
+            // главный поток в это время рисует кадры. Палитра отдаётся экрану уже на главном.
+            val (palette, ui, settled) = withContext(Dispatchers.Default) {
+                driverLock.withLock {
+                    val scores = themeDriver.measure(state, cloudPosition, lift)
+                    val computed = themeDriver.palette(scores, seconds)
+                    Triple(computed, computed.toUi(), themeDriver.settled)
+                }
+            }
+            skyPalette = ui
             diagnostics?.publish(state, palette, cloudPosition, store.lastLoad)
             if (!animationsOn) break
-            delay(if (themeDriver.settled) THEME_STEP_MILLIS else THEME_FAST_STEP_MILLIS)
+            delay(if (settled) THEME_STEP_MILLIS else THEME_FAST_STEP_MILLIS)
         }
     }
 

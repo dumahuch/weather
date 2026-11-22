@@ -58,6 +58,18 @@ class DiArtTest {
     }
 
     @Test
+    fun skyLayerDoesNotMoveWithScroll() {
+        // Заднее небо держится готовой картинкой и при прокрутке не перерисовывается (StillGates): подъём его не двигает.
+        for (lift in listOf(-DiArt.MAX_LIFT, 0.0, 0.05, DiArt.MAX_LIFT)) {
+            val still = DiArt.place(DiArt.Layer.Sky, 1440.0, 3120.0, 0.4, 0.0)
+            val lifted = DiArt.place(DiArt.Layer.Sky, 1440.0, 3120.0, 0.4, lift)
+            assertEquals(still.top, lifted.top, 1e-12)
+            assertEquals(still.left, lifted.left, 1e-12)
+            assertEquals(still.scale, lifted.scale, 1e-12)
+        }
+    }
+
+    @Test
     fun panStaysCloserToTheMiddleThanTheScene() {
         for (scene in SkyScene.entries) {
             val weights = SceneWeights(DoubleArray(SkyScene.entries.size) { if (it == scene.ordinal) 1.0 else 0.0 })
