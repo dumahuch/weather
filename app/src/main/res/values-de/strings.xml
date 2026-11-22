@@ -532,7 +532,7 @@
     <string name="cloud_layer_mid">Vor allem mittelhoch, 3–8 km</string>
     <string name="cloud_layer_high">Vor allem hoch, über 8 km</string>
     <string name="cloud_clear">Klar</string>
-    <string name="sun_moon_light_note">Goldene Stunde: Sonne zwischen −4° und +6° über dem Horizont, blaue: zwischen −6° und −4°.</string>
+    <string name="sun_moon_note">Goldene Stunde: Sonne zwischen −4° und +6° über dem Horizont, blaue: zwischen −6° und −4°. Sonnen- und Mondstand werden auf dem Telefon berechnet; Wolken zur goldenen Stunde und Vorhersage: Open-Meteo.</string>
     <string name="moon_title">Mond</string>
     <string name="moonrise">Mondaufgang</string>
     <string name="moonset">Monduntergang</string>
@@ -595,6 +595,7 @@
     <!-- Страницы давления, УФ, воздуха и пыльцы (0.8.80). -->
     <string name="pg_legend_past">vergangen</string>
     <string name="pg_legend_forecast">Prognose</string>
+    <string name="pg_legend_ahead">voraus</string>
     <string name="pg_hourly_day">Stündlich, %1$s</string>
     <string name="pg_pressure_short">hPa</string>
     <string name="pg_pressure_3h">%1$s: %2$s in 3 Stunden</string>
@@ -663,7 +664,7 @@
     <string name="radar_failed">Radar gerade nicht verfügbar</string>
     <string name="radar_axis_now">Jetzt</string>
     <string name="hourly_water_scale">1 mm/h</string>
-    <string name="pg_rain_note">Stärke: AMS (leicht bis 2,5 mm pro Stunde, mäßig bis 7,6, stark darüber). Wahrscheinlichkeit: Niederschlag über 0,1 mm in der Stunde, aus 30 Ensemble-Läufen. Innerer Bogen des Kreises: Tag golden, Nacht tiefblau. Vorhersage: Open-Meteo.</string>
+    <string name="pg_rain_note">Stärke: AMS (leicht bis 2,5 mm pro Stunde, mäßig bis 7,6, stark darüber). Wahrscheinlichkeit: Niederschlag über 0,1 mm in der Stunde, aus 30 Ensemble-Läufen. Innerer Bogen des Kreises: Tag golden, Nacht tiefblau. Vorhersage: Open-Meteo. Radar: DWD-Bilder im Fünf-Minuten-Takt, Balkenhöhe in mm/h, der obere Rand der Skala steht am Diagramm.</string>
     <string name="pg_week_feels">Gefühl</string>
     <string name="pg_humidity_note">Gefühl nach Taupunkt: NWS (bis 13 °C angenehm, bis 18 °C spürbar feucht, darüber schwül). Sichtweite: sechs Stufen des Met Office. Vorhersage: Open-Meteo.</string>
 </resources>

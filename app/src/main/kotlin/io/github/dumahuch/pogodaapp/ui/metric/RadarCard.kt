@@ -16,8 +16,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.AppVersion
@@ -28,6 +31,8 @@ import io.github.dumahuch.pogodaapp.home.precipitationText
 import io.github.dumahuch.pogodaapp.location.AssetPollenRegionLocator
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
+import io.github.dumahuch.pogodaapp.ui.pages.MapLegend
+import io.github.dumahuch.pogodaapp.ui.pages.Mark
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sunmoon.Card
 import io.github.dumahuch.pogodaapp.ui.sunmoon.CardTitle
@@ -39,6 +44,7 @@ import io.github.dumahuch.pogodaapp.weather.RainOutlook
 import io.github.dumahuch.pogodaapp.weather.RainSoon
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Locale
 
 /** Что знает карточка радара: ещё грузится, не получилось, место вне Германии (карточки нет) или кадры. */
 private sealed interface RadarState {
@@ -103,28 +109,41 @@ internal fun RadarCard(place: Place, zone: ZoneId) {
         if (current is RadarState.Ready) {
             val strip = RadarStrip.of(current.frames, current.at)
             if (strip.isNotEmpty()) {
-                RadarBars(strip, Modifier.fillMaxWidth().height(RADAR_BARS_DP.dp).padding(top = 10.dp).clearAndSetSemantics { })
+                val words = stringArrayResource(R.array.rain_intensity)
+                MapLegend(words.mapIndexed { i, word -> Triple(Mark.Square, RainColors[i], word) }, Modifier.padding(top = 10.dp))
+                RadarBars(strip, locale, Modifier.fillMaxWidth().height(RADAR_BARS_DP.dp).padding(top = 6.dp).clearAndSetSemantics { })
                 RadarAxis(strip, zone)
             }
         }
     }
 }
 
-/** Столбики кадров: высота по силе (шкала не ниже [MIN_RADAR_SCALE] мм/ч, как у круга), цвет ступени; сухой кадр черточкой. */
+/**
+ * Столбики кадров: высота по силе (шкала не ниже [MIN_RADAR_SCALE] мм/ч, как у круга), цвет ступени; сухой кадр
+ * черточкой. Верх шкалы подписан справа над тонкой линией, как у линий на страницах («1,5 мм/ч»).
+ */
 @Composable
-private fun RadarBars(strip: List<RadarFrame>, modifier: Modifier) {
+private fun RadarBars(strip: List<RadarFrame>, locale: Locale, modifier: Modifier) {
     val palette = LocalPogodaPalette.current
+    val measurer = rememberTextMeasurer()
+    val max = maxOf(MIN_RADAR_SCALE, strip.maxOf { it.mmPerHour })
+    val scale = "${precipitationText(max, locale)} ${stringResource(R.string.pg_mm_h)}"
+    val scaleStyle = pogodaText(11f, 600, color = palette.ink2, tabular = true)
     Canvas(modifier) {
         val slot = size.width / RadarStrip.FRAMES
         val bar = slot * BAR_SHARE
-        val max = maxOf(MIN_RADAR_SCALE, strip.maxOf { it.mmPerHour })
         val floor = 2.dp.toPx()
+        val label = measurer.measure(scale, scaleStyle)
+        val top = label.size.height + 2.dp.toPx()
+        val area = size.height - top
+        drawLine(palette.ink.copy(alpha = 0.12f), Offset(0f, top), Offset(size.width, top), 1.dp.toPx())
+        drawText(label, topLeft = Offset(size.width - label.size.width, 0f))
         strip.forEachIndexed { i, frame ->
             val x = i * slot + (slot - bar) / 2
             if (frame.mmPerHour < RainSoon.THRESHOLD_MM_PER_HOUR) {
                 drawRoundRect(palette.ink.copy(alpha = 0.22f), Offset(x, size.height - floor), Size(bar, floor), CornerRadius(floor / 2))
             } else {
-                val h = maxOf(floor * 2, (frame.mmPerHour / max).toFloat().coerceAtMost(1f) * size.height)
+                val h = maxOf(floor * 2, (frame.mmPerHour / max).toFloat().coerceAtMost(1f) * area)
                 drawRoundRect(RainColors[rainLevel(frame.mmPerHour)], Offset(x, size.height - h), Size(bar, h), CornerRadius(minOf(bar / 2, 3.dp.toPx())))
             }
         }
@@ -144,7 +163,7 @@ private fun RadarAxis(strip: List<RadarFrame>, zone: ZoneId) {
     }
 }
 
-private const val RADAR_BARS_DP = 46
+private const val RADAR_BARS_DP = 64
 private const val BAR_SHARE = 0.62f
 
 /** Наименьший верх шкалы столбиков радара, мм/ч: слабый дождь не должен выглядеть ливнем (как у круга суток). */

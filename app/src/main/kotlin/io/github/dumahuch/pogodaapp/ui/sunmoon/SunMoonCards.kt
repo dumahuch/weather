@@ -56,6 +56,8 @@ import io.github.dumahuch.pogodaapp.forecast.continuationCase
 import io.github.dumahuch.pogodaapp.sky.Moon
 import io.github.dumahuch.pogodaapp.sky.SunPosition
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.pages.MapLegend
+import io.github.dumahuch.pogodaapp.ui.pages.Mark
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
@@ -96,11 +98,6 @@ internal fun CardTitle(title: String, modifier: Modifier = Modifier) {
     Text(title, style = pogodaText(12.5f, 700, color = LocalPogodaPalette.current.ink2), modifier = modifier, maxLines = 1)
 }
 
-@Composable
-private fun FinePrint(text: String) {
-    Text(text, style = pogodaText(11f, 500, color = LocalPogodaPalette.current.ink2, lineHeight = 1.35f), modifier = Modifier.padding(top = 10.dp))
-}
-
 /**
  * Солнце: сегодня «До заката …» (ночью «До восхода …») и кривая с меткой; в другой день длина дня и кривая без метки.
  * Подписи концов над временем. Плитки: длина дня (ночи) с разницей со вчера; днём полдень и длина теней, ночью когда
@@ -131,6 +128,16 @@ internal fun SunCard(ctx: SunMoonContext, day: SunDay) {
         Column(Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp).semantics(mergeDescendants = true) {}) {
             CardTitle(title)
             Text(big, style = pogodaText(28f, 300, lineHeight = 1.15f, tabular = true), modifier = Modifier.padding(top = 2.dp))
+        }
+        if (!polar && run != null) {
+            val lineColor = rgb(if (night == null) SunMoonColors.SUN else SunMoonColors.MOON_LINE)
+            MapLegend(
+                listOf(
+                    Triple(Mark.Line, lineColor, stringResource(R.string.pg_legend_past)),
+                    Triple(Mark.Dots, LocalPogodaPalette.current.ink.copy(alpha = 0.7f), stringResource(R.string.pg_legend_ahead)),
+                ),
+                Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp),
+            )
         }
         if (!polar) {
             BellCurve(run?.fraction?.toFloat(), night == null, Modifier.fillMaxWidth().height(CURVE_HEIGHT))
@@ -278,7 +285,6 @@ internal fun LightCard(ctx: SunMoonContext, day: SunDay) {
                 StepRow(step, zone)
             }
         }
-        FinePrint(stringResource(R.string.sun_moon_light_note))
     }
 }
 
@@ -345,7 +351,7 @@ private fun cloudNote(clouds: SpanClouds): String? = when {
     }
 }
 
-/** Легенда полосы: образцы как в ленте событий (золотой и синий светятся). */
+/** Легенда полосы: образцы как в ленте событий (цветные плашки без свечения). */
 @Composable
 private fun LightLegend(modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current

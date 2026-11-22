@@ -37,6 +37,7 @@ import io.github.dumahuch.pogodaapp.forecast.SunLight
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.sky.Moon
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.pages.SourceNote
 import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
 import io.github.dumahuch.pogodaapp.ui.forecast.PageTitle
@@ -120,6 +121,7 @@ fun SunMoonScreen(state: HomeUiState.Content, onRetry: () -> Unit, modifier: Mod
                     chosen = picked.toEpochDay()
                     scope.launch { scroll.animateScrollTo(0) }
                 }
+                SourceNote(stringResource(R.string.sun_moon_note))
             }
         }
         Spacer(Modifier.height(bottomContentPadding()))
