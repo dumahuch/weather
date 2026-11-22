@@ -36,6 +36,9 @@ internal object SkyProbe {
     /** Зерно на размытии карточек; выключено: без зерна. */
     var blurNoise by mutableStateOf(true)
 
+    /** Небо под стеклом рисуется один раз на кадр для всех карточек (Haze `HazeInputSharing.Auto`); выключено: каждой карточке заново. */
+    var blurShared by mutableStateOf(true)
+
     fun reset() {
         clouds = true
         ridges = true
@@ -46,5 +49,6 @@ internal object SkyProbe {
         blurChunks = true
         blurColor = true
         blurNoise = true
+        blurShared = true
     }
 }

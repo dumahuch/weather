@@ -64,6 +64,7 @@
     <string name="check_probe_chunks" translatable="false">Куски размытия: %1$s</string>
     <string name="check_probe_blur_color" translatable="false">Цвет под стеклом: %1$s</string>
     <string name="check_probe_blur_grain" translatable="false">Зерно стекла: %1$s</string>
+    <string name="check_probe_blur_shared" translatable="false">Общий источник: %1$s</string>
     <string name="check_probe_reset" translatable="false">Всё как было</string>
     <string name="check_on" translatable="false">вкл</string>
     <string name="check_off" translatable="false">выкл</string>
