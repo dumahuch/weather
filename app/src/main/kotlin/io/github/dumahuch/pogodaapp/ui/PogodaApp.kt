@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -327,6 +328,8 @@ fun PogodaApp(
                 .graphicsLayer {
                     alpha = underlay.alpha.value
                     translationX = underlay.shift.value * size.width
+                    // Без отдельной картинки во весь экран, пока колода гаснет (см. [screenFade]).
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
                 }
                 .then(if (tabsOnTop) Modifier else Modifier.clearAndSetSemantics { })
                 .drawWithContent {
@@ -384,6 +387,9 @@ fun PogodaApp(
         if (!tabsOnTop) {
             Box(Modifier.fillMaxSize().pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } })
         }
+        // Вид последнего перехода окон: по нему окна проявляются и гаснут ([screenFade]).
+        val moves = remember { ScreenMoves(screen) }
+        val moveKind = remember(screen) { moves.move(screen) }
         AnimatedContent(
             targetState = screen,
             modifier = Modifier
@@ -403,86 +409,89 @@ fun PogodaApp(
             // Все вкладки живут в одном окне: при смене между ними (и с картой) окно не пересобирается.
             contentKey = { if (it.layer == Layer.Tab) SKY_TABS_KEY else it },
         ) { key ->
-            when (key.layer) {
-                Layer.Settings -> SettingsScreen(
-                    cardShadow = cardShadow,
-                    onCardShadow = onCardShadow,
-                    iconStyle = iconStyle,
-                    onIconStyle = onIconStyle,
-                    mapPreload = mapPreload,
-                    onMapPreload = onMapPreload,
-                    notifications = notifications,
-                    onNotification = onNotification,
-                    onLockScreen = onLockScreen,
-                    notificationsBlocked = notificationsBlocked,
-                    onOpenNotificationSettings = onOpenNotificationSettings,
-                    onSummaryTime = onSummaryTime,
-                    pollenKinds = pollenKinds,
-                    onPollenKind = onPollenKind,
-                    noticeError = noticeError,
-                    update = update,
-                    updateActions = updateActions,
-                    openUpdates = openUpdates,
-                    onOpenedUpdates = { openUpdates = false },
-                )
+            val fade = screenFade(moveKind, animate)
+            Box(Modifier.fillMaxSize().fadeLayer { fade.value }) {
+                when (key.layer) {
+                    Layer.Settings -> SettingsScreen(
+                        cardShadow = cardShadow,
+                        onCardShadow = onCardShadow,
+                        iconStyle = iconStyle,
+                        onIconStyle = onIconStyle,
+                        mapPreload = mapPreload,
+                        onMapPreload = onMapPreload,
+                        notifications = notifications,
+                        onNotification = onNotification,
+                        onLockScreen = onLockScreen,
+                        notificationsBlocked = notificationsBlocked,
+                        onOpenNotificationSettings = onOpenNotificationSettings,
+                        onSummaryTime = onSummaryTime,
+                        pollenKinds = pollenKinds,
+                        onPollenKind = onPollenKind,
+                        noticeError = noticeError,
+                        update = update,
+                        updateActions = updateActions,
+                        openUpdates = openUpdates,
+                        onOpenedUpdates = { openUpdates = false },
+                    )
 
-                Layer.Places -> PlacesScreen(
-                    ui = places,
-                    actions = placesActions,
-                    searching = searching,
-                    onSearching = {
-                        searching = it
-                        if (!it) placesActions.onLeave()
-                    },
-                    onClose = ::closePlaces,
-                )
+                    Layer.Places -> PlacesScreen(
+                        ui = places,
+                        actions = placesActions,
+                        searching = searching,
+                        onSearching = {
+                            searching = it
+                            if (!it) placesActions.onLeave()
+                        },
+                        onClose = ::closePlaces,
+                    )
 
-                // Колода вкладок вне перехода (см. выше); здесь только карта: она рисуется своей поверхностью.
-                Layer.Tab -> Box(Modifier.fillMaxSize()) {
-                    if (key.isMap) {
-                        CompositionLocalProvider(
-                            LocalPogodaPalette provides MapPalette,
-                            LocalGlass provides mapGlass,
-                            LocalContentColor provides MapPalette.ink,
-                        ) {
-                            MapScreen(
-                                place = content?.place,
-                                skyDarkInk = skyPalette.darkInk,
-                                wifiOnly = mapPreload == MapPreload.WifiOnly,
-                            )
+                    // Колода вкладок вне перехода (см. выше); здесь только карта: она рисуется своей поверхностью.
+                    Layer.Tab -> Box(Modifier.fillMaxSize()) {
+                        if (key.isMap) {
+                            CompositionLocalProvider(
+                                LocalPogodaPalette provides MapPalette,
+                                LocalGlass provides mapGlass,
+                                LocalContentColor provides MapPalette.ink,
+                            ) {
+                                MapScreen(
+                                    place = content?.place,
+                                    skyDarkInk = skyPalette.darkInk,
+                                    wifiOnly = mapPreload == MapPreload.WifiOnly,
+                                )
+                            }
                         }
                     }
-                }
 
-                // Страница показателя открывается с «Главной», всегда на небе.
-                Layer.Metric -> if (content != null) {
-                    MetricScreen(
-                        state = content,
-                        metric = Metric.entries[key.metric],
-                        onRetry = actions.onRetry,
-                    )
-                }
-
-                // Страницы плиток «Подробно» открываются с этой вкладки, всегда на небе.
-                Layer.Page -> if (content != null) {
-                    when (DetailPage.entries[key.metric]) {
-                        DetailPage.SunMoon -> SunMoonScreen(state = content, onRetry = actions.onRetry)
-                        else -> DetailPageScreen(
+                    // Страница показателя открывается с «Главной», всегда на небе.
+                    Layer.Metric -> if (content != null) {
+                        MetricScreen(
                             state = content,
-                            page = DetailPage.entries[key.metric],
-                            pollenKinds = pollenKinds,
+                            metric = Metric.entries[key.metric],
                             onRetry = actions.onRetry,
                         )
                     }
-                }
 
-                // День открывается из «Прогноза», всегда на небе.
-                Layer.Day -> if (content != null) {
-                    DayDetailScreen(
-                        state = content,
-                        date = LocalDate.ofEpochDay(key.day),
-                        onBack = { openDay = null },
-                    )
+                    // Страницы плиток «Подробно» открываются с этой вкладки, всегда на небе.
+                    Layer.Page -> if (content != null) {
+                        when (DetailPage.entries[key.metric]) {
+                            DetailPage.SunMoon -> SunMoonScreen(state = content, onRetry = actions.onRetry)
+                            else -> DetailPageScreen(
+                                state = content,
+                                page = DetailPage.entries[key.metric],
+                                pollenKinds = pollenKinds,
+                                onRetry = actions.onRetry,
+                            )
+                        }
+                    }
+
+                    // День открывается из «Прогноза», всегда на небе.
+                    Layer.Day -> if (content != null) {
+                        DayDetailScreen(
+                            state = content,
+                            date = LocalDate.ofEpochDay(key.day),
+                            onBack = { openDay = null },
+                        )
+                    }
                 }
             }
         }
