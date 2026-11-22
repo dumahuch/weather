@@ -568,6 +568,9 @@ private fun ProbeSection(onChange: () -> Unit) {
         Probe(stringResource(R.string.check_probe_blur_grain, state(SkyProbe.blurNoise)), SkyProbe.blurNoise) {
             SkyProbe.blurNoise = !SkyProbe.blurNoise
         },
+        Probe(stringResource(R.string.check_probe_blur_shared, state(SkyProbe.blurShared)), SkyProbe.blurShared) {
+            SkyProbe.blurShared = !SkyProbe.blurShared
+        },
         Probe(stringResource(R.string.check_probe_reset), false) { SkyProbe.reset() },
     )
     Caption(stringResource(R.string.check_probe_title))

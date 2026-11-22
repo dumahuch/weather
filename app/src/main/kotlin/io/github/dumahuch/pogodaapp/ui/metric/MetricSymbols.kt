@@ -7,9 +7,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -19,9 +19,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -274,32 +276,50 @@ internal fun Windmill(speedKmh: Int?, size: Dp, modifier: Modifier = Modifier) {
     val moving = speedKmh != null && speedKmh >= 1
     val period = if (speedKmh != null && moving) (WINDMILL_TURN_SECONDS / speedKmh).coerceIn(WINDMILL_FASTEST_S, WINDMILL_SLOWEST_S) else WINDMILL_SLOWEST_S
     val transition = rememberInfiniteTransition(label = "windmill")
-    val turn by transition.animateFloat(
+    // Угол читается только при выводе слоя лопастей: экран не пересобирается и не перерисовывается каждый кадр,
+    // видеокарта лишь поворачивает готовую картинку (до 0.8.92 кадр ветра собирался заново 120 раз в секунду).
+    val turn = transition.animateFloat(
         initialValue = 0f,
         targetValue = if (moving) 360f else 0f,
         animationSpec = infiniteRepeatable(tween((period * 1000).toInt(), easing = LinearEasing), RepeatMode.Restart),
         label = "windmillTurn",
     )
-    Canvas(modifier.size(size).semantics { contentDescription = speedKmh?.toString() ?: "" }) {
-        val k = this.size.minDimension / 100f
-        val hub = Offset(50f * k, 44f * k)
-        val tower = Path().apply {
-            moveTo(47f * k, 96f * k)
-            lineTo(50f * k, 48f * k)
-            lineTo(53f * k, 96f * k)
-            close()
+    val ink = palette.ink
+    Box(modifier.size(size).semantics { contentDescription = speedKmh?.toString() ?: "" }) {
+        Canvas(Modifier.matchParentSize()) {
+            val k = this.size.minDimension / 100f
+            val tower = Path().apply {
+                moveTo(47f * k, 96f * k)
+                lineTo(50f * k, 48f * k)
+                lineTo(53f * k, 96f * k)
+                close()
+            }
+            drawPath(tower, ink)
         }
-        drawPath(tower, palette.ink)
-        val blade = Path().apply {
-            moveTo(hub.x, hub.y)
-            cubicTo(46f * k, 30f * k, 47f * k, 14f * k, 50f * k, 4f * k)
-            cubicTo(53f * k, 14f * k, 54f * k, 30f * k, hub.x, hub.y)
-            close()
+        Canvas(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer {
+                    rotationZ = turn.value
+                    transformOrigin = WINDMILL_HUB
+                },
+        ) {
+            val k = this.size.minDimension / 100f
+            val hub = Offset(50f * k, 44f * k)
+            val blade = Path().apply {
+                moveTo(hub.x, hub.y)
+                cubicTo(46f * k, 30f * k, 47f * k, 14f * k, 50f * k, 4f * k)
+                cubicTo(53f * k, 14f * k, 54f * k, 30f * k, hub.x, hub.y)
+                close()
+            }
+            for (i in 0 until 3) rotate(i * 120f + 20f, hub) { drawPath(blade, ink) }
+            drawCircle(ink, 4.5f * k, hub)
         }
-        for (i in 0 until 3) rotate(turn + i * 120f + 20f, hub) { drawPath(blade, palette.ink) }
-        drawCircle(palette.ink, 4.5f * k, hub)
     }
 }
+
+/** Ось ветряка в долях квадрата рисунка (50, 44 из 100): вокруг неё поворачивается слой лопастей. */
+private val WINDMILL_HUB = TransformOrigin(0.5f, 0.44f)
 
 private const val WINDMILL_TURN_SECONDS = 49f
 private const val WINDMILL_FASTEST_S = 0.6f

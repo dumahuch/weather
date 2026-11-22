@@ -46,7 +46,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleStartEffect
+import dev.chrisbanes.haze.ExperimentalHazeApi
+import dev.chrisbanes.haze.HazeInputSharing
 import dev.chrisbanes.haze.HazePerformanceMode
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.LocalHazePerformanceMode
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -449,7 +452,7 @@ internal fun SkyHost(
                 scrim = palette.scrim,
                 infoScrim = palette.infoScrim,
                 bands = { scrimRegions.bands(hostTop, density.density) },
-                modifier = Modifier.matchParentSize().then(if (glassBlur) Modifier.hazeSource(hazeState) else Modifier),
+                modifier = Modifier.matchParentSize().then(if (glassBlur) Modifier.skySource(hazeState) else Modifier),
             )
             content()
         }
@@ -649,3 +652,13 @@ private fun rememberNow(started: Boolean): State<Instant> = produceState(Instant
 }
 
 private const val MILLIS_PER_MINUTE = 60_000L
+
+/**
+ * Небо как источник размытия стекла. Общий источник (Haze 2.1, `HazeInputSharing.Auto`): небо рисуется в отдельный слой
+ * один раз на кадр, и все карточки размывают его, а не рисуют небо каждая заново. Замер 22.11.2026 (сборка как выпуск):
+ * без размытия кадры прокрутки и переходов в 2–3 раза дешевле, значит, вся цена в стекле. Цена общего источника: около
+ * 25–33 МБ видеопамяти. Выключатель на экране проверки ([SkyProbe.blurShared]) для сравнения на стенде.
+ */
+@OptIn(ExperimentalHazeApi::class)
+private fun Modifier.skySource(state: HazeState): Modifier =
+    hazeSource(state, inputSharing = if (SkyProbe.blurShared) HazeInputSharing.Auto else HazeInputSharing.Never)
