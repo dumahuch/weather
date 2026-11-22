@@ -669,10 +669,10 @@
     <string name="radar_source">DWD radar</string>
     <string name="radar_raining">Raining now</string>
     <string name="radar_dry">Dry for the next 2 hours</string>
-    <string name="radar_until">until %1$s · about %2$s mm</string>
+    <string name="radar_until">Until %1$s · about %2$s mm</string>
     <string name="radar_loading">Loading radar…</string>
     <string name="radar_failed">Radar unavailable right now</string>
-    <string name="radar_axis_now">now</string>
+    <string name="radar_axis_now">Now</string>
     <string name="hourly_water_scale">1 mm/h</string>
     <string name="pg_rain_note">Intensity: AMS (light up to 2.5 mm per hour, moderate up to 7.6, heavy above). Chance: precipitation over 0.1 mm in the hour, from 30 ensemble runs. Inner arc of the circle: day in gold, night in deep blue. Forecast: Open-Meteo.</string>
     <string name="pg_week_feels">Feels</string>

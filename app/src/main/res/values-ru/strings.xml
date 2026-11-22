@@ -661,13 +661,13 @@
     <string name="pg_rain_dry">сухо</string>
     <string name="pg_week_day_total">За сутки</string>
     <string name="radar_title">Ближайшие 2 часа</string>
-    <string name="radar_source">радар DWD</string>
+    <string name="radar_source">Радар DWD</string>
     <string name="radar_raining">Сейчас идёт дождь</string>
     <string name="radar_dry">Ближайшие 2 часа без осадков</string>
-    <string name="radar_until">до %1$s · около %2$s мм</string>
+    <string name="radar_until">До %1$s · около %2$s мм</string>
     <string name="radar_loading">Радар загружается…</string>
     <string name="radar_failed">Радар сейчас недоступен</string>
-    <string name="radar_axis_now">сейчас</string>
+    <string name="radar_axis_now">Сейчас</string>
     <string name="hourly_water_scale">1 мм/ч</string>
     <string name="pg_rain_note">Сила осадков: AMS (слабые до 2,5 мм в час, умеренные до 7,6, сильные больше). Вероятность: осадки больше 0,1 мм за час по 30 расчётам ансамбля моделей. Дуга внутри круга: день золотой, ночь тёмно-синяя. Прогноз: Open-Meteo.</string>
     <string name="pg_week_feels">Ощущается</string>

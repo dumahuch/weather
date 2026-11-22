@@ -658,10 +658,10 @@
     <string name="radar_source">DWD-Radar</string>
     <string name="radar_raining">Es regnet gerade</string>
     <string name="radar_dry">Die nächsten 2 Stunden trocken</string>
-    <string name="radar_until">bis %1$s · etwa %2$s mm</string>
+    <string name="radar_until">Bis %1$s · etwa %2$s mm</string>
     <string name="radar_loading">Radar wird geladen…</string>
     <string name="radar_failed">Radar gerade nicht verfügbar</string>
-    <string name="radar_axis_now">jetzt</string>
+    <string name="radar_axis_now">Jetzt</string>
     <string name="hourly_water_scale">1 mm/h</string>
     <string name="pg_rain_note">Stärke: AMS (leicht bis 2,5 mm pro Stunde, mäßig bis 7,6, stark darüber). Wahrscheinlichkeit: Niederschlag über 0,1 mm in der Stunde, aus 30 Ensemble-Läufen. Innerer Bogen des Kreises: Tag golden, Nacht tiefblau. Vorhersage: Open-Meteo.</string>
     <string name="pg_week_feels">Gefühl</string>
