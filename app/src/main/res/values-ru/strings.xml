@@ -134,6 +134,16 @@
         <item>Высокая</item>
     </string-array>
     <string name="tile_wind_now">Ветер</string>
+    <string-array name="wind_points_short">
+        <item>С</item>
+        <item>СВ</item>
+        <item>В</item>
+        <item>ЮВ</item>
+        <item>Ю</item>
+        <item>ЮЗ</item>
+        <item>З</item>
+        <item>СЗ</item>
+    </string-array>
     <string-array name="wind_directions">
         <item>Северный</item>
         <item>Северо-восточный</item>

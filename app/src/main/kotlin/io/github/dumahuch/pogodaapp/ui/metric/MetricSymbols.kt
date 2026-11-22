@@ -7,14 +7,10 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -26,7 +22,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -39,9 +34,7 @@ import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sunmoon.goldInk
-import kotlin.math.atan2
 import kotlin.math.cos
-import kotlin.math.floor
 import kotlin.math.sin
 
 /*
@@ -134,14 +127,16 @@ private const val CARDINAL_GAP = 9
 /**
  * Круг суток из столбиков осадков (сверху полночь, по часовой), размер задаёт [modifier]: символ карточки «Сегодня»
  * справа от текста. Столбик часа наружу, длина по количеству, цвет по силе; прошедшие часы сплошные, прогноз контуром,
- * выбранный час шире. Нажми на столбик или проведи пальцем по кругу (свайп, Дима 22.11): в центре время выбранного часа
- * и его осадки; по умолчанию выбран текущий час. Внутри дуга дня (золотая) и ночи (тёмно-синяя) с плавными рассветом
- * и закатом через [sunriseHour] и [sunsetHour] (доли часа; пусто в полярный день и ночь, тогда дуги нет); светлая кайма
- * вдоль дуги держит её читаемой на тёмном ночном небе.
+ * выбранный час [selected] шире, и на дуге суток стоит бегунок цвета его столбика с тонкой светлой каймой (Дима 22.11:
+ * без белого и без чёрного). В центре время выбранного часа и его осадки. Час выбирает [RainRingPicker] жестом вокруг
+ * круга, сам рисунок жестов не ловит. Внутри дуга дня (золотая) и ночи (тёмно-синяя) с плавными рассветом и закатом
+ * через [sunriseHour] и [sunsetHour] (доли часа; пусто в полярный день и ночь, тогда дуги нет); светлая кайма вдоль
+ * дуги держит её читаемой на тёмном ночном небе.
  */
 @Composable
 internal fun RainRing(
     values: List<Double?>,
+    selected: Int,
     nowIndex: Int?,
     sunriseHour: Double?,
     sunsetHour: Double?,
@@ -152,25 +147,11 @@ internal fun RainRing(
 ) {
     val palette = LocalPogodaPalette.current
     val measurer = rememberTextMeasurer()
-    val peak = values.indices.filter { (values[it] ?: 0.0) > 0 }.maxByOrNull { values[it]!! }
-    var selected by remember(values, nowIndex) { mutableIntStateOf(nowIndex ?: peak ?: HOURS / 2) }
     val timeStyle = remember(palette) { pogodaText(22f, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
     val valueStyle = remember(palette) { pogodaText(13f, 600, color = palette.ink2, lineHeight = 1f, tabular = true) }
-    fun pick(at: Offset, side: Float) {
-        val dx = at.x - side / 2
-        val dy = at.y - side / 2
-        var angle = Math.toDegrees(atan2(dx.toDouble(), -dy.toDouble()))
-        if (angle < 0) angle += 360.0
-        selected = floor(angle / DEGREES_PER_HOUR).toInt().coerceIn(0, HOURS - 1)
-    }
     val selectedValue = values.getOrNull(selected) ?: 0.0
     val description = "%02d:00, %s".format(java.util.Locale.ROOT, selected, if (selectedValue > 0) "${valueText(selectedValue)} $unit" else dryText)
-    Canvas(
-        modifier
-            .semantics { contentDescription = description }
-            .pointerInput(values) { detectTapGestures { pick(it, this.size.width.toFloat()) } }
-            .pointerInput(values) { detectDragGestures(onDragStart = { pick(it, this.size.width.toFloat()) }) { change, _ -> pick(change.position, this.size.width.toFloat()) } },
-    ) {
+    Canvas(modifier.semantics { contentDescription = description }) {
         val c = center
         val k = this.size.minDimension / 120f
         val inner = RING_INNER * k
@@ -202,6 +183,9 @@ internal fun RainRing(
                 }
             }
         }
+        val slider = ringPoint(c, RING_ARC_RADIUS * k, (selected + 0.5f) * DEGREES_PER_HOUR)
+        drawCircle(if (selectedValue > 0) RainColors[rainLevel(selectedValue)] else DryTone, SLIDER_RADIUS * k, slider)
+        drawCircle(SliderEdge, SLIDER_RADIUS * k, slider, style = Stroke(SLIDER_EDGE * k))
         val time = measurer.measure("%02d:00".format(java.util.Locale.ROOT, selected), timeStyle)
         val main = measurer.measure(if (selectedValue > 0) "${valueText(selectedValue)} $unit" else dryText, valueStyle)
         val total = time.size.height + main.size.height + 6.dp.toPx()
@@ -212,14 +196,26 @@ internal fun RainRing(
     }
 }
 
-private const val HOURS = 24
-private const val DEGREES_PER_HOUR = 15f
+internal const val HOURS = 24
+internal const val DEGREES_PER_HOUR = 15f
 
 /** Размеры круга в долях k (одна k = 1/120 стороны): дуга суток, внутренний край и наибольшая длина столбиков. */
 private const val RING_ARC_RADIUS = 39f
 private const val RING_ARC_WIDTH = 3.4f
 private const val RING_INNER = 45f
 private const val RING_LONGEST = 13f
+
+/** Бегунок на дуге: радиус и кайма в долях k, цвет сухого часа и светлая кайма (не белая рамка, Дима отверг). */
+private const val SLIDER_RADIUS = 4.8f
+private const val SLIDER_EDGE = 1.4f
+private val DryTone = Color(0xFF8FA3C4)
+private val SliderEdge = Color.White.copy(alpha = 0.75f)
+
+/** Точка на окружности радиуса [r] вокруг [c], угол в градусах от верха по часовой. */
+private fun ringPoint(c: Offset, r: Float, degrees: Float): Offset {
+    val a = Math.toRadians(degrees.toDouble())
+    return Offset(c.x + r * sin(a).toFloat(), c.y - r * cos(a).toFloat())
+}
 
 /** Наименьший верх шкалы круга, мм за час: слабый дождь не должен выглядеть ливнем. */
 private const val MIN_RING_MM = 1.5

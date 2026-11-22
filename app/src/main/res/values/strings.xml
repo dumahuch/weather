@@ -137,6 +137,16 @@
     </string-array>
     <string name="tile_wind_now">Wind</string>
     <!-- Hour details: where the wind blows from, after the wind strength word ("Moderate breeze from the south") -->
+    <string-array name="wind_points_short">
+        <item>N</item>
+        <item>NE</item>
+        <item>E</item>
+        <item>SE</item>
+        <item>S</item>
+        <item>SW</item>
+        <item>W</item>
+        <item>NW</item>
+    </string-array>
     <string-array name="wind_directions">
         <item>Northerly</item>
         <item>North-easterly</item>
