@@ -132,16 +132,15 @@
         <item>Hohe</item>
     </string-array>
     <string name="tile_wind_now">Wind</string>
-    <!-- Румбы ветра сокращённо: откуда дует (ВМО). -->
-    <string-array name="wind_points_short">
-        <item>N</item>
-        <item>NO</item>
-        <item>O</item>
-        <item>SO</item>
-        <item>S</item>
-        <item>SW</item>
-        <item>W</item>
-        <item>NW</item>
+    <string-array name="wind_directions">
+        <item>Nord</item>
+        <item>Nordost</item>
+        <item>Ost</item>
+        <item>Südost</item>
+        <item>Süd</item>
+        <item>Südwest</item>
+        <item>West</item>
+        <item>Nordwest</item>
     </string-array>
     <string-array name="wind_from">
         <item>aus Norden</item>
@@ -642,7 +641,7 @@
     <string name="pg_peak_line">%1$s: %2$s %3$s</string>
     <!-- Ветер, осадки, влажность в едином стиле (0.8.83) -->
     <string name="pg_wind_direction">Richtung</string>
-    <string name="pg_wind_note">Windstärke in Worten: Beaufort-Skala (Met Office). Geschwindigkeit in 10 m Höhe, Böen: stärkste Böe der Stunde. Die Richtung nennt, woher der Wind kommt (NW: Nordwest, 315°), der Pfeil zeigt, wohin er weht. Vorhersage: Open-Meteo.</string>
+    <string name="pg_wind_note">Windstärke in Worten: Beaufort-Skala (Met Office). Geschwindigkeit in 10 m Höhe, Böen: stärkste Böe der Stunde. Der Pfeil zeigt, wohin der Wind weht. Vorhersage: Open-Meteo.</string>
     <string name="pg_mm_h">mm/h</string>
     <string name="pg_rain_hour">%1$s mm/h · %2$s, Wahrscheinlichkeit %3$s</string>
     <string name="pg_rain_hour_dry">Trocken, Wahrscheinlichkeit %1$s</string>
