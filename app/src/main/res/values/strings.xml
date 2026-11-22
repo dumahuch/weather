@@ -137,16 +137,15 @@
     </string-array>
     <string name="tile_wind_now">Wind</string>
     <!-- Hour details: where the wind blows from, after the wind strength word ("Moderate breeze from the south") -->
-    <!-- Румбы ветра сокращённо: откуда дует (ВМО). -->
-    <string-array name="wind_points_short">
-        <item>N</item>
-        <item>NE</item>
-        <item>E</item>
-        <item>SE</item>
-        <item>S</item>
-        <item>SW</item>
-        <item>W</item>
-        <item>NW</item>
+    <string-array name="wind_directions">
+        <item>Northerly</item>
+        <item>North-easterly</item>
+        <item>Easterly</item>
+        <item>South-easterly</item>
+        <item>Southerly</item>
+        <item>South-westerly</item>
+        <item>Westerly</item>
+        <item>North-westerly</item>
     </string-array>
     <string-array name="wind_from">
         <item>from the north</item>
@@ -653,7 +652,7 @@
     <string name="pg_peak_line">%1$s: %2$s %3$s</string>
     <!-- Ветер, осадки, влажность в едином стиле (0.8.83) -->
     <string name="pg_wind_direction">Direction</string>
-    <string name="pg_wind_note">Wind strength in words: Beaufort scale (Met Office). Speed at 10 m, gusts: the strongest gust within the hour. The direction names where the wind comes from (NW: north-westerly, 315°), the arrow shows where it blows. Forecast: Open-Meteo.</string>
+    <string name="pg_wind_note">Wind strength in words: Beaufort scale (Met Office). Speed at 10 m, gusts: the strongest gust within the hour. The arrow shows where the wind blows. Forecast: Open-Meteo.</string>
     <string name="pg_mm_h">mm/h</string>
     <string name="pg_rain_hour">%1$s mm/h · %2$s, chance %3$s</string>
     <string name="pg_rain_hour_dry">Dry, chance %1$s</string>

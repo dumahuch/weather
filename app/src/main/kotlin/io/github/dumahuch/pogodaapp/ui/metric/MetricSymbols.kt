@@ -1,7 +1,13 @@
 package io.github.dumahuch.pogodaapp.ui.metric
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -58,21 +64,19 @@ private val NorthMark = Color(0xFFE8584F)
 
 /**
  * Компас: частые тонкие деления (каждые 3°, длиннее каждые 30°), буквы сторон света в кольце, север тёплой буквой и
- * красным треугольником на кольце. Белая стрелка через круг от стороны, откуда дует, наконечником туда, куда дует;
- * при [speed] стрелка разорвана вокруг числа в центре.
+ * красным треугольником на кольце. Сплошная стрелка через круг от стороны, откуда дует, наконечником туда, куда дует;
+ * числа в центре нет (скорость написана в карточке «Сейчас»).
  */
 @Composable
-internal fun WindCompass(fromDegrees: Int, size: Dp, modifier: Modifier = Modifier, speed: String? = null, unit: String? = null) {
+internal fun WindCompass(fromDegrees: Int, size: Dp, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val letters = stringArrayResource(R.array.compass_letters).toList()
     val measurer = rememberTextMeasurer()
     val north = goldInk()
-    // Большой компас (страница «Направление») крупнее и по буквам, и по числу; мелкий остаётся прежним.
+    // Буквы сторон света крупные (Дима 22.11): растут вместе с размером компаса.
     val scale = (size.value / COMPASS_BASE_DP).coerceIn(1f, MAX_FONT_SCALE)
     val letterStyle = remember(palette, scale) { pogodaText(12f * scale, 700, color = palette.ink, lineHeight = 1f) }
-    val numberStyle = remember(palette, scale) { pogodaText(24f * scale, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
-    val unitStyle = remember(palette, scale) { pogodaText(10f * scale, 600, color = palette.ink2, lineHeight = 1f) }
-    Canvas(modifier.size(size).semantics { contentDescription = listOfNotNull(speed, unit).joinToString(" ") }) {
+    Canvas(modifier.size(size)) {
         val c = center
         val k = this.size.minDimension / 120f
         val r = this.size.minDimension / 2 - 2.dp.toPx()
@@ -107,12 +111,10 @@ internal fun WindCompass(fromDegrees: Int, size: Dp, modifier: Modifier = Modifi
             drawText(layout, topLeft = Offset(at.x - layout.size.width / 2f, at.y - layout.size.height / 2f))
         }
         val reach = r - 15f * k
-        val gap = if (speed != null) 20f * k else 0f
         rotate(fromDegrees + 180f, c) {
             val width = 2.4f * k
-            // Хвост со стороны, откуда дует (внизу после поворота), наконечник вверху.
-            drawLine(palette.ink, Offset(c.x, c.y + reach), Offset(c.x, c.y + gap), width, StrokeCap.Round)
-            drawLine(palette.ink, Offset(c.x, c.y - gap), Offset(c.x, c.y - reach + 6f * k), width, StrokeCap.Round)
+            // Сплошная стрелка: хвост со стороны, откуда дует (внизу после поворота), наконечник вверху.
+            drawLine(palette.ink, Offset(c.x, c.y + reach), Offset(c.x, c.y - reach + 6f * k), width, StrokeCap.Round)
             val head = Path().apply {
                 moveTo(c.x, c.y - reach)
                 lineTo(c.x - 5f * k, c.y - reach + 10f * k)
@@ -121,29 +123,21 @@ internal fun WindCompass(fromDegrees: Int, size: Dp, modifier: Modifier = Modifi
             }
             drawPath(head, palette.ink)
         }
-        if (speed != null) {
-            val number = measurer.measure(speed, numberStyle)
-            drawText(number, topLeft = Offset(c.x - number.size.width / 2f, c.y - number.size.height * 0.62f))
-            unit?.let {
-                val u = measurer.measure(it, unitStyle)
-                drawText(u, topLeft = Offset(c.x - u.size.width / 2f, c.y + number.size.height * 0.42f))
-            }
-        }
     }
 }
 
-private const val COMPASS_BASE_DP = 168f
-private const val MAX_FONT_SCALE = 1.4f
+private const val COMPASS_BASE_DP = 120f
+private const val MAX_FONT_SCALE = 1.5f
 private const val TICK_DEGREES = 3
-private const val CARDINAL_GAP = 7
+private const val CARDINAL_GAP = 9
 
 /**
- * Круг суток из столбиков осадков (сверху полночь, по часовой), размер задаёт [modifier] (макет 22.11: большой, во всю
- * карточку): столбик часа наружу, длина по количеству, цвет по силе; прошедшие часы сплошные, прогноз контуром, выбранный
- * час шире. Нажми на столбик или нажми, задержись и проведи: в центре время выбранного часа и его осадки; по умолчанию
- * выбран текущий час (обычное проведение вдоль страницы прокручивает её, а не выбирает час). Внутри дуга дня (золотая)
- * и ночи (тёмно-синяя) с плавными рассветом и закатом через [sunriseHour] и [sunsetHour] (доли часа; пусто в полярный
- * день и ночь, тогда дуги нет); светлая кайма вдоль дуги держит её читаемой на тёмном ночном небе.
+ * Круг суток из столбиков осадков (сверху полночь, по часовой), размер задаёт [modifier]: символ карточки «Сегодня»
+ * справа от текста. Столбик часа наружу, длина по количеству, цвет по силе; прошедшие часы сплошные, прогноз контуром,
+ * выбранный час шире. Нажми на столбик или проведи пальцем по кругу (свайп, Дима 22.11): в центре время выбранного часа
+ * и его осадки; по умолчанию выбран текущий час. Внутри дуга дня (золотая) и ночи (тёмно-синяя) с плавными рассветом
+ * и закатом через [sunriseHour] и [sunsetHour] (доли часа; пусто в полярный день и ночь, тогда дуги нет); светлая кайма
+ * вдоль дуги держит её читаемой на тёмном ночном небе.
  */
 @Composable
 internal fun RainRing(
@@ -160,8 +154,8 @@ internal fun RainRing(
     val measurer = rememberTextMeasurer()
     val peak = values.indices.filter { (values[it] ?: 0.0) > 0 }.maxByOrNull { values[it]!! }
     var selected by remember(values, nowIndex) { mutableIntStateOf(nowIndex ?: peak ?: HOURS / 2) }
-    val timeStyle = remember(palette) { pogodaText(26f, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
-    val valueStyle = remember(palette) { pogodaText(15f, 600, color = palette.ink2, lineHeight = 1f, tabular = true) }
+    val timeStyle = remember(palette) { pogodaText(22f, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
+    val valueStyle = remember(palette) { pogodaText(13f, 600, color = palette.ink2, lineHeight = 1f, tabular = true) }
     fun pick(at: Offset, side: Float) {
         val dx = at.x - side / 2
         val dy = at.y - side / 2
@@ -175,7 +169,7 @@ internal fun RainRing(
         modifier
             .semantics { contentDescription = description }
             .pointerInput(values) { detectTapGestures { pick(it, this.size.width.toFloat()) } }
-            .pointerInput(values) { detectDragGesturesAfterLongPress(onDragStart = { pick(it, this.size.width.toFloat()) }) { change, _ -> pick(change.position, this.size.width.toFloat()) } },
+            .pointerInput(values) { detectDragGestures(onDragStart = { pick(it, this.size.width.toFloat()) }) { change, _ -> pick(change.position, this.size.width.toFloat()) } },
     ) {
         val c = center
         val k = this.size.minDimension / 120f
@@ -187,7 +181,7 @@ internal fun RainRing(
         values.forEachIndexed { h, v ->
             val value = v ?: 0.0
             val angle = (h + 0.5f) * DEGREES_PER_HOUR
-            val w = (if (h == selected) 3.6f else 2.0f) * k
+            val w = (if (h == selected) 4.6f else 2.8f) * k
             rotate(angle, c) {
                 if (value <= 0) {
                     drawCircle(palette.ink.copy(alpha = 0.28f), (if (h == selected) 1.5f else 0.9f) * k, Offset(c.x, c.y - inner))
@@ -263,3 +257,45 @@ private fun DrawScope.dayArc(c: Offset, radius: Float, width: Float, sunrise: Do
         drawCircle(Brush.sweepGradient(*stops, center = c), radius, c, style = Stroke(width))
     }
 }
+
+/**
+ * Ветряк (Дима 22.11, вместо малого компаса в «Сейчас»): башня и три лопасти, лопасти крутятся, пока страница открыта.
+ * Один оборот за 49 / скорость секунд (7 км/ч: 7 с, 30 км/ч: 1,6 с), не быстрее 0,6 с и не медленнее 20 с; при скорости
+ * меньше 1 км/ч (штиль) и без скорости ветряк стоит. Если у телефона анимации выключены, лопасти не вращаются.
+ */
+@Composable
+internal fun Windmill(speedKmh: Int?, size: Dp, modifier: Modifier = Modifier) {
+    val palette = LocalPogodaPalette.current
+    val moving = speedKmh != null && speedKmh >= 1
+    val period = if (moving) (WINDMILL_TURN_SECONDS / speedKmh!!).coerceIn(WINDMILL_FASTEST_S, WINDMILL_SLOWEST_S) else WINDMILL_SLOWEST_S
+    val transition = rememberInfiniteTransition(label = "windmill")
+    val turn by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = if (moving) 360f else 0f,
+        animationSpec = infiniteRepeatable(tween((period * 1000).toInt(), easing = LinearEasing), RepeatMode.Restart),
+        label = "windmillTurn",
+    )
+    Canvas(modifier.size(size).semantics { contentDescription = speedKmh?.toString() ?: "" }) {
+        val k = this.size.minDimension / 100f
+        val hub = Offset(50f * k, 44f * k)
+        val tower = Path().apply {
+            moveTo(47f * k, 96f * k)
+            lineTo(50f * k, 48f * k)
+            lineTo(53f * k, 96f * k)
+            close()
+        }
+        drawPath(tower, palette.ink)
+        val blade = Path().apply {
+            moveTo(hub.x, hub.y)
+            cubicTo(46f * k, 30f * k, 47f * k, 14f * k, 50f * k, 4f * k)
+            cubicTo(53f * k, 14f * k, 54f * k, 30f * k, hub.x, hub.y)
+            close()
+        }
+        for (i in 0 until 3) rotate(turn + i * 120f + 20f, hub) { drawPath(blade, palette.ink) }
+        drawCircle(palette.ink, 4.5f * k, hub)
+    }
+}
+
+private const val WINDMILL_TURN_SECONDS = 49f
+private const val WINDMILL_FASTEST_S = 0.6f
+private const val WINDMILL_SLOWEST_S = 20f

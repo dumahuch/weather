@@ -134,16 +134,15 @@
         <item>Высокая</item>
     </string-array>
     <string name="tile_wind_now">Ветер</string>
-    <!-- Румбы ветра сокращённо: откуда дует (ВМО). -->
-    <string-array name="wind_points_short">
-        <item>С</item>
-        <item>СВ</item>
-        <item>В</item>
-        <item>ЮВ</item>
-        <item>Ю</item>
-        <item>ЮЗ</item>
-        <item>З</item>
-        <item>СЗ</item>
+    <string-array name="wind_directions">
+        <item>Северный</item>
+        <item>Северо-восточный</item>
+        <item>Восточный</item>
+        <item>Юго-восточный</item>
+        <item>Южный</item>
+        <item>Юго-западный</item>
+        <item>Западный</item>
+        <item>Северо-западный</item>
     </string-array>
     <string-array name="wind_from">
         <item>с севера</item>
@@ -648,7 +647,7 @@
     <string name="pg_peak_line">%1$s: %2$s %3$s</string>
     <!-- Ветер, осадки, влажность в едином стиле (0.8.83) -->
     <string name="pg_wind_direction">Направление</string>
-    <string name="pg_wind_note">Сила ветра словами: шкала Бофорта (Met Office). Скорость на высоте 10 м, порывы: самый сильный порыв за час. Направление называют по тому, откуда дует ветер (СЗ: северо-западный, 315°), стрелка показывает, куда он дует. Прогноз: Open-Meteo.</string>
+    <string name="pg_wind_note">Сила ветра словами: шкала Бофорта (Met Office). Скорость на высоте 10 м, порывы: самый сильный порыв за час. Стрелка показывает, куда дует ветер. Прогноз: Open-Meteo.</string>
     <string name="pg_mm_h">мм/ч</string>
     <string name="pg_rain_hour">%1$s мм/ч · %2$s, вероятность %3$s</string>
     <string name="pg_rain_hour_dry">Без осадков, вероятность %1$s</string>
