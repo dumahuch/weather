@@ -8,7 +8,7 @@ import kotlin.math.sqrt
 /**
  * Луна в данный момент: где на небе места, какая фаза, северное или южное полушарие (от него зависит, какая сторона освещена),
  * [peak] наибольшая высота луны за сутки вокруг этого момента (по ней высота рисуется схематично), [forced] показать луну всегда
- * (для экрана проверки: посмотреть фазу и свечение в любое время).
+ * (для экрана проверки: посмотреть фазу и свечение в любое время), [legacy] прежний вид фаз четырьмя картинками (сравнение на экране проверки).
  */
 internal class MoonSky(
     val position: Moon.Position,
@@ -16,6 +16,7 @@ internal class MoonSky(
     val southern: Boolean,
     val peak: Double = DEFAULT_PEAK,
     val forced: Boolean = false,
+    val legacy: Boolean = false,
 ) {
     companion object {
         const val DEFAULT_PEAK = 45.0
@@ -27,7 +28,8 @@ internal class MoonSky(
  * для места и времени. [file] имя картинки без расширения (`sun`, `moon_quarter_waxing`), [hourAngleHours] часовой угол
  * (0 на юге, минус к востоку, плюс к западу), [alpha] прозрачность (луна появляется в сумерках), [lit] доля освещённого диска
  * на картинке (0,25 серп, 0,5 четверть, 0,75 растущая или убывающая, 1 полная), [lightOnRight] освещена ли правая сторона на экране,
- * [mirrored] картинку надо отразить по горизонтали (южное полушарие: картинки сделаны для северного).
+ * [mirrored] картинку надо отразить по горизонтали (южное полушарие: картинки сделаны для северного), [shaded] фаза рисуется
+ * маской [MoonShade] поверх полной луны, [lit] тогда настоящая освещённость.
  */
 internal class SkyBody(
     val file: String,
@@ -38,6 +40,7 @@ internal class SkyBody(
     val lit: Double,
     val lightOnRight: Boolean,
     val mirrored: Boolean = false,
+    val shaded: Boolean = false,
 )
 
 /** Диск на экране: центр, видимый радиус диска и сторона квадрата картинки в пикселях экрана. */
@@ -86,7 +89,7 @@ internal object Celestial {
     private const val SUN_DIAMETER = 0.20
     private const val SUN_FRACTION = 0.56
     private const val MOON_DIAMETER = 0.17
-    private const val MOON_FRACTION = 664.0 / 1254.0
+    const val MOON_FRACTION = 664.0 / 1254.0
 
     /** Свечение при расчёте цветов: радиус в долях радиуса диска и его сила. */
     private const val GLOW_RADIUS = 1.35
@@ -95,10 +98,10 @@ internal object Celestial {
     private val SUN_COLOR = Rgb(240.0, 155.0, 35.0)
     private val MOON_COLOR = Rgb(226.0, 230.0, 228.0)
 
-    fun moonSky(latitude: Double, longitude: Double, time: Instant): MoonSky {
+    fun moonSky(latitude: Double, longitude: Double, time: Instant, legacy: Boolean = false): MoonSky {
         // Наибольшая высота за сутки вокруг момента (шаг час): по ней схема ставит луну на дугу, как солнце.
         val peak = (-12..12).maxOf { Moon.positionAt(time.plusSeconds(it * 3600L), latitude, longitude).elevation }
-        return MoonSky(Moon.positionAt(time, latitude, longitude), Moon.phaseAt(time), latitude < 0, peak.coerceAtLeast(MIN_PEAK))
+        return MoonSky(Moon.positionAt(time, latitude, longitude), Moon.phaseAt(time), latitude < 0, peak.coerceAtLeast(MIN_PEAK), legacy = legacy)
     }
 
     /**
@@ -119,12 +122,13 @@ internal object Celestial {
     }
 
     /** Луна для экрана проверки: заданная фаза ([cycle], доля месяца), всегда видна, стоит в самой высокой точке дуги. */
-    fun testMoon(latitude: Double, cycle: Double): MoonSky = MoonSky(
+    fun testMoon(latitude: Double, cycle: Double, legacy: Boolean = false): MoonSky = MoonSky(
         Moon.Position(MoonSky.DEFAULT_PEAK, TEST_MOON_HOUR_ANGLE),
         Moon.Phase((1 - kotlin.math.cos(2 * Math.PI * cycle)) / 2, cycle),
         latitude < 0,
         MoonSky.DEFAULT_PEAK,
         forced = true,
+        legacy = legacy,
     )
 
     /**
@@ -144,11 +148,20 @@ internal object Celestial {
             if (alpha > 0 && image != null) {
                 // Растущая на картинке освещена справа, убывающая слева; на юге всё наоборот (картинку отражаем).
                 val lightOnRight = moon.phase.waxing != moon.southern
-                result += SkyBody(image.file, true, schematic(moon.position.elevation, moon.peak), moon.position.hourAngleHours, alpha, image.lit, lightOnRight, moon.southern)
+                val elevation = schematic(moon.position.elevation, moon.peak)
+                result += if (moon.legacy) {
+                    SkyBody(image.file, true, elevation, moon.position.hourAngleHours, alpha, image.lit, lightOnRight, moon.southern)
+                } else {
+                    val lit = moon.phase.illumination.coerceIn(0.0, 1.0)
+                    SkyBody(FULL_MOON, true, elevation, moon.position.hourAngleHours, alpha, lit, lightOnRight, moon.southern, shaded = true)
+                }
             }
         }
         return result
     }
+
+    /** Картинка, поверх которой маска [MoonShade] рисует фазу. */
+    const val FULL_MOON = "moon_full"
 
     private class MoonImage(val file: String, val lit: Double)
 

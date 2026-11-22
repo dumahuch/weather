@@ -113,7 +113,6 @@ fun DayDetailScreen(
         Spacer(Modifier.height(18.dp))
         if (hours.isNotEmpty()) {
             HourlyFrame(
-                caption = stringResource(R.string.hourly_caption),
                 modifier = Modifier.padding(horizontal = 20.dp),
             ) {
                 HourlyStrip(

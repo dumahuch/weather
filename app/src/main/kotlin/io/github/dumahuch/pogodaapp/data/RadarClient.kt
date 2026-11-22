@@ -21,11 +21,13 @@ interface RadarSource {
  * Радар осадков DWD через Bright Sky (https://api.brightsky.dev/radar, описание: https://api.brightsky.dev/openapi.json):
  * сетка 1 км, шаг 5 минут, прогноз на два часа. Запрашивается маленький квадрат (±2 км, 5×5 клеток) вокруг места в виде
  * обычных чисел (`format=plain`), чтобы не распаковывать сжатые данные. Ключа не нужно; к самим данным применяются условия
- * DWD (ссылка на источник «Deutscher Wetterdienst»). Время запроса: от 15 минут назад до 80 минут вперёд.
+ * DWD (ссылка на источник «Deutscher Wetterdienst»). Время запроса: от 15 минут назад до [ahead] вперёд (уведомлению
+ * хватает 80 минут, карточке «Ближайшие 2 часа» нужен весь прогноз радара).
  */
 class BrightSkyRadarClient(
     private val baseUrl: String = DEFAULT_BASE_URL,
     private val userAgent: String = "PogodaApp",
+    private val ahead: Duration = AHEAD,
 ) : RadarSource {
 
     override suspend fun fetchRaw(latitude: Double, longitude: Double, now: Instant): String = withContext(Dispatchers.IO) {
@@ -36,7 +38,7 @@ class BrightSkyRadarClient(
         val lat = Coordinates.param(latitude)
         val lon = Coordinates.param(longitude)
         val from = now.minus(PAST).truncatedTo(ChronoUnit.SECONDS)
-        val to = now.plus(AHEAD).truncatedTo(ChronoUnit.SECONDS)
+        val to = now.plus(ahead).truncatedTo(ChronoUnit.SECONDS)
         return "$baseUrl?lat=$lat&lon=$lon&distance=$DISTANCE_M&format=plain&tz=UTC&date=$from&last_date=$to"
     }
 
@@ -45,6 +47,9 @@ class BrightSkyRadarClient(
         private const val DISTANCE_M = 2000
         private val PAST: Duration = Duration.ofMinutes(15)
         private val AHEAD: Duration = Duration.ofMinutes(80)
+
+        /** Весь прогноз радара (два часа) и запас на один кадр. */
+        val FULL_AHEAD: Duration = Duration.ofMinutes(125)
     }
 }
 

@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.floor
 
 /** Настоящий минус (U+2212), как в макете, вместо дефиса. */
@@ -60,9 +61,6 @@ object HourlyGeometry {
     private const val CURVE_TOP = 82f
     private const val CURVE_RANGE = 28f
     private const val CURVE_FLAT = 96f
-    private const val BAR_MAX = 26f
-    private const val BAR_MIN = 3f
-    private const val MIN_SCALE_MM = 1.5
 
     fun curveY(rounded: List<Int>): List<Float> {
         val min = rounded.minOrNull() ?: return emptyList()
@@ -72,12 +70,37 @@ object HourlyGeometry {
         }
     }
 
+    /** Вода снизу ленты (вариант В1, решение Димы 22.11.2026): наибольшая высота и высота при 1 мм/ч, единицы колонки. */
+    const val WATER_MAX = 40f
+    const val WATER_ONE_MM = 24f
+    private const val WATER_MIN = 3f
+
+    /** Выше 1 мм/ч вода растёт всё медленнее: ливень не закрывает температуру, но заметно выше слабого дождя. */
+    private const val WATER_EASE_MM = 2.0
+
     /**
-     * Высота столбика; 0 для часов без значения (там рисуется тонкая полоска). Шкала от наибольшего значения, но не
-     * меньше [minScale]: у осадков 1,5 мм, у порывов на странице ветра своя.
+     * Высота воды над нижним краем ленты для осадков часа [mm] (мм за час): до 1 мм прямо пропорционально, дальше плавно
+     * к [WATER_MAX]; сухой час 0, любые осадки не ниже [WATER_MIN] (иначе 0,1 мм не видно).
      */
-    fun barHeights(values: List<Double>, minScale: Double = MIN_SCALE_MM): List<Float> {
-        val scale = maxOf(minScale, values.maxOrNull() ?: 0.0)
-        return values.map { v -> if (v > 0.0) maxOf(BAR_MIN, (v / scale * BAR_MAX).toFloat()) else 0f }
+    fun waterHeight(mm: Double): Float = when {
+        mm <= 0.0 -> 0f
+        mm <= 1.0 -> maxOf(WATER_MIN, (mm * WATER_ONE_MM).toFloat())
+        else -> (WATER_ONE_MM + (WATER_MAX - WATER_ONE_MM) * (1 - exp(-(mm - 1.0) / WATER_EASE_MM))).toFloat()
+    }
+
+    /** Часы, над которыми пишется количество: самый сильный час каждого дождя (часы с осадками подряд). */
+    fun waterPeaks(values: List<Double>): List<Int> {
+        val peaks = ArrayList<Int>()
+        var best = -1
+        values.forEachIndexed { i, v ->
+            if (v > 0.0) {
+                if (best < 0 || v > values[best]) best = i
+            } else if (best >= 0) {
+                peaks += best
+                best = -1
+            }
+        }
+        if (best >= 0) peaks += best
+        return peaks
     }
 }

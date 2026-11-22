@@ -90,7 +90,7 @@ fun MetricScreen(
             )
         } else {
             val ctx = PageContext(
-                forecast, date, today, now, dates,
+                forecast, date, today, now, dates, state.place,
                 onSelect = { picked ->
                     chosen = picked.toEpochDay()
                     scope.launch { scroll.animateScrollTo(0) }

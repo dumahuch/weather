@@ -193,11 +193,9 @@ fun HomeScreen(
                 }
                 when (state) {
                     HomeUiState.Loading -> HourlyFrame(
-                        caption = "",
                         modifier = Modifier.padding(horizontal = 20.dp),
                     ) { HourlySkeleton() }
                     is HomeUiState.Content -> HourlyFrame(
-                        caption = stringResource(R.string.hourly_caption),
                         modifier = Modifier.padding(horizontal = 20.dp),
                     ) {
                         val report = remember(layout) {

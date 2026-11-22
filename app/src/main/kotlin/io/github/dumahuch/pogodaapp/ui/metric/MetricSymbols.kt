@@ -143,6 +143,7 @@ internal fun RainRing(
     valueText: (Double) -> String,
     dryText: String,
     unit: String,
+    chanceText: String?,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPogodaPalette.current
@@ -150,7 +151,8 @@ internal fun RainRing(
     val timeStyle = remember(palette) { pogodaText(22f, 500, color = palette.ink, lineHeight = 1f, tabular = true) }
     val valueStyle = remember(palette) { pogodaText(13f, 600, color = palette.ink2, lineHeight = 1f, tabular = true) }
     val selectedValue = values.getOrNull(selected) ?: 0.0
-    val description = "%02d:00, %s".format(java.util.Locale.ROOT, selected, if (selectedValue > 0) "${valueText(selectedValue)} $unit" else dryText)
+    val amount = if (selectedValue > 0) "${valueText(selectedValue)} $unit" else dryText
+    val description = "%02d:00, %s".format(java.util.Locale.ROOT, selected, amount) + (chanceText?.let { ", $it" } ?: "")
     Canvas(modifier.semantics { contentDescription = description }) {
         val c = center
         val k = this.size.minDimension / 120f
@@ -187,12 +189,19 @@ internal fun RainRing(
         drawCircle(if (selectedValue > 0) RainColors[rainLevel(selectedValue)] else DryTone, SLIDER_RADIUS * k, slider)
         drawCircle(SliderEdge, SLIDER_RADIUS * k, slider, style = Stroke(SLIDER_EDGE * k))
         val time = measurer.measure("%02d:00".format(java.util.Locale.ROOT, selected), timeStyle)
-        val main = measurer.measure(if (selectedValue > 0) "${valueText(selectedValue)} $unit" else dryText, valueStyle)
-        val total = time.size.height + main.size.height + 6.dp.toPx()
+        val main = measurer.measure(amount, valueStyle)
+        // Вероятность часа под значением (Дима 22.11: отдельный график по часам убран, вероятность переехала в круг).
+        val chance = chanceText?.let { measurer.measure(it, valueStyle) }
+        val gap = 6.dp.toPx()
+        val total = time.size.height + gap + main.size.height + (chance?.let { it.size.height + gap / 2 } ?: 0f)
         var y = c.y - total / 2
         drawText(time, topLeft = Offset(c.x - time.size.width / 2f, y))
-        y += time.size.height + 6.dp.toPx()
+        y += time.size.height + gap
         drawText(main, topLeft = Offset(c.x - main.size.width / 2f, y))
+        if (chance != null) {
+            y += main.size.height + gap / 2
+            drawText(chance, topLeft = Offset(c.x - chance.size.width / 2f, y))
+        }
     }
 }
 

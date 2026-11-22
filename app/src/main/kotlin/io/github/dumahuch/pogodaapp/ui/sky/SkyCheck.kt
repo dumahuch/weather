@@ -329,6 +329,14 @@ private fun ExpandedPanel(
         }
         Row(Modifier.fillMaxWidth()) {
             CheckButton(
+                text = stringResource(R.string.check_moon_old),
+                selected = override.oldMoon,
+                onClick = { onOverride(override.copy(oldMoon = !override.oldMoon)) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        Row(Modifier.fillMaxWidth()) {
+            CheckButton(
                 text = stringResource(R.string.check_now),
                 selected = !override.active,
                 onClick = { onOverride(SkyOverride()) },

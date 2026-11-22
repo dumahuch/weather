@@ -15,8 +15,8 @@ class CelestialTest {
 
     private fun sun(elevation: Double, solarHour: Double) = SunPosition.Sun(elevation, solarHour)
 
-    private fun moonSky(elevation: Double, hourAngle: Double, cycle: Double, southern: Boolean = false) =
-        MoonSky(Moon.Position(elevation, hourAngle), Moon.Phase(0.5, cycle), southern)
+    private fun moonSky(elevation: Double, hourAngle: Double, cycle: Double, southern: Boolean = false, legacy: Boolean = false) =
+        MoonSky(Moon.Position(elevation, hourAngle), Moon.Phase(0.5, cycle), southern, legacy = legacy)
 
     private fun disc(body: SkyBody) = Celestial.discs(listOf(body), width, height).single()
 
@@ -52,7 +52,7 @@ class CelestialTest {
 
     @Test
     fun moonPictureFollowsThePhaseAndTheHemisphere() {
-        fun body(cycle: Double, southern: Boolean) = Celestial.bodies(sun(-30.0, 22.0), moonSky(30.0, 0.0, cycle, southern)).single()
+        fun body(cycle: Double, southern: Boolean) = Celestial.bodies(sun(-30.0, 22.0), moonSky(30.0, 0.0, cycle, southern, legacy = true)).single()
         val waxing = body(0.25, false)
         assertEquals("moon_quarter_waxing", waxing.file)
         assertTrue(waxing.lightOnRight && !waxing.mirrored)
@@ -64,6 +64,20 @@ class CelestialTest {
         assertEquals("moon_full", body(0.5, false).file)
         assertEquals("moon_gibbous_waxing", body(0.375, false).file)
         assertEquals("moon_crescent_waning", body(0.875, false).file)
+    }
+
+    @Test
+    fun shadedMoonIsTheFullPictureWithTheRealIllumination() {
+        for (cycle in listOf(0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9)) {
+            val moon = Celestial.bodies(sun(-30.0, 22.0), Celestial.testMoon(52.37, cycle)).single()
+            assertTrue(moon.shaded)
+            assertEquals(Celestial.FULL_MOON, moon.file)
+            assertEquals((1 - kotlin.math.cos(2 * Math.PI * cycle)) / 2, moon.lit, 1e-9)
+            assertEquals("свет справа у растущей", cycle < 0.5, moon.lightOnRight)
+        }
+        val south = Celestial.bodies(sun(-30.0, 22.0), Celestial.testMoon(-33.9, 0.25)).single()
+        assertTrue("на юге растущая освещена слева, картинка отражена", !south.lightOnRight && south.mirrored)
+        assertTrue("новолуние без луны", Celestial.bodies(sun(-30.0, 22.0), Celestial.testMoon(52.37, 0.01)).isEmpty())
     }
 
     @Test
@@ -109,7 +123,7 @@ class CelestialTest {
     fun testMoonShowsAnyPhaseAtAnyTimeOfDay() {
         for ((cycle, file) in listOf(0.125 to "moon_crescent_waxing", 0.25 to "moon_quarter_waxing", 0.375 to "moon_gibbous_waxing", 0.5 to "moon_full",
             0.625 to "moon_gibbous_waning", 0.75 to "moon_quarter_waning", 0.875 to "moon_crescent_waning")) {
-            val bodies = Celestial.bodies(sun(26.0, 12.0), Celestial.testMoon(52.37, cycle))
+            val bodies = Celestial.bodies(sun(26.0, 12.0), Celestial.testMoon(52.37, cycle, legacy = true))
             val moon = bodies.single { it.moon }
             assertEquals(file, moon.file)
             assertEquals(Celestial.MOON_MAX_ALPHA, moon.alpha, 1e-9)

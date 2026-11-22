@@ -317,18 +317,19 @@ internal fun SkyCompass(sun: SkyPath?, moon: SkyPath?, modifier: Modifier = Modi
     val measurer = rememberTextMeasurer()
     val letterStyle = remember(palette) { pogodaText(11f, 800, color = palette.ink.copy(alpha = 0.75f), lineHeight = 1f) }
     val northStyle = remember(palette) { letterStyle.copy(color = palette.warning) }
+    val moonColor = blueInk()
     Canvas(modifier) {
         val c = center
         val outer = size.minDimension / 2 - 8.dp.toPx()
-        drawCircle(palette.ink.copy(alpha = 0.05f), outer, c)
-        drawCircle(palette.ink.copy(alpha = 0.18f), outer, c, style = Stroke(1.dp.toPx()))
+        drawCircle(palette.ink.copy(alpha = 0.06f), outer, c)
+        drawCircle(palette.ink.copy(alpha = 0.28f), outer, c, style = Stroke(1.2.dp.toPx()))
         for (degrees in 0 until 360 step 15) {
             val cardinal = degrees % 90 == 0
             val length = if (cardinal) 7.dp.toPx() else 3.5.dp.toPx()
             val color = when {
                 degrees == 0 -> palette.warning
-                cardinal -> palette.ink.copy(alpha = 0.6f)
-                else -> palette.ink.copy(alpha = 0.25f)
+                cardinal -> palette.ink.copy(alpha = 0.7f)
+                else -> palette.ink.copy(alpha = 0.38f)
             }
             drawLine(color, c + point(degrees.toDouble(), outer), c + point(degrees.toDouble(), outer - length), 1.2.dp.toPx(), StrokeCap.Round)
         }
@@ -340,7 +341,6 @@ internal fun SkyCompass(sun: SkyPath?, moon: SkyPath?, modifier: Modifier = Modi
             drawText(layout, topLeft = Offset(at.x - layout.size.width / 2f, at.y - layout.size.height / 2f))
         }
         val sunColor = rgb(SunMoonColors.SUN)
-        val moonColor = rgb(SunMoonColors.MOON_LINE)
         if (sun != null) {
             val arc = arcOf(sun, c, outer)
             GLOW.forEach { (scale, alpha) ->
@@ -353,7 +353,7 @@ internal fun SkyCompass(sun: SkyPath?, moon: SkyPath?, modifier: Modifier = Modi
             drawPath(
                 arcOf(moon, c, moonRadius),
                 moonColor,
-                style = Stroke(1.6.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.dp.toPx()))),
+                style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.5.dp.toPx()))),
             )
         }
         fun dot(azimuth: Double?, ring: Float, color: Color, filled: Boolean, dotRadius: Float) {
@@ -363,8 +363,8 @@ internal fun SkyCompass(sun: SkyPath?, moon: SkyPath?, modifier: Modifier = Modi
         }
         dot(sun?.rise, outer, sunColor, true, 5.dp.toPx())
         dot(sun?.set, outer, sunColor, false, 5.dp.toPx())
-        dot(moon?.rise, moonRadius, moonColor, true, 4.dp.toPx())
-        dot(moon?.set, moonRadius, moonColor, false, 4.dp.toPx())
+        dot(moon?.rise, moonRadius, moonColor, true, 4.5.dp.toPx())
+        dot(moon?.set, moonRadius, moonColor, false, 4.5.dp.toPx())
         drawCircle(palette.ink.copy(alpha = 0.6f), 2.5.dp.toPx(), c)
     }
 }

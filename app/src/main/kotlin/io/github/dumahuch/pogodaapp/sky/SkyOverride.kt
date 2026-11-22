@@ -17,6 +17,8 @@ internal data class SkyOverride(
     val wet: Boolean? = null,
     /** Температура воздуха для инея на стекле (0.8.22): мороз без ожидания зимы. */
     val frostC: Double? = null,
+    /** Прежний вид фаз луны четырьмя картинками (22.11.2026): сравнить с новой маской на шаре. */
+    val oldMoon: Boolean = false,
 ) {
-    val active: Boolean get() = solarHour != null || condition != null || moonCycle != null || windy != null || wet != null || frostC != null
+    val active: Boolean get() = solarHour != null || condition != null || moonCycle != null || windy != null || wet != null || frostC != null || oldMoon
 }

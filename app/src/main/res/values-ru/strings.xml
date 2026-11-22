@@ -14,7 +14,6 @@
     <string name="temp_high">Макс</string>
     <string name="temp_low">Мин</string>
     <string name="hourly_title">По часам</string>
-    <string name="hourly_caption">Осадки, мм</string>
 
     <string name="offline_title">Нет сети</string>
     <string name="data_age_under_hour">данные менее часа назад</string>
@@ -659,10 +658,17 @@
     <string name="pg_wind_direction">Направление</string>
     <string name="pg_wind_note">Сила ветра словами: шкала Бофорта (Met Office). Скорость на высоте 10 м, порывы: самый сильный порыв за час. Стрелка показывает, куда дует ветер. Прогноз: Open-Meteo.</string>
     <string name="pg_mm_h">мм/ч</string>
-    <string name="pg_rain_hour">%1$s мм/ч · %2$s, вероятность %3$s</string>
-    <string name="pg_rain_hour_dry">Без осадков, вероятность %1$s</string>
     <string name="pg_rain_dry">сухо</string>
     <string name="pg_week_day_total">За сутки</string>
+    <string name="radar_title">Ближайшие 2 часа</string>
+    <string name="radar_source">Радар DWD</string>
+    <string name="radar_raining">Сейчас идёт дождь</string>
+    <string name="radar_dry">Ближайшие 2 часа без осадков</string>
+    <string name="radar_until">До %1$s · около %2$s мм</string>
+    <string name="radar_loading">Радар загружается…</string>
+    <string name="radar_failed">Радар сейчас недоступен</string>
+    <string name="radar_axis_now">Сейчас</string>
+    <string name="hourly_water_scale">1 мм/ч</string>
     <string name="pg_rain_note">Сила осадков: AMS (слабые до 2,5 мм в час, умеренные до 7,6, сильные больше). Вероятность: осадки больше 0,1 мм за час по 30 расчётам ансамбля моделей. Дуга внутри круга: день золотой, ночь тёмно-синяя. Прогноз: Open-Meteo.</string>
     <string name="pg_week_feels">Ощущается</string>
     <string name="pg_humidity_note">Ощущение по точке росы: NWS (до 13 °C комфортно, до 18 °C ощутимо влажно, выше душно). Видимость: шесть ступеней Met Office. Прогноз: Open-Meteo.</string>

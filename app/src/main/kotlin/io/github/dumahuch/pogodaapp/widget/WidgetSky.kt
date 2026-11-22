@@ -19,6 +19,7 @@ import android.util.Log
 import io.github.dumahuch.pogodaapp.sky.Celestial
 import io.github.dumahuch.pogodaapp.sky.CloudLayout
 import io.github.dumahuch.pogodaapp.sky.DiArt
+import io.github.dumahuch.pogodaapp.sky.MoonShade
 import io.github.dumahuch.pogodaapp.sky.Placement
 import io.github.dumahuch.pogodaapp.sky.Rgb
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
@@ -152,6 +153,11 @@ internal class WidgetSky(private val context: Context, private val screen: Boole
             val canvasY = place.top + disc.cy / referenceScale * place.scale
             val cy = max(canvasY, disc.radius * TOP_CLAMP).toFloat()
             val bitmap = decode("sky/celestial/${body.file}.webp", sampleFor(side / BITMAP_SIDE * unit)) ?: continue
+            if (body.shaded) {
+                drawShadedMoon(canvas, bitmap, RectF(cx - side / 2, cy - side / 2, cx + side / 2, cy + side / 2), body.mirrored, body.lit, body.lightOnRight, body.alpha)
+                bitmap.recycle()
+                continue
+            }
             if (body.moon && body.lit < 1.0) {
                 val radius = (disc.radius * MOON_GLOW_RADIUS).toFloat()
                 fillPaint.shader = RadialGradient(
@@ -170,6 +176,24 @@ internal class WidgetSky(private val context: Context, private val screen: Boole
             canvas.restore()
             bitmap.recycle()
         }
+    }
+
+    /** Луна с фазой, как в приложении: картинка полной луны и маска [MoonShade] умножением на отдельном слое. */
+    private fun drawShadedMoon(canvas: Canvas, image: Bitmap, dst: RectF, mirrored: Boolean, lit: Double, lightOnRight: Boolean, alpha: Double) {
+        val side = MoonShade.SIDE
+        val mask = Bitmap.createBitmap(MoonShade.mask(lit, lightOnRight), side, side, Bitmap.Config.ARGB_8888)
+        val layer = Paint().apply { this.alpha = (alpha * 255).roundToInt().coerceIn(0, 255) }
+        canvas.saveLayer(dst, layer)
+        paint.colorFilter = null
+        paint.alpha = 255
+        canvas.save()
+        if (mirrored) canvas.scale(-1f, 1f, dst.centerX(), dst.centerY())
+        canvas.drawBitmap(image, null, dst, paint)
+        canvas.restore()
+        val modulate = Paint(Paint.FILTER_BITMAP_FLAG).apply { blendMode = android.graphics.BlendMode.MODULATE }
+        canvas.drawBitmap(mask, null, dst, modulate)
+        canvas.restore()
+        mask.recycle()
     }
 
     /** Рисует [body] на слое, где цвет тянется к серому непогодой (если она заметна или слой нужен для [PorterDuff.Mode.SRC_ATOP]). */
