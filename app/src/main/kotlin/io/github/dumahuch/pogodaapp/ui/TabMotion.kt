@@ -10,7 +10,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -31,19 +30,22 @@ import kotlinx.coroutines.withTimeoutOrNull
  *    потом картинку в тот же кадр сменяет живая вкладка.
  * С 0.8.56 вкладки с небом собраны заранее ([TabDeck]); с 0.8.57 сборка и снимок новой идут под уходящей картинкой (см. [run]),
  * и небо остаётся только если новая вкладка не успела за время ухода.
+ * С 0.8.90 «картинка» это записанный слой ([GraphicsLayer]), а не снимок в растр: снимок `toImageBitmap()` прогонял кадр
+ * через видеокарту и ждал её на главном потоке (стенд 22.11: 16–35 мс дважды на смену, два тяжёлых кадра). Слоёв два:
+ * уходящая вкладка рисуется из одного, пока в другой записывается приходящая.
  */
 @Stable
 internal class TabMotion {
-    /** Просьба записать ближайший кадр содержимого в слой; рисующий код отмечает её выполненной. */
-    var request by mutableStateOf<CompletableDeferred<Unit>?>(null)
+    /** Просьба записать ближайший кадр содержимого в слой [Capture.layer]; рисующий код отмечает её выполненной. */
+    var request by mutableStateOf<Capture?>(null)
         private set
 
     /** Живое содержимое не рисуется и не принимает нажатий: на экране небо и картинка. */
     var hidden by mutableStateOf(false)
         private set
 
-    /** Картинка уходящей или приходящей вкладки; иначе пусто. */
-    var picture by mutableStateOf<ImageBitmap?>(null)
+    /** Записанный слой уходящей или приходящей вкладки; иначе пусто. */
+    var picture by mutableStateOf<GraphicsLayer?>(null)
         private set
 
     /** Непрозрачность картинки. */
@@ -58,26 +60,26 @@ internal class TabMotion {
     /** Сколько заняли снимки, для строки в журнале. */
     private val captureNotes = ArrayList<String>(2)
 
+    /** Куда записать кадр и знак, что он записан. */
+    class Capture(val layer: GraphicsLayer, val drawn: CompletableDeferred<Unit>)
+
     /**
-     * Картинка того, что сейчас в слое [layer]: ждёт кадра, в котором содержимое записано в слой, и снимает его.
-     * Не вышло за [timeoutMs] или снимок упал: пусто.
+     * Записывает ближайший кадр содержимого в слой [layer] и отдаёт его. Не вышло за [timeoutMs] или запись упала: пусто.
      */
-    suspend fun capture(layer: GraphicsLayer, timeoutMs: Long = CAPTURE_TIMEOUT_MS): ImageBitmap? {
+    suspend fun capture(layer: GraphicsLayer, timeoutMs: Long = CAPTURE_TIMEOUT_MS): GraphicsLayer? {
         val drawn = CompletableDeferred<Unit>()
-        request = drawn
+        request = Capture(layer, drawn)
         val asked = System.nanoTime()
         return try {
             withTimeoutOrNull(timeoutMs) {
                 drawn.await()
-                val recorded = System.nanoTime()
-                layer.toImageBitmap().also {
-                    captureNotes += "слой ${millis(asked, recorded)} + картинка ${millis(recorded, System.nanoTime())} мс"
-                }
+                captureNotes += "слой ${millis(asked, System.nanoTime())} мс"
+                layer
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Картинка вкладки не снята", e)
+            Log.w(TAG, "Слой вкладки не записан", e)
             null
         } finally {
             request = null
@@ -85,14 +87,14 @@ internal class TabMotion {
     }
 
     /**
-     * Сама смена: [old] уходит, [switch] меняет вкладку, новая снимается из [layer] и приходит картинкой
+     * Сама смена: [old] уходит, [switch] меняет вкладку, новая записывается в [layer] (не в тот же слой, что [old]) и приходит картинкой
      * (если [arriveAsPicture]; карта рисуется отдельной поверхностью и в картинку не попадает, она просто появляется).
      * С 0.8.57 новая вкладка ставится и снимается прямо под уходящей картинкой, а не после неё: к концу ухода она
      * обычно уже готова, и пустого неба между вкладками нет. Приход всё равно начинается не раньше конца ухода.
      * Отмена (новое нажатие) сразу показывает живое содержимое.
      */
     suspend fun run(
-        old: ImageBitmap?,
+        old: GraphicsLayer?,
         layer: GraphicsLayer,
         arriveAsPicture: Boolean,
         name: String,

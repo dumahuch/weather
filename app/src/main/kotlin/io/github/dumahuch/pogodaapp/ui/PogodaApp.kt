@@ -271,7 +271,9 @@ fun PogodaApp(
 
     // Смена вкладки: прежняя уходит картинкой, новая ставится под ней и приходит картинкой (см. [TabMotion]).
     val tabMotion = remember { TabMotion() }
-    val tabLayer = rememberGraphicsLayer()
+    // Два слоя: уходящая вкладка рисуется из одного, приходящая записывается в другой.
+    val leavingLayer = rememberGraphicsLayer()
+    val arrivingLayer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
     // Куда идёт смена: плашка внизу едет туда сразу по нажатию.
     var tabHeading by remember { mutableStateOf<AppTab?>(null) }
@@ -298,8 +300,8 @@ fun PogodaApp(
             SkyPause.active = true
             try {
                 // Карта рисуется отдельной поверхностью и в картинку не попадает: с неё уходят и на неё приходят без картинки.
-                val old = if (from == AppTab.Map) null else tabMotion.capture(tabLayer)
-                tabMotion.run(old, tabLayer, arriveAsPicture = target != AppTab.Map, "${from.name} > ${target.name}") {
+                val old = if (from == AppTab.Map) null else tabMotion.capture(leavingLayer)
+                tabMotion.run(old, arrivingLayer, arriveAsPicture = target != AppTab.Map, "${from.name} > ${target.name}") {
                     showTab(target)
                 }
             } finally {
@@ -331,9 +333,13 @@ fun PogodaApp(
                     val request = tabMotion.request
                     val hidden = tabMotion.hidden
                     if (request != null) {
-                        tabLayer.record { this@drawWithContent.drawContent() }
-                        if (!hidden) drawLayer(tabLayer)
-                        request.complete(Unit)
+                        val layer = request.layer
+                        // Как у прежнего снимка: всё за краем экрана обрезано, прозрачность с прошлой смены сброшена.
+                        layer.clip = true
+                        layer.alpha = 1f
+                        layer.record { this@drawWithContent.drawContent() }
+                        if (!hidden) drawLayer(layer)
+                        request.drawn.complete(Unit)
                     } else if (!hidden) {
                         drawContent()
                     }
@@ -483,14 +489,15 @@ fun PogodaApp(
         // Картинка уходящей или приходящей вкладки, под панелью вкладок. Пока живое содержимое спрятано, нажатия до него
         // не доходят (панель вкладок выше и нажимается).
         if (tabMotion.hidden) {
-            val picture = tabMotion.picture
             Box(
                 Modifier
                     .fillMaxSize()
                     .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } }
                     .drawBehind {
+                        val picture = tabMotion.picture
                         if (picture != null) {
-                            scale(tabMotion.scale.value) { drawImage(picture, alpha = tabMotion.alpha.value) }
+                            picture.alpha = tabMotion.alpha.value
+                            scale(tabMotion.scale.value) { drawLayer(picture) }
                         }
                     },
             )
