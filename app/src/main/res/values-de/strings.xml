@@ -132,15 +132,16 @@
         <item>Hohe</item>
     </string-array>
     <string name="tile_wind_now">Wind</string>
-    <string-array name="wind_directions">
-        <item>Nord</item>
-        <item>Nordost</item>
-        <item>Ost</item>
-        <item>Südost</item>
-        <item>Süd</item>
-        <item>Südwest</item>
-        <item>West</item>
-        <item>Nordwest</item>
+    <!-- Румбы ветра сокращённо: откуда дует (ВМО). -->
+    <string-array name="wind_points_short">
+        <item>N</item>
+        <item>NO</item>
+        <item>O</item>
+        <item>SO</item>
+        <item>S</item>
+        <item>SW</item>
+        <item>W</item>
+        <item>NW</item>
     </string-array>
     <string-array name="wind_from">
         <item>aus Norden</item>
@@ -450,7 +451,7 @@
     <string name="metric_legend_gusts">Böen, km/h</string>
     <string name="metric_legend_blows">weht nach</string>
     <string name="metric_legend_humidity" formatted="false">Feuchte, %</string>
-    <string name="metric_gusts_short">Böen %1$s</string>
+    <string name="metric_gusts_short">Böen bis %1$s</string>
     <string name="metric_daytime_tile">Tagsüber</string>
     <string name="metric_night_tile">Nachts</string>
     <string name="metric_daytime_hours">12–18 Uhr</string>
@@ -641,24 +642,13 @@
     <string name="pg_peak_line">%1$s: %2$s %3$s</string>
     <!-- Ветер, осадки, влажность в едином стиле (0.8.83) -->
     <string name="pg_wind_direction">Richtung</string>
-    <string-array name="pg_wind_to">
-        <item>weht nach Norden</item>
-        <item>weht nach Nordosten</item>
-        <item>weht nach Osten</item>
-        <item>weht nach Südosten</item>
-        <item>weht nach Süden</item>
-        <item>weht nach Südwesten</item>
-        <item>weht nach Westen</item>
-        <item>weht nach Nordwesten</item>
-    </string-array>
-    <string name="pg_week_to">Weht nach</string>
-    <string name="pg_wind_note">Windstärke in Worten: Beaufort-Skala (Met Office). Geschwindigkeit in 10 m Höhe, Böen: stärkste Böe der Stunde. Der Pfeil zeigt, wohin der Wind weht. Vorhersage: Open-Meteo.</string>
+    <string name="pg_wind_note">Windstärke in Worten: Beaufort-Skala (Met Office). Geschwindigkeit in 10 m Höhe, Böen: stärkste Böe der Stunde. Die Richtung nennt, woher der Wind kommt (NW: Nordwest, 315°), der Pfeil zeigt, wohin er weht. Vorhersage: Open-Meteo.</string>
     <string name="pg_mm_h">mm/h</string>
     <string name="pg_rain_hour">%1$s mm/h · %2$s, Wahrscheinlichkeit %3$s</string>
     <string name="pg_rain_hour_dry">Trocken, Wahrscheinlichkeit %1$s</string>
     <string name="pg_rain_dry">trocken</string>
     <string name="pg_week_day_total">Am Tag</string>
-    <string name="pg_rain_note">Stärke: AMS (leicht bis 2,5 mm pro Stunde, mäßig bis 7,6, stark darüber). Wahrscheinlichkeit: Niederschlag über 0,1 mm in der Stunde, aus 30 Ensemble-Läufen. Innerer Bogen des Kreises: Tag golden, Nacht blau. Vorhersage: Open-Meteo.</string>
+    <string name="pg_rain_note">Stärke: AMS (leicht bis 2,5 mm pro Stunde, mäßig bis 7,6, stark darüber). Wahrscheinlichkeit: Niederschlag über 0,1 mm in der Stunde, aus 30 Ensemble-Läufen. Innerer Bogen des Kreises: Tag golden, Nacht tiefblau. Vorhersage: Open-Meteo.</string>
     <string name="pg_week_feels">Gefühl</string>
     <string name="pg_humidity_note">Gefühl nach Taupunkt: NWS (bis 13 °C angenehm, bis 18 °C spürbar feucht, darüber schwül). Sichtweite: sechs Stufen des Met Office. Vorhersage: Open-Meteo.</string>
 </resources>

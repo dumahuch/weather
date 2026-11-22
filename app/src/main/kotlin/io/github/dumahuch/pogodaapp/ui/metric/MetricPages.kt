@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -97,6 +99,9 @@ private val OTHER_DAY_HOURS = listOf(6, 12, 18)
 
 private const val BEAUFORT_TOP = 12f
 
+/** Большой компас карточки «Направление», dp. */
+private const val DIRECTION_COMPASS_DP = 264
+
 @Composable
 private fun hourlyTitle(ctx: PageContext): String {
     if (ctx.isToday) return stringResource(R.string.hourly_title)
@@ -128,8 +133,7 @@ internal fun WindPage(ctx: PageContext) {
     val palette = LocalPogodaPalette.current
     val kmh = stringResource(R.string.kmh_unit)
     val strength = stringArrayResource(R.array.beaufort_names)
-    val directions = stringArrayResource(R.array.wind_directions)
-    val blowsTo = stringArrayResource(R.array.pg_wind_to)
+    val points = stringArrayResource(R.array.wind_points_short)
     val hours = remember(forecast, ctx.date) { MetricDays.detailsOf(forecast.hourDetails, zone, ctx.date) }
     val current = if (ctx.isToday) forecast.detailsAt(ctx.now) else null
     val peakIndex = MetricDays.peakIndex(hours.map { it.windKmh })
@@ -145,8 +149,9 @@ internal fun WindPage(ctx: PageContext) {
         value = shown?.toString() ?: "–",
         unit = kmh,
         word = step?.let { strength[it] },
+        wordDot = step?.let { beaufortColor(it) },
         note = listOfNotNull(
-            direction?.let { directions[CompassPoint.of(it).ordinal] },
+            direction?.let { points[CompassPoint.of(it).ordinal] },
             gustShown?.let { stringResource(R.string.metric_gusts_short, "$it $kmh") },
         ).joinToString(", ").ifEmpty { null },
         symbol = { direction?.let { WindCompass(it, 104.dp) } },
@@ -187,20 +192,15 @@ internal fun WindPage(ctx: PageContext) {
         val speed = moments.first().second?.windKmh?.roundToInt() ?: shown
         Card {
             CardTitle(stringResource(R.string.pg_wind_direction))
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                WindCompass(compassFrom, 168.dp, speed = speed?.toString(), unit = kmh)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    moments.forEach { (label, details) ->
-                        val from = details?.windDirection ?: return@forEach
-                        val point = CompassPoint.of(from).ordinal
-                        Column(Modifier.semantics(mergeDescendants = true) {}) {
-                            Text(label, style = pogodaText(11.5f, 600, color = palette.ink2), maxLines = 1)
-                            Text(directions[point], style = pogodaText(14f, 700), maxLines = 1)
-                            Text(blowsTo[point], style = pogodaText(11.5f, 500, color = palette.ink2), maxLines = 1)
-                        }
-                    }
-                }
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+                WindCompass(compassFrom, DIRECTION_COMPASS_DP.dp, speed = speed?.toString(), unit = kmh)
             }
+            TileRow(
+                moments.mapNotNull { (label, details) ->
+                    val from = details?.windDirection ?: return@mapNotNull null
+                    TileText(label, points[CompassPoint.of(from).ordinal], "${Math.floorMod(from, 360)}°")
+                },
+            )
         }
     }
 
@@ -224,21 +224,23 @@ internal fun WindPage(ctx: PageContext) {
     val perDay = remember(forecast, ctx.dates) { ctx.dates.map { MetricDays.detailsOf(forecast.hourDetails, zone, it) } }
     DaysCard(
         ctx.dates, ctx.today, ctx.date, ctx.onSelect,
-        legend = { WeekHeader(stringResource(R.string.metric_strongest), "", stringResource(R.string.pg_week_to), DayValueWidth, ARROW_COLUMN) },
+        legend = { WeekHeader(stringResource(R.string.metric_strongest), "", stringResource(R.string.tile_wind_now), DayValueWidth, ARROW_COLUMN) },
     ) { i ->
         val day = perDay[i]
         val high = day.mapNotNull { it.windKmh }.maxOrNull()?.roundToInt()
         val gust = day.mapNotNull { it.gustKmh }.maxOrNull()?.roundToInt()
         val s = high?.let { beaufortOf(it) }
-        Text(
-            s?.let { strength[it] } ?: "–",
-            style = pogodaText(14f, 700, color = s?.let { beaufortColor(it) } ?: Color.Unspecified, lineHeight = 1.15f),
-            modifier = Modifier.weight(1f),
-            maxLines = 2,
-        )
+        if (s != null) {
+            StepWord(strength[s], beaufortColor(s), Modifier.weight(1f))
+        } else {
+            Text("–", style = pogodaText(14f, 700), modifier = Modifier.weight(1f))
+        }
         DayValue(high?.let { "$it $kmh" } ?: "–", gust?.let { stringResource(R.string.metric_gusts_short, it.toString()) })
-        Box(Modifier.width(ARROW_COLUMN), contentAlignment = Alignment.Center) {
-            MetricDays.dominantDirection(day)?.let { WindArrow(it, 22.dp, palette.ink) }
+        Column(Modifier.width(ARROW_COLUMN), horizontalAlignment = Alignment.CenterHorizontally) {
+            MetricDays.dominantDirection(day)?.let {
+                WindArrow(it, 20.dp, palette.ink)
+                Text(points[CompassPoint.of(it).ordinal], style = pogodaText(10.5f, 700, color = palette.ink2, lineHeight = 1.1f), maxLines = 1)
+            }
         }
     }
     SourceNote(stringResource(R.string.pg_wind_note))
@@ -304,12 +306,16 @@ internal fun RainPage(ctx: PageContext) {
         unit = mm,
         word = headline,
         note = spellText ?: stringResource(R.string.metric_no_rain_ahead),
-        symbol = {
-            if (points.isNotEmpty()) {
-                RainRing(amounts, ctx.nowIndex, sunrise, sunset, { precipitationText(it, locale) }, stringResource(R.string.pg_rain_dry), mmH)
-            }
-        },
+        symbol = {},
     ) {
+        if (points.isNotEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+                RainRing(
+                    amounts, ctx.nowIndex, sunrise, sunset, { precipitationText(it, locale) }, stringResource(R.string.pg_rain_dry), mmH,
+                    Modifier.fillMaxWidth().widthIn(max = RING_MAX_WIDTH).aspectRatio(1f),
+                )
+            }
+        }
         val strongest = amounts.indices.maxByOrNull { amounts[it] ?: 0.0 }?.takeIf { (amounts[it] ?: 0.0) > 0 }
         val chance = day?.precipitationProbability
         TwoTiles(
@@ -379,22 +385,28 @@ internal fun RainPage(ctx: PageContext) {
     SourceNote(stringResource(R.string.pg_rain_note))
 }
 
+private val RING_MAX_WIDTH = 320.dp
 private val TOTAL_COLUMN = 64.dp
 private val CHANCE_COLUMN = 78.dp
 
-/** Маленькие столбики суток в строке дня: те же цвета силы, что у большого графика и круга. */
+/**
+ * Маленькие столбики суток в строке дня (Дима 22.11: ряд точек читался плохо): тонкая линия суток, а часы с осадками
+ * поднимаются над ней столбиками цвета силы, как на большом графике и круге; сухой день это просто ровная линия.
+ */
 @Composable
 private fun DayBars(values: List<Double?>, modifier: Modifier) {
     val palette = LocalPogodaPalette.current
-    Canvas(modifier.height(24.dp)) {
+    Canvas(modifier.height(28.dp)) {
         val max = maxOf(MIN_RAIN_SCALE_MM, values.filterNotNull().maxOrNull() ?: 0.0)
         val step = size.width / HOURS
-        val w = (step * 0.6f).coerceAtMost(2.4.dp.toPx())
+        val w = (step * 0.62f).coerceAtMost(3.dp.toPx())
+        val base = 1.dp.toPx()
+        drawRoundRect(palette.ink.copy(alpha = 0.22f), Offset(0f, size.height - base), Size(size.width, base), CornerRadius(base / 2))
         values.forEachIndexed { h, v ->
             val value = v ?: 0.0
-            val height = if (value > 0) maxOf(3.dp.toPx(), (value / max).toFloat() * size.height) else 1.5.dp.toPx()
-            val color = if (value > 0) RainColors[rainLevel(value)] else palette.ink.copy(alpha = 0.22f)
-            drawRoundRect(color, Offset(h * step + (step - w) / 2, size.height - height), Size(w, height), CornerRadius(w / 2))
+            if (value <= 0) return@forEachIndexed
+            val height = maxOf(5.dp.toPx(), (value / max).toFloat() * size.height)
+            drawRoundRect(RainColors[rainLevel(value)], Offset(h * step + (step - w) / 2, size.height - height), Size(w, height), CornerRadius(w / 2))
         }
     }
 }
@@ -425,6 +437,7 @@ internal fun HumidityPage(ctx: PageContext) {
         value = humidity?.toString() ?: "–",
         unit = "%",
         word = dew?.let { feelOf(it) },
+        wordDot = dew?.let { feelColor(it) },
         note = dew?.let { "$dewLabel ${temperatureText(it)}" },
         symbol = { dew?.let { StepGauge(dewFraction(it), DewBands, DewColors) } },
     ) {
@@ -480,12 +493,12 @@ internal fun HumidityPage(ctx: PageContext) {
         val day = perDay[i]
         val fog = day.mapNotNull { it.visibilityM }.minOrNull()?.let { it < FOG_BELOW_M } == true
         val dewHigh = day.mapNotNull { it.dewPointC }.maxOrNull()
-        Text(
-            if (fog) stringResource(R.string.metric_fog) else dewHigh?.let { feelOf(it) } ?: "–",
-            style = pogodaText(14f, 700, color = if (fog || dewHigh == null) palette.ink else feelColor(dewHigh), lineHeight = 1.15f),
-            modifier = Modifier.weight(1f),
-            maxLines = 2,
-        )
+        val feelText = if (fog) stringResource(R.string.metric_fog) else dewHigh?.let { feelOf(it) }
+        if (feelText != null) {
+            StepWord(feelText, if (fog || dewHigh == null) palette.ink2 else feelColor(dewHigh), Modifier.weight(1f))
+        } else {
+            Text("–", style = pogodaText(14f, 700), modifier = Modifier.weight(1f))
+        }
         Text(mean(day, MetricDays.DAYTIME_HOURS)?.let(::percentText) ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(PERCENT_COLUMN), textAlign = TextAlign.End, maxLines = 1)
         Text(mean(day, MetricDays.NIGHT_HOURS)?.let(::percentText) ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(PERCENT_COLUMN), textAlign = TextAlign.Center, maxLines = 1)
     }
