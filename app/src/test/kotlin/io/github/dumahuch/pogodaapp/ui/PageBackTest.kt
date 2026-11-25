@@ -12,7 +12,7 @@ class PageBackTest {
     }
 
     @Test
-    fun `окно за краем: колода на месте и видна`() {
+    fun `окно за краем, колода на месте и видна`() {
         assertEquals(0f, deckShiftWith(1f, -0.2f), 0f)
         assertEquals(1f, deckAlphaWith(1f, 0f), 0f)
     }
