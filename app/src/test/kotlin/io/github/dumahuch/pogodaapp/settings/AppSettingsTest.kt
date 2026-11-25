@@ -156,7 +156,7 @@ class AppSettingsTest {
         NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.RainSoon, true)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(rainSoon = true), restored)
+        assertEquals(NotificationPrefs(rainSoon = true, lockScreenHidden = true), restored)
         assertTrue(restored.background)
         assertFalse(restored.wanted)
         assertFalse(settings.rainSoonNotified())
@@ -191,7 +191,7 @@ class AppSettingsTest {
         NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.Pollen, true)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(pollen = true), restored)
+        assertEquals(NotificationPrefs(pollen = true, lockScreenHidden = true), restored)
         assertTrue(restored.background)
     }
 
@@ -264,7 +264,7 @@ class AppSettingsTest {
         NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.Alerts, true)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(alerts = true), restored)
+        assertEquals(NotificationPrefs(alerts = true, lockScreenHidden = true), restored)
         assertTrue(restored.background)
         assertFalse(restored.wanted)
         assertFalse(NotificationPrefs().background)
