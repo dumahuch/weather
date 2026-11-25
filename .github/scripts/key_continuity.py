@@ -3,9 +3,10 @@
 
 Если ключ сменился, друзья не смогут поставить обновление поверх (Android отклонит
 APK с другой подписью). Отпечаток ключа записан в описании каждого выпуска;
-перед публикацией нового сравниваем его с отпечатком предыдущего.
+перед публикацией нового сравниваем его с отпечатком предыдущего. Главным считается файл в репозитории
+(`release/key-fingerprint.txt`): описание выпуска можно поправить руками, файл меняется только коммитом.
 
-Использование: key_continuity.py --current-tag v0.0.2 --cert-sha256 <hex>
+Использование: key_continuity.py --current-tag v0.0.2 --cert-sha256 <hex> [--pinned-file release/key-fingerprint.txt]
 """
 import argparse
 import json
@@ -26,12 +27,31 @@ def fingerprint_from_notes(notes: str) -> str | None:
     return None
 
 
-def verdict(previous_tag: str | None, previous_notes: str, current: str) -> tuple[str, str]:
+def pinned_fingerprint(text: str) -> str | None:
+    """Отпечаток из файла репозитория: строка из 64 шестнадцатеричных знаков, строки с # пропускаются."""
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("#"):
+            continue
+        if re.fullmatch(r"[0-9a-f]{64}", line):
+            return line
+    return None
+
+
+def verdict(previous_tag: str | None, previous_notes: str, current: str, pinned: str | None = None) -> tuple[str, str]:
     """Возвращает (уровень, сообщение): уровень ok, warning или error."""
+    if pinned is not None and pinned != current:
+        return "error", (
+            f"В release/key-fingerprint.txt записан ключ {pinned}, а выпуск собран ключом {current}. "
+            "Друзья не смогут поставить обновление поверх. Проверьте секреты подписи; если ключ менялся осознанно, "
+            "поправьте файл отдельным коммитом."
+        )
     if previous_tag is None:
         return "ok", f"Первый выпуск, сверять не с чем. Отпечаток ключа: {current}"
     previous = fingerprint_from_notes(previous_notes)
     if previous is None:
+        if pinned is not None:
+            return "ok", f"Ключ совпадает с release/key-fingerprint.txt (в описании {previous_tag} отпечатка нет)."
         return "warning", f"В выпуске {previous_tag} нет отпечатка ключа, сверка пропущена."
     if previous != current:
         return "error", (
@@ -58,10 +78,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--current-tag", required=True)
     parser.add_argument("--cert-sha256", required=True)
+    parser.add_argument("--pinned-file")
     args = parser.parse_args()
+    pinned = None
+    if args.pinned_file:
+        with open(args.pinned_file, encoding="utf-8") as handle:
+            pinned = pinned_fingerprint(handle.read())
+        if pinned is None:
+            print(f"::error title=Сверка ключа::В {args.pinned_file} нет отпечатка (64 шестнадцатеричных знака).")
+            return 1
 
     tag, notes = previous_release(args.current_tag)
-    level, message = verdict(tag, notes, args.cert_sha256)
+    level, message = verdict(tag, notes, args.cert_sha256, pinned)
     if level == "ok":
         print(message)
         return 0

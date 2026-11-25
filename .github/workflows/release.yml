@@ -117,7 +117,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CERT_SHA256: ${{ steps.inspect.outputs.cert_sha256 }}
-        run: python3 .github/scripts/key_continuity.py --current-tag "$TAG" --cert-sha256 "$CERT_SHA256"
+        run: python3 .github/scripts/key_continuity.py --current-tag "$TAG" --cert-sha256 "$CERT_SHA256" --pinned-file release/key-fingerprint.txt
 
       - name: Публикация в Releases
         env:
