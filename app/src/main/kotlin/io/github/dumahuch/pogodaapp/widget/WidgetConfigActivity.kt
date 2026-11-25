@@ -27,12 +27,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -113,12 +110,12 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
             when (background) {
                 WidgetBackground.Sky -> {
                     Text(stringResource(R.string.widget_shade, shade.value.roundToInt()))
-                    Slider(state = shade)
+                    Slider(state = shade, onValueChange = { shade.value = it })
                     Text(stringResource(R.string.widget_icons_none_on_sky), style = MaterialTheme.typography.bodyMedium)
                 }
                 WidgetBackground.Glass -> {
                     Text(stringResource(R.string.widget_opacity, opacity.value.roundToInt()))
-                    Slider(state = opacity)
+                    Slider(state = opacity, onValueChange = { opacity.value = it })
                 }
                 WidgetBackground.None -> Unit
             }
@@ -146,10 +143,14 @@ private fun DetailSlider(detail: WidgetDetail, onChange: (WidgetDetail) -> Unit)
     val state = remember {
         SliderState(detail.ordinal.toFloat(), WidgetDetail.entries.size - 2, 0f..(WidgetDetail.entries.size - 1).toFloat())
     }
-    val report by rememberUpdatedState(onChange)
-    LaunchedEffect(state) { snapshotFlow { state.value }.collect { report(WidgetDetail.fromIndex(it.roundToInt())) } }
     Column {
-        Slider(state = state)
+        Slider(
+            state = state,
+            onValueChange = {
+                state.value = it
+                onChange(WidgetDetail.fromIndex(it.roundToInt()))
+            },
+        )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             labels.forEachIndexed { index, label ->
                 Text(

@@ -32,8 +32,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -276,16 +274,16 @@ private fun ExpandedPanel(
 
         val hour = override.solarHour ?: snapshot?.solarHour ?: 12.0
         Caption(stringResource(R.string.check_time_title, clockText(hour)))
-        // Двусторонняя связь: бегунок двигает час, а час со стороны (кнопки сцен) двигает бегунок; первое значение и
-        // совпадающие значения не пересылаются, иначе просмотр сам закрепил бы час.
+        // Двусторонняя связь: бегунок двигает час, а час со стороны (кнопки сцен) двигает бегунок.
         val hourSlider = remember { SliderState(hour.toFloat(), 0, 0f..24f) }
-        val shownHour by rememberUpdatedState(hour.toFloat())
-        val moveHour by rememberUpdatedState { value: Float ->
-            if (input != null && abs(value - shownHour) > HOUR_EPSILON) onOverride(override.copy(solarHour = value.toDouble()))
-        }
         LaunchedEffect(hour) { if (abs(hourSlider.value - hour.toFloat()) > HOUR_EPSILON) hourSlider.value = hour.toFloat() }
-        LaunchedEffect(hourSlider) { snapshotFlow { hourSlider.value }.collect { moveHour(it) } }
-        Slider(state = hourSlider)
+        Slider(
+            state = hourSlider,
+            onValueChange = {
+                hourSlider.value = it
+                if (input != null) onOverride(override.copy(solarHour = it.toDouble()))
+            },
+        )
 
         Caption(stringResource(R.string.check_weather_title))
         ButtonGrid(columns = 3, items = Weathers) { (condition, label) ->
