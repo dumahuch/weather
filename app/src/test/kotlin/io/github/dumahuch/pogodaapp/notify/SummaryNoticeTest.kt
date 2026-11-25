@@ -122,4 +122,16 @@ class SummaryNoticeTest {
         assertEquals(Duration.ofHours(23), SummaryNotice.delayUntilNext(at(21, 0), eight, today))
         assertEquals(Duration.ofHours(20) + Duration.ofMinutes(30), SummaryNotice.delayUntilNext(at(23, 30), eight, null))
     }
+
+    @Test
+    fun summaryStaysUntilEightInTheMorningButAtLeastAnHour() {
+        fun keep(hour: Int, minute: Int = 0, day: Int = 14) =
+            SummaryNotice.keepFor(ZonedDateTime.of(2026, 11, day, hour, minute, 0, 0, zone))
+        assertEquals(Duration.ofHours(12), keep(20))
+        assertEquals(Duration.ofHours(9), keep(23))
+        assertEquals(Duration.ofHours(3), keep(5))
+        // Сводка, посланная уже утром, не исчезает сразу: хотя бы час.
+        assertEquals(Duration.ofHours(1), keep(7, 30))
+        assertEquals(Duration.ofHours(23), keep(9))
+    }
 }

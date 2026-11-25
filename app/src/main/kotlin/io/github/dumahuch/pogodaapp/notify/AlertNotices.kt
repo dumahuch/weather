@@ -1,5 +1,6 @@
 package io.github.dumahuch.pogodaapp.notify
 
+import io.github.dumahuch.pogodaapp.weather.AlertFilter
 import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.WeatherAlert
 import java.time.Duration
@@ -16,14 +17,26 @@ data class NotifiedAlert(val kind: AlertKind, val level: Int, val onset: Instant
 data class AlertRequest(val id: String, val kind: AlertKind)
 
 /**
- * Решения уведомлений о предупреждениях без Android (0.7.0, шаг 2). Уведомление приходит о предупреждении, если о нём ещё
- * не уведомляли: о том же явлении с тем же или более высоким уровнем в пересекающийся период. Повышение уровня даёт новое
- * уведомление, уточнение или понижение нет. На одно явление одно уведомление: о самом серьёзном и раньше начинающемся.
+ * Что сделать с уведомлениями о предупреждениях сейчас. [loud] новые предупреждения уровней 3 и 4, по одному на явление, со
+ * звуком. [quiet] все нынешние выбранные предупреждения уровней 1 и 2, по одному на явление, самое серьёзное первым: они
+ * собраны в одно тихое уведомление, которое обновляется, только если среди них есть новое ([quietFresh]). [cancelLoud] явления,
+ * у которых громких уведомлений больше быть не должно, [cancelQuiet] общее тихое уведомление пора убрать.
+ */
+data class AlertPlan(
+    val loud: List<WeatherAlert>,
+    val quiet: List<WeatherAlert>,
+    val quietFresh: Boolean,
+    val cancelLoud: Set<AlertKind>,
+    val cancelQuiet: Boolean,
+)
+
+/**
+ * Решения уведомлений о предупреждениях без Android (0.7.0, шаг 2; переделано 25.11.2026). Уведомление приходит о
+ * предупреждении, если о нём ещё не уведомляли: о том же явлении с тем же или более высоким уровнем в пересекающийся период.
+ * Повышение уровня даёт новое уведомление, уточнение или понижение нет. Уровни 3 и 4 громкие, по одному уведомлению на
+ * явление; уровни 1 и 2 (если их выбрали, см. [AlertFilter]) тихие и собраны в одно общее уведомление.
  */
 object AlertNotices {
-    /** С какого уровня уведомлять (решение Димы 07.11.2026: «от 1»). */
-    const val MIN_LEVEL = 1
-
     /** Сколько записей хранится; старые отбрасываются первыми. */
     internal const val MAX_RECORDS = 40
 
@@ -31,12 +44,21 @@ object AlertNotices {
     private val OPEN_END_KEEP: Duration = Duration.ofDays(2)
 
     /**
-     * О чём уведомить: по одному предупреждению на явление из [shown] (уже отсортированных, как на «Главной»), если о нём
-     * ещё не уведомляли.
+     * Что показать и что убрать: из [shown] (уже отсортированных, как на «Главной») берутся предупреждения, прошедшие [filter].
+     * О громких уведомляют, если о них ещё не было; тихое общее обновляется, если среди его предупреждений есть новое.
      */
-    fun toNotify(shown: List<WeatherAlert>, notified: List<NotifiedAlert>): List<WeatherAlert> = shown
-        .filter { it.level.number >= MIN_LEVEL && notified.none { record -> record.covers(it) } }
-        .distinctBy { it.kind }
+    fun plan(shown: List<WeatherAlert>, notified: List<NotifiedAlert>, filter: AlertFilter): AlertPlan {
+        val accepted = shown.filter(filter::accepts)
+        val (loudAll, quietAll) = accepted.partition { it.level.number >= AlertFilter.LOUD_LEVEL }
+        fun fresh(alert: WeatherAlert) = notified.none { record -> record.covers(alert) }
+        return AlertPlan(
+            loud = loudAll.filter(::fresh).distinctBy { it.kind },
+            quiet = quietAll.distinctBy { it.kind },
+            quietFresh = quietAll.any(::fresh),
+            cancelLoud = AlertKind.entries.toSet() - loudAll.map { it.kind }.toSet(),
+            cancelQuiet = quietAll.isEmpty(),
+        )
+    }
 
     /**
      * Записи после показа: прежние и все новые предупреждения тех явлений, о которых уведомили (в одном уведомлении о
@@ -47,9 +69,6 @@ object AlertNotices {
         val added = shown.filter { it.kind in kinds }.map { NotifiedAlert(it.kind, it.level.number, it.onset, it.expires) }
         return (notified + added).distinct().filter { it.keptAt(now) }.takeLast(MAX_RECORDS)
     }
-
-    /** Явления, уведомления о которых пора убрать: предупреждений этого вида больше нет. */
-    fun gone(shown: List<WeatherAlert>): Set<AlertKind> = AlertKind.entries.toSet() - shown.map { it.kind }.toSet()
 
     /** Что открыть по нажатию: то же предупреждение, иначе (DWD его уточнил) первое того же явления, иначе ничего. */
     fun pick(request: AlertRequest, shown: List<WeatherAlert>): WeatherAlert? =

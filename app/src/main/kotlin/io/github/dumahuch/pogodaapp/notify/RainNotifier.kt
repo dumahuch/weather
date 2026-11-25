@@ -52,7 +52,7 @@ class RainNotifier(private val context: Context) {
             null
         } ?: return
         val decision = RainSoon.decide(RainSoon.outlook(frames, now), settings.rainSoonNotified())
-        if (decision.cancel) manager.cancel(NOTIFICATION_ID)
+        if (decision.cancel) InfoSlot.cancel(manager, InfoSlot.Kind.Rain)
         var notified = decision.notified
         decision.notifyInMinutes?.let { minutes ->
             // Без разрешения на уведомления не помечаем: сообщим, когда оно появится, если дождь ещё впереди.
@@ -62,7 +62,7 @@ class RainNotifier(private val context: Context) {
     }
 
     fun cancelAll() {
-        manager.cancel(NOTIFICATION_ID)
+        InfoSlot.cancel(manager, InfoSlot.Kind.Rain)
         settings().setRainSoonNotified(false)
     }
 
@@ -90,16 +90,23 @@ class RainNotifier(private val context: Context) {
             .setTimeoutAfter(RainSoon.WINDOW.toMillis())
             .setContentIntent(open())
         // Текст не называет места, поэтому на заблокированном экране виден целиком.
-        manager.notify(NOTIFICATION_ID, builder().setVisibility(Notification.VISIBILITY_PUBLIC).build())
+        InfoSlot.post(manager, InfoSlot.Kind.Rain, builder().setVisibility(Notification.VISIBILITY_PUBLIC).build())
     }
 
-    /** Канал создаётся при каждом показе: так его название следует за языком интерфейса. Звук системный. */
+    /**
+     * Канал создаётся при каждом показе: так его название следует за языком интерфейса. С 25.11.2026 тихий: прежний канал
+     * [OLD_CHANNEL_ID] был со звуком, а важность канала после создания не меняется, поэтому он удаляется и заводится новый.
+     */
     private fun createChannel() {
+        manager.deleteNotificationChannel(OLD_CHANNEL_ID)
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.channel_weather_rain),
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply { description = context.getString(R.string.channel_weather_rain_hint) }
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = context.getString(R.string.channel_weather_rain_hint)
+            setShowBadge(false)
+        }
         manager.createNotificationChannel(channel)
     }
 
@@ -110,8 +117,8 @@ class RainNotifier(private val context: Context) {
     }
 
     private companion object {
-        const val CHANNEL_ID = "weather_rain"
-        const val NOTIFICATION_ID = 7301
+        const val CHANNEL_ID = "weather_rain_quiet"
+        const val OLD_CHANNEL_ID = "weather_rain"
         const val REQUEST_CODE = 300
         const val SAMPLE_MINUTES = 25
     }

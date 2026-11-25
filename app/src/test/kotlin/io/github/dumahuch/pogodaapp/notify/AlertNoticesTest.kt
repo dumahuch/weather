@@ -1,9 +1,11 @@
 package io.github.dumahuch.pogodaapp.notify
 
+import io.github.dumahuch.pogodaapp.weather.AlertFilter
 import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.AlertLevel
 import io.github.dumahuch.pogodaapp.weather.WeatherAlert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,47 +34,103 @@ class AlertNoticesTest {
 
     private fun record(alert: WeatherAlert) = NotifiedAlert(alert.kind, alert.level.number, alert.onset, alert.expires)
 
+    private val everything = AlertFilter(minLevel = 1, kinds = AlertKind.entries.toSet())
+
+    private fun loud(shown: List<WeatherAlert>, notified: List<NotifiedAlert> = emptyList(), filter: AlertFilter = everything) =
+        AlertNotices.plan(shown, notified, filter).loud
+
     @Test
-    fun newAlertsAreNotifiedOncePerKindStartingWithTheMostSevere() {
+    fun loudAlertsAreNotifiedOncePerKindStartingWithTheMostSevere() {
         val storm = alert("a", AlertKind.Thunderstorm, AlertLevel.Severe, 0, 4)
-        val stormLater = alert("b", AlertKind.Thunderstorm, AlertLevel.Minor, 10, 12)
+        val stormLater = alert("b", AlertKind.Thunderstorm, AlertLevel.Extreme, 10, 12)
+        val wind = alert("c", AlertKind.Wind, AlertLevel.Extreme, 8, 18)
+        assertEquals(listOf(storm, wind), loud(listOf(storm, wind, stormLater)))
+    }
+
+    @Test
+    fun mildAlertsGoToOneQuietNotificationOnePerKind() {
+        val wind = alert("a", AlertKind.Wind, AlertLevel.Moderate, 0, 6)
+        val windLater = alert("b", AlertKind.Wind, AlertLevel.Minor, 10, 12)
         val frost = alert("c", AlertKind.Frost, AlertLevel.Minor, 8, 18)
-        assertEquals(listOf(storm, frost), AlertNotices.toNotify(listOf(storm, frost, stormLater), emptyList()))
+        val plan = AlertNotices.plan(listOf(wind, frost, windLater), emptyList(), everything)
+        assertEquals(emptyList<WeatherAlert>(), plan.loud)
+        assertEquals(listOf(wind, frost), plan.quiet)
+        assertTrue(plan.quietFresh)
+        assertFalse(plan.cancelQuiet)
+    }
+
+    @Test
+    fun filterDropsLowLevelsAndUnchosenKindsButNeverSevereOnes() {
+        val filter = AlertFilter()
+        val frostSevere = alert("a", AlertKind.Frost, AlertLevel.Severe, 0, 6)
+        val frostMild = alert("b", AlertKind.Frost, AlertLevel.Moderate, 0, 6)
+        val windMinor = alert("c", AlertKind.Wind, AlertLevel.Minor, 0, 6)
+        val windModerate = alert("d", AlertKind.Wind, AlertLevel.Moderate, 0, 6)
+        val plan = AlertNotices.plan(listOf(frostSevere, frostMild, windMinor, windModerate), emptyList(), filter)
+        assertEquals(listOf(frostSevere), plan.loud)
+        assertEquals(listOf(windModerate), plan.quiet)
+    }
+
+    @Test
+    fun quietNotificationIsUpdatedOnlyWhenSomethingNewAppearsAndGoesWhenNothingIsLeft() {
+        val wind = alert("a", AlertKind.Wind, AlertLevel.Moderate, 0, 6)
+        val rain = alert("b", AlertKind.Rain, AlertLevel.Moderate, 2, 8)
+        val seen = AlertNotices.plan(listOf(wind), listOf(record(wind)), everything)
+        assertFalse(seen.quietFresh)
+        assertFalse(seen.cancelQuiet)
+        val added = AlertNotices.plan(listOf(wind, rain), listOf(record(wind)), everything)
+        assertTrue(added.quietFresh)
+        assertEquals(listOf(wind, rain), added.quiet)
+        val none = AlertNotices.plan(emptyList(), listOf(record(wind)), everything)
+        assertTrue(none.cancelQuiet)
+        assertEquals(AlertKind.entries.toSet(), none.cancelLoud)
+    }
+
+    @Test
+    fun raisedLevelMovesFromQuietToLoud() {
+        val moderate = alert("a", AlertKind.Wind, AlertLevel.Moderate, 0, 6)
+        val severe = alert("b", AlertKind.Wind, AlertLevel.Severe, 1, 6)
+        val plan = AlertNotices.plan(listOf(severe), listOf(record(moderate)), everything)
+        assertEquals(listOf(severe), plan.loud)
+        assertTrue(plan.cancelQuiet)
+        assertTrue(AlertKind.Wind !in plan.cancelLoud)
     }
 
     @Test
     fun updatedAlertWithNewIdDoesNotComeAgain() {
-        val first = alert("a", AlertKind.Wind, AlertLevel.Moderate, 0, 6)
+        val first = alert("a", AlertKind.Wind, AlertLevel.Severe, 0, 6)
         // DWD продлил то же предупреждение: новый идентификатор, тот же уровень, период пересекается.
-        val extended = alert("a2", AlertKind.Wind, AlertLevel.Moderate, 0, 9)
-        assertEquals(emptyList<WeatherAlert>(), AlertNotices.toNotify(listOf(extended), listOf(record(first))))
+        val extended = alert("a2", AlertKind.Wind, AlertLevel.Severe, 0, 9)
+        assertEquals(emptyList<WeatherAlert>(), loud(listOf(extended), listOf(record(first))))
     }
 
     @Test
     fun higherLevelComesAgainLowerDoesNot() {
-        val moderate = alert("a", AlertKind.Wind, AlertLevel.Moderate, 0, 6)
-        val severe = alert("b", AlertKind.Wind, AlertLevel.Severe, 1, 6)
-        val minor = alert("c", AlertKind.Wind, AlertLevel.Minor, 1, 6)
-        assertEquals(listOf(severe), AlertNotices.toNotify(listOf(severe), listOf(record(moderate))))
-        assertEquals(emptyList<WeatherAlert>(), AlertNotices.toNotify(listOf(minor), listOf(record(moderate))))
+        val severe = alert("a", AlertKind.Wind, AlertLevel.Severe, 0, 6)
+        val extreme = alert("b", AlertKind.Wind, AlertLevel.Extreme, 1, 6)
+        val lower = alert("c", AlertKind.Wind, AlertLevel.Moderate, 1, 6)
+        assertEquals(listOf(extreme), loud(listOf(extreme), listOf(record(severe))))
+        val plan = AlertNotices.plan(listOf(lower), listOf(record(severe)), everything)
+        assertEquals(emptyList<WeatherAlert>(), plan.loud)
+        assertFalse(plan.quietFresh)
     }
 
     @Test
     fun sameKindInAnotherPeriodOrAnotherKindComesAgain() {
-        val today = alert("a", AlertKind.Frost, AlertLevel.Minor, 2, 10)
-        val tomorrow = alert("b", AlertKind.Frost, AlertLevel.Minor, 26, 34)
-        val fog = alert("c", AlertKind.Fog, AlertLevel.Minor, 2, 10)
-        assertEquals(listOf(tomorrow, fog), AlertNotices.toNotify(listOf(tomorrow, fog), listOf(record(today))))
+        val today = alert("a", AlertKind.Frost, AlertLevel.Severe, 2, 10)
+        val tomorrow = alert("b", AlertKind.Frost, AlertLevel.Severe, 26, 34)
+        val fog = alert("c", AlertKind.Fog, AlertLevel.Severe, 2, 10)
+        assertEquals(listOf(tomorrow, fog), loud(listOf(tomorrow, fog), listOf(record(today))))
     }
 
     @Test
     fun touchingPeriodsCountAsTheSameAlertAndOpenEndCoversEverythingLater() {
-        val first = alert("a", AlertKind.Rain, AlertLevel.Moderate, 0, 6)
-        val next = alert("b", AlertKind.Rain, AlertLevel.Moderate, 6, 12)
-        assertEquals(emptyList<WeatherAlert>(), AlertNotices.toNotify(listOf(next), listOf(record(first))))
-        val open = alert("c", AlertKind.Snow, AlertLevel.Minor, 0, null)
-        val later = alert("d", AlertKind.Snow, AlertLevel.Minor, 40, 50)
-        assertEquals(emptyList<WeatherAlert>(), AlertNotices.toNotify(listOf(later), listOf(record(open))))
+        val first = alert("a", AlertKind.Rain, AlertLevel.Severe, 0, 6)
+        val next = alert("b", AlertKind.Rain, AlertLevel.Severe, 6, 12)
+        assertEquals(emptyList<WeatherAlert>(), loud(listOf(next), listOf(record(first))))
+        val open = alert("c", AlertKind.Snow, AlertLevel.Severe, 0, null)
+        val later = alert("d", AlertKind.Snow, AlertLevel.Severe, 40, 50)
+        assertEquals(emptyList<WeatherAlert>(), loud(listOf(later), listOf(record(open))))
     }
 
     @Test
@@ -106,13 +164,6 @@ class AlertNoticesTest {
         val broken = AlertNotices.encode(records) + "\nWind|x|1|2\nNoSuchKind|1|1|2\n\nRain|1|1"
         assertEquals(records, AlertNotices.decode(broken))
         assertEquals(emptyList<NotifiedAlert>(), AlertNotices.decode(""))
-    }
-
-    @Test
-    fun goneKindsAreThoseWithoutAlerts() {
-        val gone = AlertNotices.gone(listOf(alert("a", AlertKind.Fog, AlertLevel.Minor, 0, 2)))
-        assertTrue(AlertKind.Fog !in gone)
-        assertEquals(AlertKind.entries.size - 1, gone.size)
     }
 
     @Test

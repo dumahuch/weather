@@ -73,7 +73,7 @@ class PollenNotifier(private val context: Context) {
     }
 
     fun cancelAll() {
-        manager.cancel(NOTIFICATION_ID)
+        InfoSlot.cancel(manager, InfoSlot.Kind.Pollen)
     }
 
     /** Учебное уведомление с экрана проверки: берёза «высокая», злаки «средняя», без записи «уже было». */
@@ -100,16 +100,23 @@ class PollenNotifier(private val context: Context) {
             .setTimeoutAfter(TIMEOUT.toMillis())
             .setContentIntent(open())
         // Текст не называет места, поэтому на заблокированном экране виден целиком.
-        manager.notify(NOTIFICATION_ID, builder.setVisibility(Notification.VISIBILITY_PUBLIC).build())
+        InfoSlot.post(manager, InfoSlot.Kind.Pollen, builder.setVisibility(Notification.VISIBILITY_PUBLIC).build())
     }
 
-    /** Канал создаётся при каждом показе: так его название следует за языком интерфейса. Звук системный. */
+    /**
+     * Канал создаётся при каждом показе: так его название следует за языком интерфейса. С 25.11.2026 тихий: прежний канал
+     * [OLD_CHANNEL_ID] был со звуком, а важность канала после создания не меняется, поэтому он удаляется и заводится новый.
+     */
     private fun createChannel() {
+        manager.deleteNotificationChannel(OLD_CHANNEL_ID)
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.channel_weather_pollen),
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply { description = context.getString(R.string.channel_weather_pollen_hint) }
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = context.getString(R.string.channel_weather_pollen_hint)
+            setShowBadge(false)
+        }
         manager.createNotificationChannel(channel)
     }
 
@@ -120,8 +127,8 @@ class PollenNotifier(private val context: Context) {
     }
 
     private companion object {
-        const val CHANNEL_ID = "weather_pollen"
-        const val NOTIFICATION_ID = 7401
+        const val CHANNEL_ID = "weather_pollen_quiet"
+        const val OLD_CHANNEL_ID = "weather_pollen"
         const val REQUEST_CODE = 400
         val TIMEOUT: Duration = Duration.ofHours(12)
     }

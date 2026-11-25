@@ -21,6 +21,7 @@ import io.github.dumahuch.pogodaapp.ui.PogodaColors
 import io.github.dumahuch.pogodaapp.ui.home.alertWhenLabel
 import io.github.dumahuch.pogodaapp.ui.sky.SAMPLE_ALERTS
 import io.github.dumahuch.pogodaapp.ui.sky.sampleAlerts
+import io.github.dumahuch.pogodaapp.weather.AlertFilter
 import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.AlertSet
 import io.github.dumahuch.pogodaapp.weather.ForecastException
@@ -32,9 +33,10 @@ import java.time.ZoneId
 
 /**
  * Уведомления о предупреждениях DWD (0.7.0, шаг 2): фоновая задача раз в полчаса запрашивает Bright Sky для места, которое
- * приложение определило последним, и сообщает о новых предупреждениях со звуком. На одно явление одно уведомление (оно
- * заменяется при повышении уровня и убирается, когда предупреждений этого вида больше нет или кончился срок). Только для
- * мест в Германии. Какие предупреждения уже были, хранится без места и идентификаторов (см. [AlertNotices]).
+ * приложение определило последним. Непогода и экстремальная непогода (уровни 3 и 4) сообщаются со звуком, по одному
+ * уведомлению на явление (оно заменяется при повышении уровня и убирается, когда предупреждений этого вида больше нет или
+ * кончился срок). Уровни 1 и 2 (с 25.11.2026 по выбору человека: уровень и явления, см. [AlertFilter]) собраны в одно тихое
+ * уведомление. Только для мест в Германии. Какие предупреждения уже были, хранится без места и идентификаторов (см. [AlertNotices]).
  */
 class AlertNotifier(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
@@ -75,7 +77,7 @@ class AlertNotifier(private val context: Context) {
     /** Учебное уведомление с экрана проверки: «сильная гроза» из учебных предупреждений, без записи «уже было». */
     fun showSample() {
         if (!manager.areNotificationsEnabled()) return
-        createChannel()
+        createLoudChannel()
         val now = Instant.now()
         val set = sampleAlerts(SAMPLE_ALERTS, now)
         val alert = set.alerts.first { it.kind == AlertKind.Thunderstorm }
@@ -84,33 +86,50 @@ class AlertNotifier(private val context: Context) {
 
     fun cancelAll() {
         AlertKind.entries.forEach { manager.cancel(tag(it), NOTIFICATION_ID) }
+        manager.cancel(QUIET_TAG, NOTIFICATION_ID)
     }
 
     private fun show(set: AlertSet, zone: ZoneId, now: Instant) {
         val settings = settings()
         val shown = set.shownAt(now)
-        AlertNotices.gone(shown).forEach { manager.cancel(tag(it), NOTIFICATION_ID) }
         val notified = AlertNotices.decode(settings.notifiedAlerts())
-        val fresh = AlertNotices.toNotify(shown, notified)
+        val plan = AlertNotices.plan(shown, notified, settings.alertFilter.value)
+        plan.cancelLoud.forEach { manager.cancel(tag(it), NOTIFICATION_ID) }
+        if (plan.cancelQuiet) manager.cancel(QUIET_TAG, NOTIFICATION_ID)
         // Без разрешения на уведомления о новых предупреждениях не помечаем: о них сообщим, когда разрешение появится.
-        val posted = if (fresh.isNotEmpty() && manager.areNotificationsEnabled()) {
-            createChannel()
-            fresh.onEach { post(it, set.area, zone, now) }
-        } else {
-            emptyList()
+        val posted = mutableListOf<WeatherAlert>()
+        if (manager.areNotificationsEnabled()) {
+            if (plan.loud.isNotEmpty()) {
+                createLoudChannel()
+                plan.loud.forEach { post(it, set.area, zone, now) }
+                posted += plan.loud
+            }
+            if (plan.quietFresh) {
+                createQuietChannel()
+                postQuiet(plan.quiet, set.area, zone, now)
+                posted += plan.quiet
+            }
         }
         settings.setNotifiedAlerts(AlertNotices.encode(AlertNotices.remember(notified, shown, posted, now)))
     }
 
-    private fun post(alert: WeatherAlert, area: String?, zone: ZoneId, now: Instant) {
+    /** Заголовок: явление и когда оно (или только явление, если время неизвестно). */
+    private fun titleOf(alert: WeatherAlert, zone: ZoneId, now: Instant): String {
         val kind = context.resources.getStringArray(R.array.alert_kinds)[alert.kind.ordinal]
-        val title = alertWhenLabel(alert, now, zone, context.resources.getStringArray(R.array.days_short))
+        return alertWhenLabel(alert, now, zone, context.resources.getStringArray(R.array.days_short))
             ?.let { context.getString(R.string.notify_alert_title, kind, context.getString(it.res, *it.args)) }
             ?: kind
+    }
+
+    private fun levelLine(alert: WeatherAlert): String {
         val levelName = context.resources.getStringArray(R.array.alert_levels)[alert.level.number - 1]
-        val level = context.getString(R.string.alert_level_line, alert.level.number, levelName)
-        val english = context.resources.configuration.locales[0].language == "en"
-        val headline = if (english) alert.headlineEn else alert.headlineDe
+        return context.getString(R.string.alert_level_line, alert.level.number, levelName)
+    }
+
+    private fun post(alert: WeatherAlert, area: String?, zone: ZoneId, now: Instant) {
+        val title = titleOf(alert, zone, now)
+        val level = levelLine(alert)
+        val headline = headlineOf(alert)
         fun builder() = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(PogodaColors.AlertLevels[alert.level.number - 1].toArgb())
@@ -133,8 +152,47 @@ class AlertNotifier(private val context: Context) {
         manager.notify(tag(alert.kind), NOTIFICATION_ID, full)
     }
 
-    /** Канал создаётся при каждом показе: так его название следует за языком интерфейса. Звук и вибрация системные. */
-    private fun createChannel() {
+    /**
+     * Одно тихое уведомление обо всех нынешних предупреждениях уровней 1 и 2 ([alerts] от самого серьёзного): заголовок у
+     * первого, остальные строками в развёрнутом виде. Живёт, пока не кончится срок у последнего из них.
+     */
+    private fun postQuiet(alerts: List<WeatherAlert>, area: String?, zone: ZoneId, now: Instant) {
+        val first = alerts.first()
+        val firstTitle = titleOf(first, zone, now)
+        val title = if (alerts.size > 1) context.getString(R.string.notify_alert_title_more, firstTitle, alerts.size - 1) else firstTitle
+        val levelNames = context.resources.getStringArray(R.array.alert_levels)
+        val lines = alerts.joinToString("\n") {
+            context.getString(R.string.notify_title, titleOf(it, zone, now), levelNames[it.level.number - 1])
+        }
+        val level = levelLine(first)
+        val expires = alerts.mapNotNull { it.expires }.takeIf { it.size == alerts.size }?.max()
+        fun builder() = Notification.Builder(context, QUIET_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(PogodaColors.AlertLevels[first.level.number - 1].toArgb())
+            .setContentTitle(title)
+            .setContentText(if (alerts.size > 1) alerts.drop(1).joinToString(", ") { titleOf(it, zone, now) } else level)
+            .setWhen((alerts.maxOf { it.issued ?: now }).toEpochMilli())
+            .setShowWhen(true)
+            .setAutoCancel(true)
+            .setLocalOnly(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(open(first, REQUEST_QUIET))
+            .also { builder -> expires?.let { builder.setTimeoutAfter(Duration.between(now, it).toMillis().coerceAtLeast(1)) } }
+        val lockScreen = builder().setVisibility(Notification.VISIBILITY_PUBLIC).build()
+        val full = builder()
+            .setSubText(area)
+            .setStyle(Notification.BigTextStyle().bigText(if (alerts.size > 1) lines else "$level\n${headlineOf(first)}"))
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
+            .setPublicVersion(lockScreen)
+            .build()
+        manager.notify(QUIET_TAG, NOTIFICATION_ID, full)
+    }
+
+    private fun headlineOf(alert: WeatherAlert): String =
+        if (context.resources.configuration.locales[0].language == "en") alert.headlineEn else alert.headlineDe
+
+    /** Канал громких предупреждений создаётся при каждом показе: так его название следует за языком интерфейса. Звук и вибрация системные. */
+    private fun createLoudChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             context.getString(R.string.channel_weather_alerts),
@@ -146,15 +204,28 @@ class AlertNotifier(private val context: Context) {
         manager.createNotificationChannel(channel)
     }
 
+    /** Тихий канал для уровней 1 и 2: без звука и вибрации (важность канала после создания не меняется, поэтому он новый). */
+    private fun createQuietChannel() {
+        val channel = NotificationChannel(
+            QUIET_CHANNEL_ID,
+            context.getString(R.string.channel_weather_alerts_quiet),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply {
+            description = context.getString(R.string.channel_weather_alerts_quiet_hint)
+            setShowBadge(false)
+        }
+        manager.createNotificationChannel(channel)
+    }
+
     /** Нажатие открывает приложение (уже открытое не дублируется) и в нём это предупреждение. */
-    private fun open(alert: WeatherAlert): PendingIntent {
+    private fun open(alert: WeatherAlert, request: Int = REQUEST_BASE + alert.kind.ordinal): PendingIntent {
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             .putExtra(EXTRA_ALERT_ID, alert.id)
             .putExtra(EXTRA_ALERT_KIND, alert.kind.name)
         return PendingIntent.getActivity(
             context,
-            REQUEST_BASE + alert.kind.ordinal,
+            request,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
@@ -164,6 +235,9 @@ class AlertNotifier(private val context: Context) {
 
     companion object {
         const val CHANNEL_ID = "weather_alerts"
+        private const val QUIET_CHANNEL_ID = "weather_alerts_quiet"
+        private const val QUIET_TAG = "alerts-quiet"
+        private const val REQUEST_QUIET = 150
         private const val NOTIFICATION_ID = 7201
         private const val REQUEST_BASE = 100
         private const val EXTRA_ALERT_ID = "io.github.dumahuch.pogodaapp.ALERT_ID"

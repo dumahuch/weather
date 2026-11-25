@@ -71,6 +71,8 @@ import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
 import io.github.dumahuch.pogodaapp.update.UpdateStatus
 import io.github.dumahuch.pogodaapp.update.UpdateUi
+import io.github.dumahuch.pogodaapp.weather.AlertFilter
+import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
@@ -119,6 +121,9 @@ fun SettingsScreen(
     onSummaryTime: (Int) -> Unit,
     pollenKinds: Set<PollenKind>,
     onPollenKind: (PollenKind, Boolean) -> Unit,
+    alertFilter: AlertFilter,
+    onAlertMinLevel: (Int) -> Unit,
+    onAlertKind: (AlertKind, Boolean) -> Unit,
     noticeError: String?,
     update: UpdateUi,
     updateActions: UpdateActions,
@@ -267,6 +272,27 @@ fun SettingsScreen(
                 checked = notifications.alerts,
                 onChange = { onNotification(NotificationToggle.Alerts, it) },
             )
+            // Уровень и явления нужны только при включённых предупреждениях (решение Димы 25.11.2026).
+            if (notifications.alerts) {
+                SectionHeading(stringResource(R.string.settings_alert_level))
+                Column(Modifier.selectableGroup()) {
+                    listOf(2, 1).forEachIndexed { index, level ->
+                        if (index > 0) Rule(start = SUB_INDENT + 18.dp, alpha = RULE_ALPHA_ITEM)
+                        ChoiceOption(
+                            title = stringResource(if (level == 2) R.string.settings_alert_level_2 else R.string.settings_alert_level_1),
+                            hint = stringResource(if (level == 2) R.string.settings_alert_level_2_hint else R.string.settings_alert_level_1_hint),
+                            selected = alertFilter.minLevel == level,
+                            onClick = { onAlertMinLevel(level) },
+                            nested = true,
+                        )
+                    }
+                }
+                SectionHeading(stringResource(R.string.settings_alert_kinds))
+                val kindNames = stringArrayResource(R.array.alert_kinds)
+                AlertKind.entries.forEach { kind ->
+                    CheckOption(kindNames[kind.ordinal], kind in alertFilter.kinds) { onAlertKind(kind, it) }
+                }
+            }
             ToggleOption(
                 title = stringResource(R.string.settings_notify_rain),
                 hint = stringResource(R.string.settings_notify_rain_hint),
