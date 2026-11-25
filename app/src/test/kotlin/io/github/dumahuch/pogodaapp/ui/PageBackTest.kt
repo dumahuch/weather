@@ -24,8 +24,14 @@ class PageBackTest {
     }
 
     @Test
-    fun `на полпути колода посередине`() {
-        assertEquals(-0.1f, deckShiftWith(0.5f, -0.2f), 1e-6f)
-        assertEquals(0.5f, deckAlphaWith(0.5f, 0f), 1e-6f)
+    fun `на полпути к трети колода посередине`() {
+        assertEquals(-0.1f, deckShiftWith(0.15f, -0.2f), 1e-6f)
+        assertEquals(0.5f, deckAlphaWith(0.15f, 0f), 1e-6f)
+    }
+
+    @Test
+    fun `после трети пути колода уже на месте`() {
+        assertEquals(0f, deckShiftWith(0.4f, -0.2f), 0f)
+        assertEquals(1f, deckAlphaWith(0.4f, 0f), 0f)
     }
 }
