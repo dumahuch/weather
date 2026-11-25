@@ -69,6 +69,7 @@ import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
 import io.github.dumahuch.pogodaapp.ui.settings.UpdateActions
+import io.github.dumahuch.pogodaapp.ui.sky.SkyCover
 import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
 import io.github.dumahuch.pogodaapp.ui.sky.rememberAnimationsEnabled
 import io.github.dumahuch.pogodaapp.update.UpdateUi
@@ -521,6 +522,12 @@ fun PogodaApp(
         }
         // Панель вкладок не двигается при переходах между вкладками; на местах и в настройках её нет (плавно гаснет).
         val onMap = tab == AppTab.Map
+        // Небо закрыто картой только когда карта на виду целиком: ни перехода, ни окон поверх неё.
+        val skyCovered = onMap && screen.layer == Layer.Tab && !tabMotion.hidden
+        DisposableEffect(skyCovered) {
+            SkyCover.covered = skyCovered
+            onDispose { SkyCover.covered = false }
+        }
         CompositionLocalProvider(
             LocalPogodaPalette provides if (onMap) MapPalette else skyPalette,
             LocalGlass provides if (onMap) mapGlass else skyGlass,
