@@ -188,21 +188,14 @@ internal fun AlertRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        LineIconView(if (alert.kind.isSnowflake()) LineIcons.Ice else levelIcon(alert.level), 20.dp, tint)
+        LineIconView(if (alert.kind.isSnowflake()) LineIcons.IceSmall else levelIcon(alert.level), 20.dp, tint)
         Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    title,
-                    style = pogodaText(13.5f, 500, color = palette.ink),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                if (time.isNotEmpty()) {
-                    Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
-                }
-            }
+            Text(title, style = pogodaText(13.5f, 500, color = palette.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(level, style = pogodaText(12f, 400, color = palette.ink2), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        // Время по центру плашки, на одной линии со значком и стрелкой, а не на строке заголовка (Дима 25.11.2026).
+        if (time.isNotEmpty()) {
+            Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
         }
         LineIconView(LineIcons.ChevronRight, 16.dp, palette.ink2)
     }
