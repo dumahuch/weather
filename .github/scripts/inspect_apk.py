@@ -78,6 +78,7 @@ def manifest_problems(tree: str, allowed_exported: set[str]) -> tuple[list[str],
     problems: list[str] = []
     exported: list[str] = []
     application_depth: int | None = None
+    child_depth: int | None = None
     application_attrs: dict[str, str] = {}
     component: dict | None = None
 
@@ -94,8 +95,12 @@ def manifest_problems(tree: str, allowed_exported: set[str]) -> tuple[list[str],
                 component = None
             if tag == "application":
                 application_depth = depth
-            elif tag in COMPONENT_TAGS and application_depth is not None and depth == application_depth + 2:
-                component = {"depth": depth, "name": "", "exported": ""}
+                child_depth = None
+            elif application_depth is not None and depth > application_depth:
+                if child_depth is None:
+                    child_depth = depth  # у aapt2 вложенный элемент сдвинут на 4 пробела; глубину берём по первому потомку
+                if tag in COMPONENT_TAGS and depth == child_depth:
+                    component = {"depth": depth, "name": "", "exported": ""}
             continue
         if component is not None:
             name = _attr(line, "name")
