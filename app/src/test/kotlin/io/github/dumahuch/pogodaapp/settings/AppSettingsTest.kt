@@ -112,7 +112,7 @@ class AppSettingsTest {
         assertEquals(NotificationPrefs.SUMMARY_DEFAULT_MINUTES, prefs.summaryMinutes)
         assertEquals(20 * 60, prefs.summaryMinutes)
         assertTrue(prefs.wanted)
-        assertEquals(NotificationPrefs.TOGGLE_COUNT - 2, prefs.enabledCount)
+        assertEquals(DEFAULT_ENABLED, prefs.enabledCount)
     }
 
     @Test
@@ -136,7 +136,7 @@ class AppSettingsTest {
         first.setNotification(NotificationToggle.StatusBar, false)
         assertEquals(2, storage.writes)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(true, false, false, true, true, true, true), restored)
+        assertEquals(NotificationPrefs(true, false, false, true, false, false, true), restored)
         assertTrue(restored.wanted)
         first.setNotification(NotificationToggle.Shade, false)
         assertFalse(AppSettings(storage).notifications.value.wanted)
@@ -316,7 +316,7 @@ class AppSettingsTest {
         first.setNotification(NotificationToggle.LockScreenCompact, true)
         assertTrue(first.notifications.value.lockScreenCompact)
         assertTrue(AppSettings(storage).notifications.value.lockScreenCompact)
-        assertEquals(NotificationPrefs.TOGGLE_COUNT, AppSettings(storage).notifications.value.enabledCount)
+        assertEquals(DEFAULT_ENABLED, AppSettings(storage).notifications.value.enabledCount)
         first.setNotification(NotificationToggle.LockScreenCompact, false)
         assertFalse(AppSettings(storage).notifications.value.lockScreenCompact)
     }
@@ -351,6 +351,11 @@ class AppSettingsTest {
         val prefs = AppSettings(MemoryStorage()).notifications.value
         assertFalse(prefs.lockScreenHidden)
         assertFalse(prefs.lockScreenCompact)
-        assertEquals(NotificationPrefs.TOGGLE_COUNT, prefs.enabledCount)
+        assertEquals(DEFAULT_ENABLED, prefs.enabledCount)
+    }
+
+    private companion object {
+        /** Включены по умолчанию: шторка, строка состояния, место на экране блокировки, предупреждения и сводка (дождь и пыльца нет). */
+        const val DEFAULT_ENABLED = 5
     }
 }
