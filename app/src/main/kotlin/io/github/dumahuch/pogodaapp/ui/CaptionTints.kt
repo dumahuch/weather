@@ -3,8 +3,11 @@ package io.github.dumahuch.pogodaapp.ui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 
-/** Что показывает значок в строке под температурой: от этого зависит его оттенок. */
-internal enum class CaptionHue { Humidity, Wind, Precipitation }
+/**
+ * Что показывает значок: от этого зависит его оттенок. Первые три стоят в строке под температурой, остальные три
+ * только в панели выбранного часа (давление сиреневое, «ощущается как» тёплое, точка росы голубая; решение Димы 25.11.2026).
+ */
+internal enum class CaptionHue { Humidity, Wind, Precipitation, Pressure, FeelsLike, DewPoint }
 
 /**
  * Оттенки значков строки под температурой на «Главной» (решение Димы 08.11.2026: цветные, но не яркие; капля синяя,
@@ -18,11 +21,17 @@ internal object CaptionTints {
         CaptionHue.Humidity to Color(0xFF1F4FA3),
         CaptionHue.Wind to Color(0xFF0E7C86),
         CaptionHue.Precipitation to Color(0xFF4A55B8),
+        CaptionHue.Pressure to Color(0xFF6B55C9),
+        CaptionHue.FeelsLike to Color(0xFFB4501F),
+        CaptionHue.DewPoint to Color(0xFF2B7A99),
     )
     private val OnDark = mapOf(
         CaptionHue.Humidity to Color(0xFF93C5FF),
         CaptionHue.Wind to Color(0xFF7FD8DC),
         CaptionHue.Precipitation to Color(0xFFB3B8F5),
+        CaptionHue.Pressure to Color(0xFFB9A6F2),
+        CaptionHue.FeelsLike to Color(0xFFF2A07B),
+        CaptionHue.DewPoint to Color(0xFF8CCFE6),
     )
 
     /** Доля оттенка в цвете значка, как у стрелки максимума и минимума. */
