@@ -3,9 +3,11 @@ name: CI
 # Проверка при каждом изменении: линт, тесты, сборка, разбор готового APK
 # и пробный выпуск с одноразовым ключом (тот же путь, что у настоящего релиза).
 
+# Ветка с запросом на слияние собирается один раз (pull_request); push только для main. Ветка без запроса не
+# собирается: запрос открывается сразу после отправки ветки.
 on:
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -62,6 +64,7 @@ jobs:
             --package io.github.dumahuch.pogodaapp.debug \
             --version-name 0.0.0-dev-debug --version-code 1 \
             --min-sdk 36 --target-sdk 36 --require-signature \
+            --allow-debuggable --allow-exported androidx.compose.ui.tooling.PreviewActivity \
             --allow-permission android.permission.INTERNET \
             --allow-permission android.permission.ACCESS_COARSE_LOCATION \
             --allow-permission android.permission.ACCESS_FINE_LOCATION \
