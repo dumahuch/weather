@@ -281,8 +281,6 @@
     <string name="settings_group_lock">Auf dem Sperrbildschirm</string>
     <string name="settings_group_events">Ereignisse</string>
     <string name="settings_group_summary">Abendvorschau</string>
-    <string name="settings_lock_place">Mit Ortsname</string>
-    <string name="settings_lock_place_hint">Die ganze Meldung ist sichtbar, auch der Ortsname.</string>
     <string name="settings_lock_no_place">Ohne Ort</string>
     <string name="settings_lock_no_place_hint">Temperatur und Wetter, ohne Ortsname.</string>
     <string name="settings_lock_compact">Kompakt</string>
@@ -294,7 +292,6 @@
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
     <string name="notify_text">Gefühlt %1$s · %2$s</string>
-    <string name="notify_lock_line">%1$s · gefühlt %2$s</string>
     <string name="notify_place_since">Ort vom %1$s</string>
     <string name="notify_precip_tomorrow_morning">Niederschlag morgen früh</string>
     <string name="channel_weather_status">Temperatur in der Statusleiste</string>

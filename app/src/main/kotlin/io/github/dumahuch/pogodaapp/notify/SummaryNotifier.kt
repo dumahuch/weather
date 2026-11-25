@@ -60,7 +60,7 @@ class SummaryNotifier(private val context: Context) {
         } catch (e: ForecastException) {
             savedForecast(entry.raw, entry.savedAt, now) ?: return
         }
-        if (post(entry.place, forecast, now, prefs.placeOnLockScreen)) settings.setSummarySentOn(device.toLocalDate())
+        if (post(entry.place, forecast, now)) settings.setSummarySentOn(device.toLocalDate())
     }
 
     fun cancel() {
@@ -77,7 +77,7 @@ class SummaryNotifier(private val context: Context) {
     }
 
     /** Истина, если уведомление показано; без разрешения и без завтрашних суток в прогнозе (старый формат) ложь. */
-    private fun post(place: Place, forecast: Forecast, now: Instant, placeOnLockScreen: Boolean): Boolean {
+    private fun post(place: Place, forecast: Forecast, now: Instant): Boolean {
         if (!manager.areNotificationsEnabled()) return false
         val outlook = SummaryNotice.outlook(forecast, now) ?: return false
         createChannel()
@@ -99,10 +99,9 @@ class SummaryNotifier(private val context: Context) {
             .setLocalOnly(true)
             .setTimeoutAfter(SummaryNotice.keepFor(now.atZone(ZoneId.systemDefault())).toMillis())
             .setContentIntent(open())
-        // Без названия места на заблокированном экране, если человек так выбрал (общий выключатель с погодой в шторке).
+        // На заблокированном экране без названия места (с 25.11.2026 режима «С названием места» нет).
         val lockScreen = builder(plainTitle).setVisibility(Notification.VISIBILITY_PUBLIC).build()
-        val visibility = if (placeOnLockScreen) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
-        InfoSlot.post(manager, InfoSlot.Kind.Summary, builder(title).setVisibility(visibility).setPublicVersion(lockScreen).build())
+        InfoSlot.post(manager, InfoSlot.Kind.Summary, builder(title).setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(lockScreen).build())
         return true
     }
 

@@ -38,7 +38,7 @@ class NotificationSwitches(private val activity: ComponentActivity, private val 
     }
 
     fun set(toggle: NotificationToggle, on: Boolean) {
-        if (on && toggle != NotificationToggle.LockScreenPlace && toggle != NotificationToggle.LockScreenCompact) {
+        if (on && toggle != NotificationToggle.LockScreenCompact) {
             withPermission { apply(toggle, on = true) }
         } else {
             apply(toggle, on)

@@ -544,14 +544,12 @@ private const val RULE_ALPHA_GROUP = 0.28f
 private const val RULE_ALPHA_ITEM = 0.16f
 
 private fun lockTitle(form: LockScreenForm): Int = when (form) {
-    LockScreenForm.WithPlace -> R.string.settings_lock_place
     LockScreenForm.NoPlace -> R.string.settings_lock_no_place
     LockScreenForm.Compact -> R.string.settings_lock_compact
     LockScreenForm.Hidden -> R.string.settings_lock_hidden
 }
 
 private fun lockHint(form: LockScreenForm): Int = when (form) {
-    LockScreenForm.WithPlace -> R.string.settings_lock_place_hint
     LockScreenForm.NoPlace -> R.string.settings_lock_no_place_hint
     LockScreenForm.Compact -> R.string.settings_lock_compact_hint
     LockScreenForm.Hidden -> R.string.settings_lock_hidden_hint

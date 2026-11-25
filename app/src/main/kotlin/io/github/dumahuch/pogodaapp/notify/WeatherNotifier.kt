@@ -127,11 +127,11 @@ class WeatherNotifier(private val context: Context) {
         val largeIcon = noticeGlyph(context, current.condition, current.isDay, isStrongWind(forecast.detailsAt(now)?.windKmh))
         val expanded = listOfNotNull(text, dayLine(forecast, now)).joinToString("\n")
         @Suppress("DEPRECATION") // Notification.priority ещё участвует в порядке уведомлений одного уровня (шаг 11 NotificationComparator)
-        fun builder(contentTitle: String, compact: Boolean = false, contentText: String = text) = Notification.Builder(context, channel.id)
+        fun builder(contentTitle: String, compact: Boolean = false) = Notification.Builder(context, channel.id)
             .setSmallIcon(smallIcon)
-            .setLargeIcon(if (compact) null else largeIcon)
+            .setLargeIcon(largeIcon)
             .setContentTitle(contentTitle)
-            .setContentText(if (compact) null else contentText)
+            .setContentText(if (compact) null else text)
             .setSubText(if (compact) null else since)
             .setWhen(System.currentTimeMillis())
             .setShowWhen(!compact)
@@ -142,22 +142,17 @@ class WeatherNotifier(private val context: Context) {
             .setLocalOnly(true)
             .setContentIntent(openApp())
         // На заблокированном экране вместо полной записи показывается эта: без названия места, а при «Кратко» только
-        // температура (заголовок «8°», без текста, времени и крупного значка погоды).
+        // температура и значок (заголовок «8°», без текста и времени).
         // «Не показывать»: запись скрыта на заблокированном экране совсем и видна только после разблокировки.
         val form = prefs.lockScreen
         val full = builder(title).setStyle(Notification.BigTextStyle().bigText(expanded))
         if (form == LockScreenForm.Hidden) {
             full.setVisibility(Notification.VISIBILITY_SECRET)
         } else {
-            // «С названием места»: место заголовком, погода второй строкой: в узкой плашке заголовок «Hannover · 0° Пасмурно» обрезался.
-            val placeName = place.name
-            val lockScreen = when {
-                form == LockScreenForm.Compact -> builder(temperatureText(current.temperature), compact = true)
-                form == LockScreenForm.WithPlace && placeName != null -> builder(
-                    placeName,
-                    contentText = context.getString(R.string.notify_lock_line, headline, temperatureText(current.feelsLike)),
-                )
-                else -> builder(headline)
+            val lockScreen = if (form == LockScreenForm.Compact) {
+                builder(temperatureText(current.temperature), compact = true)
+            } else {
+                builder(headline)
             }.setVisibility(Notification.VISIBILITY_PUBLIC).build()
             full.setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(lockScreen)
         }
