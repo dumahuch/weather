@@ -8,6 +8,7 @@ import io.github.dumahuch.pogodaapp.weather.Forecast
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZonedDateTime
 import kotlin.math.abs
 
@@ -51,6 +52,20 @@ object SummaryNotice {
 
     /** Окно, в которое система может сдвинуть задачу после выбранного времени. */
     val JOB_WINDOW: Duration = Duration.ofMinutes(10)
+
+    /** Вечерняя сводка лежит в шторке до этого утреннего часа (решение Димы 25.11.2026), потом она устарела. */
+    val KEEP_UNTIL: LocalTime = LocalTime.of(8, 0)
+
+    /** Но не меньше этого: сводку, посланную утром, успевают прочитать. */
+    val KEEP_MIN: Duration = Duration.ofHours(1)
+
+    /** Сколько сводка, показанная в момент [now], остаётся в шторке: до ближайших 8:00 по часам телефона, не меньше [KEEP_MIN]. */
+    fun keepFor(now: ZonedDateTime): Duration {
+        var until = now.toLocalDate().atTime(KEEP_UNTIL).atZone(now.zone)
+        if (!until.isAfter(now)) until = now.toLocalDate().plusDays(1).atTime(KEEP_UNTIL).atZone(now.zone)
+        val keep = Duration.between(now, until)
+        return if (keep < KEEP_MIN) KEEP_MIN else keep
+    }
 
     /** Прогноз на завтра по местным суткам места; `null`, если в прогнозе нет завтрашнего дня (старый формат). */
     fun outlook(forecast: Forecast, now: Instant): TomorrowOutlook? {

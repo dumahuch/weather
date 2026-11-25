@@ -72,6 +72,8 @@ import io.github.dumahuch.pogodaapp.ui.settings.UpdateActions
 import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
 import io.github.dumahuch.pogodaapp.ui.sky.rememberAnimationsEnabled
 import io.github.dumahuch.pogodaapp.update.UpdateUi
+import io.github.dumahuch.pogodaapp.weather.AlertFilter
+import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
@@ -118,6 +120,9 @@ fun PogodaApp(
     onSummaryTime: (Int) -> Unit,
     pollenKinds: Set<PollenKind>,
     onPollenKind: (PollenKind, Boolean) -> Unit,
+    alertFilter: AlertFilter,
+    onAlertMinLevel: (Int) -> Unit,
+    onAlertKind: (AlertKind, Boolean) -> Unit,
     noticeError: String?,
     alertRequest: AlertRequest?,
     onAlertRequestDone: () -> Unit,
@@ -427,6 +432,9 @@ fun PogodaApp(
                         onSummaryTime = onSummaryTime,
                         pollenKinds = pollenKinds,
                         onPollenKind = onPollenKind,
+                        alertFilter = alertFilter,
+                        onAlertMinLevel = onAlertMinLevel,
+                        onAlertKind = onAlertKind,
                         noticeError = noticeError,
                         update = update,
                         updateActions = updateActions,

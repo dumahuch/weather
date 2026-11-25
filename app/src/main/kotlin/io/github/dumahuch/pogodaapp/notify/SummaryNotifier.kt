@@ -64,7 +64,7 @@ class SummaryNotifier(private val context: Context) {
     }
 
     fun cancel() {
-        manager.cancel(NOTIFICATION_ID)
+        InfoSlot.cancel(manager, InfoSlot.Kind.Summary)
     }
 
     private fun savedForecast(raw: String, savedAt: Instant, now: Instant): Forecast? {
@@ -97,12 +97,12 @@ class SummaryNotifier(private val context: Context) {
             .setShowWhen(true)
             .setAutoCancel(true)
             .setLocalOnly(true)
-            .setTimeoutAfter(TIMEOUT.toMillis())
+            .setTimeoutAfter(SummaryNotice.keepFor(now.atZone(ZoneId.systemDefault())).toMillis())
             .setContentIntent(open())
         // Без названия места на заблокированном экране, если человек так выбрал (общий выключатель с погодой в шторке).
         val lockScreen = builder(plainTitle).setVisibility(Notification.VISIBILITY_PUBLIC).build()
         val visibility = if (placeOnLockScreen) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE
-        manager.notify(NOTIFICATION_ID, builder(title).setVisibility(visibility).setPublicVersion(lockScreen).build())
+        InfoSlot.post(manager, InfoSlot.Kind.Summary, builder(title).setVisibility(visibility).setPublicVersion(lockScreen).build())
         return true
     }
 
@@ -159,11 +159,7 @@ class SummaryNotifier(private val context: Context) {
 
     private companion object {
         const val CHANNEL_ID = "weather_summary"
-        const val NOTIFICATION_ID = 7401
         const val REQUEST_CODE = 400
         val SAVED_LIMIT: Duration = Duration.ofHours(6)
-
-        /** Сводка вечером лежит до утра, дальше она устарела. */
-        val TIMEOUT: Duration = Duration.ofHours(14)
     }
 }

@@ -259,6 +259,7 @@ class MainActivity : ComponentActivity() {
                 val notifications by settings.notifications.collectAsStateWithLifecycle()
                 val noticeError by settings.noticeError.collectAsStateWithLifecycle()
                 val pollenKinds by settings.pollenKinds.collectAsStateWithLifecycle()
+                val alertFilter by settings.alertFilter.collectAsStateWithLifecycle()
                 val update by updates.state.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
@@ -303,6 +304,9 @@ class MainActivity : ComponentActivity() {
                                 onSummaryTime = notificationSwitches::setSummaryTime,
                                 pollenKinds = pollenKinds,
                                 onPollenKind = settings::setPollenKind,
+                                alertFilter = alertFilter,
+                                onAlertMinLevel = settings::setAlertMinLevel,
+                                onAlertKind = settings::setAlertKind,
                                 noticeError = noticeError,
                                 alertRequest = alertRequest,
                                 onAlertRequestDone = { alertRequest = null },

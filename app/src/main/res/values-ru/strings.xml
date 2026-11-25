@@ -263,7 +263,7 @@
     <string name="settings_notify_status">Температура в строке состояния</string>
     <string name="settings_notify_status_hint">Число рядом с часами. Запись в шторке уведомлений при этом остаётся: без неё Android значок не показывает.</string>
     <string name="settings_notify_alerts">Предупреждения о погоде</string>
-    <string name="settings_notify_alerts_hint">Официальные предупреждения DWD для места, где вы последний раз открывали приложение, со звуком. Только в Германии. Проверяются примерно раз в полчаса.</string>
+    <string name="settings_notify_alerts_hint">Официальные предупреждения DWD для места, где вы последний раз открывали приложение. Непогода (уровни 3 и 4) приходит со звуком, более мягкие предупреждения тихо и одним уведомлением. Только в Германии. Проверяются примерно раз в полчаса.</string>
     <string name="settings_notify_rain">Скоро дождь</string>
     <string name="settings_notify_rain_hint">Уведомление, если в ближайший час по радару DWD ожидается дождь не слабее 0,5 мм/ч, для места, где вы последний раз открывали приложение. Только в Германии. Проверяется примерно раз в полчаса, поэтому время приблизительное.</string>
     <string name="settings_notify_pollen">Пыльца</string>
@@ -300,8 +300,16 @@
     <string name="notify_precip_tomorrow_morning">Осадки завтра утром</string>
     <string name="channel_weather_status">Температура в строке состояния</string>
     <string name="channel_weather_status_hint">Погода сейчас, температура рядом с часами. Без звука.</string>
-    <string name="channel_weather_alerts">Предупреждения о погоде</string>
-    <string name="channel_weather_alerts_hint">Официальные предупреждения DWD (Германия). Со звуком.</string>
+    <string name="channel_weather_alerts">Предупреждения о непогоде</string>
+    <string name="channel_weather_alerts_hint">Официальные предупреждения DWD уровней 3 и 4 (Германия). Со звуком.</string>
+    <string name="channel_weather_alerts_quiet">Предупреждения о погоде</string>
+    <string name="channel_weather_alerts_quiet_hint">Более мягкие предупреждения DWD (уровни 1 и 2) одним уведомлением. Без звука.</string>
+    <string name="settings_alert_level">Нижний уровень предупреждений</string>
+    <string name="settings_alert_level_2">С уровня 2</string>
+    <string name="settings_alert_level_2_hint">Выраженная погода и выше. Предупреждения уровней 3 и 4 (непогода и экстремальная непогода) приходят всегда, о любом явлении, со звуком.</string>
+    <string name="settings_alert_level_1">С уровня 1</string>
+    <string name="settings_alert_level_1_hint">Любые предупреждения выбранных явлений, в том числе слабые.</string>
+    <string name="settings_alert_kinds">Явления для уведомлений</string>
     <string name="channel_weather_rain">Скоро дождь</string>
     <string name="channel_weather_rain_hint">Радар DWD (Германия). Дождь ожидается в ближайший час.</string>
     <string name="channel_weather_pollen">Пыльца</string>

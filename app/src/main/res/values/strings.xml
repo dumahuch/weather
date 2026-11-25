@@ -266,7 +266,7 @@
     <string name="settings_notify_status">Temperature in the status bar</string>
     <string name="settings_notify_status_hint">The number next to the clock. The entry in the notification shade stays: Android shows the icon only together with it.</string>
     <string name="settings_notify_alerts">Weather warnings</string>
-    <string name="settings_notify_alerts_hint">Official DWD warnings for the place where you last opened the app, with sound. Germany only. Checked about every half hour.</string>
+    <string name="settings_notify_alerts_hint">Official DWD warnings for the place where you last opened the app. Severe weather (levels 3 and 4) comes with sound, milder warnings silently in one notification. Germany only. Checked about every half hour.</string>
     <string name="settings_notify_rain">Rain soon</string>
     <string name="settings_notify_rain_hint">A notice when rain of at least 0.5 mm/h is expected to start within the hour, from the DWD radar, for the place where you last opened the app. Germany only. Checked about every half hour, so the time is approximate.</string>
     <string name="settings_notify_pollen">Pollen</string>
@@ -306,8 +306,17 @@
     <string name="notify_precip_tomorrow_morning">Precipitation tomorrow morning</string>
     <string name="channel_weather_status">Temperature in the status bar</string>
     <string name="channel_weather_status_hint">Current weather, with the temperature next to the clock. Silent.</string>
-    <string name="channel_weather_alerts">Weather warnings</string>
-    <string name="channel_weather_alerts_hint">Official DWD warnings (Germany). With sound.</string>
+    <string name="channel_weather_alerts">Severe weather warnings</string>
+    <string name="channel_weather_alerts_hint">Official DWD warnings of levels 3 and 4 (Germany). With sound.</string>
+    <string name="channel_weather_alerts_quiet">Weather warnings</string>
+    <string name="channel_weather_alerts_quiet_hint">Milder DWD warnings (levels 1 and 2) in one notification. Silent.</string>
+    <string name="settings_alert_level">Lowest warning level</string>
+    <string name="settings_alert_level_2">From level 2</string>
+    <string name="settings_alert_level_2_hint">Marked weather and above. Level 3 and 4 warnings (severe and extreme weather) always come, of any kind, with sound.</string>
+    <string name="settings_alert_level_1">From level 1</string>
+    <string name="settings_alert_level_1_hint">Any warnings of the chosen phenomena, including minor ones.</string>
+    <string name="settings_alert_kinds">Phenomena for notifications</string>
+    <string name="notify_alert_title_more" translatable="false">%1$s (+%2$d)</string>
     <string name="channel_weather_rain">Rain soon</string>
     <string name="channel_weather_rain_hint">DWD radar (Germany). Rain expected within the hour.</string>
     <string name="channel_weather_pollen">Pollen</string>

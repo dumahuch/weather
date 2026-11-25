@@ -1,5 +1,7 @@
 package io.github.dumahuch.pogodaapp.settings
 
+import io.github.dumahuch.pogodaapp.weather.AlertFilter
+import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import io.github.dumahuch.pogodaapp.weather.PollenNotice
 import org.junit.Assert.assertEquals
@@ -101,24 +103,28 @@ class AppSettingsTest {
     }
 
     @Test
-    fun notificationsAreOnByDefault() {
+    fun noisyNotificationsAreOffByDefault() {
         val prefs = AppSettings(MemoryStorage()).notifications.value
-        assertEquals(NotificationPrefs(true, true, true, true, true, true, true), prefs)
+        // Предупреждения и вечерняя сводка включены, «Скоро дождь» и «Пыльца» нет (решение Димы 25.11.2026).
+        assertEquals(NotificationPrefs(inShade = true, inStatusBar = true, placeOnLockScreen = true, alerts = true, summary = true), prefs)
+        assertFalse(prefs.rainSoon)
+        assertFalse(prefs.pollen)
         assertEquals(NotificationPrefs.SUMMARY_DEFAULT_MINUTES, prefs.summaryMinutes)
         assertEquals(20 * 60, prefs.summaryMinutes)
         assertTrue(prefs.wanted)
-        assertEquals(NotificationPrefs.TOGGLE_COUNT, prefs.enabledCount)
+        assertEquals(NotificationPrefs.TOGGLE_COUNT - 2, prefs.enabledCount)
     }
 
     @Test
     fun storedChoiceBeatsTheDefault() {
         val storage = MemoryStorage()
-        storage.write(NotificationToggle.RainSoon.key, "0")
-        storage.write(NotificationToggle.Shade.key, "1")
+        storage.write(NotificationToggle.RainSoon.key, "1")
+        storage.write(NotificationToggle.Alerts.key, "0")
         val prefs = AppSettings(storage).notifications.value
-        assertFalse(prefs.rainSoon)
+        assertTrue(prefs.rainSoon)
+        assertFalse(prefs.alerts)
         assertTrue(prefs.inShade)
-        assertTrue(prefs.pollen)
+        assertFalse(prefs.pollen)
     }
 
     @Test
@@ -220,6 +226,28 @@ class AppSettingsTest {
     fun summaryAloneNeedsTheBackgroundJob() {
         assertTrue(NotificationPrefs(summary = true).background)
         assertFalse(NotificationPrefs(summary = true).wanted)
+    }
+
+    @Test
+    fun alertFilterHasDefaultsClampsLevelAndRemembersKinds() {
+        val storage = MemoryStorage()
+        val settings = AppSettings(storage)
+        assertEquals(AlertFilter(2, AlertFilter.DEFAULT_KINDS), settings.alertFilter.value)
+        settings.setAlertMinLevel(1)
+        settings.setAlertKind(AlertKind.Frost, true)
+        settings.setAlertKind(AlertKind.Thunderstorm, false)
+        val expected = AlertFilter(1, AlertFilter.DEFAULT_KINDS + AlertKind.Frost - AlertKind.Thunderstorm)
+        assertEquals(expected, settings.alertFilter.value)
+        assertEquals(expected, AppSettings(storage).alertFilter.value)
+        // Уровни 3 и 4 всегда проходят, поэтому выбрать можно только 1 или 2.
+        settings.setAlertMinLevel(4)
+        assertEquals(2, settings.alertFilter.value.minLevel)
+        settings.setAlertMinLevel(0)
+        assertEquals(1, AppSettings(storage).alertFilter.value.minLevel)
+        val writes = storage.writes
+        settings.setAlertKind(AlertKind.Frost, true)
+        settings.setAlertMinLevel(1)
+        assertEquals(writes, storage.writes)
     }
 
     @Test

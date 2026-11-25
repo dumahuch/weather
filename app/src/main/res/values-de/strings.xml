@@ -261,7 +261,7 @@
     <string name="settings_notify_status">Temperatur in der Statusleiste</string>
     <string name="settings_notify_status_hint">Die Zahl neben der Uhr. Der Eintrag in der Benachrichtigungsleiste bleibt: Ohne ihn zeigt Android das Symbol nicht.</string>
     <string name="settings_notify_alerts">Wetterwarnungen</string>
-    <string name="settings_notify_alerts_hint">Amtliche Warnungen des DWD für den Ort, an dem du die App zuletzt geöffnet hast, mit Ton. Nur in Deutschland. Etwa jede halbe Stunde geprüft.</string>
+    <string name="settings_notify_alerts_hint">Amtliche Warnungen des DWD für den Ort, an dem du die App zuletzt geöffnet hast. Unwetter (Stufen 3 und 4) kommt mit Ton, mildere Warnungen lautlos in einer Benachrichtigung. Nur in Deutschland. Etwa jede halbe Stunde geprüft.</string>
     <string name="settings_notify_rain">Bald Regen</string>
     <string name="settings_notify_rain_hint">Hinweis, wenn laut DWD-Radar innerhalb der nächsten Stunde Regen ab 0,5 mm/h beginnt, für den Ort, an dem du die App zuletzt geöffnet hast. Nur in Deutschland. Etwa jede halbe Stunde geprüft, die Zeit ist daher ungefähr.</string>
     <string name="settings_notify_pollen">Pollen</string>
@@ -298,8 +298,16 @@
     <string name="notify_precip_tomorrow_morning">Niederschlag morgen früh</string>
     <string name="channel_weather_status">Temperatur in der Statusleiste</string>
     <string name="channel_weather_status_hint">Aktuelles Wetter, Temperatur neben der Uhr. Ohne Ton.</string>
-    <string name="channel_weather_alerts">Wetterwarnungen</string>
-    <string name="channel_weather_alerts_hint">Amtliche Warnungen des DWD (Deutschland). Mit Ton.</string>
+    <string name="channel_weather_alerts">Unwetterwarnungen</string>
+    <string name="channel_weather_alerts_hint">Amtliche Warnungen des DWD der Stufen 3 und 4 (Deutschland). Mit Ton.</string>
+    <string name="channel_weather_alerts_quiet">Wetterwarnungen</string>
+    <string name="channel_weather_alerts_quiet_hint">Mildere DWD-Warnungen (Stufen 1 und 2) in einer Benachrichtigung. Ohne Ton.</string>
+    <string name="settings_alert_level">Niedrigste Warnstufe</string>
+    <string name="settings_alert_level_2">Ab Stufe 2</string>
+    <string name="settings_alert_level_2_hint">Markantes Wetter und höher. Warnungen der Stufen 3 und 4 (Unwetter und extremes Unwetter) kommen immer, für jedes Ereignis, mit Ton.</string>
+    <string name="settings_alert_level_1">Ab Stufe 1</string>
+    <string name="settings_alert_level_1_hint">Alle Warnungen der gewählten Ereignisse, auch leichte.</string>
+    <string name="settings_alert_kinds">Ereignisse für Hinweise</string>
     <string name="channel_weather_rain">Bald Regen</string>
     <string name="channel_weather_rain_hint">DWD-Radar (Deutschland). Regen innerhalb der nächsten Stunde.</string>
     <string name="channel_weather_pollen">Pollen</string>

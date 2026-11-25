@@ -1,6 +1,8 @@
 package io.github.dumahuch.pogodaapp.settings
 
 import android.content.Context
+import io.github.dumahuch.pogodaapp.weather.AlertFilter
+import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import io.github.dumahuch.pogodaapp.weather.PollenNotice
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,9 +58,9 @@ enum class MapPreload(val key: String) {
 }
 
 /**
- * Выключатели уведомлений (0.7.0, решения Димы 07.11.2026); с 0.8.35 все по умолчанию включены (решение Димы 14.11.2026:
- * [AppSettings] включает выключатель, если человек его ещё не трогал; значения по умолчанию в самом классе служат только
- * для сборки в тестах). Число в строке состояния
+ * Выключатели уведомлений (0.7.0, решения Димы 07.11.2026); с 0.8.35 по умолчанию включены (решение Димы 14.11.2026), с
+ * 25.11.2026 кроме «Скоро дождь» и «Пыльцы»: [AppSettings] включает выключатель, если человек его ещё не трогал; значения
+ * по умолчанию в самом классе служат только для сборки в тестах. Число в строке состояния
  * Android показывает только как значок уведомления, поэтому при нём запись в шторке тоже есть. [alerts] это
  * предупреждения DWD в фоне (шаг 2), [rainSoon] «скоро дождь» по радару DWD (шаг 3), [pollen] пыльца по индексу DWD (шаг 4), [summary] вечерняя сводка на завтра.
  */
@@ -173,6 +175,30 @@ class AppSettings(private val storage: SettingsStorage) {
         storage.write(POLLEN_CHECKED, at.toEpochMilli().toString())
     }
 
+    private val mutableAlertFilter = MutableStateFlow(
+        AlertFilter(AlertFilter.levelOf(storage.read(ALERT_MIN_LEVEL)), AlertFilter.decodeKinds(storage.read(ALERT_KINDS))),
+    )
+
+    /** Какие предупреждения DWD сообщать уведомлением (решения Димы 25.11.2026); уровни 3 и 4 сообщаются всегда. */
+    val alertFilter: StateFlow<AlertFilter> = mutableAlertFilter.asStateFlow()
+
+    /** Нижний уровень уведомлений: 1 или 2, другое значение отбрасывается. */
+    fun setAlertMinLevel(level: Int) {
+        val value = level.coerceIn(AlertFilter.LOWEST_LEVEL, AlertFilter.LOUD_LEVEL - 1)
+        val current = mutableAlertFilter.value
+        if (current.minLevel == value) return
+        mutableAlertFilter.value = current.copy(minLevel = value)
+        storage.write(ALERT_MIN_LEVEL, value.toString())
+    }
+
+    fun setAlertKind(kind: AlertKind, on: Boolean) {
+        val current = mutableAlertFilter.value
+        val next = if (on) current.kinds + kind else current.kinds - kind
+        if (next == current.kinds) return
+        mutableAlertFilter.value = current.copy(kinds = next)
+        storage.write(ALERT_KINDS, AlertFilter.encodeKinds(next))
+    }
+
     private val mutableCardShadow = MutableStateFlow(CardShadow.fromKey(storage.read(CARD_SHADOW)))
 
     val cardShadow: StateFlow<CardShadow> = mutableCardShadow.asStateFlow()
@@ -199,8 +225,8 @@ class AppSettings(private val storage: SettingsStorage) {
             inStatusBar = flag(NotificationToggle.StatusBar),
             placeOnLockScreen = flag(NotificationToggle.LockScreenPlace),
             alerts = flag(NotificationToggle.Alerts),
-            rainSoon = flag(NotificationToggle.RainSoon),
-            pollen = flag(NotificationToggle.Pollen),
+            rainSoon = flag(NotificationToggle.RainSoon, default = false),
+            pollen = flag(NotificationToggle.Pollen, default = false),
             summary = flag(NotificationToggle.Summary),
             lockScreenCompact = storage.read(NotificationToggle.LockScreenCompact.key) == ON,
             lockScreenHidden = storage.read(LOCK_HIDDEN) == ON,
@@ -301,8 +327,12 @@ class AppSettings(private val storage: SettingsStorage) {
         storage.write(MAP_PRELOAD, value.key)
     }
 
-    /** Выключатели уведомлений по умолчанию включены (решение Димы 14.11.2026); выбранное человеком значение сохраняется. */
-    private fun flag(toggle: NotificationToggle): Boolean = storage.read(toggle.key)?.let { it == ON } ?: true
+    /**
+     * Выключатели уведомлений по умолчанию включены (решение Димы 14.11.2026), кроме «Скоро дождь» и «Пыльцы»: их по
+     * умолчанию нет (решение Димы 25.11.2026, слишком много уведомлений). Выбранное человеком значение сохраняется.
+     */
+    private fun flag(toggle: NotificationToggle, default: Boolean = true): Boolean =
+        storage.read(toggle.key)?.let { it == ON } ?: default
 
     internal companion object {
         const val CARD_SHADOW = "card_shadow"
@@ -314,6 +344,8 @@ class AppSettings(private val storage: SettingsStorage) {
         const val NOTIFY_ERROR_MAX = 400
         const val NOTIFIED_ALERTS = "notified_alerts"
         const val RAIN_NOTIFIED = "rain_soon_notified"
+        const val ALERT_MIN_LEVEL = "alert_min_level"
+        const val ALERT_KINDS = "alert_kinds"
         const val POLLEN_KINDS = "pollen_kinds"
         const val POLLEN_NOTIFIED = "pollen_notified_on"
         const val POLLEN_CHECKED = "pollen_checked_at"
