@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ContentTransform
@@ -24,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -79,8 +81,11 @@ import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 /** Сколько суток показывает список «Прогноза» сразу после запуска. */
 private const val DEFAULT_DAY_COUNT = 7
@@ -194,7 +199,34 @@ fun PogodaApp(
         updateRequestDone()
     }
 
-    BackHandler(enabled = settingsOpen) { settingsOpen = false }
+    // Закрытие страницы жестом с предпросмотром ([PageBack]); на «Карте» и без анимаций «назад» закрывает сразу.
+    val back = remember { PageBack() }
+    val topIsPage = settingsOpen || (placesOpen && !searching) || (!placesOpen && (openDay != null || openMetric != null || openPage != null))
+    fun closeTopPage() {
+        when {
+            settingsOpen -> settingsOpen = false
+            placesOpen -> closePlaces()
+            openDay != null -> openDay = null
+            openMetric != null -> openMetric = null
+            openPage != null -> openPage = null
+        }
+    }
+    val animate by rememberAnimationsEnabled()
+    val previewBack = topIsPage && animate && tab != AppTab.Map
+    PredictiveBackHandler(enabled = previewBack) { events ->
+        SkyPause.active = true
+        try {
+            events.collect { back.drag(it.progress) }
+            back.commit(::closeTopPage)
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                back.cancel()
+                SkyPause.active = false
+            }
+            throw cancelled
+        }
+    }
+    BackHandler(enabled = topIsPage && !previewBack) { closeTopPage() }
     // Из предупреждения, открытого в списке, «назад» возвращает к списку.
     BackHandler(enabled = openAlert != null || alertsListOpen) {
         if (openAlert != null && alertFromList) openAlert = null else closeAlerts()
@@ -203,10 +235,6 @@ fun PogodaApp(
         searching = false
         placesActions.onLeave()
     }
-    BackHandler(enabled = placesOpen && !searching) { closePlaces() }
-    BackHandler(enabled = !placesOpen && openDay != null) { openDay = null }
-    BackHandler(enabled = !placesOpen && openMetric != null) { openMetric = null }
-    BackHandler(enabled = !placesOpen && openPage != null) { openPage = null }
 
     // Название выбранного не текущего места (закреплённого или открытого для просмотра) и признак просмотра.
     val chosenName = when (val choice = places.selection) {
@@ -256,13 +284,12 @@ fun PogodaApp(
             ScreenKey(Layer.Day, tab.ordinal, day = openDay ?: 0L)
         else -> ScreenKey(Layer.Tab, tab.ordinal, isMap = tab == AppTab.Map)
     }
-    val animate by rememberAnimationsEnabled()
     // Небо стоит, пока идёт переход: кадры нужны ему. Вкладки переключаются мгновенно, им стоять не нужно.
     var previousScreen by remember { mutableStateOf(screen) }
     LaunchedEffect(screen) {
         val kind = transitionKind(previousScreen, screen)
         previousScreen = screen
-        if (!animate || kind == TransitionKind.None) return@LaunchedEffect
+        if (!animate || kind == TransitionKind.None || back.silent) return@LaunchedEffect
         SkyPause.active = true
         delay(TRANSITION_MAX_MS)
         SkyPause.active = false
@@ -273,7 +300,16 @@ fun PogodaApp(
     val tabsOnTop = tabsAreOnTop(screen)
     val underlay = remember { TabUnderlay(tabsOnTop) }
     LaunchedEffect(tabsOnTop, animate) {
-        if (animate) underlay.animateTo(tabsOnTop) else underlay.snapTo(tabsOnTop)
+        if (animate && !back.silent) underlay.animateTo(tabsOnTop) else underlay.snapTo(tabsOnTop)
+    }
+
+    // Страница закрыта жестом: колода уже встала на место (см. выше), окно и небо возвращаются в обычный вид.
+    LaunchedEffect(screen) {
+        if (!back.silent) return@LaunchedEffect
+        withFrameNanos { }
+        withFrameNanos { }
+        back.finish()
+        SkyPause.active = false
     }
 
     // Смена вкладки: прежняя уходит картинкой, новая ставится под ней и приходит картинкой (см. [TabMotion]).
@@ -332,8 +368,9 @@ fun PogodaApp(
             Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    alpha = underlay.alpha.value
-                    translationX = underlay.shift.value * size.width
+                    val gesture = back.shift.value
+                    alpha = deckAlphaWith(gesture, underlay.alpha.value)
+                    translationX = deckShiftWith(gesture, underlay.shift.value) * size.width
                     // Без отдельной картинки во весь экран, пока колода гаснет (см. [screenFade]).
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 }
@@ -405,7 +442,7 @@ fun PogodaApp(
                     if (!tabMotion.hidden) drawContent()
                 },
             transitionSpec = {
-                if (animate) {
+                if (animate && !back.silent) {
                     screenTransition(transitionKind(initialState, targetState))
                 } else {
                     ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
@@ -415,8 +452,8 @@ fun PogodaApp(
             // Все вкладки живут в одном окне: при смене между ними (и с картой) окно не пересобирается.
             contentKey = { if (it.layer == Layer.Tab) SKY_TABS_KEY else it },
         ) { key ->
-            val fade = screenFade(moveKind, animate)
-            Box(Modifier.fillMaxSize().fadeLayer { fade.value }) {
+            val fade = screenFade(moveKind, animate && !back.silent)
+            Box(Modifier.fillMaxSize().fadeLayer { fade.value }.pageBack(back, key.layer.depth > 0)) {
                 when (key.layer) {
                     Layer.Settings -> SettingsScreen(
                         cardShadow = cardShadow,
