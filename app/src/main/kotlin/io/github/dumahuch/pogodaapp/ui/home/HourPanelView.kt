@@ -139,7 +139,7 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = 4.dp)
+            .padding(start = 18.dp, end = 18.dp, top = 8.dp)
             .animateContentSize(tween(PANEL_MS)),
     ) {
         Text(
@@ -152,13 +152,13 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
         )
         Spacer(
             Modifier
-                .padding(top = 8.dp)
+                .padding(top = 6.dp)
                 .fillMaxWidth()
                 .height(1.dp)
                 .background(palette.ink.copy(alpha = 0.14f)),
         )
         cells.chunked(2).forEach { pair ->
-            Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = ROW_GAP)) {
                 pair.forEach { PanelCell(it.label, it.value, it.icon, it.hue, Modifier.weight(1f)) }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
@@ -169,7 +169,7 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
                 windLine,
                 LineIcons.Wind,
                 CaptionHue.Wind,
-                Modifier.fillMaxWidth().padding(top = 10.dp),
+                Modifier.fillMaxWidth().padding(top = ROW_GAP),
                 sub = panel.gustKmh?.let { stringResource(R.string.gusts_up_to, it, kmh) },
             )
         }
@@ -188,24 +188,30 @@ private fun PanelIcon(icon: LineIcon, hue: CaptionHue) {
 
 private const val ICON_DP = 15
 
+/**
+ * Промежуток между рядами ячеек. Панель вместе с лентой, плашкой предупреждения и сжатым верхним блоком должна
+ * помещаться над панелью вкладок без прокрутки (Дима, 25.11.2026: порывы уходили под панель вкладок).
+ */
+private val ROW_GAP = 6.dp
+
 @Composable
 private fun PanelCell(label: String, value: String, icon: LineIcon, hue: CaptionHue, modifier: Modifier, sub: String? = null) {
     val palette = LocalPogodaPalette.current
     Column(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             PanelIcon(icon, hue)
             Text(label, style = pogodaText(11.5f, 400, color = palette.ink2), modifier = Modifier.padding(start = 6.dp))
-        }
-        Text(value, style = pogodaText(14f, 500, tabular = true), modifier = Modifier.padding(top = 1.dp))
-        if (sub != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (sub != null) {
+                // Порывы стоят справа в строке подписи ветра: так панель ниже на целую строку.
+                Spacer(Modifier.weight(1f))
                 PanelIcon(LineIcons.Gust, CaptionHue.Wind)
                 Text(
                     sub,
-                    style = pogodaText(12f, 400, color = palette.ink2, tabular = true),
+                    style = pogodaText(11.5f, 400, color = palette.ink2, tabular = true),
                     modifier = Modifier.padding(start = 6.dp),
                 )
             }
         }
+        Text(value, style = pogodaText(14f, 500, tabular = true))
     }
 }
