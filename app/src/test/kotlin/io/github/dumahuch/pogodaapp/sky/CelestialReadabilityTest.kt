@@ -14,8 +14,11 @@ class CelestialReadabilityTest {
 
     private val sampler = SkySampler(DiRaster(FileInputStream(File("src/main/assets/${DiMaps.ASSET_PATH}")).use { DiMaps.read(it) }))
 
-    /** Порог читаемости строк под температурой (на «Ди» 3,4 с step-21). */
-    private val info = 3.4
+    /**
+     * Порог читаемости строк под температурой. Было 3,4 (step-21); с 25.11.2026 подложки под строками нет (решение Димы:
+     * серая полоса), худший случай закат при ясном небе 2,21. Порог держит именно это, а не «читаемо».
+     */
+    private val info = 2.2
 
     private class Moment(val name: String, val elevation: Double, val solarHour: Double)
 
