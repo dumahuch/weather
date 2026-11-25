@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.booleanResource
@@ -33,7 +34,12 @@ import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.PressureUnits
 import io.github.dumahuch.pogodaapp.home.HourPanel
 import io.github.dumahuch.pogodaapp.home.temperatureText
+import io.github.dumahuch.pogodaapp.ui.CaptionHue
+import io.github.dumahuch.pogodaapp.ui.CaptionTints
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.components.LineIcon
+import io.github.dumahuch.pogodaapp.ui.components.LineIconView
+import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.weather.HourPoint
 import java.time.ZoneId
@@ -104,11 +110,24 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
 
     val cells = buildList {
         panel.pressureHpa?.let {
-            add(stringResource(R.string.tile_pressure) to "${PressureUnits.shown(it, mmHg).roundToInt()} $pressureUnit")
+            add(
+                PanelItem(
+                    stringResource(R.string.tile_pressure),
+                    "${PressureUnits.shown(it, mmHg).roundToInt()} $pressureUnit",
+                    LineIcons.Gauge,
+                    CaptionHue.Pressure,
+                ),
+            )
         }
-        panel.feelsLikeC?.let { add(stringResource(R.string.feels_like) to temperatureText(it)) }
-        panel.humidityPercent?.let { add(stringResource(R.string.tile_humidity) to "$it %") }
-        panel.dewPointC?.let { add(stringResource(R.string.hour_dew_point) to temperatureText(it)) }
+        panel.feelsLikeC?.let {
+            add(PanelItem(stringResource(R.string.feels_like), temperatureText(it), LineIcons.Thermometer, CaptionHue.FeelsLike))
+        }
+        panel.humidityPercent?.let {
+            add(PanelItem(stringResource(R.string.tile_humidity), "$it %", LineIcons.Drop, CaptionHue.Humidity))
+        }
+        panel.dewPointC?.let {
+            add(PanelItem(stringResource(R.string.hour_dew_point), temperatureText(it), LineIcons.Droplets, CaptionHue.DewPoint))
+        }
     }
     val windLine = panel.windKmh?.let { speed ->
         val word = strengths[panel.windStep ?: 0]
@@ -140,7 +159,7 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
         )
         cells.chunked(2).forEach { pair ->
             Row(Modifier.fillMaxWidth().padding(top = 10.dp)) {
-                pair.forEach { (label, value) -> PanelCell(label, value, Modifier.weight(1f)) }
+                pair.forEach { PanelCell(it.label, it.value, it.icon, it.hue, Modifier.weight(1f)) }
                 if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
@@ -148,6 +167,8 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
             PanelCell(
                 stringResource(R.string.tile_wind_now),
                 windLine,
+                LineIcons.Wind,
+                CaptionHue.Wind,
                 Modifier.fillMaxWidth().padding(top = 10.dp),
                 sub = panel.gustKmh?.let { stringResource(R.string.gusts_up_to, it, kmh) },
             )
@@ -155,14 +176,36 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
     }
 }
 
+/** Ячейка панели: подпись, значение, значок и его оттенок. */
+private class PanelItem(val label: String, val value: String, val icon: LineIcon, val hue: CaptionHue)
+
+/** Значок панели: 15 dp, линия 1,7, оттенок показателя ([CaptionTints]) под цвет неба. */
 @Composable
-private fun PanelCell(label: String, value: String, modifier: Modifier, sub: String? = null) {
+private fun PanelIcon(icon: LineIcon, hue: CaptionHue) {
+    val palette = LocalPogodaPalette.current
+    LineIconView(icon, ICON_DP.dp, CaptionTints.icon(palette.ink, palette.smoke, hue, palette.infoBackdrop), strokeWidth = 1.7f)
+}
+
+private const val ICON_DP = 15
+
+@Composable
+private fun PanelCell(label: String, value: String, icon: LineIcon, hue: CaptionHue, modifier: Modifier, sub: String? = null) {
     val palette = LocalPogodaPalette.current
     Column(modifier) {
-        Text(label, style = pogodaText(11.5f, 400, color = palette.ink2))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PanelIcon(icon, hue)
+            Text(label, style = pogodaText(11.5f, 400, color = palette.ink2), modifier = Modifier.padding(start = 6.dp))
+        }
         Text(value, style = pogodaText(14f, 500, tabular = true), modifier = Modifier.padding(top = 1.dp))
         if (sub != null) {
-            Text(sub, style = pogodaText(12f, 400, color = palette.ink2, tabular = true))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PanelIcon(LineIcons.Gust, CaptionHue.Wind)
+                Text(
+                    sub,
+                    style = pogodaText(12f, 400, color = palette.ink2, tabular = true),
+                    modifier = Modifier.padding(start = 6.dp),
+                )
+            }
         }
     }
 }

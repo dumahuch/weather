@@ -53,4 +53,16 @@ class CaptionTintsTest {
         val light = CaptionTints.hue(CaptionHue.Humidity, 1f)
         assertTrue("на тёмном небе оттенок светлее", light.red + light.green + light.blue > dark.red + dark.green + dark.blue)
     }
+
+    @Test
+    fun hourPanelHuesArePurplePressureWarmFeelsLikeAndCyanDewPointOnALightSky() {
+        val sky = Color(0xFFE6EEF6)
+        val ink = Color(0xFF101722)
+        val pressure = CaptionTints.icon(ink, 0f, CaptionHue.Pressure, sky)
+        val feelsLike = CaptionTints.icon(ink, 0f, CaptionHue.FeelsLike, sky)
+        val dew = CaptionTints.icon(ink, 0f, CaptionHue.DewPoint, sky)
+        assertTrue("давление сиреневое: синего больше зелёного", pressure.blue - pressure.green >= 0.12f)
+        assertTrue("«ощущается как» тёплое: красного больше синего", feelsLike.red - feelsLike.blue >= 0.12f)
+        assertTrue("точка росы голубая: синего больше красного", dew.blue - dew.red >= 0.12f)
+    }
 }
