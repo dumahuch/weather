@@ -49,8 +49,8 @@ internal class PageBack {
     }
 
     private companion object {
-        /** Насколько окно уезжает, пока палец ведёт до конца. */
-        const val DRAG_SHARE = 0.3f
+        /** Насколько окно уезжает (доля ширины), пока палец ведёт до конца. */
+        const val DRAG_SHARE = 0.5f
         const val COMMIT_MS = 140
         const val CANCEL_MS = 180
     }
@@ -61,7 +61,12 @@ internal fun Modifier.pageBack(back: PageBack, active: Boolean): Modifier =
     if (!active) this else graphicsLayer { translationX = back.shift.value * size.width }
 
 /** Сдвиг колоды под страницей с учётом жеста «назад»: окно уехало на [back], колода приходит на место. */
-internal fun deckShiftWith(back: Float, shift: Float): Float = shift * (1f - back)
+internal fun deckShiftWith(back: Float, shift: Float): Float = shift * (1f - deckArrival(back))
 
 /** Непрозрачность колоды с учётом жеста «назад» ([deckShiftWith]). */
-internal fun deckAlphaWith(back: Float, alpha: Float): Float = alpha + (1f - alpha) * back
+internal fun deckAlphaWith(back: Float, alpha: Float): Float = alpha + (1f - alpha) * deckArrival(back)
+
+/** Колода приходит быстрее окна: на месте и видна уже к [DECK_DONE] пути окна, чтобы предпросмотр был заметен. */
+internal fun deckArrival(back: Float): Float = (back / DECK_DONE).coerceIn(0f, 1f)
+
+private const val DECK_DONE = 0.3f
