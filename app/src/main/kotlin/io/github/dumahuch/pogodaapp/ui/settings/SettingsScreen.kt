@@ -276,30 +276,21 @@ fun SettingsScreen(
             if (notifications.alerts) {
                 SectionHeading(stringResource(R.string.settings_alert_level))
                 Column(Modifier.selectableGroup()) {
-                    ChoiceOption(
-                        title = stringResource(R.string.settings_alert_level_2),
-                        hint = stringResource(R.string.settings_alert_level_2_hint),
-                        selected = alertFilter.minLevel == 2,
-                        onClick = { onAlertMinLevel(2) },
-                        nested = true,
-                    )
-                    Rule(start = SUB_INDENT + 18.dp, alpha = RULE_ALPHA_ITEM)
-                    ChoiceOption(
-                        title = stringResource(R.string.settings_alert_level_1),
-                        hint = stringResource(R.string.settings_alert_level_1_hint),
-                        selected = alertFilter.minLevel == 1,
-                        onClick = { onAlertMinLevel(1) },
-                        nested = true,
-                    )
+                    listOf(2, 1).forEachIndexed { index, level ->
+                        if (index > 0) Rule(start = SUB_INDENT + 18.dp, alpha = RULE_ALPHA_ITEM)
+                        ChoiceOption(
+                            title = stringResource(if (level == 2) R.string.settings_alert_level_2 else R.string.settings_alert_level_1),
+                            hint = stringResource(if (level == 2) R.string.settings_alert_level_2_hint else R.string.settings_alert_level_1_hint),
+                            selected = alertFilter.minLevel == level,
+                            onClick = { onAlertMinLevel(level) },
+                            nested = true,
+                        )
+                    }
                 }
                 SectionHeading(stringResource(R.string.settings_alert_kinds))
                 val kindNames = stringArrayResource(R.array.alert_kinds)
                 AlertKind.entries.forEach { kind ->
-                    CheckOption(
-                        title = kindNames[kind.ordinal],
-                        checked = kind in alertFilter.kinds,
-                        onChange = { onAlertKind(kind, it) },
-                    )
+                    CheckOption(kindNames[kind.ordinal], kind in alertFilter.kinds) { onAlertKind(kind, it) }
                 }
             }
             ToggleOption(
