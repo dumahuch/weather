@@ -20,6 +20,18 @@ from pathlib import Path
 # Разрешение, которое AndroidX добавляет сам (защита приёмников от чужих приложений).
 AUTO_PERMISSION_SUFFIX = ".DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
 EXPECTED_LOCALES = {"de", "ru"}
+NAMESPACE = "io.github.dumahuch.pogodaapp"
+
+# Компоненты, которым разрешено быть открытыми наружу: экран запуска и окно настройки виджета (так требует лаунчер).
+# Всё остальное с android:exported=true (в том числе из библиотек) роняет разбор: новую открытую часть надо внести сюда
+# осознанно, с причиной (claude/topics/security.md).
+ALLOWED_EXPORTED = {
+    f"{NAMESPACE}.MainActivity",
+    f"{NAMESPACE}.widget.WidgetConfigActivity",
+    # Приёмник AndroidX (профили запуска): открыт, но защищён правом DUMP, которое есть только у системы и adb.
+    "androidx.profileinstaller.ProfileInstallReceiver",
+}
+COMPONENT_TAGS = {"activity", "activity-alias", "service", "receiver", "provider"}
 
 
 def find_build_tools() -> Path:
@@ -47,6 +59,68 @@ def find(pattern: str, text: str, what: str) -> re.Match:
     return match
 
 
+def _attr(line: str, name: str) -> str | None:
+    """Значение атрибута android:<name> из строки `A:` вывода aapt2 xmltree; None, если это другой атрибут."""
+    match = re.match(rf'\s*A: (?:http://schemas\.android\.com/apk/res/android:)?(?:android:)?{name}\([^)]*\)=(.*)$', line)
+    if match is None:
+        return None
+    value = match.group(1)
+    quoted = re.match(r'"([^"]*)"', value)
+    return quoted.group(1) if quoted else value.split(" (Raw:")[0].strip()
+
+
+def manifest_problems(tree: str, allowed_exported: set[str]) -> tuple[list[str], list[str]]:
+    """Что не так в манифесте APK: (замечания, список открытых наружу компонентов).
+
+    Открытые наружу: компоненты с exported=true, кроме разрешённых. В приложении: debuggable=true или
+    allowBackup не равен false (значение по умолчанию true, поэтому «не записано» тоже замечание).
+    """
+    problems: list[str] = []
+    exported: list[str] = []
+    application_depth: int | None = None
+    application_attrs: dict[str, str] = {}
+    component: dict | None = None
+
+    def close(component: dict | None) -> None:
+        if component and component["exported"] == "true":
+            exported.append(component["name"])
+
+    for line in tree.splitlines():
+        element = re.match(r"(\s*)E: ([\w.-]+)", line)
+        if element:
+            depth, tag = len(element.group(1)), element.group(2)
+            if component is not None and depth <= component["depth"]:
+                close(component)
+                component = None
+            if tag == "application":
+                application_depth = depth
+            elif tag in COMPONENT_TAGS and application_depth is not None and depth == application_depth + 2:
+                component = {"depth": depth, "name": "", "exported": ""}
+            continue
+        if component is not None:
+            name = _attr(line, "name")
+            if name is not None and not component["name"]:
+                component["name"] = name if "." in name and not name.startswith(".") else NAMESPACE + (name if name.startswith(".") else "." + name)
+            exp = _attr(line, "exported")
+            if exp is not None:
+                component["exported"] = exp
+        elif application_depth is not None:
+            for key in ("debuggable", "allowBackup"):
+                value = _attr(line, key)
+                if value is not None:
+                    application_attrs[key] = value
+    close(component)
+
+    extra = sorted(set(exported) - allowed_exported)
+    if extra:
+        problems.append(f"наружу открыты лишние компоненты: {extra}")
+    if application_attrs.get("debuggable") == "true":
+        problems.append("в манифесте debuggable=true")
+    if application_attrs.get("allowBackup") != "false":
+        problems.append(f"allowBackup не выключен (значение: {application_attrs.get('allowBackup', 'не записано')})")
+    return problems, sorted(set(exported))
+
+
 def dex_strings_found(apk: str, needles: list[str]) -> list[str]:
     """Какие из строк лежат в коде APK (classes*.dex). Нужна, чтобы отладочное не попало в выпуск."""
     with zipfile.ZipFile(apk) as archive:
@@ -69,6 +143,14 @@ def main() -> int:
     parser.add_argument("--min-sdk", required=True, type=int)
     parser.add_argument("--target-sdk", required=True, type=int)
     parser.add_argument("--allow-permission", action="append", default=[])
+    parser.add_argument(
+        "--allow-exported", action="append", default=[],
+        help="ещё один компонент, которому можно быть открытым наружу (сверх экрана запуска и окна настройки виджета)",
+    )
+    parser.add_argument(
+        "--allow-debuggable", action="store_true",
+        help="для debug-APK: debuggable=true допустим (allowBackup и открытые компоненты проверяются всё равно)",
+    )
     parser.add_argument(
         "--forbid-dex-string", action="append", default=[],
         help="строка, которой не должно быть в коде (метки и тексты отладочного журнала в выпуске)",
@@ -93,6 +175,7 @@ def main() -> int:
         locales = set(re.findall(r"'([^']+)'", locales_line))
         permissions = sorted(re.findall(r"^uses-permission: name='([^']+)'", badging, re.M))
         monochrome = icon_has_monochrome(aapt2, args.apk, badging)
+        manifest_tree = run([str(aapt2), "dump", "xmltree", "--file", "AndroidManifest.xml", args.apk])
     except RuntimeError as error:
         print(f"::error title=Разбор APK::{str(error).replace('%', '%25').replace(chr(10), '%0A')}")
         return 1
@@ -106,6 +189,11 @@ def main() -> int:
         f"разрешения: {permissions or 'нет'}",
         f"одноцветная иконка: {'есть' if monochrome else 'НЕТ'}",
     ]
+    manifest_issues, exported = manifest_problems(manifest_tree, ALLOWED_EXPORTED | set(args.allow_exported))
+    if args.allow_debuggable:
+        manifest_issues = [m for m in manifest_issues if "debuggable" not in m]
+    lines.append(f"открыто наружу: {exported or 'ничего'}")
+    problems += manifest_issues
 
     if name != args.package:
         problems.append(f"пакет {name}, ожидался {args.package}")
