@@ -111,6 +111,10 @@ def manifest_problems(tree: str, allowed_exported: set[str]) -> tuple[list[str],
                     application_attrs[key] = value
     close(component)
 
+    if f"{NAMESPACE}.MainActivity" not in exported:
+        # Экран запуска открыт всегда. Не найден значит разбор не узнал формат вывода aapt2: молчаливое «чисто» опаснее ошибки.
+        problems.append("разбор манифеста не нашёл экран запуска среди открытых компонентов (формат вывода aapt2 не узнан)")
+        problems.append("начало дерева манифеста:\n" + "\n".join(tree.splitlines()[:60]))
     extra = sorted(set(exported) - allowed_exported)
     if extra:
         problems.append(f"наружу открыты лишние компоненты: {extra}")
