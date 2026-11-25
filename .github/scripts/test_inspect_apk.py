@@ -41,7 +41,8 @@ class ManifestProblemsTest(unittest.TestCase):
     def test_expected_manifest_is_clean(self):
         problems, exported = manifest_problems(tree(), ALLOWED_EXPORTED)
         self.assertEqual(problems, [])
-        self.assertEqual(exported, sorted(ALLOWED_EXPORTED))
+        self.assertEqual(exported, [f"{NAMESPACE}.MainActivity", f"{NAMESPACE}.widget.WidgetConfigActivity"])
+        self.assertTrue(set(exported) <= ALLOWED_EXPORTED)
 
     def test_relative_names_get_the_namespace(self):
         self.assertIn(f"{NAMESPACE}.MainActivity", manifest_problems(tree(), set())[1])
