@@ -220,15 +220,18 @@ internal fun SkyHost(
         started = true
         onStopOrDispose { started = false }
     }
-    val now by rememberNow(started)
+    // Небо живёт (движется, пересчитывает цвета, снимает кадры), пока приложение на виду и небо не закрыто картой.
+    // Картины в памяти ведёт только `started`: по возвращению с карты небо не мигает пустым фоном.
+    val running = started && !SkyCover.covered
+    val now by rememberNow(running)
     val sky = remember(input, override, now) { input?.let { buildSky(it, override, now) } }
     val precip = remember(sky, input, override) { precipSpec(sky, input, override) }
     val snowLevel = remember { Animatable(0f) }
     // Пока идёт снег, сугроб растёт до предела со скоростью по силе снега; снег кончился, сходит. С открытием приложения растёт с нуля.
     val snowGrow = precip?.takeIf { it.kind == PrecipKind.Snow }?.let { SnowDriftShape.growDpPerSecond(it.strength).toFloat() }
     val snowTarget = if (snowGrow != null) SnowDriftShape.MAX_HEIGHT_DP.toFloat() else 0f
-    LaunchedEffect(snowTarget, snowGrow, animationsOn, started) {
-        if (!started) return@LaunchedEffect
+    LaunchedEffect(snowTarget, snowGrow, animationsOn, running) {
+        if (!running) return@LaunchedEffect
         if (!animationsOn) {
             snowLevel.snapTo(snowTarget)
             return@LaunchedEffect
@@ -259,8 +262,8 @@ internal fun SkyHost(
     LaunchedEffect(celestial, bodyFiles, started) { if (started) celestial.ensure(bodyFiles) }
 
     var phase by remember { mutableDoubleStateOf(SkyDrift.START_PHASE) }
-    LaunchedEffect(animationsOn, started, sky?.weather) {
-        if (!animationsOn || !started) return@LaunchedEffect
+    LaunchedEffect(animationsOn, running, sky?.weather) {
+        if (!animationsOn || !running) return@LaunchedEffect
         val speed = sky?.weather?.let(SkyDrift::speed) ?: return@LaunchedEffect
         var last = SystemClock.elapsedRealtimeNanos()
         while (true) {
@@ -276,10 +279,10 @@ internal fun SkyHost(
     // Водитель цветов не потокобезопасен: прерванный счёт прежнего цикла мог ещё идти, когда начинается новый.
     val driverLock = remember(driver) { Mutex() }
     var skyPalette by remember { mutableStateOf<PogodaPalette?>(null) }
-    LaunchedEffect(driver, sky, animationsOn, started, diagnostics != null) {
+    LaunchedEffect(driver, sky, animationsOn, running, diagnostics != null) {
         val themeDriver = driver ?: return@LaunchedEffect
         val state = sky ?: return@LaunchedEffect
-        if (!started) return@LaunchedEffect
+        if (!running) return@LaunchedEffect
         var last = SystemClock.elapsedRealtimeNanos()
         while (true) {
             if (animationsOn && SkyPause.active) {
@@ -343,8 +346,8 @@ internal fun SkyHost(
     val layoutDirection = LocalLayoutDirection.current
     val latestSky by rememberUpdatedState(sky)
     val latestPalette by rememberUpdatedState(skyPalette)
-    LaunchedEffect(ready, started, override.active) {
-        if (!ready || !started || override.active) return@LaunchedEffect
+    LaunchedEffect(ready, running, override.active) {
+        if (!ready || !running || override.active) return@LaunchedEffect
         delay(SNAPSHOT_FIRST_DELAY_MILLIS)
         while (true) {
             val state = latestSky
@@ -361,13 +364,13 @@ internal fun SkyHost(
     }
 
     // Часы дождя и снега общие для неба и капель на стекле карточек.
-    val precipClock = rememberPrecipClock(precip != null && animationsOn && started && !SkyPause.active)
+    val precipClock = rememberPrecipClock(precip != null && animationsOn && running && !SkyPause.active)
     // Небо для линз капель: тот же маленький снимок, раз в 10 с, пока идёт дождь (и на экране проверки тоже).
     val raining = precip?.kind == PrecipKind.Rain
     val lensLayer = rememberGraphicsLayer()
     val lensSky = remember { mutableStateOf<LensSky?>(null) }
-    LaunchedEffect(raining, ready, started) {
-        if (!raining || !ready || !started) return@LaunchedEffect
+    LaunchedEffect(raining, ready, running) {
+        if (!raining || !ready || !running) return@LaunchedEffect
         while (true) {
             val state = latestSky
             val colors = latestPalette
@@ -397,11 +400,11 @@ internal fun SkyHost(
 
     // Гроза: вспышки, молния и отблеск на стекле, только с анимацией и когда небо уже видно.
     val storming = (override.condition ?: input?.condition) == Condition.Storm
-    val lightning = rememberLightning(storming && animationsOn && started && ready)
+    val lightning = rememberLightning(storming && animationsOn && running && ready)
     val glassFlash = remember(lightning) { derivedStateOf { lightning.value?.frame?.flash?.toFloat() ?: 0f } }
 
-    val fog = rememberGlassFog(input, override, animationsOn, started)
-    val frost = rememberGlassFrost(input, override, animationsOn, started)
+    val fog = rememberGlassFog(input, override, animationsOn, running)
+    val frost = rememberGlassFrost(input, override, animationsOn, running)
 
     // Стекло размывает то, что нарисовано на небе (вместе с начальным градиентом, пока неба ещё нет).
     val hazeState = rememberHazeState()
@@ -447,7 +450,7 @@ internal fun SkyHost(
                 precip = precip,
                 precipClock = precipClock,
                 lightSky = palette.darkInk,
-                fogMotion = animationsOn && started && !SkyPause.active,
+                fogMotion = animationsOn && running && !SkyPause.active,
                 reveal = { reveal },
                 scrim = palette.scrim,
                 infoScrim = palette.infoScrim,
