@@ -278,7 +278,7 @@ private fun ExpandedPanel(
         Caption(stringResource(R.string.check_time_title, clockText(hour)))
         // Двусторонняя связь: бегунок двигает час, а час со стороны (кнопки сцен) двигает бегунок; первое значение и
         // совпадающие значения не пересылаются, иначе просмотр сам закрепил бы час.
-        val hourSlider = remember { SliderState(hour.toFloat(), valueRange = 0f..24f) }
+        val hourSlider = remember { SliderState(hour.toFloat(), 0, 0f..24f) }
         val shownHour by rememberUpdatedState(hour.toFloat())
         val moveHour by rememberUpdatedState { value: Float ->
             if (input != null && abs(value - shownHour) > HOUR_EPSILON) onOverride(override.copy(solarHour = value.toDouble()))

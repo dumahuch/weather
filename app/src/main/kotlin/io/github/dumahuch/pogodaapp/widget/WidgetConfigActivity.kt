@@ -89,10 +89,10 @@ private fun Context.isOurWidget(widgetId: Int): Boolean =
 private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDone: (WidgetStyle) -> Unit) {
     var background by remember { mutableStateOf(initial.background) }
     val opacity = remember {
-        SliderState(initial.opacity.toFloat(), valueRange = WidgetStyle.MIN_OPACITY.toFloat()..WidgetStyle.MAX_OPACITY.toFloat())
+        SliderState(initial.opacity.toFloat(), 0, WidgetStyle.MIN_OPACITY.toFloat()..WidgetStyle.MAX_OPACITY.toFloat())
     }
     val shade = remember {
-        SliderState(initial.shade.toFloat(), valueRange = WidgetStyle.MIN_SHADE.toFloat()..WidgetStyle.MAX_SHADE.toFloat())
+        SliderState(initial.shade.toFloat(), 0, WidgetStyle.MIN_SHADE.toFloat()..WidgetStyle.MAX_SHADE.toFloat())
     }
     var detail by remember { mutableStateOf(initial.detail) }
     var icons by remember { mutableStateOf(initial.icons ?: appIcons) }
@@ -144,7 +144,7 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
 private fun DetailSlider(detail: WidgetDetail, onChange: (WidgetDetail) -> Unit) {
     val labels = listOf(R.string.widget_detail_minimum, R.string.widget_detail_normal, R.string.widget_detail_full)
     val state = remember {
-        SliderState(detail.ordinal.toFloat(), steps = WidgetDetail.entries.size - 2, valueRange = 0f..(WidgetDetail.entries.size - 1).toFloat())
+        SliderState(detail.ordinal.toFloat(), WidgetDetail.entries.size - 2, 0f..(WidgetDetail.entries.size - 1).toFloat())
     }
     val report by rememberUpdatedState(onChange)
     LaunchedEffect(state) { snapshotFlow { state.value }.collect { report(WidgetDetail.fromIndex(it.roundToInt())) } }
