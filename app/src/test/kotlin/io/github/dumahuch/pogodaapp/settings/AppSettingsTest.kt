@@ -106,7 +106,7 @@ class AppSettingsTest {
     fun noisyNotificationsAreOffByDefault() {
         val prefs = AppSettings(MemoryStorage()).notifications.value
         // Предупреждения и вечерняя сводка включены, «Скоро дождь» и «Пыльца» нет (решение Димы 25.11.2026).
-        assertEquals(NotificationPrefs(inShade = true, inStatusBar = true, placeOnLockScreen = true, alerts = true, summary = true), prefs)
+        assertEquals(NotificationPrefs(inShade = true, inStatusBar = true, alerts = true, summary = true, lockScreenHidden = true), prefs)
         assertFalse(prefs.rainSoon)
         assertFalse(prefs.pollen)
         assertEquals(NotificationPrefs.SUMMARY_DEFAULT_MINUTES, prefs.summaryMinutes)
@@ -132,11 +132,10 @@ class AppSettingsTest {
         val storage = MemoryStorage()
         val first = AppSettings(storage)
         first.setNotification(NotificationToggle.StatusBar, false)
-        first.setNotification(NotificationToggle.LockScreenPlace, false)
         first.setNotification(NotificationToggle.StatusBar, false)
-        assertEquals(2, storage.writes)
+        assertEquals(1, storage.writes)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(true, false, false, true, false, false, true), restored)
+        assertEquals(NotificationPrefs(true, false, true, false, false, true, lockScreenHidden = true), restored)
         assertTrue(restored.wanted)
         first.setNotification(NotificationToggle.Shade, false)
         assertFalse(AppSettings(storage).notifications.value.wanted)
@@ -147,7 +146,7 @@ class AppSettingsTest {
     @Test
     fun shadeAloneIsEnoughForTheNotification() {
         assertTrue(NotificationPrefs(inShade = true).wanted)
-        assertFalse(NotificationPrefs(placeOnLockScreen = true).wanted)
+        assertFalse(NotificationPrefs(alerts = true).wanted)
     }
 
     @Test
@@ -157,7 +156,7 @@ class AppSettingsTest {
         NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.RainSoon, true)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(rainSoon = true), restored)
+        assertEquals(NotificationPrefs(rainSoon = true, lockScreenHidden = true), restored)
         assertTrue(restored.background)
         assertFalse(restored.wanted)
         assertFalse(settings.rainSoonNotified())
@@ -192,7 +191,7 @@ class AppSettingsTest {
         NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.Pollen, true)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(pollen = true), restored)
+        assertEquals(NotificationPrefs(pollen = true, lockScreenHidden = true), restored)
         assertTrue(restored.background)
     }
 
@@ -254,7 +253,7 @@ class AppSettingsTest {
     fun enabledCountCountsEveryToggle() {
         assertEquals(0, NotificationPrefs().enabledCount)
         assertEquals(2, NotificationPrefs(inShade = true, pollen = true).enabledCount)
-        val all = NotificationPrefs(true, true, true, true, true, true, true)
+        val all = NotificationPrefs(true, true, true, true, true, true)
         assertEquals(NotificationPrefs.TOGGLE_COUNT, all.enabledCount)
     }
 
@@ -265,7 +264,7 @@ class AppSettingsTest {
         NotificationToggle.entries.forEach { settings.setNotification(it, false) }
         settings.setNotification(NotificationToggle.Alerts, true)
         val restored = AppSettings(storage).notifications.value
-        assertEquals(NotificationPrefs(alerts = true), restored)
+        assertEquals(NotificationPrefs(alerts = true, lockScreenHidden = true), restored)
         assertTrue(restored.background)
         assertFalse(restored.wanted)
         assertFalse(NotificationPrefs().background)
@@ -322,40 +321,40 @@ class AppSettingsTest {
     }
 
     @Test
-    fun lockScreenChoiceIsOneOfFourAndRemembered() {
+    fun lockScreenChoiceIsOneOfThreeAndRemembered() {
         val storage = MemoryStorage()
         val settings = AppSettings(storage)
-        assertEquals(LockScreenForm.WithPlace, settings.notifications.value.lockScreen)
+        assertEquals(LockScreenForm.Hidden, settings.notifications.value.lockScreen)
         LockScreenForm.entries.forEach { form ->
             settings.setLockScreen(form)
             assertEquals(form, settings.notifications.value.lockScreen)
             assertEquals(form, AppSettings(storage).notifications.value.lockScreen)
         }
         settings.setLockScreen(LockScreenForm.NoPlace)
-        assertFalse(AppSettings(storage).notifications.value.placeOnLockScreen)
         assertFalse(AppSettings(storage).notifications.value.lockScreenCompact)
         assertFalse(AppSettings(storage).notifications.value.lockScreenHidden)
     }
 
     @Test
-    fun oldPlaceSwitchIsReadAsTheLockScreenChoice() {
+    fun oldPlaceSwitchKeepsAnExplicitChoiceAsNoPlace() {
         val storage = MemoryStorage()
-        storage.write(NotificationToggle.LockScreenPlace.key, "0")
+        storage.write(AppSettings.LEGACY_LOCK_PLACE, "0")
         assertEquals(LockScreenForm.NoPlace, AppSettings(storage).notifications.value.lockScreen)
-        storage.write(NotificationToggle.LockScreenPlace.key, "1")
-        assertEquals(LockScreenForm.WithPlace, AppSettings(storage).notifications.value.lockScreen)
+        storage.write(AppSettings.LEGACY_LOCK_PLACE, "1")
+        assertEquals(LockScreenForm.NoPlace, AppSettings(storage).notifications.value.lockScreen)
     }
 
     @Test
-    fun hiddenAndCompactAreOffByDefaultAndNotCounted() {
+    fun lockScreenIsHiddenByDefaultAndNotCounted() {
         val prefs = AppSettings(MemoryStorage()).notifications.value
-        assertFalse(prefs.lockScreenHidden)
+        assertTrue(prefs.lockScreenHidden)
         assertFalse(prefs.lockScreenCompact)
+        assertEquals(LockScreenForm.Hidden, prefs.lockScreen)
         assertEquals(DEFAULT_ENABLED, prefs.enabledCount)
     }
 
     private companion object {
-        /** Включены по умолчанию: шторка, строка состояния, место на экране блокировки, предупреждения и сводка (дождь и пыльца нет). */
-        const val DEFAULT_ENABLED = 5
+        /** Включены по умолчанию: шторка, строка состояния, предупреждения и сводка (дождь и пыльца нет). */
+        const val DEFAULT_ENABLED = 4
     }
 }

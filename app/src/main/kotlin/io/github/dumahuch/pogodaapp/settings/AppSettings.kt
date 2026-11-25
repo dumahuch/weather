@@ -67,7 +67,6 @@ enum class MapPreload(val key: String) {
 data class NotificationPrefs(
     val inShade: Boolean = false,
     val inStatusBar: Boolean = false,
-    val placeOnLockScreen: Boolean = false,
     val alerts: Boolean = false,
     val rainSoon: Boolean = false,
     val pollen: Boolean = false,
@@ -79,15 +78,17 @@ data class NotificationPrefs(
      * По умолчанию выключено (решение Димы); это вид записи, а не отдельное уведомление, поэтому в [enabledCount] не входит.
      */
     val lockScreenCompact: Boolean = false,
-    /** Запись о погоде скрыта на заблокированном экране совсем (0.8.67); по умолчанию выключено. */
+    /**
+     * Запись о погоде скрыта на заблокированном экране совсем (0.8.67). Решение Димы 25.11.2026: по умолчанию скрыта;
+     * в самом классе значение false служит только для сборки в тестах, а [AppSettings] ставит скрытие тому, кто вид ещё не выбирал.
+     */
     val lockScreenHidden: Boolean = false,
 ) {
-    /** Что видно на заблокированном экране у записи о погоде: скрыто важнее «Кратко», «Кратко» важнее места. */
+    /** Что видно на заблокированном экране у записи о погоде: скрыто важнее «Кратко». */
     val lockScreen: LockScreenForm
         get() = when {
             lockScreenHidden -> LockScreenForm.Hidden
             lockScreenCompact -> LockScreenForm.Compact
-            placeOnLockScreen -> LockScreenForm.WithPlace
             else -> LockScreenForm.NoPlace
         }
 
@@ -98,23 +99,22 @@ data class NotificationPrefs(
     val background: Boolean get() = wanted || alerts || rainSoon || pollen || summary
 
     /** Сколько выключателей включено (для строки раздела «Уведомления»); всего их [TOGGLE_COUNT]. */
-    val enabledCount: Int get() = listOf(inShade, inStatusBar, placeOnLockScreen, alerts, rainSoon, pollen, summary).count { it }
+    val enabledCount: Int get() = listOf(inShade, inStatusBar, alerts, rainSoon, pollen, summary).count { it }
 
     companion object {
-        const val TOGGLE_COUNT = 7
+        const val TOGGLE_COUNT = 6
         const val SUMMARY_DEFAULT_MINUTES = 20 * 60
         const val MINUTES_IN_DAY = 24 * 60
     }
 }
 
-/** Вид записи о погоде на заблокированном экране: выбор из четырёх пунктов в настройках (0.8.67). */
-enum class LockScreenForm { WithPlace, NoPlace, Compact, Hidden }
+/** Вид записи о погоде на заблокированном экране: выбор из трёх пунктов в настройках (0.8.67; «С названием места» убран 25.11.2026). */
+enum class LockScreenForm { NoPlace, Compact, Hidden }
 
 /** Один выключатель уведомления и ключ, под которым он хранится. */
 enum class NotificationToggle(val key: String) {
     Shade("notify_shade"),
     StatusBar("notify_status_bar"),
-    LockScreenPlace("notify_lock_place"),
     LockScreenCompact("notify_lock_compact"),
     Alerts("notify_alerts"),
     RainSoon("notify_rain_soon"),
@@ -223,13 +223,12 @@ class AppSettings(private val storage: SettingsStorage) {
         NotificationPrefs(
             inShade = flag(NotificationToggle.Shade),
             inStatusBar = flag(NotificationToggle.StatusBar),
-            placeOnLockScreen = flag(NotificationToggle.LockScreenPlace),
             alerts = flag(NotificationToggle.Alerts),
             rainSoon = flag(NotificationToggle.RainSoon, default = false),
             pollen = flag(NotificationToggle.Pollen, default = false),
             summary = flag(NotificationToggle.Summary),
             lockScreenCompact = storage.read(NotificationToggle.LockScreenCompact.key) == ON,
-            lockScreenHidden = storage.read(LOCK_HIDDEN) == ON,
+            lockScreenHidden = storage.read(LOCK_HIDDEN)?.let { it == ON } ?: !lockScreenChosen(),
             summaryMinutes = storage.read(SUMMARY_MINUTES)?.toIntOrNull()?.takeIf { it in 0 until NotificationPrefs.MINUTES_IN_DAY }
                 ?: NotificationPrefs.SUMMARY_DEFAULT_MINUTES,
         ),
@@ -242,7 +241,6 @@ class AppSettings(private val storage: SettingsStorage) {
         val next = when (toggle) {
             NotificationToggle.Shade -> current.copy(inShade = on)
             NotificationToggle.StatusBar -> current.copy(inStatusBar = on)
-            NotificationToggle.LockScreenPlace -> current.copy(placeOnLockScreen = on)
             NotificationToggle.LockScreenCompact -> current.copy(lockScreenCompact = on)
             NotificationToggle.Alerts -> current.copy(alerts = on)
             NotificationToggle.RainSoon -> current.copy(rainSoon = on)
@@ -257,21 +255,19 @@ class AppSettings(private val storage: SettingsStorage) {
     }
 
     /**
-     * Вид записи на заблокированном экране одним выбором. Прежний выключатель места читается как раньше (ключ тот же), поэтому
-     * у кого было включено место, остаётся «С названием места». «Кратко» и «Скрыто» место не стирают: вернувшись к «Без места»
-     * или «С названием места», человек задаёт его заново.
+     * Вид записи на заблокированном экране одним выбором из трёх. Кто выбирал вид раньше (в том числе прежним выключателем
+     * места, ключ [LEGACY_LOCK_PLACE]), остаётся при своём выборе, а «С названием места» стал «Без места»; кто не выбирал
+     * никогда, получает скрытую запись (решение Димы 25.11.2026).
      */
     fun setLockScreen(form: LockScreenForm) {
         val current = mutableNotifications.value
         val next = when (form) {
-            LockScreenForm.WithPlace -> current.copy(placeOnLockScreen = true, lockScreenCompact = false, lockScreenHidden = false)
-            LockScreenForm.NoPlace -> current.copy(placeOnLockScreen = false, lockScreenCompact = false, lockScreenHidden = false)
+            LockScreenForm.NoPlace -> current.copy(lockScreenCompact = false, lockScreenHidden = false)
             LockScreenForm.Compact -> current.copy(lockScreenCompact = true, lockScreenHidden = false)
             LockScreenForm.Hidden -> current.copy(lockScreenCompact = false, lockScreenHidden = true)
         }
         if (next == current) return
         mutableNotifications.value = next
-        storage.write(NotificationToggle.LockScreenPlace.key, if (next.placeOnLockScreen) ON else OFF)
         storage.write(NotificationToggle.LockScreenCompact.key, if (next.lockScreenCompact) ON else OFF)
         storage.write(LOCK_HIDDEN, if (next.lockScreenHidden) ON else OFF)
     }
@@ -334,7 +330,12 @@ class AppSettings(private val storage: SettingsStorage) {
     private fun flag(toggle: NotificationToggle, default: Boolean = true): Boolean =
         storage.read(toggle.key)?.let { it == ON } ?: default
 
+    /** Вид записи на заблокированном экране уже выбирали: новым способом или прежними выключателями. */
+    private fun lockScreenChosen(): Boolean =
+        storage.read(LEGACY_LOCK_PLACE) != null || storage.read(NotificationToggle.LockScreenCompact.key) != null
+
     internal companion object {
+        const val LEGACY_LOCK_PLACE = "notify_lock_place"
         const val CARD_SHADOW = "card_shadow"
         const val ICON_STYLE = "weather_icon_style"
         const val MAP_PRELOAD = "map_preload"

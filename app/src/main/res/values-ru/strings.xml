@@ -283,8 +283,6 @@
     <string name="settings_group_lock">На заблокированном экране</string>
     <string name="settings_group_events">События</string>
     <string name="settings_group_summary">Вечерняя сводка</string>
-    <string name="settings_lock_place">С названием места</string>
-    <string name="settings_lock_place_hint">Видна вся запись, в том числе название места.</string>
     <string name="settings_lock_no_place">Без места</string>
     <string name="settings_lock_no_place_hint">Температура и погода, без названия места.</string>
     <string name="settings_lock_compact">Кратко</string>
@@ -296,7 +294,6 @@
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
     <string name="notify_text">Ощущается как %1$s · %2$s</string>
-    <string name="notify_lock_line">%1$s · ощущается %2$s</string>
     <string name="notify_place_since">Место с %1$s</string>
     <string name="notify_precip_tomorrow_morning">Осадки завтра утром</string>
     <string name="channel_weather_status">Температура в строке состояния</string>

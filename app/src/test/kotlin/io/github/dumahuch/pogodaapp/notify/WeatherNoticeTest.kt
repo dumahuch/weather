@@ -20,7 +20,7 @@ class WeatherNoticeTest {
     @Test
     fun statusBarWinsOverShadeAndNothingMeansNoNotification() {
         assertNull(WeatherNotice.channelFor(NotificationPrefs()))
-        assertNull(WeatherNotice.channelFor(NotificationPrefs(placeOnLockScreen = true)))
+        assertNull(WeatherNotice.channelFor(NotificationPrefs(alerts = true)))
         assertEquals(NoticeChannel.Shade, WeatherNotice.channelFor(NotificationPrefs(inShade = true)))
         assertEquals(NoticeChannel.StatusBar, WeatherNotice.channelFor(NotificationPrefs(inStatusBar = true)))
         assertEquals(NoticeChannel.StatusBar, WeatherNotice.channelFor(NotificationPrefs(inShade = true, inStatusBar = true)))
@@ -55,10 +55,9 @@ class WeatherNoticeTest {
     }
 
     @Test
-    fun lockScreenFormHiddenBeatsCompactBeatsPlace() {
+    fun lockScreenFormHiddenBeatsCompact() {
         assertEquals(LockScreenForm.NoPlace, NotificationPrefs(inShade = true).lockScreen)
-        assertEquals(LockScreenForm.WithPlace, NotificationPrefs(inShade = true, placeOnLockScreen = true).lockScreen)
-        assertEquals(LockScreenForm.Compact, NotificationPrefs(inShade = true, placeOnLockScreen = true, lockScreenCompact = true).lockScreen)
-        assertEquals(LockScreenForm.Hidden, NotificationPrefs(inShade = true, placeOnLockScreen = true, lockScreenCompact = true, lockScreenHidden = true).lockScreen)
+        assertEquals(LockScreenForm.Compact, NotificationPrefs(inShade = true, lockScreenCompact = true).lockScreen)
+        assertEquals(LockScreenForm.Hidden, NotificationPrefs(inShade = true, lockScreenCompact = true, lockScreenHidden = true).lockScreen)
     }
 }

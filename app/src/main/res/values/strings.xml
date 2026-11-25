@@ -287,8 +287,6 @@
     <string name="settings_group_lock">On the lock screen</string>
     <string name="settings_group_events">Events</string>
     <string name="settings_group_summary">Evening summary</string>
-    <string name="settings_lock_place">With place name</string>
-    <string name="settings_lock_place_hint">The whole notification is visible, including the place name.</string>
     <string name="settings_lock_no_place">Without place</string>
     <string name="settings_lock_no_place_hint">Temperature and weather, without the place name.</string>
     <string name="settings_lock_compact">Compact</string>
@@ -302,7 +300,6 @@
     <string name="notify_alert_title" translatable="false">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
     <string name="notify_text">Feels like %1$s · %2$s</string>
-    <string name="notify_lock_line">%1$s · feels like %2$s</string>
     <string name="notify_place_since">Location as of %1$s</string>
     <string name="notify_precip_tomorrow_morning">Precipitation tomorrow morning</string>
     <string name="channel_weather_status">Temperature in the status bar</string>
