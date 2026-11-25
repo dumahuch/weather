@@ -1,6 +1,8 @@
 package io.github.dumahuch.pogodaapp.widget
 
 import android.appwidget.AppWidgetManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -55,7 +57,8 @@ class WidgetConfigActivity : ComponentActivity() {
         val widgetId = intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
             ?: AppWidgetManager.INVALID_APPWIDGET_ID
         setResult(RESULT_CANCELED, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId))
-        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID) {
+        // Окно открыто снаружи (его зовёт лаунчер, но может и чужое приложение): чужой или выдуманный номер не принимаем.
+        if (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID || !isOurWidget(widgetId)) {
             finish()
             return
         }
@@ -74,6 +77,10 @@ class WidgetConfigActivity : ComponentActivity() {
         }
     }
 }
+
+/** Номер выдан системой одному из наших виджетов (в том числе только что добавляемому, пока он ждёт настройки). */
+private fun Context.isOurWidget(widgetId: Int): Boolean =
+    widgetId in AppWidgetManager.getInstance(this).getAppWidgetIds(ComponentName(this, WeatherWidgetProvider::class.java))
 
 @Composable
 private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDone: (WidgetStyle) -> Unit) {

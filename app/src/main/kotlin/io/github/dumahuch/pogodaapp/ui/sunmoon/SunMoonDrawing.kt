@@ -348,7 +348,7 @@ internal fun SkyCompass(sun: SkyPath?, moon: SkyPath?, modifier: Modifier = Modi
         val moonRadius = outer - 10.dp.toPx()
         if (moon != null) {
             drawPath(
-                arcOf(moon, c, moonRadius),
+                arcOf(moon, c, moonRadius, trimPx = (4.5.dp.toPx() + 4.dp.toPx())),
                 moonColor,
                 style = Stroke(2.2.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.1f, 4.5.dp.toPx()))),
             )
@@ -375,13 +375,18 @@ private fun point(azimuth: Double, radius: Float): Offset {
     return Offset((sin(a) * radius).toFloat(), (-cos(a) * radius).toFloat())
 }
 
-/** Дуга по кругу от восхода к заходу через сторону [SkyPath.via]; без восхода или захода пустая. */
-private fun arcOf(path: SkyPath, c: Offset, radius: Float): Path {
+/** Дуга по кругу от восхода к заходу через сторону [SkyPath.via], с отступом [trimPx] с обоих концов; без восхода или захода пустая. */
+private fun arcOf(path: SkyPath, c: Offset, radius: Float, trimPx: Float = 0f): Path {
     val rise = path.rise ?: return Path()
     val set = path.set ?: return Path()
     val sweep = arcSweep(rise, set, path.via)
+    // Дуга не доходит до кружков восхода и захода на их радиус и зазор: точки пунктира не входят внутрь кружка.
+    val trim = Math.toDegrees(trimPx / radius.toDouble())
+    val direction = if (sweep >= 0) 1.0 else -1.0
+    val shortened = sweep - direction * 2 * trim
+    if (trim > 0 && shortened * direction <= 0) return Path()
     return Path().apply {
-        arcTo(Rect(c, radius), (rise - 90).toFloat(), sweep.toFloat(), true)
+        arcTo(Rect(c, radius), (rise - 90 + direction * trim).toFloat(), (if (trim > 0) shortened else sweep).toFloat(), true)
     }
 }
 
