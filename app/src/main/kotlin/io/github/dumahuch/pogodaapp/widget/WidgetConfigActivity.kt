@@ -24,10 +24,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -85,8 +85,12 @@ private fun Context.isOurWidget(widgetId: Int): Boolean =
 @Composable
 private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDone: (WidgetStyle) -> Unit) {
     var background by remember { mutableStateOf(initial.background) }
-    var opacity by remember { mutableFloatStateOf(initial.opacity.toFloat()) }
-    var shade by remember { mutableFloatStateOf(initial.shade.toFloat()) }
+    val opacity = remember {
+        SliderState(initial.opacity.toFloat(), 0, WidgetStyle.MIN_OPACITY.toFloat()..WidgetStyle.MAX_OPACITY.toFloat())
+    }
+    val shade = remember {
+        SliderState(initial.shade.toFloat(), 0, WidgetStyle.MIN_SHADE.toFloat()..WidgetStyle.MAX_SHADE.toFloat())
+    }
     var detail by remember { mutableStateOf(initial.detail) }
     var icons by remember { mutableStateOf(initial.icons ?: appIcons) }
     Column(
@@ -105,23 +109,13 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
             BackgroundOption(R.string.widget_bg_none, background == WidgetBackground.None) { background = WidgetBackground.None }
             when (background) {
                 WidgetBackground.Sky -> {
-                    Text(stringResource(R.string.widget_shade, shade.roundToInt()))
-                    @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
-                    Slider(
-                        value = shade,
-                        onValueChange = { shade = it },
-                        valueRange = WidgetStyle.MIN_SHADE.toFloat()..WidgetStyle.MAX_SHADE.toFloat(),
-                    )
+                    Text(stringResource(R.string.widget_shade, shade.value.roundToInt()))
+                    Slider(state = shade, onValueChange = { shade.value = it })
                     Text(stringResource(R.string.widget_icons_none_on_sky), style = MaterialTheme.typography.bodyMedium)
                 }
                 WidgetBackground.Glass -> {
-                    Text(stringResource(R.string.widget_opacity, opacity.roundToInt()))
-                    @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
-                    Slider(
-                        value = opacity,
-                        onValueChange = { opacity = it },
-                        valueRange = WidgetStyle.MIN_OPACITY.toFloat()..WidgetStyle.MAX_OPACITY.toFloat(),
-                    )
+                    Text(stringResource(R.string.widget_opacity, opacity.value.roundToInt()))
+                    Slider(state = opacity, onValueChange = { opacity.value = it })
                 }
                 WidgetBackground.None -> Unit
             }
@@ -133,7 +127,7 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
         }
         Button(
             onClick = {
-                onDone(WidgetStyle(background, opacity.roundToInt(), shade.roundToInt(), detail, icons.takeIf { it != appIcons }))
+                onDone(WidgetStyle(background, opacity.value.roundToInt(), shade.value.roundToInt(), detail, icons.takeIf { it != appIcons }))
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -146,13 +140,16 @@ private fun ConfigScreen(initial: WidgetStyle, appIcons: WeatherIconStyle, onDon
 @Composable
 private fun DetailSlider(detail: WidgetDetail, onChange: (WidgetDetail) -> Unit) {
     val labels = listOf(R.string.widget_detail_minimum, R.string.widget_detail_normal, R.string.widget_detail_full)
+    val state = remember {
+        SliderState(detail.ordinal.toFloat(), WidgetDetail.entries.size - 2, 0f..(WidgetDetail.entries.size - 1).toFloat())
+    }
     Column {
-        @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
         Slider(
-            value = detail.ordinal.toFloat(),
-            onValueChange = { onChange(WidgetDetail.fromIndex(it.roundToInt())) },
-            valueRange = 0f..(WidgetDetail.entries.size - 1).toFloat(),
-            steps = WidgetDetail.entries.size - 2,
+            state = state,
+            onValueChange = {
+                state.value = it
+                onChange(WidgetDetail.fromIndex(it.roundToInt()))
+            },
         )
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             labels.forEachIndexed { index, label ->

@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,6 +53,7 @@ import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.PollenLevel
 import java.time.Instant
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
@@ -272,11 +274,15 @@ private fun ExpandedPanel(
 
         val hour = override.solarHour ?: snapshot?.solarHour ?: 12.0
         Caption(stringResource(R.string.check_time_title, clockText(hour)))
-        @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
+        // Двусторонняя связь: бегунок двигает час, а час со стороны (кнопки сцен) двигает бегунок.
+        val hourSlider = remember { SliderState(hour.toFloat(), 0, 0f..24f) }
+        LaunchedEffect(hour) { if (abs(hourSlider.value - hour.toFloat()) > HOUR_EPSILON) hourSlider.value = hour.toFloat() }
         Slider(
-            value = hour.toFloat(),
-            onValueChange = { if (input != null) onOverride(override.copy(solarHour = it.toDouble())) },
-            valueRange = 0f..24f,
+            state = hourSlider,
+            onValueChange = {
+                hourSlider.value = it
+                if (input != null) onOverride(override.copy(solarHour = it.toDouble()))
+            },
         )
 
         Caption(stringResource(R.string.check_weather_title))
@@ -588,6 +594,9 @@ private fun ProbeSection(onChange: () -> Unit) {
 }
 
 private const val NANOS_PER_MILLI = 1e6
+
+/** Разница часа бегунка и показанного, меньше которой они считаются одним значением (в часах). */
+private const val HOUR_EPSILON = 0.001f
 private const val DEFAULT_REFRESH_RATE = 60f
 
 private fun Context.findActivity(): Activity? {

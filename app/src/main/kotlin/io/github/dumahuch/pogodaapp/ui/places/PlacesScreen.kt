@@ -19,17 +19,19 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -62,6 +64,7 @@ import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassButton
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.pogodaText
+import kotlinx.coroutines.flow.drop
 
 /** Всё, что показывает экран мест. Собирается из состояния модели главного экрана. */
 data class PlacesUiState(
@@ -401,7 +404,11 @@ private fun WideButton(icon: LineIcon, label: String, onClick: () -> Unit) {
 @Composable
 private fun SearchField(initial: String, onQuery: (String) -> Unit, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
-    var text by rememberSaveable { mutableStateOf(initial) }
+    val state = rememberTextFieldState(initial)
+    val text = state.text
+    val report by rememberUpdatedState(onQuery)
+    // Первое значение не пересылается: запрос меняется только от набора и от кнопки «очистить».
+    LaunchedEffect(state) { snapshotFlow { state.text.toString() }.drop(1).collect { report(it) } }
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
@@ -427,21 +434,16 @@ private fun SearchField(initial: String, onQuery: (String) -> Unit, modifier: Mo
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            @Suppress("DEPRECATION") // Compose 1.13: переход на TextFieldState отложен (claude/topics/open-questions.md)
             BasicTextField(
-                value = text,
-                onValueChange = {
-                    text = it
-                    onQuery(it)
-                },
-                singleLine = true,
+                state = state,
+                lineLimits = TextFieldLineLimits.SingleLine,
                 textStyle = pogodaText(15f, 600, color = palette.ink),
                 cursorBrush = SolidColor(palette.accent),
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
                     imeAction = ImeAction.Search,
                 ),
-                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
+                onKeyboardAction = KeyboardActionHandler { keyboard?.hide() },
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
         }
@@ -449,8 +451,7 @@ private fun SearchField(initial: String, onQuery: (String) -> Unit, modifier: Mo
             Modifier
                 .size(44.dp)
                 .clickable(enabled = text.isNotEmpty(), role = Role.Button) {
-                    text = ""
-                    onQuery("")
+                    state.clearText()
                 }
                 .semantics { contentDescription = clearLabel },
             contentAlignment = Alignment.Center,
