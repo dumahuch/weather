@@ -188,7 +188,7 @@ internal fun AlertRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        LineIconView(if (alert.kind.isSnowflake()) LineIcons.IceSmall else levelIcon(alert.level), 20.dp, tint)
+        LineIconView(if (alert.kind.isSnowflake()) LineIcons.Ice else levelIcon(alert.level), 20.dp, tint)
         Column(Modifier.weight(1f)) {
             Text(title, style = pogodaText(13.5f, 500, color = palette.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(level, style = pogodaText(12f, 400, color = palette.ink2), maxLines = 1, overflow = TextOverflow.Ellipsis)
