@@ -24,6 +24,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -31,6 +32,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,6 +55,7 @@ import io.github.dumahuch.pogodaapp.weather.Condition
 import io.github.dumahuch.pogodaapp.weather.PollenLevel
 import java.time.Instant
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
@@ -272,12 +276,16 @@ private fun ExpandedPanel(
 
         val hour = override.solarHour ?: snapshot?.solarHour ?: 12.0
         Caption(stringResource(R.string.check_time_title, clockText(hour)))
-        @Suppress("DEPRECATION") // Compose 1.13: переход на SliderState отложен (claude/topics/open-questions.md)
-        Slider(
-            value = hour.toFloat(),
-            onValueChange = { if (input != null) onOverride(override.copy(solarHour = it.toDouble())) },
-            valueRange = 0f..24f,
-        )
+        // Двусторонняя связь: бегунок двигает час, а час со стороны (кнопки сцен) двигает бегунок; первое значение и
+        // совпадающие значения не пересылаются, иначе просмотр сам закрепил бы час.
+        val hourSlider = remember { SliderState(hour.toFloat(), valueRange = 0f..24f) }
+        val shownHour by rememberUpdatedState(hour.toFloat())
+        val moveHour by rememberUpdatedState { value: Float ->
+            if (input != null && abs(value - shownHour) > HOUR_EPSILON) onOverride(override.copy(solarHour = value.toDouble()))
+        }
+        LaunchedEffect(hour) { if (abs(hourSlider.value - hour.toFloat()) > HOUR_EPSILON) hourSlider.value = hour.toFloat() }
+        LaunchedEffect(hourSlider) { snapshotFlow { hourSlider.value }.collect { moveHour(it) } }
+        Slider(state = hourSlider)
 
         Caption(stringResource(R.string.check_weather_title))
         ButtonGrid(columns = 3, items = Weathers) { (condition, label) ->
@@ -588,6 +596,9 @@ private fun ProbeSection(onChange: () -> Unit) {
 }
 
 private const val NANOS_PER_MILLI = 1e6
+
+/** Разница часа бегунка и показанного, меньше которой они считаются одним значением (в часах). */
+private const val HOUR_EPSILON = 0.001f
 private const val DEFAULT_REFRESH_RATE = 60f
 
 private fun Context.findActivity(): Activity? {
