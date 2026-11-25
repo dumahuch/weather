@@ -296,6 +296,7 @@
     <string name="notify_headline">%1$s %2$s</string>
     <string name="notify_title">%1$s · %2$s</string>
     <string name="notify_text">Ощущается как %1$s · %2$s</string>
+    <string name="notify_lock_line">%1$s · ощущается %2$s</string>
     <string name="notify_place_since">Место с %1$s</string>
     <string name="notify_precip_tomorrow_morning">Осадки завтра утром</string>
     <string name="channel_weather_status">Температура в строке состояния</string>
