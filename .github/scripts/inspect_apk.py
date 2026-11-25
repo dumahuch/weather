@@ -247,6 +247,9 @@ def main() -> int:
         with open(output, "a", encoding="utf-8") as handle:
             handle.write(f"cert_sha256={cert_sha256}\n")
 
+    if any("не узнан" in item for item in problems):
+        print("--- начало дерева манифеста (aapt2 xmltree) ---")
+        print("\n".join(manifest_tree.splitlines()[:80]))
     if problems:
         text = "\n".join(problems) + "\n--- итог разбора ---\n" + summary
         print(f"::error title=APK не прошёл проверку::{text.replace('%', '%25').replace(chr(10), '%0A')}")
