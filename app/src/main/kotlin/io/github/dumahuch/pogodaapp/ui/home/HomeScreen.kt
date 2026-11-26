@@ -423,7 +423,7 @@ internal fun ContentTop(
  * строкой не оставляет запаса контраста ([ExtremeTints]); число дополнительно приглушено ([QuietInk]).
  */
 @Composable
-private fun HighLowRow(max: Double, min: Double, modifier: Modifier = Modifier) {
+internal fun HighLowRow(max: Double, min: Double, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val description = "${stringResource(R.string.temp_high)} ${temperatureText(max)}, " +
         "${stringResource(R.string.temp_low)} ${temperatureText(min)}"

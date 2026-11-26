@@ -226,17 +226,33 @@ internal fun WaterLayer(values: List<Double>, locale: Locale, modifier: Modifier
             strokeWidth = 1f * unit,
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(4f * unit, 4f * unit)),
         )
+        // Подписи пиков считаем заранее: подпись шкалы «1 мм/ч» сдвигается вправо, если налезает на одну из них.
+        val peakLabels = peaks.map { peak ->
+            val text = measurer.measure("${precipitationText(values[peak], locale)} $mm", labelStyle)
+            text to Offset(x(peak) - text.size.width / 2f, y(peak) - text.size.height - 4f * unit)
+        }
         val scaleText = measurer.measure(scale, scaleStyle)
-        drawText(scaleText, topLeft = Offset(4f * unit, oneMm - scaleText.size.height - 2f * unit))
+        val scaleTop = oneMm - scaleText.size.height - 2f * unit
+        var scaleLeft = 4f * unit
+        var moved = true
+        while (moved) {
+            moved = false
+            for ((text, at) in peakLabels) {
+                val overlapsX = scaleLeft < at.x + text.size.width + 4f * unit && at.x < scaleLeft + scaleText.size.width + 4f * unit
+                val overlapsY = scaleTop < at.y + text.size.height && at.y < scaleTop + scaleText.size.height
+                if (overlapsX && overlapsY) {
+                    scaleLeft = at.x + text.size.width + 8f * unit
+                    moved = true
+                }
+            }
+        }
+        if (scaleLeft + scaleText.size.width <= size.width) drawText(scaleText, topLeft = Offset(scaleLeft, scaleTop))
         drawPath(water, WaterFill)
         // Кромка только над водой: у дна (сухие часы) линия не нужна.
         clipRect(bottom = bottom - 1.5f * unit) {
             drawPath(surface, edge, style = Stroke(width = 2f * unit, cap = StrokeCap.Round))
         }
-        for (peak in peaks) {
-            val text = measurer.measure("${precipitationText(values[peak], locale)} $mm", labelStyle)
-            drawText(text, topLeft = Offset(x(peak) - text.size.width / 2f, y(peak) - text.size.height - 4f * unit))
-        }
+        for ((text, at) in peakLabels) drawText(text, topLeft = at)
     }
 }
 

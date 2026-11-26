@@ -197,7 +197,6 @@ internal fun AlertRow(
         if (time.isNotEmpty()) {
             Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
         }
-        LineIconView(LineIcons.ChevronRight, 16.dp, palette.ink2)
     }
 }
 
@@ -222,7 +221,6 @@ internal fun AlertMoreRow(count: Int, onClick: () -> Unit, modifier: Modifier = 
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(text, style = pogodaText(13f, 600, color = palette.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        LineIconView(LineIcons.ChevronRight, 16.dp, palette.ink2)
     }
 }
 

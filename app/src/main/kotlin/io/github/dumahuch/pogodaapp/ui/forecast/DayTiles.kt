@@ -31,6 +31,7 @@ import androidx.compose.ui.res.booleanResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.CompassPoint
@@ -241,8 +242,9 @@ private fun CloudDayTile(data: DayData, modifier: Modifier) {
             },
         )
     }
+    // Сверху вниз как в небе: верхние, средние, нижние.
     val layers = if (low != null && mid != null && high != null) {
-        listOf(low, mid, high)
+        listOf(R.string.cloud_high to high, R.string.cloud_mid to mid, R.string.cloud_low to low)
     } else {
         null
     }
@@ -252,29 +254,28 @@ private fun CloudDayTile(data: DayData, modifier: Modifier) {
         unit = if (cover != null) "%" else null,
         word = word,
         wordDot = palette.ink2,
-        sub = layers?.let { stringResource(R.string.day_cloud_layers, it[0], it[1], it[2]) },
+        sub = null,
         modifier = modifier,
         symbol = layers?.let { { CloudLayers(it) } },
         symbolAtEnd = true,
     )
 }
 
-/** Три полоски слоёв облаков (нижние, средние, верхние): чем длиннее закраска, тем больше неба закрыто слоем. */
+/** Три полоски слоёв облаков с подписью слева и процентом справа: что за слой, видно без пояснений. */
 @Composable
-private fun CloudLayers(percent: List<Int>) {
+private fun CloudLayers(layers: List<Pair<Int, Int>>) {
     val palette = LocalPogodaPalette.current
-    Canvas(Modifier.size(width = 120.dp, height = 44.dp)) {
-        val barHeight = 8.dp.toPx()
-        val gap = (size.height - 3 * barHeight) / 2
-        percent.forEachIndexed { i, value ->
-            val top = i * (barHeight + gap)
-            drawRoundRect(palette.ink.copy(alpha = 0.14f), Offset(0f, top), Size(size.width, barHeight), CornerRadius(barHeight / 2))
-            drawRoundRect(
-                palette.ink2.copy(alpha = 0.85f - 0.2f * i),
-                Offset(0f, top),
-                Size(size.width * value.coerceIn(0, 100) / 100f, barHeight),
-                CornerRadius(barHeight / 2),
-            )
+    Column(Modifier.width(210.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        layers.forEachIndexed { i, (label, percent) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(label), style = pogodaText(12.5f, 600, color = palette.ink2), modifier = Modifier.width(64.dp), maxLines = 1)
+                Canvas(Modifier.weight(1f).height(8.dp)) {
+                    val radius = CornerRadius(size.height / 2)
+                    drawRoundRect(palette.ink.copy(alpha = 0.14f), Offset.Zero, size, radius)
+                    drawRoundRect(palette.ink2.copy(alpha = 0.85f - 0.2f * i), Offset.Zero, Size(size.width * percent.coerceIn(0, 100) / 100f, size.height), radius)
+                }
+                Text(percentText(percent), style = pogodaText(12.5f, 700, tabular = true), modifier = Modifier.width(42.dp), textAlign = TextAlign.End, maxLines = 1)
+            }
         }
     }
 }

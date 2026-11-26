@@ -35,8 +35,6 @@ import io.github.dumahuch.pogodaapp.forecast.SunLight
 import io.github.dumahuch.pogodaapp.forecast.sentenceCase
 import io.github.dumahuch.pogodaapp.sky.Moon
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
-import io.github.dumahuch.pogodaapp.ui.components.LineIconView
-import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
@@ -181,7 +179,6 @@ private fun MoonRow(place: Place, forecast: Forecast, now: Instant) {
                 Text(times, style = pogodaText(12.5f, 500, color = palette.ink2, lineHeight = 1.35f))
             }
         }
-        LineIconView(LineIcons.ChevronRight, 18.dp, palette.ink2)
     }
 }
 
