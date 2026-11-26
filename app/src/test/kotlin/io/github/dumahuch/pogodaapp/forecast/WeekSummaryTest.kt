@@ -120,4 +120,14 @@ class WeekSummaryTest {
         val steady = WeekSummaries.of(week { day(it, max = 2.0 + it % 2) })!!
         assertEquals(TemperatureTrend.Steady, steady.trend)
     }
+
+    @Test
+    fun theSecondWeekIsSummarisedFromItsOwnSevenDays() {
+        // Первые семь дней сухие, на 9-й день дождь: вторая неделя о дожде, и дата в ней своя.
+        val days = week { day(it, condition = if (it == 8) Condition.Rain else Condition.Cloudy, probability = if (it == 8) 70 else 0) } + day(10) + day(11) + day(12) + day(13)
+        val first = WeekSummaries.of(days)!!
+        assertTrue(first.precipitation is WeekPrecipitation.Dry)
+        val second = WeekSummaries.of(days.drop(WeekSummaries.DAYS))!!
+        assertEquals(listOf(start.plusDays(8)), (second.precipitation as WeekPrecipitation.Wet).dates)
+    }
 }

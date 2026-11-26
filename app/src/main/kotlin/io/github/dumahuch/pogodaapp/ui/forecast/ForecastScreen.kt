@@ -13,14 +13,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -68,7 +66,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.util.Locale
 
-/** Дней в первой неделе: перед восьмым днём в списке на 14 дней стоит разделитель «Следующая неделя». */
+/** Дней в неделе: на «Прогнозе» две недели, вторая начинается с восьмого дня. */
 private const val WEEK_DAYS = 7
 
 /**
@@ -80,9 +78,9 @@ private const val WEEK_DAYS = 7
 fun ForecastScreen(
     state: HomeUiState,
     permanentlyDenied: Boolean,
-    dayCount: Int,
+    week: Int,
     actions: HomeActions,
-    onDayCount: (Int) -> Unit,
+    onWeek: (Int) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -122,8 +120,8 @@ fun ForecastScreen(
                     )
                 } else {
                     Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        WeekSummaries.of(upcoming)?.let { WeekSummaryCard(it, todayDate) }
-                        DaysCard(days = upcoming, dayCount = dayCount, onDayCount = onDayCount, onOpenDay = onOpenDay)
+                        WeekSummaries.of(upcoming.drop(week * WEEK_DAYS))?.let { WeekSummaryCard(it, todayDate, outlook = week > 0) }
+                        DaysCard(days = upcoming, week = week, onWeek = onWeek, onOpenDay = onOpenDay)
                     }
                 }
             }
@@ -179,17 +177,17 @@ internal fun PageTitle(title: String, date: String?, modifier: Modifier = Modifi
     }
 }
 
-/** Карточка со списком дней. [dayCount] равен 7 или 14. */
+/** Карточка со списком дней одной недели. [week]: 0 эта неделя, 1 следующая. */
 @Composable
 private fun DaysCard(
     days: List<DayForecast>,
-    dayCount: Int,
-    onDayCount: (Int) -> Unit,
+    week: Int,
+    onWeek: (Int) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPogodaPalette.current
-    val shown = remember(days, dayCount) { days.take(dayCount) }
+    val shown = remember(days, week) { days.drop(week * WEEK_DAYS).take(WEEK_DAYS) }
     val spans = remember(shown) { TemperatureRange.layout(shown) }
     val today = remember(days) { days.first().date }
     Column(
@@ -199,11 +197,10 @@ private fun DaysCard(
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
-            DayCountSwitch(dayCount, onDayCount)
+            WeekSwitch(week, onWeek)
         }
         shown.forEachIndexed { index, day ->
             if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(palette.glassLine))
-            if (index == WEEK_DAYS) NextWeekDivider()
             DayRow(
                 day = day,
                 isToday = day.date == today,
@@ -214,25 +211,11 @@ private fun DaysCard(
     }
 }
 
-/** Разделитель недель в списке на 14 дней: точка и подпись, как «пояснение» стиля (11,5 sp, 600, ink2). */
+/** Переключатель «Эта неделя» / «Следующая неделя» (Дима 26.11.2026: вместо «7 дней» / «14 дней», чтобы дни не повторялись). */
 @Composable
-private fun NextWeekDivider() {
+private fun WeekSwitch(week: Int, onWeek: (Int) -> Unit) {
     val palette = LocalPogodaPalette.current
-    Row(
-        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Box(Modifier.size(6.dp).clip(CircleShape).background(palette.ink2.copy(alpha = 0.6f)))
-        Text(stringResource(R.string.forecast_next_week), style = pogodaText(11.5f, 600, color = palette.ink2))
-    }
-}
-
-/** Переключатель «7 дней» / «14 дней». */
-@Composable
-private fun DayCountSwitch(dayCount: Int, onDayCount: (Int) -> Unit) {
-    val palette = LocalPogodaPalette.current
-    val options = listOf(7 to R.string.forecast_7_days, 14 to R.string.forecast_14_days)
+    val options = listOf(0 to R.string.forecast_this_week, 1 to R.string.forecast_next_week)
     Row(
         Modifier
             .clip(RoundedCornerShape(14.dp))
@@ -241,15 +224,15 @@ private fun DayCountSwitch(dayCount: Int, onDayCount: (Int) -> Unit) {
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        options.forEach { (count, label) ->
-            val selected = count == dayCount
+        options.forEach { (index, label) ->
+            val selected = index == week
             Box(
                 Modifier
                     .heightIn(min = 36.dp)
                     .widthIn(min = 44.dp)
                     .clip(RoundedCornerShape(11.dp))
                     .then(if (selected) Modifier.background(palette.button2) else Modifier)
-                    .selectable(selected = selected, role = Role.RadioButton, onClick = { onDayCount(count) })
+                    .selectable(selected = selected, role = Role.RadioButton, onClick = { onWeek(index) })
                     .padding(horizontal = 11.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -266,8 +249,7 @@ private fun DayCountSwitch(dayCount: Int, onDayCount: (Int) -> Unit) {
 
 /**
  * Строка дня: название и дата, значок, вероятность и количество осадков, наименьшая температура,
- * полоска температур и наибольшая температура. Одинаковая на 7 и на 14 днях (Дима 26.11.2026: сжатые строки
- * 14 дней были нечитаемы, хотя места хватает).
+ * полоска температур и наибольшая температура. Одинаковая на обеих неделях.
  */
 @Composable
 private fun DayRow(
