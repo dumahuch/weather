@@ -31,6 +31,7 @@ import io.github.dumahuch.pogodaapp.forecast.AirDay
 import io.github.dumahuch.pogodaapp.forecast.Pollutant
 import io.github.dumahuch.pogodaapp.forecast.continuationCase
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.components.LevelPill
 import io.github.dumahuch.pogodaapp.ui.details.PollenDots
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.forecast.dayName
@@ -120,11 +121,11 @@ internal fun AirPage(ctx: PageState) {
                 val hour = AirDay.worstHour(hours, dates[index], ctx.zone)
                 val worst = hour?.eaqi
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        worst?.let { levels[AirLevel.of(it).ordinal] } ?: "–",
-                        style = pogodaText(14f, 700, color = worst?.let { airColor(it) } ?: Color.Unspecified),
-                        maxLines = 1,
-                    )
+                    if (worst != null) {
+                        LevelPill(levels[AirLevel.of(worst).ordinal], airColor(worst))
+                    } else {
+                        Text("–", style = pogodaText(14f, 700), maxLines = 1)
+                    }
                     hour?.let {
                         Text(
                             stringResource(R.string.metric_at, clockText(it.time, ctx.zone)),

@@ -41,6 +41,7 @@ import io.github.dumahuch.pogodaapp.forecast.visibilityText
 import io.github.dumahuch.pogodaapp.home.precipitationText
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.components.LevelPill
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.forecast.dayName
 import io.github.dumahuch.pogodaapp.ui.forecast.percentText
@@ -237,7 +238,7 @@ internal fun WindPage(ctx: PageContext) {
         val gust = day.mapNotNull { it.gustKmh }.maxOrNull()?.roundToInt()
         val s = high?.let { beaufortOf(it) }
         if (s != null) {
-            StepWord(strength[s], beaufortColor(s), Modifier.weight(1f))
+            LevelPill(strength[s], beaufortColor(s), Modifier.weight(1f))
         } else {
             Text("–", style = pogodaText(14f, 700), modifier = Modifier.weight(1f))
         }
@@ -481,7 +482,7 @@ internal fun HumidityPage(ctx: PageContext) {
         val dewHigh = day.mapNotNull { it.dewPointC }.maxOrNull()
         val feelText = if (fog) stringResource(R.string.metric_fog) else dewHigh?.let { feelOf(it) }
         if (feelText != null) {
-            StepWord(feelText, if (fog || dewHigh == null) palette.ink2 else feelColor(dewHigh), Modifier.weight(1f))
+            LevelPill(feelText, if (fog || dewHigh == null) palette.ink2 else feelColor(dewHigh), Modifier.weight(1f))
         } else {
             Text("–", style = pogodaText(14f, 700), modifier = Modifier.weight(1f))
         }

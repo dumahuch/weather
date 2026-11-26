@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,18 +79,6 @@ internal fun TwoTiles(left: TileText, right: TileText, modifier: Modifier = Modi
 internal fun TileRow(tiles: List<TileText>, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.forEach { Tile(it, Modifier.weight(1f)) }
-    }
-}
-
-/**
- * Слово ступени (Дима 22.11: голубой текст на стекле не читается): слово всегда цветом текста, цвет ступени стоит в точке
- * перед ним.
- */
-@Composable
-internal fun StepWord(text: String, dot: Color, modifier: Modifier = Modifier, size: Float = 14f) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.padding(end = 7.dp).size(10.dp).background(dot, CircleShape))
-        Text(text, style = pogodaText(size, 700, lineHeight = 1.15f), maxLines = 2)
     }
 }
 

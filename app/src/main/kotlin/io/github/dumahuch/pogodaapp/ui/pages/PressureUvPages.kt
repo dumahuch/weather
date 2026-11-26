@@ -28,6 +28,7 @@ import io.github.dumahuch.pogodaapp.forecast.UvDay
 import io.github.dumahuch.pogodaapp.forecast.UvLevel
 import io.github.dumahuch.pogodaapp.forecast.continuationCase
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
+import io.github.dumahuch.pogodaapp.ui.components.LevelPill
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
 import io.github.dumahuch.pogodaapp.ui.forecast.dayName
 import io.github.dumahuch.pogodaapp.ui.forecast.uvLevelLabel
@@ -332,12 +333,11 @@ internal fun UvPage(ctx: PageState) {
             },
         ) { index ->
             val peak = UvDay.peak(perDay[index])?.value?.roundToInt()
-            Text(
-                peak?.let { stringResource(uvLevelLabel(UvLevel.of(it))) } ?: "–",
-                style = pogodaText(14f, 700, color = peak?.let { uvColor(it) } ?: Color.Unspecified),
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-            )
+            if (peak != null) {
+                LevelPill(stringResource(uvLevelLabel(UvLevel.of(peak))), uvColor(peak), Modifier.weight(1f))
+            } else {
+                Text("–", style = pogodaText(14f, 700), modifier = Modifier.weight(1f), maxLines = 1)
+            }
             Text(peak?.toString() ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(UV_COLUMN), textAlign = TextAlign.End, maxLines = 1)
             Text(
                 protectionHours(perDay[index], ctx.zone) ?: "–",

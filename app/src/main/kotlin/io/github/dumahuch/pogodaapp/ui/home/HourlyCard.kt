@@ -304,7 +304,6 @@ private fun HourColumn(
             .fillMaxHeight()
             .then(if (selected) Modifier.selectedColumn(palette.ink, palette.accent) else Modifier)
             .then(if (isMidnight) Modifier.dayDivider(palette.ink) else Modifier)
-            .then(if (openable && !selected) Modifier.openHint(palette.ink) else Modifier)
             .then(
                 if (openable) {
                     Modifier.clickable(
@@ -388,18 +387,6 @@ private fun Modifier.selectedColumn(ink: Color, accent: Color): Modifier = drawB
         close()
     }
     drawPath(tip, accent)
-}
-
-/** Маленький уголок внизу справа: подсказка, что час можно открыть. */
-private fun Modifier.openHint(ink: Color): Modifier = drawBehind {
-    val side = 6.dp.toPx()
-    val corner = Path().apply {
-        moveTo(size.width - 5.dp.toPx(), size.height - 2.dp.toPx())
-        lineTo(size.width - 5.dp.toPx() - side, size.height - 2.dp.toPx())
-        lineTo(size.width - 5.dp.toPx(), size.height - 2.dp.toPx() - side)
-        close()
-    }
-    drawPath(corner, ink.copy(alpha = 0.32f))
 }
 
 /** Пунктир слева от первого часа нового дня. */
