@@ -206,4 +206,44 @@ class HeroFitTest {
         val usual = HeroFit.plan(253f, 0, rows, edge, hero)
         assertTrue("на Pixel 6 Pro без предупреждений блок упирается в предел", usual.scale > 1.29f)
     }
+
+    @Test
+    fun `a small opened alert only moves the block up and keeps its size`() {
+        val closed = HeroFit.plan(253f, 1, rows, edge, hero)
+        // Сначала раскрытие берёт место под блоком, потом поднимает блок; размер не меняется, пока хватает места.
+        val opened = HeroFit.plan(253f, 1, rows, edge, hero, open = 100f, expanded = 0)
+        assertEquals(closed.scale, opened.scale, 1e-4f)
+        assertEquals(closed.alerts + 100f, opened.alerts, 0.01f)
+        assertTrue("блок поднимается", opened.top < closed.top)
+    }
+
+    @Test
+    fun `an opened alert first shrinks the block to the minimum and only then overflows`() {
+        // Раскрытое предупреждение не помещается даже после сжатия: блок на пределе, промежуток сверху наименьший,
+        // остальное уходит вниз (под блоком меньше наименьшего промежутка, страница прокручивается).
+        val plan = HeroFit.plan(253f, 1, rows, edge, hero, open = 400f, expanded = 0)
+        assertEquals(HeroFit.MIN_SCALE, plan.scale, 1e-4f)
+        assertEquals(edge, plan.top, 0.01f)
+        assertTrue(below(253f, plan) < edge)
+    }
+
+    @Test
+    fun `an opened alert that fits after shrinking does not overflow`() {
+        // Нужно на 30 dp больше, чем есть без сжатия: блок отдаёт эти 30 dp, низ остаётся на месте.
+        val base = HeroFit.plan(253f, 1, rows, edge, hero)
+        val open = 253f - 2 * edge - base.alerts + 30f
+        val plan = HeroFit.plan(253f, 1, rows, edge, hero, open = open, expanded = 0)
+        assertEquals(1f - 30f / hero, plan.scale, 1e-3f)
+        assertEquals(edge, below(253f, plan), 0.01f)
+    }
+
+    @Test
+    fun `the whole list counts all rows and the collapse row`() {
+        val plan = HeroFit.plan(400f, 5, rows, edge, hero, all = true)
+        assertEquals(rows.height(5, more = true), plan.alerts, 0.01f)
+        val hidden = HeroFit.plan(400f, 5, rows, edge, hero, expanded = 4)
+        assertEquals(rows.height(5, more = true), hidden.alerts, 0.01f)
+        val closed = HeroFit.plan(400f, 5, rows, edge, hero)
+        assertEquals(rows.height(closed.shown, closed.more), closed.alerts, 0.01f)
+    }
 }
