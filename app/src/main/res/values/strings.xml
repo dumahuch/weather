@@ -230,6 +230,10 @@
         <item>W</item>
     </string-array>
     <string name="tile_pressure">Pressure</string>
+    <string name="tile_clouds">Cloud cover</string>
+    <string name="day_no_precip">No precipitation</string>
+    <string name="day_cloud_layers">Low %1$d %%, mid %2$d %%, high %3$d %%</string>
+    <string name="day_note">Daily values from the hourly data, Open-Meteo model forecast.</string>
     <string name="trend_rising">Rising</string>
     <string name="trend_steady">Steady</string>
     <string name="trend_falling">Falling</string>

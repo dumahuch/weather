@@ -35,7 +35,10 @@ val LocalHeroWindOverride = staticCompositionLocalOf<Boolean?> { null }
 val LocalHeroWetOverride = staticCompositionLocalOf<Boolean?> { null }
 
 /** Толщина контура в единицах значка: тоньше на крупном значке, толще на мелком (подбирается по размеру, не в настройках). */
-internal fun outlineStroke(size: Dp): Float = if (size.value >= 40f) 1.4f else 1.7f
+internal fun outlineStroke(size: Dp): Float = if (size.value >= COMPACT_BELOW_DP) 1.4f else 1.7f
+
+/** Значок мельче этого размера (dp) рисуется «мелким»: линия толще, у снега тонкие разведённые снежинки. */
+private const val COMPACT_BELOW_DP = 40f
 
 /**
  * Значок погоды «Главной» в выбранном наборе ([WeatherIconStyle]), квадрат [size]. [night]: ночное небо, стекло темнее
@@ -72,7 +75,7 @@ fun SmallWeatherGlyph(condition: Condition, isDay: Boolean, wet: Boolean, size: 
     val stroke = outlineStroke(size)
     val bitmap = remember(condition, isDay, wet, tone, ink, px, stroke) {
         GlyphPainter.render(
-            GlyphScenes.small(condition, isDay, wet), WeatherIconStyle.Outline, GlyphColors.of(tone, ink, small = true), px, stroke,
+            GlyphScenes.small(condition, isDay, wet, compact = size.value < COMPACT_BELOW_DP), WeatherIconStyle.Outline, GlyphColors.of(tone, ink, small = true), px, stroke,
         ).asImageBitmap()
     }
     Image(bitmap = bitmap, contentDescription = null, modifier = modifier.size(size))

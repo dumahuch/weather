@@ -107,4 +107,25 @@ class GlyphSceneTest {
         assertTrue(dry.parts.none { it is GlyphPart.Rain })
         assertTrue(wet.parts.any { it is GlyphPart.Rain })
     }
+
+    @Test
+    fun compactSnowflakesStayClearOfTheCloudLineAndOfEachOther() {
+        val scene = GlyphScenes.small(Condition.Snow, isDay = true, wet = false, compact = true)
+        val stars = scene.parts.filterIsInstance<GlyphPart.Star>()
+        assertEquals(3, stars.size)
+        val cloudLine = scene.cloudBottom + 1.7f / 2f
+        for (star in stars) {
+            assertTrue("снежинка задевает линию облака", star.y - star.r - star.width * 1.7f / 1.5f / 2f > cloudLine + 0.5f)
+            assertTrue("снежинка вышла за низ", star.bottom <= 24f)
+        }
+        for (a in stars) for (b in stars) if (a !== b) {
+            val gap = kotlin.math.hypot(a.x - b.x, a.y - b.y) - a.r - b.r - (a.width + b.width) / 2f
+            assertTrue("снежинки слиплись: $gap", gap > 0.8f)
+        }
+    }
+
+    @Test
+    fun largeSnowKeepsTheOriginalPicture() {
+        assertEquals(GlyphScenes.of(HeroIcon.Snow).parts, GlyphScenes.small(Condition.Snow, isDay = true, wet = false).parts)
+    }
 }

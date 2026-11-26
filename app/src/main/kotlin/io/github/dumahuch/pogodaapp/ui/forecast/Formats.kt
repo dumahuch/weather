@@ -1,7 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.forecast
 
 import android.text.format.DateFormat
-import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -28,10 +27,6 @@ internal fun clockText(instant: Instant, zone: ZoneId): String {
     val local = instant.atZone(zone)
     return "%02d:%02d".format(Locale.ROOT, local.hour, local.minute)
 }
-
-/** Часы и минуты длительности: (8, 12) для 8 ч 12 мин. */
-internal fun hoursAndMinutes(duration: Duration): Pair<Int, Int> =
-    duration.toHours().toInt() to (duration.toMinutes() % 60).toInt()
 
 /** Вероятность осадков с неразрывным пробелом перед знаком процента: «85 %». */
 internal fun percentText(value: Int): String = "$value %"

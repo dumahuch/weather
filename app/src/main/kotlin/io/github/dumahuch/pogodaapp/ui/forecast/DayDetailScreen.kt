@@ -2,17 +2,13 @@ package io.github.dumahuch.pogodaapp.ui.forecast
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,33 +19,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.UvLevel
-import io.github.dumahuch.pogodaapp.forecast.dayPrecipitationText
-import io.github.dumahuch.pogodaapp.forecast.daylight
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.isStormWet
 import io.github.dumahuch.pogodaapp.home.temperatureText
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
-import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
-import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.home.HourlyFrame
 import io.github.dumahuch.pogodaapp.ui.home.HourlyStrip
 import io.github.dumahuch.pogodaapp.ui.home.SmallWeatherGlyph
 import io.github.dumahuch.pogodaapp.ui.home.conditionName
+import io.github.dumahuch.pogodaapp.ui.pages.SourceNote
 import io.github.dumahuch.pogodaapp.ui.pogodaText
 import io.github.dumahuch.pogodaapp.ui.sky.ReportSkyScroll
-import io.github.dumahuch.pogodaapp.weather.DayForecast
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
-import kotlin.math.roundToInt
 
 /**
- * Подробности одного дня: сводка, почасовой прогноз этого дня, осадки, ветер, УФ-индекс, восход и закат.
+ * Подробности одного дня: сводка и фраза, почасовой прогноз этого дня, плитки осадков, ветра, давления, влажности и облачности.
  * Открывается нажатием на день во вкладке «Прогноз», системный жест «назад» возвращает к списку.
  * Макета у этой страницы не было: решено только, что в ней есть (документ решений, раздел «Продукт»); вид выбран по образцу
  * плиток вкладки «Подробно» и карточек «Главной».
@@ -110,6 +99,12 @@ fun DayDetailScreen(
             }
         }
 
+        Text(
+            dayPhrase(state.forecast, day),
+            style = pogodaText(15f, 500, lineHeight = 1.4f),
+            modifier = Modifier.padding(start = 24.dp, top = 14.dp, end = 24.dp),
+        )
+
         Spacer(Modifier.height(18.dp))
         if (hours.isNotEmpty()) {
             HourlyFrame(
@@ -127,67 +122,9 @@ fun DayDetailScreen(
             Spacer(Modifier.height(12.dp))
         }
 
-        DayTiles(day, zone, Modifier.padding(horizontal = 20.dp))
+        DayTiles(state.forecast, day, Modifier.padding(horizontal = 20.dp))
+        SourceNote(stringResource(R.string.day_note), Modifier.padding(start = 26.dp, top = 10.dp, end = 26.dp))
         Spacer(Modifier.height(bottomContentPadding()))
-    }
-}
-
-/** Плитки дня парами: осадки и ветер, УФ-индекс и световой день. */
-@Composable
-private fun DayTiles(day: DayForecast, zone: ZoneId, modifier: Modifier = Modifier) {
-    val locale = LocalLocale.current.platformLocale
-    val unit = stringResource(R.string.mm_unit)
-    val kmh = stringResource(R.string.kmh_unit)
-    val amount = dayPrecipitationText(day.precipitationMm, locale)
-    val uv = day.uvMax.roundToInt()
-    val daylight = daylight(day)
-    val dash = "–"
-    // Восход и закат одной строкой: «07:11 – 16:49»; без одного из них (полярный день или ночь) подписи нет.
-    val sunSub = if (day.sunrise != null && day.sunset != null) {
-        "${clockText(day.sunrise, zone)} – ${clockText(day.sunset, zone)}"
-    } else {
-        null
-    }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            DayTile(
-                title = stringResource(R.string.tile_precipitation),
-                value = "${amount.ifEmpty { "0" }} $unit",
-                sub = day.precipitationProbability?.let { stringResource(R.string.precip_chance, percentText(it)) },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-            )
-            DayTile(
-                title = stringResource(R.string.tile_wind),
-                value = "${day.windMaxKmh.roundToInt()} $kmh",
-                sub = stringResource(R.string.gusts_up_to, day.gustMaxKmh.roundToInt(), kmh),
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-            )
-        }
-        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            DayTile(
-                title = stringResource(R.string.tile_uv),
-                value = uv.toString(),
-                sub = stringResource(uvLevelLabel(UvLevel.of(uv))),
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-            )
-            DayTile(
-                title = stringResource(R.string.tile_daylight),
-                value = daylight?.let {
-                    val (hours, minutes) = hoursAndMinutes(it)
-                    stringResource(R.string.hours_minutes, hours, minutes)
-                } ?: dash,
-                sub = sunSub,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-            )
-        }
     }
 }
 
@@ -197,22 +134,4 @@ internal fun uvLevelLabel(level: UvLevel): Int = when (level) {
     UvLevel.High -> R.string.uv_high
     UvLevel.VeryHigh -> R.string.uv_very_high
     UvLevel.Extreme -> R.string.uv_extreme
-}
-
-/** Плитка с заголовком, крупным значением и пояснением под ним. */
-@Composable
-private fun DayTile(title: String, value: String, sub: String?, modifier: Modifier = Modifier) {
-    val palette = LocalPogodaPalette.current
-    Column(
-        modifier
-            .glassCard(RoundedCornerShape(22.dp), LocalGlass.current)
-            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 14.dp)
-            .semantics(mergeDescendants = true) {},
-    ) {
-        Text(title, style = pogodaText(12f, 700, color = palette.ink2))
-        Text(value, style = pogodaText(24f, 300, lineHeight = 1.2f, tabular = true), modifier = Modifier.padding(top = 6.dp))
-        if (sub != null) {
-            Text(sub, style = pogodaText(12f, 500, color = palette.ink2, lineHeight = 1.3f), modifier = Modifier.padding(top = 2.dp))
-        }
-    }
 }
