@@ -69,7 +69,7 @@ class SkyGoldenTest {
                 assertEquals("$label карточки", want.getDouble("a"), p.glass.alpha, 1e-6)
                 assertEquals("$label панель", want.getDouble("aB"), p.buttonBackground.alpha, 1e-6)
                 assertEquals("$label оповещения", want.getDouble("aAl"), p.glassAlert.alpha, 1e-6)
-                assertEquals("$label вуаль", 0.0, p.scrim.alpha.toDouble(), 0.0)
+                assertEquals("$label вуаль", 0.0, p.scrim.alpha, 0.0)
                 assertEquals("$label контраст карточек", want.getDouble("ccCards"), p.contrast.cards, 1e-6)
                 assertEquals("$label контраст оповещений", want.getDouble("ccAlert"), p.contrast.alerts, 1e-6)
                 assertEquals("$label контраст кнопок", want.getDouble("ccBtn"), p.contrast.buttons, 1e-6)
