@@ -87,9 +87,10 @@ data class HomeActions(
     val onPinPreview: () -> Unit = {},
     /** Шестерёнка вверху справа: открывает экран настроек приложения (не системные настройки доступа, их открывает [onOpenSettings]). */
     val onOpenPreferences: () -> Unit = {},
-    /** Плашка предупреждения (по идентификатору) открывает его подробности, строка «Ещё N» весь список. */
+    /** Плашка предупреждения (по идентификатору) раскрывается на месте (повторное нажатие сворачивает), «Ещё N» раскрывает весь список, «Свернуть» убирает его. */
     val onOpenAlert: (String) -> Unit = {},
     val onOpenAlerts: () -> Unit = {},
+    val onCollapseAlerts: () -> Unit = {},
     /** Показатель под температурой (влажность, ветер, осадки) открывает свою страницу подробностей. */
     val onOpenMetric: (Metric) -> Unit = {},
     /** Нажата плитка на «Подробно»: открыть её страницу. */
@@ -111,6 +112,8 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     pinnedName: String? = null,
     preview: Boolean = false,
+    expandedAlert: String? = null,
+    alertsAll: Boolean = false,
 ) {
     val pull = rememberPullRefreshState(
         refreshing = refreshing,
@@ -163,7 +166,7 @@ fun HomeScreen(
                         Spacer(Modifier.height(CENTER_EDGE))
                     }
                     // С данными: блок погоды, под ним предупреждения; как делится свободное место, решает [HeroFit].
-                    is HomeUiState.Content -> ContentMiddle(state, layout, viewport, viewportWidth, pulled, actions)
+                    is HomeUiState.Content -> ContentMiddle(state, layout, viewport, viewportWidth, pulled, actions, expandedAlert, alertsAll)
                     // Карточки состояний остаются наверху, как были.
                     else -> {
                         Column(Modifier.fillMaxWidth().then(pulled)) {

@@ -95,7 +95,7 @@ fun HourPanelHost(selection: HourSelection?, zone: ZoneId, modifier: Modifier = 
 }
 
 /** Столько же, сколько главный блок меняет размер ([GROW_MS] в HomeMiddle): оба идут по одной кривой. */
-private const val PANEL_MS = 300
+internal const val PANEL_MS = 300
 
 @Composable
 private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
@@ -139,7 +139,7 @@ private fun HourPanelContent(selection: HourSelection, zone: ZoneId) {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(start = 18.dp, end = 18.dp, top = 8.dp)
+            .padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 6.dp)
             .animateContentSize(tween(PANEL_MS)),
     ) {
         Text(

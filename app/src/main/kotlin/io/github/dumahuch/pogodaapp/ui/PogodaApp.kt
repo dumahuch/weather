@@ -56,8 +56,6 @@ import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.details.DetailsScreen
 import io.github.dumahuch.pogodaapp.ui.forecast.DayDetailScreen
 import io.github.dumahuch.pogodaapp.ui.forecast.ForecastScreen
-import io.github.dumahuch.pogodaapp.ui.home.AlertSheet
-import io.github.dumahuch.pogodaapp.ui.home.AlertSheetHost
 import io.github.dumahuch.pogodaapp.ui.home.HomeActions
 import io.github.dumahuch.pogodaapp.ui.home.HomeScreen
 import io.github.dumahuch.pogodaapp.ui.map.MapPalette
@@ -80,7 +78,6 @@ import io.github.dumahuch.pogodaapp.weather.AlertKind
 import io.github.dumahuch.pogodaapp.weather.PollenKind
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -99,8 +96,7 @@ private const val DEFAULT_WEEK = 0
  * Экран настроек ([SettingsScreen]) открывается шестерёнкой на «Главной», тоже на всё окно; «назад» возвращает на «Главную».
  * Экран мест ([PlacesScreen]) открывается плашкой места на «Главной» и занимает окно целиком (панель вкладок скрыта).
  * Кнопка «Найти город» на карточках без места открывает его сразу в режиме поиска.
- * Предупреждения открываются шторкой поверх «Главной» и панели вкладок ([AlertSheetHost]); «назад» закрывает её, а из
- * предупреждения, открытого в списке, возвращает к списку.
+ * Предупреждения раскрываются на «Главной» на месте (плашка с подробностями, «Ещё N» раскрывает весь список), шторки нет.
  */
 @Composable
 fun PogodaApp(
@@ -151,15 +147,13 @@ fun PogodaApp(
     var searching by rememberSaveable { mutableStateOf(false) }
     // Экран настроек (шестерёнка на «Главной») занимает окно целиком, как экран мест.
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
-    // Шторка предупреждений: весь список («Ещё N») или одно предупреждение (по идентификатору DWD).
+    // Предупреждения раскрываются на «Главной» на месте: одно раскрытое (по идентификатору DWD) и весь список («Ещё N»).
     var alertsListOpen by rememberSaveable { mutableStateOf(false) }
     var openAlert by rememberSaveable { mutableStateOf<String?>(null) }
-    var alertFromList by rememberSaveable { mutableStateOf(false) }
 
     fun closeAlerts() {
         alertsListOpen = false
         openAlert = null
-        alertFromList = false
     }
 
     fun closePlaces() {
@@ -227,10 +221,6 @@ fun PogodaApp(
         }
     }
     BackHandler(enabled = topIsPage && !previewBack) { closeTopPage() }
-    // Из предупреждения, открытого в списке, «назад» возвращает к списку.
-    BackHandler(enabled = openAlert != null || alertsListOpen) {
-        if (openAlert != null && alertFromList) openAlert = null else closeAlerts()
-    }
     BackHandler(enabled = placesOpen && searching) {
         searching = false
         placesActions.onLeave()
@@ -248,12 +238,9 @@ fun PogodaApp(
         actions.copy(
             onOpenPlaces = { placesOpen = true },
             onOpenPreferences = { settingsOpen = true },
-            onOpenAlert = { id ->
-                openAlert = id
-                alertFromList = false
-                alertsListOpen = false
-            },
+            onOpenAlert = { id -> openAlert = if (openAlert == id) null else id },
             onOpenAlerts = { alertsListOpen = true },
+            onCollapseAlerts = ::closeAlerts,
             onOpenMetric = { openMetric = it },
             onOpenPage = { openPage = it },
             // Список полон: «Закрепить» ведёт в список, где видно сообщение и можно открепить одно из мест.
@@ -405,6 +392,8 @@ fun PogodaApp(
                         actions = linked,
                         pinnedName = chosenName,
                         preview = previewing,
+                        expandedAlert = openAlert,
+                        alertsAll = alertsListOpen,
                     )
 
                     AppTab.Details -> DetailsScreen(
@@ -586,26 +575,6 @@ fun PogodaApp(
                 )
             }
         }
-        val now = remember(content) { Instant.now() }
-        val sheet = when {
-            openAlert != null -> AlertSheet.One(openAlert.orEmpty(), alertFromList)
-            alertsListOpen -> AlertSheet.All
-            else -> null
-        }
-        AlertSheetHost(
-            sheet = if (tab == AppTab.Home && screen.layer == Layer.Tab) sheet else null,
-            alerts = remember(content, now) { content?.alerts?.shownAt(now).orEmpty() },
-            area = content?.alerts?.area,
-            zone = content?.forecast?.zone ?: ZoneId.systemDefault(),
-            now = now,
-            onOpen = { opened ->
-                if (opened is AlertSheet.One) {
-                    openAlert = opened.id
-                    alertFromList = opened.fromList
-                }
-            },
-            onClose = ::closeAlerts,
-        )
     }
 }
 

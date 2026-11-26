@@ -397,7 +397,7 @@
         <item quantity="many">Ещё %d предупреждений</item>
         <item quantity="other">Ещё %d предупреждения</item>
     </plurals>
-    <string name="alerts_all">Все предупреждения</string>
+    <string name="alerts_collapse">Свернуть</string>
     <string name="alert_valid">Действует</string>
     <string name="alert_area">Район</string>
     <string name="alert_original">Текст DWD</string>
@@ -408,7 +408,6 @@
     <string name="alert_period_day">%1$s, %2$s–%3$s</string>
     <string name="alert_period_span">%1$s %2$s – %3$s %4$s</string>
     <string name="alert_period_open">%1$s, с %2$s</string>
-    <string name="alert_close">Закрыть</string>
     <!-- Карта (0.8.0) -->
     <string name="map_layer_clouds_rain">Облака и дождь</string>
     <string name="map_layer_rain">Только дождь</string>

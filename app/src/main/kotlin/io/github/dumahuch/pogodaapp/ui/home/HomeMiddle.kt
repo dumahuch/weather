@@ -104,6 +104,8 @@ internal fun ColumnScope.ContentMiddle(
     viewportWidth: Dp,
     pulled: Modifier,
     actions: HomeActions,
+    expandedAlert: String?,
+    alertsAll: Boolean,
 ) {
     val density = LocalDensity.current
     val now = remember(state) { Instant.now() }
@@ -173,10 +175,14 @@ internal fun ColumnScope.ContentMiddle(
                 alerts = alerts,
                 shown = shown,
                 more = plan?.more ?: false,
+                expandedId = expandedAlert,
+                all = alertsAll,
+                area = state.alerts?.area,
                 now = now,
                 zone = state.forecast.zone,
-                onOpen = { actions.onOpenAlert(it.id) },
+                onToggle = actions.onOpenAlert,
                 onAll = actions.onOpenAlerts,
+                onCollapse = actions.onCollapseAlerts,
                 onRowHeight = { layout.row = it },
                 onMoreHeight = { layout.more = it },
                 modifier = Modifier.padding(horizontal = 20.dp),
