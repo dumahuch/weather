@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
-import io.github.dumahuch.pogodaapp.sky.ScrimShape
 import io.github.dumahuch.pogodaapp.sky.SkyLook
 import io.github.dumahuch.pogodaapp.sky.SkySampler
 
@@ -124,29 +123,5 @@ internal class SkyEffects {
         private const val MIN_EFFECT = 0.01
         private val DARK_COLOR = Color(10, 16, 32)
         private val NIGHT_COLOR = Color(8, 12, 26)
-
-        /**
-         * Подложки на небе: под большими цифрами ([scrim]) и под строками под температурой ([infoScrim]). Форма и правило
-         * «берётся наибольшая плотность» в [ScrimShape]. [bands] границы настоящих блоков «Главной» в пикселях [hostHeight]
-         * (step-40); `null` значит прежняя форма по координатам макета. Градиент идёт на весь экран, а не на отдельном
-         * прямоугольнике: у прямоугольника был край в середине экрана, и на эмуляторе по этому краю проходила линия в
-         * 1 пиксель. Все цвета градиента одного оттенка (меняется только прозрачность), как у CSS-градиента в макете,
-         * поэтому тёмной каймы «прозрачный чёрный» нет.
-         */
-        fun drawScrim(scope: DrawScope, scrim: Color, infoScrim: Color, bands: ScrimShape.Bands?, hostHeight: Float) {
-            if (scrim.alpha <= 0f && infoScrim.alpha <= 0f) return
-            val base = if (scrim.alpha > 0f) scrim else infoScrim
-            val stops = if (bands == null) {
-                ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble())
-            } else {
-                ScrimShape.stops(scrim.alpha.toDouble(), infoScrim.alpha.toDouble(), bands, hostHeight.toDouble())
-            }
-            val brush = Brush.verticalGradient(
-                *Array(stops.size) { stops[it].first to base.copy(alpha = stops[it].second) },
-                startY = 0f,
-                endY = scope.size.height,
-            )
-            scope.drawRect(brush)
-        }
     }
 }

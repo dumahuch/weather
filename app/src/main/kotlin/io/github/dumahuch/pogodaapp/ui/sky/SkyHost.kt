@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import kotlinx.coroutines.CancellationException
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleStartEffect
@@ -66,7 +65,6 @@ import io.github.dumahuch.pogodaapp.sky.SkyRaster
 import io.github.dumahuch.pogodaapp.sky.SkyDrift
 import io.github.dumahuch.pogodaapp.sky.SkyOverride
 import io.github.dumahuch.pogodaapp.sky.SkyLook
-import io.github.dumahuch.pogodaapp.sky.ScrimShape
 import io.github.dumahuch.pogodaapp.sky.SkyPalette
 import io.github.dumahuch.pogodaapp.sky.SkySampler
 import io.github.dumahuch.pogodaapp.sky.SkyScene
@@ -211,8 +209,7 @@ internal fun SkyHost(
     DisposableEffect(still) { onDispose { still.drop() } }
     val parallax = remember { SkyParallax() }
     var hostSize by remember { mutableStateOf(IntSize.Zero) }
-    // Границы блоков «Главной» для подложек и положение верха хозяина в окне (подложки считаются от верха хозяина).
-    val scrimRegions = remember { ScrimRegions() }
+    // Положение верха хозяина в окне: от него считается небо в линзах капель.
     var hostTop by remember { mutableFloatStateOf(0f) }
     val animationsOn by rememberAnimationsEnabled()
     var started by remember { mutableStateOf(true) }
@@ -356,7 +353,7 @@ internal fun SkyHost(
                 val lift = DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble())
                 captureSnapshot(
                     appContext, snapshotLayer, snapshotPainter, state.look(SkyDrift.position(state.pan, phase), lift), colors,
-                    density, layoutDirection, hostSize, scrimRegions.bands(hostTop, density.density),
+                    density, layoutDirection, hostSize,
                 )
             }
             delay(SNAPSHOT_REPEAT_MILLIS)
@@ -378,8 +375,8 @@ internal fun SkyHost(
                 val lift = DiArt.liftOf(parallax.scrollPx.toDouble(), hostSize.height.toDouble())
                 try {
                     val image = recordSky(
-                        lensLayer, snapshotPainter, state.look(SkyDrift.position(state.pan, phase), lift), colors,
-                        density, layoutDirection, hostSize, scrimRegions.bands(hostTop, density.density),
+                        lensLayer, snapshotPainter, state.look(SkyDrift.position(state.pan, phase), lift),
+                        density, layoutDirection, hostSize,
                     )
                     lensSky.value = LensSky(image, hostTop, hostSize.width)
                 } catch (e: CancellationException) {
@@ -427,7 +424,6 @@ internal fun SkyHost(
         LocalGlass provides glass,
         LocalContentColor provides palette.ink,
         LocalSkyParallax provides parallax,
-        LocalScrimRegions provides scrimRegions,
         // Размытие стекла на 79 % разрешения (по умолчанию Haze): замер 18.11.2026 показал, что 50 % ничего не даёт
         // (кадр 31,2 и 32,7 мс), а зерно крупнее. На экране проверки можно сравнить ([SkyProbe.fullBlur]).
         LocalHazePerformanceMode provides if (SkyProbe.fullBlur) HazePerformanceMode.Balanced else HazePerformanceMode.Performance,
@@ -452,9 +448,6 @@ internal fun SkyHost(
                 lightSky = palette.darkInk,
                 fogMotion = animationsOn && running && !SkyPause.active,
                 reveal = { reveal },
-                scrim = palette.scrim,
-                infoScrim = palette.infoScrim,
-                bands = { scrimRegions.bands(hostTop, density.density) },
                 modifier = Modifier.matchParentSize().then(if (glassBlur) Modifier.skySource(hazeState) else Modifier),
             )
             content()
@@ -462,7 +455,7 @@ internal fun SkyHost(
     }
 }
 
-/** Фон: спокойный градиент, поверх него небо (когда готово) и подложка под большими цифрами. */
+/** Фон: спокойный градиент, поверх него небо (когда готово). */
 @Composable
 private fun SkyBackground(
     sky: SkyState?,
@@ -479,9 +472,6 @@ private fun SkyBackground(
     lightSky: Boolean,
     fogMotion: Boolean,
     reveal: () -> Float,
-    scrim: Color,
-    infoScrim: Color,
-    bands: () -> ScrimShape.Bands?,
     modifier: Modifier = Modifier,
 ) {
     val painter = remember(store, celestial) { DiPainter(store, celestial) }
@@ -514,7 +504,6 @@ private fun SkyBackground(
                             clouds = SkyProbe.clouds,
                             ridges = SkyProbe.ridges,
                         )
-                        SkyEffects.drawScrim(this, scrim, infoScrim, bands(), size.height)
                     },
             )
             // Туман, дождь и снег на небе можно выключить на экране проверки ([SkyProbe.skyWeather]).
@@ -552,10 +541,9 @@ private suspend fun captureSnapshot(
     density: Density,
     layoutDirection: LayoutDirection,
     host: IntSize,
-    bands: ScrimShape.Bands?,
 ) {
     try {
-        val image = recordSky(layer, painter, look, colors, density, layoutDirection, host, bands).asAndroidBitmap()
+        val image = recordSky(layer, painter, look, density, layoutDirection, host).asAndroidBitmap()
         withContext(Dispatchers.IO) {
             val soft = image.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
             SkySnapshotStorage.save(context, soft, colors)
@@ -567,21 +555,18 @@ private suspend fun captureSnapshot(
     }
 }
 
-/** Маленький снимок неба с подложкой текста, как оно видно на экране шириной [host]: для диска и для линз капель. */
+/** Маленький снимок неба, как оно видно на экране шириной [host]: для диска и для линз капель. */
 private suspend fun recordSky(
     layer: GraphicsLayer,
     painter: DiPainter,
     look: SkyLook,
-    colors: PogodaPalette,
     density: Density,
     layoutDirection: LayoutDirection,
     host: IntSize,
-    bands: ScrimShape.Bands?,
 ): ImageBitmap {
     val height = (SNAPSHOT_WIDTH * host.height.toFloat() / host.width).roundToInt().coerceAtLeast(1)
     layer.record(density, layoutDirection, IntSize(SNAPSHOT_WIDTH, height)) {
         painter.draw(this, look)
-        SkyEffects.drawScrim(this, colors.scrim, colors.infoScrim, bands, host.height.toFloat())
     }
     return layer.toImageBitmap()
 }

@@ -120,9 +120,6 @@ class MapViewModel(
      */
     private val frames = modelFrames(userAgent, modelRoot) { message -> Log.w(TAG, message) }
 
-    /** Папка кадров ICON-EU из 0.8.36 (источник убран в 0.8.37): стирается при открытии карты; убрать вместе с этой строкой позже. */
-    private val oldEuRoot: File? = modelRoot.parentFile?.let { File(it, "map-model-eu") }
-
     /** Подгружать кадры заранее только без оплаты за трафик (настройка «Подгрузка карты»). */
     @Volatile
     private var wifiOnly = false
@@ -166,7 +163,6 @@ class MapViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             FrameDiskCache.purgeOtherDays(cacheRoot, LocalDate.now(zone))
             frames.tidy(Instant.now())
-            oldEuRoot?.deleteRecursively()
         }
         val now = Instant.now()
         val old = _state.value

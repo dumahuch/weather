@@ -12,8 +12,9 @@ internal enum class CaptionHue { Humidity, Wind, Precipitation, Pressure, FeelsL
 /**
  * Оттенки значков строки под температурой на «Главной» (решение Димы 08.11.2026: цветные, но не яркие; капля синяя,
  * ветер бирюзовый, осадки сине-фиолетовые). Приём тот же, что у стрелок максимума и минимума ([ExtremeTints]): оттенок
- * подмешивается к цвету текста с наибольшей силой, при которой значок держит [ExtremeTints.MIN_ARROW_CONTRAST] с худшим
- * цветом неба под строкой. Поэтому цвет сам тускнеет на сером небе и светлеет на тёмном; если не держит ни с каким
+ * подмешивается к цвету текста с наибольшей силой, при которой значок держит [ExtremeTints.MIN_EXTREME_ARROW_CONTRAST] с худшим
+ * цветом неба под строкой. Порог тот же, что у стрелок (2,0, с 0.8.112): после того как подложки убрали, сам текст держит
+ * с небом меньше 3,0, и при пороге 3,0 оттенок выключался у всех значков. Поэтому цвет сам тускнеет на сером небе и светлеет на тёмном; если не держит ни с каким
  * оттенком, остаётся цвет текста. Оттенок плавно меняется вместе с [PogodaPalette.smoke] (0 тёмный текст, 1 светлый).
  */
 internal object CaptionTints {
@@ -41,5 +42,5 @@ internal object CaptionTints {
 
     /** Цвет значка: [ink] основной цвет текста, [smoke] см. выше, [backdrop] худший цвет неба под строкой. */
     fun icon(ink: Color, smoke: Float, hue: CaptionHue, backdrop: Color): Color =
-        ExtremeTints.readable(ink, hue(hue, smoke), STRENGTH, backdrop, ExtremeTints.MIN_ARROW_CONTRAST)
+        ExtremeTints.readable(ink, hue(hue, smoke), STRENGTH, backdrop, ExtremeTints.MIN_EXTREME_ARROW_CONTRAST)
 }

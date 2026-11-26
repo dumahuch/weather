@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Оттенки значков строки под температурой: заметны там, где небо даёт запас контраста, держат контраст значка (3 : 1)
+ * Оттенки значков строки под температурой: заметны там, где небо даёт запас контраста, держат контраст значка (2 : 1, как у стрелок)
  * и подстраиваются под худший цвет неба под строкой.
  */
 class CaptionTintsTest {
@@ -36,8 +36,20 @@ class CaptionTintsTest {
             for (hue in CaptionHue.entries) {
                 val color = CaptionTints.icon(ink, smoke, hue, sky)
                 val contrast = ExtremeTints.contrastRatio(color, sky)
-                assertTrue("$hue: контраст $contrast", contrast >= ExtremeTints.MIN_ARROW_CONTRAST)
+                assertTrue("$hue: контраст $contrast", contrast >= ExtremeTints.MIN_EXTREME_ARROW_CONTRAST)
             }
+        }
+    }
+
+    @Test
+    fun theTintSurvivesWhenTheTextItselfHoldsLessThanThreeToOneWithTheSky() {
+        // Без подложек текст держит с небом 2,5 : 1; при пороге 3,0 значок терял оттенок (Дима 26.11, 0.8.111).
+        val midSky = Color(0xFF959595)
+        assertTrue(ExtremeTints.contrastRatio(lightInk, midSky) in 2.0f..3.0f)
+        for (hue in CaptionHue.entries) {
+            val color = CaptionTints.icon(lightInk, 1f, hue, midSky)
+            assertTrue("$hue: оттенок пропал", color != lightInk)
+            assertTrue("$hue: контраст", ExtremeTints.contrastRatio(color, midSky) >= ExtremeTints.MIN_EXTREME_ARROW_CONTRAST)
         }
     }
 
