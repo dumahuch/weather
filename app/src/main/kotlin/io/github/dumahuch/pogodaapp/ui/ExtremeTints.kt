@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.luminance
  *
  * Читаемость важнее оттенка: любой подмешанный цвет уменьшает контраст относительно основного цвета текста, а тема
  * подбирает подложку под основной цвет ровно до [io.github.dumahuch.pogodaapp.sky.SkyTheme.INFO_TARGET]. Поэтому оттенок
- * подмешивается с наибольшей силой, при которой число всё ещё держит [MIN_TEXT_CONTRAST] (стрелка [MIN_ARROW_CONTRAST])
+ * подмешивается с наибольшей силой, при которой число всё ещё держит [MIN_TEXT_CONTRAST] (стрелка [MIN_EXTREME_ARROW_CONTRAST])
  * на худшем цвете неба под строкой ([PogodaPalette.infoBackdrop]); если не держит ни с каким оттенком, цвет остаётся основным.
  */
 internal object ExtremeTints {
@@ -34,6 +34,12 @@ internal object ExtremeTints {
      */
     const val MIN_TEXT_CONTRAST = 3.6f
     const val MIN_ARROW_CONTRAST = 3.0f
+
+    /**
+     * Стрелки максимума и минимума держат контраст с небом не ниже этого (с 0.8.111; было 3,0, и на оранжевом и сером
+     * небе оттенок гас до цвета текста: Дима 26.11 «потерял цвета у стрелок»). Это значок рядом с числом, ему хватает 2,0.
+     */
+    const val MIN_EXTREME_ARROW_CONTRAST = 2.0f
 
     /** На сколько шагов делится путь силы оттенка от желаемой до нуля при поиске. */
     private const val STEPS = 40
@@ -73,6 +79,6 @@ internal object ExtremeTints {
     /** Цвет стрелки. */
     fun arrow(ink: Color, smoke: Float, warm: Boolean, backdrop: Color): Color {
         val s = smoke.coerceIn(0f, 1f)
-        return readable(ink, hue(s, warm), ARROW_STRENGTH, backdrop, MIN_ARROW_CONTRAST)
+        return readable(ink, hue(s, warm), ARROW_STRENGTH, backdrop, MIN_EXTREME_ARROW_CONTRAST)
     }
 }

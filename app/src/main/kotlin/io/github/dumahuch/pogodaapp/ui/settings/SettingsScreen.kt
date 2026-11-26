@@ -129,6 +129,7 @@ fun SettingsScreen(
     updateActions: UpdateActions,
     openUpdates: Boolean,
     onOpenedUpdates: () -> Unit,
+    version: VersionEntry,
     modifier: Modifier = Modifier,
 ) {
     var open by rememberSaveable { mutableIntStateOf(NONE) }
@@ -369,6 +370,7 @@ fun SettingsScreen(
                 stringResource(R.string.about_map_title),
                 stringResource(R.string.about_map_text, LocalDate.now().year),
             )
+            VersionLine(version)
         }
     }
 }

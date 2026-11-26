@@ -1,7 +1,11 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -163,7 +167,6 @@ internal fun AlertCard(
     Column(
         modifier
             .fillMaxWidth()
-            .animateContentSize(tween(EXPAND_MS))
             .alertGlass(AlertShape, glass, tint),
     ) {
         Row(
@@ -190,7 +193,9 @@ internal fun AlertCard(
                 Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
             }
         }
-        if (expanded) {
+        // Подробности раскрываются и сворачиваются одинаково плавно: высота и прозрачность за [EXPAND_MS] (0.8.111;
+        // раньше при сворачивании они пропадали сразу, а пустое место сжималось потом).
+        AnimatedVisibility(expanded, enter = ExpandIn, exit = ExpandOut) {
             // Высота раскрытой части замеряется целиком (с полями), ещё до конца анимации: по ней «Главная» сразу
             // считает, насколько сжать верхний блок.
             Column(
@@ -252,28 +257,33 @@ internal fun AlertsList(
 ) {
     val hidden = expandedId != null && alerts.indexOfFirst { it.id == expandedId } >= shown
     val everything = all || hidden
-    val visible = if (everything) alerts else alerts.take(shown)
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AlertGap)) {
-        visible.forEachIndexed { index, alert ->
-            AlertCard(
-                alert = alert,
-                area = area,
-                expanded = alert.id == expandedId,
-                now = now,
-                zone = zone,
-                onClick = { onToggle(alert.id) },
-                onHeaderHeight = if (index == 0) onRowHeight else NoMeasure,
-                onOpenHeight = onOpenHeight,
-            )
+    // Лишние строки и строка «Ещё N» не появляются и не пропадают рывком: каждая уезжает и гаснет сама за [EXPAND_MS],
+    // промежуток между строками лежит внутри анимируемой части (иначе при сворачивании оставались бы пустые зазоры).
+    Column(modifier.fillMaxWidth()) {
+        alerts.forEachIndexed { index, alert ->
+            AnimatedVisibility(everything || index < shown, enter = ExpandIn, exit = ExpandOut) {
+                AlertCard(
+                    alert = alert,
+                    area = area,
+                    expanded = alert.id == expandedId,
+                    now = now,
+                    zone = zone,
+                    onClick = { onToggle(alert.id) },
+                    modifier = Modifier.padding(top = if (index > 0) AlertGap else 0.dp),
+                    onHeaderHeight = if (index == 0) onRowHeight else NoMeasure,
+                    onOpenHeight = onOpenHeight,
+                )
+            }
         }
-        if (everything) {
-            if (alerts.size > shown) AlertMoreRow(stringResource(R.string.alerts_collapse), onCollapse)
-        } else if (more) {
-            val count = alerts.size - shown
+        val count = alerts.size - shown
+        AnimatedVisibility(everything && count > 0, enter = ExpandIn, exit = ExpandOut) {
+            AlertMoreRow(stringResource(R.string.alerts_collapse), onCollapse, Modifier.padding(top = AlertGap))
+        }
+        AnimatedVisibility(!everything && more && count > 0, enter = ExpandIn, exit = ExpandOut) {
             AlertMoreRow(
                 pluralStringResource(R.plurals.alerts_more, count, count),
                 onAll,
-                Modifier.onSizeChanged { onMoreHeight(it.height) },
+                Modifier.padding(top = AlertGap).onSizeChanged { onMoreHeight(it.height) },
             )
         }
     }
@@ -282,8 +292,11 @@ internal fun AlertsList(
 /** Высоту этой плашки никто не меряет. */
 private val NoMeasure: (Int) -> Unit = {}
 
-/** Сколько длится раскрытие плашки. */
+/** Сколько длится раскрытие и сворачивание. */
 private const val EXPAND_MS = 300
+
+private val ExpandIn = fadeIn(tween(EXPAND_MS)) + expandVertically(tween(EXPAND_MS))
+private val ExpandOut = fadeOut(tween(EXPAND_MS)) + shrinkVertically(tween(EXPAND_MS))
 
 /** Прозрачность черты между строкой плашки и её подробностями (как черта в панели часа). */
 private const val DIVIDER_ALPHA = 0.14f

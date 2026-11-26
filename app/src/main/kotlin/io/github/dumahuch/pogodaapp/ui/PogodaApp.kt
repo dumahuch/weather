@@ -69,6 +69,7 @@ import io.github.dumahuch.pogodaapp.ui.places.PlacesScreen
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.settings.SettingsScreen
 import io.github.dumahuch.pogodaapp.ui.settings.UpdateActions
+import io.github.dumahuch.pogodaapp.ui.settings.VersionEntry
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCover
 import io.github.dumahuch.pogodaapp.ui.sky.SkyPause
 import io.github.dumahuch.pogodaapp.ui.sky.rememberAnimationsEnabled
@@ -103,11 +104,10 @@ fun PogodaApp(
     state: HomeUiState,
     refreshing: Boolean,
     permanentlyDenied: Boolean,
-    versionLabel: String,
     actions: HomeActions,
     places: PlacesUiState,
     placesActions: PlacesActions,
-    onVersionTap: () -> Unit,
+    version: VersionEntry,
     cardShadow: CardShadow,
     onCardShadow: (CardShadow) -> Unit,
     iconStyle: WeatherIconStyle,
@@ -467,6 +467,7 @@ fun PogodaApp(
                         updateActions = updateActions,
                         openUpdates = openUpdates,
                         onOpenedUpdates = { openUpdates = false },
+                        version = version,
                     )
 
                     Layer.Places -> PlacesScreen(
@@ -569,9 +570,6 @@ fun PogodaApp(
                 BottomBar(
                     selected = tabHeading ?: tab,
                     onSelect = { selectTab(it) },
-                    versionLabel = versionLabel,
-                    showAttribution = state is HomeUiState.Content,
-                    onVersionTap = onVersionTap,
                 )
             }
         }

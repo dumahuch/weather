@@ -62,6 +62,7 @@ import io.github.dumahuch.pogodaapp.ui.map.MapPreloadJobs
 import io.github.dumahuch.pogodaapp.ui.places.PlacesActions
 import io.github.dumahuch.pogodaapp.ui.places.PlacesUiState
 import io.github.dumahuch.pogodaapp.ui.settings.UpdateActions
+import io.github.dumahuch.pogodaapp.ui.settings.VersionEntry
 import io.github.dumahuch.pogodaapp.ui.sky.PollenCheck
 import io.github.dumahuch.pogodaapp.ui.sky.SAMPLE_ALERTS
 import io.github.dumahuch.pogodaapp.ui.sky.SkyCheckModel
@@ -263,6 +264,9 @@ class MainActivity : ComponentActivity() {
                 val update by updates.state.collectAsStateWithLifecycle()
                 val diagnostics = remember { SkyDiagnostics() }
                 val taps = remember { TapSequence() }
+                val versionEntry = remember(taps) {
+                    VersionEntry(versionLabel) { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() }
+                }
                 val input = remember(state) { state.skyInput() }
                 SkyHost(
                     input = input,
@@ -285,11 +289,10 @@ class MainActivity : ComponentActivity() {
                                 state = state,
                                 refreshing = refreshing,
                                 permanentlyDenied = permanentlyDenied,
-                                versionLabel = versionLabel,
                                 actions = actions,
                                 places = places,
                                 placesActions = placesActions,
-                                onVersionTap = { if (taps.tap(SystemClock.uptimeMillis())) skyCheck.show() },
+                                version = versionEntry,
                                 cardShadow = cardShadow,
                                 onCardShadow = settings::setCardShadow,
                                 iconStyle = iconStyle,

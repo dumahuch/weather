@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name" translatable="false">PogodaApp</string>
     <string name="version_footer" translatable="false">%1$s (%2$d)</string>
-    <string name="attribution_open_meteo" translatable="false">Weather data by Open-Meteo.com</string>
 
     <string name="tab_home">Home</string>
     <string name="tab_forecast">Forecast</string>
@@ -317,6 +316,7 @@
     <string name="settings_pollen_kinds">Species to notify about</string>
     <string name="settings_section_view">Appearance</string>
     <string name="settings_section_about">About</string>
+    <string name="about_version_title">Version</string>
     <string name="settings_about_summary">Data sources and licences</string>
     <string name="about_forecast_title">Forecast and air quality</string>
     <string name="about_forecast_text">Open-Meteo.com, licence CC BY 4.0. Air quality from the CAMS model.</string>
