@@ -58,7 +58,34 @@
     <string name="today">Сегодня</string>
     <string name="forecast_7_days">7 дней</string>
     <string name="forecast_14_days">14 дней</string>
-    <string name="forecast_far_note">После 10-го дня прогноз менее надёжен</string>
+    <string name="forecast_next_week">Следующая неделя</string>
+    <string name="week_title">Неделя</string>
+    <string name="week_dry">Без осадков</string>
+    <string name="week_dry_clear">Сухо и солнечно</string>
+    <string name="week_dry_cloudy">Сухо и пасмурно</string>
+    <string name="week_rain">Дождь %1$s</string>
+    <string name="week_rain_maybe">Дождь возможен %1$s</string>
+    <string name="week_snow">Снег %1$s</string>
+    <string name="week_snow_maybe">Снег возможен %1$s</string>
+    <string name="week_precip">Осадки %1$s</string>
+    <string name="week_precip_maybe">Осадки возможны %1$s</string>
+    <string name="week_precip_several">Осадки: %1$s</string>
+    <string name="week_precip_several_maybe">Возможны осадки: %1$s</string>
+    <string name="week_precip_most">Осадки почти каждый день</string>
+    <string name="week_temp_range">От %1$s до %2$s</string>
+    <string name="week_trend_warmer">К концу недели теплеет</string>
+    <string name="week_trend_colder">К концу недели холодает</string>
+    <string name="week_today">сегодня</string>
+    <string name="week_tomorrow">завтра</string>
+    <string-array name="week_days_on">
+        <item>в понедельник</item>
+        <item>во вторник</item>
+        <item>в среду</item>
+        <item>в четверг</item>
+        <item>в пятницу</item>
+        <item>в субботу</item>
+        <item>в воскресенье</item>
+    </string-array>
     <string name="forecast_missing_title">Прогноза по дням пока нет</string>
     <string name="forecast_missing_text">Обновите прогноз, чтобы увидеть ближайшие дни. Для этого нужна сеть.</string>
     <string name="next24_none">Осадков не ожидается</string>

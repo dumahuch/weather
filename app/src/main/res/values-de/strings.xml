@@ -56,7 +56,34 @@
     <string name="today">Heute</string>
     <string name="forecast_7_days">7 Tage</string>
     <string name="forecast_14_days">14 Tage</string>
-    <string name="forecast_far_note">Nach dem 10. Tag ist die Vorhersage weniger zuverlässig</string>
+    <string name="forecast_next_week">Nächste Woche</string>
+    <string name="week_title">Woche</string>
+    <string name="week_dry">Trocken</string>
+    <string name="week_dry_clear">Trocken und sonnig</string>
+    <string name="week_dry_cloudy">Trocken und bedeckt</string>
+    <string name="week_rain">Regen %1$s</string>
+    <string name="week_rain_maybe">Regen möglich %1$s</string>
+    <string name="week_snow">Schnee %1$s</string>
+    <string name="week_snow_maybe">Schnee möglich %1$s</string>
+    <string name="week_precip">Niederschlag %1$s</string>
+    <string name="week_precip_maybe">Niederschlag möglich %1$s</string>
+    <string name="week_precip_several">Niederschlag: %1$s</string>
+    <string name="week_precip_several_maybe">Niederschlag möglich: %1$s</string>
+    <string name="week_precip_most">Fast jeden Tag Niederschlag</string>
+    <string name="week_temp_range">Von %1$s bis %2$s</string>
+    <string name="week_trend_warmer">Zum Ende der Woche wird es wärmer</string>
+    <string name="week_trend_colder">Zum Ende der Woche wird es kälter</string>
+    <string name="week_today">heute</string>
+    <string name="week_tomorrow">morgen</string>
+    <string-array name="week_days_on">
+        <item>am Montag</item>
+        <item>am Dienstag</item>
+        <item>am Mittwoch</item>
+        <item>am Donnerstag</item>
+        <item>am Freitag</item>
+        <item>am Samstag</item>
+        <item>am Sonntag</item>
+    </string-array>
     <string name="forecast_missing_title">Noch keine Tagesvorhersage</string>
     <string name="forecast_missing_text">Aktualisiere die Vorhersage, um die nächsten Tage zu sehen. Dafür wird eine Internetverbindung benötigt.</string>
     <string name="next24_none">Kein Niederschlag erwartet</string>

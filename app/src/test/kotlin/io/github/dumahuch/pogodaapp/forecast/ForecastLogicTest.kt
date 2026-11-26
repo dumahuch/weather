@@ -35,7 +35,15 @@ class ForecastLogicTest {
     }
 
     @Test
-    fun scaleIsAtLeastFromMinusTwoToThirteen() {
+    fun scaleIsAtLeastTwelveDegreesWideAroundTheData() {
+        // Зимний день от −4 до 4: шкала от −6 до 6, полоска занимает две трети посередине.
+        val spans = TemperatureRange.layout(listOf(day(4.0, -4.0)))
+        assertEquals(2f / 12f, spans.single().start, 0.001f)
+        assertEquals(8f / 12f, spans.single().width, 0.001f)
+    }
+
+    @Test
+    fun aWideSpreadDefinesTheScaleItself() {
         val spans = TemperatureRange.layout(listOf(day(13.0, -2.0)))
         assertEquals(0f, spans.single().start, 0.001f)
         assertEquals(1f, spans.single().width, 0.001f)
