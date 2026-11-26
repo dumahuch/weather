@@ -333,7 +333,6 @@ internal fun ContentTop(
     state: HomeUiState.Content,
     heroScale: Float,
     heroModifier: Modifier,
-    infoModifier: Modifier = Modifier,
     onOpenMetric: (Metric) -> Unit = {},
 ) {
     val palette = LocalPogodaPalette.current
@@ -386,7 +385,7 @@ internal fun ContentTop(
         scale = heroScale,
     )
     Column(
-        infoModifier
+        Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

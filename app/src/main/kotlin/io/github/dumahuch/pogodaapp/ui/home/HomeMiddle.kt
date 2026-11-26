@@ -26,9 +26,6 @@ import io.github.dumahuch.pogodaapp.home.HeroWidth
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.heroDigitsSize
 import io.github.dumahuch.pogodaapp.home.temperatureDigits
-import io.github.dumahuch.pogodaapp.ui.sky.LocalScrimRegions
-import io.github.dumahuch.pogodaapp.ui.sky.ScrimRegions
-import io.github.dumahuch.pogodaapp.ui.sky.scrimRegion
 import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.abs
@@ -138,7 +135,6 @@ internal fun ColumnScope.ContentMiddle(
         )
     }
 
-    val regions = LocalScrimRegions.current
     DisposableEffect(layout) { onDispose { layout.forgetMiddle() } }
     val scale = remember { Animatable(1f) }
     val top = remember { Animatable(-1f) }
@@ -165,8 +161,7 @@ internal fun ColumnScope.ContentMiddle(
         ContentTop(
             state,
             scale.value,
-            heroModifier = Modifier.onSizeChanged { layout.hero = it.height }.scrimRegion(regions, ScrimRegions.Kind.Hero),
-            infoModifier = Modifier.scrimRegion(regions, ScrimRegions.Kind.Info),
+            heroModifier = Modifier.onSizeChanged { layout.hero = it.height },
             onOpenMetric = actions.onOpenMetric,
         )
     }
