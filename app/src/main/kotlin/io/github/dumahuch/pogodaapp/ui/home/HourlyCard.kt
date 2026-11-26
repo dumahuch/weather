@@ -1,5 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -70,6 +71,14 @@ import java.time.ZoneId
 import java.util.Locale
 
 internal val HourColumnWidth = HourlyGeometry.COLUMN_WIDTH.dp
+
+/** Отступ ленты часов от краёв карточки; от него считается и тёмная фигура выбранного часа. */
+private val StripInset = 8.dp
+
+/** Последний выбранный час (колонка): фигура держится за ним, пока панель сворачивается. */
+private class LastIndex {
+    var value = 0
+}
 internal val HourStripHeight = HourlyGeometry.HEIGHT.dp
 
 /**
@@ -133,14 +142,20 @@ fun HourlyStrip(
     var selectedTime by rememberSaveable { mutableStateOf<Long?>(null) }
     val selectedIndex = selectedTime?.let { key -> points.indexOfFirst { it.time.epochSecond == key } }
         ?.takeIf { it >= 0 && panels[it] != null }
+    // Тёмная фигура часа и панели исчезает плавно, пока панель сворачивается: колонку она помнит.
+    val lastIndex = remember { LastIndex() }
+    if (selectedIndex != null) lastIndex.value = selectedIndex
+    val blockAlpha by animateFloatAsState(if (selectedIndex != null) 1f else 0f, tween(PANEL_MS), label = "hourBlock")
+    val palette = LocalPogodaPalette.current
+    val spec = remember { HourBlockSpec(HourColumnWidth, HourStripHeight, StripInset) }
 
-    Column(modifier.fillMaxWidth()) {
+    Column(modifier.fillMaxWidth().hourBlock(palette.ink, spec, { lastIndex.value }, { scroll.value }, { blockAlpha })) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .edgeFade(18.dp)
                 .horizontalScroll(scroll)
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = StripInset),
         ) {
             Box(
                 Modifier
@@ -302,7 +317,6 @@ private fun HourColumn(
         Modifier
             .width(HourColumnWidth)
             .fillMaxHeight()
-            .then(if (selected) Modifier.selectedColumn(palette.ink, palette.accent) else Modifier)
             .then(if (isMidnight) Modifier.dayDivider(palette.ink) else Modifier)
             .then(
                 if (openable) {
@@ -369,24 +383,6 @@ private fun HourColumn(
                 .wrapContentWidth(Alignment.CenterHorizontally, unbounded = true),
         )
     }
-}
-
-/** Выбранный час: столбец чуть светлее, внизу стрелка вниз к раскрытой панели. */
-private fun Modifier.selectedColumn(ink: Color, accent: Color): Modifier = drawBehind {
-    drawRoundRect(
-        color = ink.copy(alpha = 0.08f),
-        topLeft = Offset(2.dp.toPx(), 0f),
-        size = Size(size.width - 4.dp.toPx(), size.height),
-        cornerRadius = CornerRadius(14.dp.toPx()),
-    )
-    val half = 6.dp.toPx()
-    val tip = Path().apply {
-        moveTo(size.width / 2 - half, size.height - 7.dp.toPx())
-        lineTo(size.width / 2 + half, size.height - 7.dp.toPx())
-        lineTo(size.width / 2, size.height - 1.dp.toPx())
-        close()
-    }
-    drawPath(tip, accent)
 }
 
 /** Пунктир слева от первого часа нового дня. */

@@ -34,7 +34,6 @@ import androidx.compose.ui.graphics.PathOperation
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
@@ -89,18 +88,6 @@ class Glass internal constructor(
 }
 
 val LocalGlass = compositionLocalOf { Glass.flat(PogodaPalette.Neutral) }
-
-/** Доля цвета стекла в матовой плите: остальное белый (светлый текст не нужен) или тёмно-синий. */
-private const val MATTE_GLASS_SHARE = 0.7f
-
-/**
- * Сплошной цвет матового стекла без прозрачности: на нём читается длинный текст на любом небе. Общий для шторки
- * предупреждений и карточек настроек (0.8.68).
- */
-fun matteBase(palette: PogodaPalette): Color {
-    val base = if (palette.darkInk) Color.White else Color(0xFF0C131F)
-    return lerp(base, palette.glass.copy(alpha = 1f), MATTE_GLASS_SHARE)
-}
 
 /** Шаги, на которые делится «дымчатость» стекла, чтобы не пересоздавать стиль размытия при каждом сдвиге цвета. */
 private const val SMOKE_STEPS = 20

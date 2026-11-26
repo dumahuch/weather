@@ -402,7 +402,7 @@
         <item quantity="one">%d more warning</item>
         <item quantity="other">%d more warnings</item>
     </plurals>
-    <string name="alerts_all">All warnings</string>
+    <string name="alerts_collapse">Show fewer</string>
     <string name="alert_valid">Valid</string>
     <string name="alert_area">Area</string>
     <string name="alert_original">DWD text</string>
@@ -413,7 +413,6 @@
     <string name="alert_period_day">%1$s, %2$s–%3$s</string>
     <string name="alert_period_span">%1$s %2$s – %3$s %4$s</string>
     <string name="alert_period_open">%1$s, from %2$s</string>
-    <string name="alert_close">Close</string>
     <string name="alert_source" translatable="false">Deutscher Wetterdienst</string>
     <!-- Карта (0.8.0) -->
     <string name="map_layer_clouds_rain">Clouds and rain</string>

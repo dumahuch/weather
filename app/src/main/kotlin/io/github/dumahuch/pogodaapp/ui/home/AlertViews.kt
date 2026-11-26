@@ -1,12 +1,16 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,9 +67,6 @@ private val MoreShape = RoundedCornerShape(14.dp)
 internal const val TINT_FILL = 0.15f
 internal const val TINT_LINE = 0.26f
 
-/** Доля цвета уровня в заливке плоской плашки внутри шторки (на сплошном фоне заметнее, чем на стекле). */
-private const val SOLID_TINT_FILL = 0.2f
-
 /** Цвет уровня DWD (приглушённый под стиль приложения). */
 internal fun levelColor(level: AlertLevel): Color = PogodaColors.AlertLevels[level.number - 1]
 
@@ -75,19 +76,6 @@ internal fun levelIcon(level: AlertLevel): LineIcon =
 
 /** У снега, льда и мороза и на плашке стоит снежинка: она одна во всех местах. */
 internal fun AlertKind.isSnowflake(): Boolean = this == AlertKind.Snow || this == AlertKind.Frost || this == AlertKind.Ice
-
-/** Значок явления в подробностях предупреждения. */
-internal fun kindIcon(kind: AlertKind): LineIcon = when (kind) {
-    AlertKind.Thunderstorm -> LineIcons.Storm
-    AlertKind.Wind -> LineIcons.Wind
-    AlertKind.Rain -> LineIcons.Rain
-    AlertKind.Snow, AlertKind.Frost, AlertKind.Ice -> LineIcons.Ice
-    AlertKind.Fog -> LineIcons.Fog
-    AlertKind.Heat -> LineIcons.Thermometer
-    AlertKind.Uv -> LineIcons.Sun
-    AlertKind.Thaw -> LineIcons.Drop
-    AlertKind.Other -> LineIcons.Warning
-}
 
 @Composable
 internal fun alertTitle(kind: AlertKind): String = stringArrayResource(R.array.alert_kinds)[kind.ordinal]
@@ -134,14 +122,7 @@ internal fun alertWhenLabel(alert: WeatherAlert, now: Instant, zone: ZoneId, day
  * Плотность заливки берётся наибольшая из рассчитанных для карточек и для предупреждений: плашки лежат между полосой
  * предупреждений макета и лентой «По часам», и текст должен читаться на обеих.
  */
-private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color, solidBase: Color? = null): Modifier {
-    if (solidBase != null) {
-        // Внутри шторки плашки плоские и непрозрачные: стекло с размытием давало «дырявую шторку» и лишние кадры.
-        return this
-            .clip(shape)
-            .border(1.dp, tint.copy(alpha = TINT_LINE), shape)
-            .background(tint.copy(alpha = SOLID_TINT_FILL).compositeOver(solidBase), shape)
-    }
+private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color): Modifier {
     val palette = glass.palette
     val base = if (palette.glassAlert.alpha >= palette.glass.alpha) palette.glassAlert else palette.glass
     val fill = tint.copy(alpha = TINT_FILL).compositeOver(base)
@@ -155,17 +136,21 @@ private fun Modifier.alertGlass(shape: Shape, glass: Glass, tint: Color, solidBa
 }
 
 /**
- * Одна плашка: значок уровня, справа от него две строки и стрелка (открывает подробности). Первая строка: название
- * явления и время справа от него; вторая: уровень на всю ширину текста (не сокращается из-за времени).
+ * Плашка предупреждения: значок уровня, справа от него две строки и время. Первая строка: название явления; вторая:
+ * уровень на всю ширину текста (не сокращается из-за времени). Нажатие раскрывает плашку на месте (Дима 26.11, вместо
+ * шторки): под строкой шкала уровня, период, район, оригинальный текст DWD и источник ([AlertDetails]); нажатие по
+ * строке сворачивает. Раскрыта в [AlertsList] одна.
  */
 @Composable
-internal fun AlertRow(
+internal fun AlertCard(
     alert: WeatherAlert,
+    area: String?,
+    expanded: Boolean,
     now: Instant,
     zone: ZoneId,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    solidBase: Color? = null,
+    onHeaderHeight: (Int) -> Unit = {},
 ) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
@@ -174,38 +159,53 @@ internal fun AlertRow(
     val level = levelLine(alert.level)
     val time = alertWhenText(alert, now, zone)
     val description = listOf(title, level, time).filter { it.isNotEmpty() }.joinToString(", ")
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
-            .heightIn(min = AlertRowHeight)
-            .alertGlass(AlertShape, glass, tint, solidBase)
-            .clickable(onClick = onClick)
-            .clearAndSetSemantics {
-                contentDescription = description
-                role = Role.Button
-            }
-            .padding(start = 12.dp, top = 5.dp, end = 10.dp, bottom = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .animateContentSize(tween(EXPAND_MS))
+            .alertGlass(AlertShape, glass, tint),
     ) {
-        LineIconView(if (alert.kind.isSnowflake()) LineIcons.Ice else levelIcon(alert.level), 20.dp, tint)
-        Column(Modifier.weight(1f)) {
-            Text(title, style = pogodaText(13.5f, 500, color = palette.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(level, style = pogodaText(12f, 400, color = palette.ink2), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = AlertRowHeight)
+                .onSizeChanged { onHeaderHeight(it.height) }
+                .clickable(onClick = onClick)
+                .clearAndSetSemantics {
+                    contentDescription = description
+                    role = Role.Button
+                }
+                .padding(start = 12.dp, top = 5.dp, end = 10.dp, bottom = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            LineIconView(if (alert.kind.isSnowflake()) LineIcons.Ice else levelIcon(alert.level), 20.dp, tint)
+            Column(Modifier.weight(1f)) {
+                Text(title, style = pogodaText(13.5f, 500, color = palette.ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(level, style = pogodaText(12f, 400, color = palette.ink2), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            // Время по центру плашки, на одной линии со значком, а не на строке заголовка (Дима 25.11.2026).
+            if (time.isNotEmpty()) {
+                Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
+            }
         }
-        // Время по центру плашки, на одной линии со значком и стрелкой, а не на строке заголовка (Дима 25.11.2026).
-        if (time.isNotEmpty()) {
-            Text(time, style = pogodaText(12f, 500, color = palette.ink2, tabular = true), maxLines = 1)
+        if (expanded) {
+            Column(
+                Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(palette.ink.copy(alpha = DIVIDER_ALPHA)))
+                AlertDetails(alert, area, now, zone)
+            }
         }
     }
 }
 
-/** Строка «Ещё N предупреждений»: открывает весь список. Материал кнопки, как в макете. */
+/** Строка под списком: «Ещё N предупреждений» (раскрывает весь список) или «Свернуть». Материал кнопки, как в макете. */
 @Composable
-internal fun AlertMoreRow(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AlertMoreRow(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
-    val text = pluralStringResource(R.plurals.alerts_more, count, count)
     Row(
         modifier
             .fillMaxWidth()
@@ -226,26 +226,59 @@ internal fun AlertMoreRow(count: Int, onClick: () -> Unit, modifier: Modifier = 
 
 /**
  * Список предупреждений на «Главной»: первые [shown] по порядку (самые серьёзные сверху) и, если [more], строка
- * «Ещё N», которая открывает весь список ([onAll]).
+ * «Ещё N», которая раскрывает весь список на месте; тогда внизу «Свернуть» ([onCollapse]). Раскрыта одна плашка
+ * ([expandedId]); если она оказалась среди скрытых (открыта из уведомления), показывается весь список.
  */
 @Composable
 internal fun AlertsList(
     alerts: List<WeatherAlert>,
     shown: Int,
     more: Boolean,
+    expandedId: String?,
+    all: Boolean,
+    area: String?,
     now: Instant,
     zone: ZoneId,
-    onOpen: (WeatherAlert) -> Unit,
+    onToggle: (String) -> Unit,
     onAll: () -> Unit,
+    onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
     onRowHeight: (Int) -> Unit = {},
     onMoreHeight: (Int) -> Unit = {},
 ) {
+    val hidden = expandedId != null && alerts.indexOfFirst { it.id == expandedId } >= shown
+    val everything = all || hidden
+    val visible = if (everything) alerts else alerts.take(shown)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(AlertGap)) {
-        alerts.take(shown).forEachIndexed { index, alert ->
-            val measure = if (index == 0) Modifier.onSizeChanged { onRowHeight(it.height) } else Modifier
-            AlertRow(alert, now, zone, onClick = { onOpen(alert) }, modifier = measure)
+        visible.forEachIndexed { index, alert ->
+            AlertCard(
+                alert = alert,
+                area = area,
+                expanded = alert.id == expandedId,
+                now = now,
+                zone = zone,
+                onClick = { onToggle(alert.id) },
+                onHeaderHeight = if (index == 0) onRowHeight else NoMeasure,
+            )
         }
-        if (more) AlertMoreRow(alerts.size - shown, onClick = onAll, modifier = Modifier.onSizeChanged { onMoreHeight(it.height) })
+        if (everything) {
+            if (alerts.size > shown) AlertMoreRow(stringResource(R.string.alerts_collapse), onCollapse)
+        } else if (more) {
+            val count = alerts.size - shown
+            AlertMoreRow(
+                pluralStringResource(R.plurals.alerts_more, count, count),
+                onAll,
+                Modifier.onSizeChanged { onMoreHeight(it.height) },
+            )
+        }
     }
 }
+
+/** Высоту этой плашки никто не меряет. */
+private val NoMeasure: (Int) -> Unit = {}
+
+/** Сколько длится раскрытие плашки. */
+private const val EXPAND_MS = 300
+
+/** Прозрачность черты между строкой плашки и её подробностями (как черта в панели часа). */
+private const val DIVIDER_ALPHA = 0.14f
