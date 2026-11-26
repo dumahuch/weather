@@ -36,10 +36,10 @@ private const val SEVERAL_DAYS = 3
 
 /**
  * Фраза недели над списком дней (макет 26.11.2026, вариант 2): «Сухо и пасмурно. От −4° до 4°. К концу недели теплеет.»
- * Правила сводки: [io.github.dumahuch.pogodaapp.forecast.WeekSummaries].
+ * На второй неделе ([outlook]) слова осторожнее: «вероятно», «ожидается» (решение Димы 26.11.2026). Правила сводки: [io.github.dumahuch.pogodaapp.forecast.WeekSummaries].
  */
 @Composable
-internal fun WeekSummaryCard(summary: WeekSummary, today: LocalDate, modifier: Modifier = Modifier) {
+internal fun WeekSummaryCard(summary: WeekSummary, today: LocalDate, outlook: Boolean, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     Column(
         modifier
@@ -49,10 +49,10 @@ internal fun WeekSummaryCard(summary: WeekSummary, today: LocalDate, modifier: M
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LineIconView(LineIcons.Calendar, 16.dp, palette.ink2, strokeWidth = 1.8f)
-            Text(stringResource(R.string.week_title), style = pogodaText(12.5f, 700, color = palette.ink2))
+            Text(stringResource(if (outlook) R.string.forecast_next_week else R.string.forecast_this_week), style = pogodaText(12.5f, 700, color = palette.ink2))
         }
         Text(
-            weekSummaryText(summary, today),
+            weekSummaryText(summary, today, outlook),
             style = pogodaText(16f, 600, lineHeight = 1.35f),
             modifier = Modifier.padding(top = 6.dp),
         )
@@ -60,7 +60,7 @@ internal fun WeekSummaryCard(summary: WeekSummary, today: LocalDate, modifier: M
 }
 
 @Composable
-private fun weekSummaryText(summary: WeekSummary, today: LocalDate): String {
+private fun weekSummaryText(summary: WeekSummary, today: LocalDate, outlook: Boolean): String {
     val locale = LocalLocale.current.platformLocale
     val daysOn = stringArrayResource(R.array.week_days_on)
     val daysShort = stringArrayResource(R.array.days_short)
@@ -70,15 +70,19 @@ private fun weekSummaryText(summary: WeekSummary, today: LocalDate): String {
     val precipitation = when (val p = summary.precipitation) {
         is WeekPrecipitation.Dry -> stringResource(
             when (p.sky) {
-                DrySky.Clear -> R.string.week_dry_clear
-                DrySky.Cloudy -> R.string.week_dry_cloudy
-                DrySky.Plain -> R.string.week_dry
+                DrySky.Clear -> if (outlook) R.string.week_o_dry_clear else R.string.week_dry_clear
+                DrySky.Cloudy -> if (outlook) R.string.week_o_dry_cloudy else R.string.week_dry_cloudy
+                DrySky.Plain -> if (outlook) R.string.week_o_dry else R.string.week_dry
             },
         )
         is WeekPrecipitation.Wet -> when {
-            p.dates.size >= MOST_DAYS -> stringResource(R.string.week_precip_most)
+            p.dates.size >= MOST_DAYS -> stringResource(if (outlook) R.string.week_o_precip_most else R.string.week_precip_most)
             p.dates.size >= SEVERAL_DAYS -> stringResource(
-                if (p.possible) R.string.week_precip_several_maybe else R.string.week_precip_several,
+                when {
+                    p.possible -> R.string.week_precip_several_maybe
+                    outlook -> R.string.week_o_precip_several
+                    else -> R.string.week_precip_several
+                },
                 list.format(p.dates.map { daysShort[it.dayOfWeek.value - 1] }),
             )
             else -> {
@@ -93,9 +97,21 @@ private fun weekSummaryText(summary: WeekSummary, today: LocalDate): String {
                 )
                 stringResource(
                     when (p.kind) {
-                        WeekPrecipKind.Rain -> if (p.possible) R.string.week_rain_maybe else R.string.week_rain
-                        WeekPrecipKind.Snow -> if (p.possible) R.string.week_snow_maybe else R.string.week_snow
-                        WeekPrecipKind.Mixed -> if (p.possible) R.string.week_precip_maybe else R.string.week_precip
+                        WeekPrecipKind.Rain -> when {
+                            p.possible -> R.string.week_rain_maybe
+                            outlook -> R.string.week_o_rain
+                            else -> R.string.week_rain
+                        }
+                        WeekPrecipKind.Snow -> when {
+                            p.possible -> R.string.week_snow_maybe
+                            outlook -> R.string.week_o_snow
+                            else -> R.string.week_snow
+                        }
+                        WeekPrecipKind.Mixed -> when {
+                            p.possible -> R.string.week_precip_maybe
+                            outlook -> R.string.week_o_precip
+                            else -> R.string.week_precip
+                        }
                     },
                     whenText,
                 )
@@ -103,13 +119,13 @@ private fun weekSummaryText(summary: WeekSummary, today: LocalDate): String {
         }
     }
     val range = stringResource(
-        R.string.week_temp_range,
+        if (outlook) R.string.week_o_temp_range else R.string.week_temp_range,
         temperatureText(summary.lowC.toDouble()),
         temperatureText(summary.highC.toDouble()),
     )
     val trend = when (summary.trend) {
-        TemperatureTrend.Warmer -> stringResource(R.string.week_trend_warmer)
-        TemperatureTrend.Colder -> stringResource(R.string.week_trend_colder)
+        TemperatureTrend.Warmer -> stringResource(if (outlook) R.string.week_o_trend_warmer else R.string.week_trend_warmer)
+        TemperatureTrend.Colder -> stringResource(if (outlook) R.string.week_o_trend_colder else R.string.week_trend_colder)
         TemperatureTrend.Steady -> null
     }
     return listOfNotNull(precipitation, range, trend).joinToString(". ") + "."

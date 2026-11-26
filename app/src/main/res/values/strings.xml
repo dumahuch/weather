@@ -59,9 +59,8 @@
 
     <string name="today">Today</string>
     <string name="forecast_7_days">7 days</string>
-    <string name="forecast_14_days">14 days</string>
+    <string name="forecast_this_week">This week</string>
     <string name="forecast_next_week">Next week</string>
-    <string name="week_title">Week</string>
     <string name="week_dry">Dry</string>
     <string name="week_dry_clear">Dry and sunny</string>
     <string name="week_dry_cloudy">Dry and overcast</string>
@@ -74,6 +73,17 @@
     <string name="week_precip_several">Precipitation: %1$s</string>
     <string name="week_precip_several_maybe">Precipitation possible: %1$s</string>
     <string name="week_precip_most">Precipitation almost every day</string>
+    <string name="week_o_dry">Likely dry</string>
+    <string name="week_o_dry_clear">Likely dry and sunny</string>
+    <string name="week_o_dry_cloudy">Likely dry and overcast</string>
+    <string name="week_o_rain">Rain likely %1$s</string>
+    <string name="week_o_snow">Snow likely %1$s</string>
+    <string name="week_o_precip">Precipitation likely %1$s</string>
+    <string name="week_o_precip_several">Precipitation likely: %1$s</string>
+    <string name="week_o_precip_most">Precipitation likely almost every day</string>
+    <string name="week_o_temp_range">Expected: from %1$s to %2$s</string>
+    <string name="week_o_trend_warmer">Likely warming up towards the end of the week</string>
+    <string name="week_o_trend_colder">Likely getting colder towards the end of the week</string>
     <string name="week_temp_range">From %1$s to %2$s</string>
     <string name="week_trend_warmer">Warming up towards the end of the week</string>
     <string name="week_trend_colder">Getting colder towards the end of the week</string>

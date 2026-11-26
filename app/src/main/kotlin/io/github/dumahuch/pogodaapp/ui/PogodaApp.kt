@@ -87,8 +87,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
-/** Сколько суток показывает список «Прогноза» сразу после запуска. */
-private const val DEFAULT_DAY_COUNT = 7
+/** Какая неделя открыта на «Прогнозе» после запуска: 0 эта, 1 следующая. */
+private const val DEFAULT_WEEK = 0
 
 /**
  * Приложение целиком: страница выбранной вкладки и внизу окна панель вкладок с строкой источника данных.
@@ -141,7 +141,7 @@ fun PogodaApp(
     var tab by rememberSaveable { mutableStateOf(AppTab.Home) }
     // День хранится числом (дни от 1970 года): дата сама по себе в сохранённое состояние не кладётся.
     var openDay by rememberSaveable { mutableStateOf<Long?>(null) }
-    var dayCount by rememberSaveable { mutableIntStateOf(DEFAULT_DAY_COUNT) }
+    var forecastWeek by rememberSaveable { mutableIntStateOf(DEFAULT_WEEK) }
     // Страница показателя «Главной» (влажность, ветер, осадки), открытая нажатием под температурой.
     var openMetric by rememberSaveable { mutableStateOf<Metric?>(null) }
     // Страница плитки «Подробно» («Солнце и Луна», давление, УФ, воздух, пыльца), открытая нажатием на плитку.
@@ -416,9 +416,9 @@ fun PogodaApp(
                     AppTab.Forecast -> ForecastScreen(
                         state = state,
                         permanentlyDenied = permanentlyDenied,
-                        dayCount = dayCount,
+                        week = forecastWeek,
                         actions = linked,
-                        onDayCount = { dayCount = it },
+                        onWeek = { forecastWeek = it },
                         onOpenDay = { openDay = it.toEpochDay() },
                     )
 
