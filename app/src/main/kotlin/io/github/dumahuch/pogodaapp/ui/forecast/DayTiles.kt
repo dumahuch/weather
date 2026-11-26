@@ -142,7 +142,7 @@ private fun PrecipitationDayTile(data: DayData, modifier: Modifier) {
         title = stringResource(R.string.tile_precipitation),
         value = dayPrecipitationText(total, locale).ifEmpty { "0" },
         unit = stringResource(R.string.mm_unit),
-        word = if (wet) kindName(kind!!) else stringResource(R.string.day_no_precip),
+        word = if (wet) kindName(kind) else stringResource(R.string.day_no_precip),
         wordDot = if (wet) RainColors[rainLevel(peak)] else null,
         sub = data.day.precipitationProbability?.let { stringResource(R.string.precip_chance, percentText(it)) },
         modifier = modifier,
