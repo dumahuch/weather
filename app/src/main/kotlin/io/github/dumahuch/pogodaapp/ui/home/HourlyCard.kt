@@ -1,6 +1,6 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
-import androidx.compose.animation.animateFloatAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
