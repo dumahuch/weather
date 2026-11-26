@@ -208,6 +208,7 @@ internal fun SkyHost(
     val still = remember(graphicsContext) { SkyStill(graphicsContext) }
     DisposableEffect(still) { onDispose { still.drop() } }
     val parallax = remember { SkyParallax() }
+    LaunchedEffect(parallax) { parallax.settle() }
     var hostSize by remember { mutableStateOf(IntSize.Zero) }
     // Положение верха хозяина в окне: от него считается небо в линзах капель.
     var hostTop by remember { mutableFloatStateOf(0f) }
