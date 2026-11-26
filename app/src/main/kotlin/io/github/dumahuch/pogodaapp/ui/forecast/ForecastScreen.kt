@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -42,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.RangeSpan
 import io.github.dumahuch.pogodaapp.forecast.TemperatureRange
+import io.github.dumahuch.pogodaapp.forecast.WeekSummaries
 import io.github.dumahuch.pogodaapp.forecast.dayPrecipitationText
 import io.github.dumahuch.pogodaapp.home.HomeUiState
 import io.github.dumahuch.pogodaapp.home.isStormWet
@@ -65,13 +68,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.util.Locale
 
-/** Строк в списке по дням и их плотность: 7 дней просторно, 14 дней плотно. */
-private const val COMPACT_DAYS = 14
-
-/** С какого дня (счёт с нуля) прогноз считается менее надёжным: строки приглушаются. */
-private const val FAR_FROM_DAY = 10
-
-private val NoteMaxWidth = 150.dp
+/** Дней в первой неделе: перед восьмым днём в списке на 14 дней стоит разделитель «Следующая неделя». */
+private const val WEEK_DAYS = 7
 
 /**
  * Вкладка «Прогноз»: список дней с переключателем «7 дней» и «14 дней» и карточка осадков на ближайшие сутки.
@@ -110,23 +108,24 @@ fun ForecastScreen(
                     .glassCard(RoundedCornerShape(24.dp), LocalGlass.current),
             ) { DayRowsSkeleton(rows = 7) }
 
-            is HomeUiState.Content -> if (upcomingDays(state.forecast, checkNotNull(today)).isEmpty()) {
-                StateCard(
-                    icon = LineIcons.Calendar,
-                    title = stringResource(R.string.forecast_missing_title),
-                    text = stringResource(R.string.forecast_missing_text),
-                    buttonLabel = stringResource(R.string.retry),
-                    onButton = actions.onRetry,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
-            } else {
-                DaysCard(
-                    days = upcomingDays(state.forecast, checkNotNull(today)),
-                    dayCount = dayCount,
-                    onDayCount = onDayCount,
-                    onOpenDay = onOpenDay,
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                )
+            is HomeUiState.Content -> {
+                val todayDate = checkNotNull(today)
+                val upcoming = upcomingDays(state.forecast, todayDate)
+                if (upcoming.isEmpty()) {
+                    StateCard(
+                        icon = LineIcons.Calendar,
+                        title = stringResource(R.string.forecast_missing_title),
+                        text = stringResource(R.string.forecast_missing_text),
+                        buttonLabel = stringResource(R.string.retry),
+                        onButton = actions.onRetry,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                } else {
+                    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        WeekSummaries.of(upcoming)?.let { WeekSummaryCard(it, todayDate) }
+                        DaysCard(days = upcoming, dayCount = dayCount, onDayCount = onDayCount, onOpenDay = onOpenDay)
+                    }
+                }
             }
 
             HomeUiState.NoPermission -> NoPermissionTop(permanentlyDenied, actions)
@@ -190,7 +189,6 @@ private fun DaysCard(
     modifier: Modifier = Modifier,
 ) {
     val palette = LocalPogodaPalette.current
-    val compact = dayCount == COMPACT_DAYS
     val shown = remember(days, dayCount) { days.take(dayCount) }
     val spans = remember(shown) { TemperatureRange.layout(shown) }
     val today = remember(days) { days.first().date }
@@ -200,36 +198,33 @@ private fun DaysCard(
             .glassCard(RoundedCornerShape(24.dp), LocalGlass.current)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = if (compact) 40.dp else 44.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
             DayCountSwitch(dayCount, onDayCount)
-            if (compact) {
-                Text(
-                    stringResource(R.string.forecast_far_note),
-                    style = pogodaText(11.5f, 500, color = palette.ink2, lineHeight = 1.25f),
-                    textAlign = TextAlign.End,
-                    modifier = Modifier
-                        .padding(start = 10.dp)
-                        .widthIn(max = NoteMaxWidth),
-                )
-            }
         }
         shown.forEachIndexed { index, day ->
             if (index > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(palette.glassLine))
+            if (index == WEEK_DAYS) NextWeekDivider()
             DayRow(
                 day = day,
                 isToday = day.date == today,
-                compact = compact,
                 span = spans[index],
-                far = compact && index >= FAR_FROM_DAY,
                 onClick = { onOpenDay(day.date) },
             )
         }
+    }
+}
+
+/** Разделитель недель в списке на 14 дней: точка и подпись, как «пояснение» стиля (11,5 sp, 600, ink2). */
+@Composable
+private fun NextWeekDivider() {
+    val palette = LocalPogodaPalette.current
+    Row(
+        Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(palette.ink2.copy(alpha = 0.6f)))
+        Text(stringResource(R.string.forecast_next_week), style = pogodaText(11.5f, 600, color = palette.ink2))
     }
 }
 
@@ -271,15 +266,14 @@ private fun DayCountSwitch(dayCount: Int, onDayCount: (Int) -> Unit) {
 
 /**
  * Строка дня: название и дата, значок, вероятность и количество осадков, наименьшая температура,
- * полоска температур и наибольшая температура.
+ * полоска температур и наибольшая температура. Одинаковая на 7 и на 14 днях (Дима 26.11.2026: сжатые строки
+ * 14 дней были нечитаемы, хотя места хватает).
  */
 @Composable
 private fun DayRow(
     day: DayForecast,
     isToday: Boolean,
-    compact: Boolean,
     span: RangeSpan,
-    far: Boolean,
     onClick: () -> Unit,
 ) {
     val palette = LocalPogodaPalette.current
@@ -289,51 +283,37 @@ private fun DayRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = if (compact) 28.dp else 50.dp)
+            .heightIn(min = 56.dp)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
-        if (compact) {
-            Row(Modifier.width(DayColumnWidth), verticalAlignment = Alignment.Bottom) {
-                Text(name, style = pogodaText(13f, 700), maxLines = 1, softWrap = false)
-                if (!isToday) {
-                    Text(
-                        " ${day.date.dayOfMonth}",
-                        style = pogodaText(11f, 500, color = palette.ink2),
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-            }
-        } else {
-            Column(Modifier.width(DayColumnWidth)) {
-                Text(name, style = pogodaText(15f, 700, lineHeight = 1.15f), maxLines = 1, softWrap = false)
-                Text(
-                    shortDate(day.date, locale),
-                    style = pogodaText(11f, 500, color = palette.ink2, lineHeight = 1.15f),
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
+        Column(Modifier.width(DayColumnWidth)) {
+            Text(name, style = pogodaText(15f, 700, lineHeight = 1.15f), maxLines = 1, softWrap = false)
+            Text(
+                shortDate(day.date, locale),
+                style = pogodaText(11f, 500, color = palette.ink2, lineHeight = 1.15f),
+                maxLines = 1,
+                softWrap = false,
+            )
         }
         Box(Modifier.width(26.dp), contentAlignment = Alignment.Center) {
-            SmallWeatherGlyph(day.condition, isDay = true, wet = isStormWet(day.precipitationMm), size = if (compact) 19.dp else 24.dp)
+            SmallWeatherGlyph(day.condition, isDay = true, wet = isStormWet(day.precipitationMm), size = 24.dp)
         }
-        PrecipitationCell(day, compact, locale, Modifier.width(PrecipitationColumnWidth))
+        PrecipitationCell(day, locale, Modifier.width(PrecipitationColumnWidth))
         Text(
             temperatureText(day.min),
-            style = pogodaText(if (compact) 13f else 15f, 500, color = palette.ink2, tabular = true),
+            style = pogodaText(15f, 500, color = palette.ink2, tabular = true),
             textAlign = TextAlign.End,
             maxLines = 1,
             softWrap = false,
             modifier = Modifier.width(TemperatureColumnWidth),
         )
-        RangeBar(span, far, Modifier.weight(1f))
+        RangeBar(span, Modifier.weight(1f))
         Text(
             temperatureText(day.max),
-            style = pogodaText(if (compact) 13f else 15f, 700, tabular = true),
+            style = pogodaText(15f, 700, tabular = true),
             textAlign = TextAlign.End,
             maxLines = 1,
             softWrap = false,
@@ -346,41 +326,27 @@ private val DayColumnWidth = 62.dp
 private val PrecipitationColumnWidth = 66.dp
 private val TemperatureColumnWidth = 36.dp
 
-/** Вероятность осадков (жирным) и их количество в миллиметрах; в плотном виде одной строкой. */
+/** Вероятность осадков (жирным) и их количество в миллиметрах. */
 @Composable
-private fun PrecipitationCell(day: DayForecast, compact: Boolean, locale: Locale, modifier: Modifier) {
+private fun PrecipitationCell(day: DayForecast, locale: Locale, modifier: Modifier) {
     val palette = LocalPogodaPalette.current
     val probability = day.precipitationProbability?.let { percentText(it) } ?: "–"
     val amount = dayPrecipitationText(day.precipitationMm, locale)
     val unit = stringResource(R.string.mm_unit)
-    if (compact) {
-        Row(modifier, verticalAlignment = Alignment.Bottom) {
-            Text(probability, style = pogodaText(12f, 700, tabular = true), maxLines = 1, softWrap = false)
-            if (amount.isNotEmpty()) {
-                Text(
-                    " $amount",
-                    style = pogodaText(11f, 500, color = palette.ink2, tabular = true),
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            }
-        }
-    } else {
-        Column(modifier) {
-            Text(probability, style = pogodaText(13f, 700, lineHeight = 1.15f, tabular = true), maxLines = 1, softWrap = false)
-            Text(
-                if (amount.isEmpty()) "–" else "$amount $unit",
-                style = pogodaText(11f, 500, color = palette.ink2, lineHeight = 1.15f, tabular = true),
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
+    Column(modifier) {
+        Text(probability, style = pogodaText(13f, 700, lineHeight = 1.15f, tabular = true), maxLines = 1, softWrap = false)
+        Text(
+            if (amount.isEmpty()) "–" else "$amount $unit",
+            style = pogodaText(11f, 500, color = palette.ink2, lineHeight = 1.15f, tabular = true),
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 
-/** Полоска температур дня на общей шкале: от синего (холодно) к оранжевому (тепло); у дальних дней бледнее. */
+/** Полоска температур дня на общей шкале: от синего (холодно) к оранжевому (тепло). */
 @Composable
-private fun RangeBar(span: RangeSpan, far: Boolean, modifier: Modifier = Modifier) {
+private fun RangeBar(span: RangeSpan, modifier: Modifier = Modifier) {
     val palette = LocalPogodaPalette.current
     Canvas(modifier.height(5.dp)) {
         val radius = CornerRadius(size.height / 2f)
@@ -396,7 +362,6 @@ private fun RangeBar(span: RangeSpan, far: Boolean, modifier: Modifier = Modifie
             topLeft = Offset(start, 0f),
             size = Size(width, size.height),
             cornerRadius = radius,
-            alpha = if (far) 0.55f else 1f,
         )
     }
 }

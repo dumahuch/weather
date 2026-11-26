@@ -60,7 +60,34 @@
     <string name="today">Today</string>
     <string name="forecast_7_days">7 days</string>
     <string name="forecast_14_days">14 days</string>
-    <string name="forecast_far_note">Forecast is less reliable after day 10</string>
+    <string name="forecast_next_week">Next week</string>
+    <string name="week_title">Week</string>
+    <string name="week_dry">Dry</string>
+    <string name="week_dry_clear">Dry and sunny</string>
+    <string name="week_dry_cloudy">Dry and overcast</string>
+    <string name="week_rain">Rain %1$s</string>
+    <string name="week_rain_maybe">Rain possible %1$s</string>
+    <string name="week_snow">Snow %1$s</string>
+    <string name="week_snow_maybe">Snow possible %1$s</string>
+    <string name="week_precip">Precipitation %1$s</string>
+    <string name="week_precip_maybe">Precipitation possible %1$s</string>
+    <string name="week_precip_several">Precipitation: %1$s</string>
+    <string name="week_precip_several_maybe">Precipitation possible: %1$s</string>
+    <string name="week_precip_most">Precipitation almost every day</string>
+    <string name="week_temp_range">From %1$s to %2$s</string>
+    <string name="week_trend_warmer">Warming up towards the end of the week</string>
+    <string name="week_trend_colder">Getting colder towards the end of the week</string>
+    <string name="week_today">today</string>
+    <string name="week_tomorrow">tomorrow</string>
+    <string-array name="week_days_on">
+        <item>on Monday</item>
+        <item>on Tuesday</item>
+        <item>on Wednesday</item>
+        <item>on Thursday</item>
+        <item>on Friday</item>
+        <item>on Saturday</item>
+        <item>on Sunday</item>
+    </string-array>
     <string name="forecast_missing_title">No daily forecast yet</string>
     <string name="forecast_missing_text">Update the forecast to see the coming days. This needs an internet connection.</string>
     <string name="next24_none">No precipitation expected</string>

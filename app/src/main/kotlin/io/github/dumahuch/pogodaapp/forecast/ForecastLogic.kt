@@ -14,21 +14,27 @@ data class RangeSpan(val start: Float, val width: Float)
 
 /**
  * Полоски температур строк «Прогноза». Шкала общая для всех показанных дней: от самого холодного утра до самого
- * тёплого дня, но не уже, чем от −2 до 13 °C (как в макете), чтобы небольшой разброс не растягивался на всю строку.
- * Полоска не уже 6 % ширины, иначе день с одной и той же температурой превратился бы в точку.
+ * тёплого дня, но не уже [MIN_SPAN] градусов (середина остаётся на месте), чтобы небольшой разброс не растягивался на
+ * всю строку. Раньше шкала была не уже −2…13 °C, и зимой все полоски превращались в короткие штрихи слева (Дима
+ * 26.11.2026: на 14 днях «не видно ничего»). Полоска не уже 6 % ширины, иначе день с одной и той же температурой
+ * превратился бы в точку.
  */
 object TemperatureRange {
-    private const val FLOOR_MIN = -2
-    private const val CEILING_MAX = 13
+    const val MIN_SPAN = 12
     private const val MIN_WIDTH = 0.06f
 
     fun layout(days: List<DayForecast>): List<RangeSpan> {
         if (days.isEmpty()) return emptyList()
         val lows = days.map { roundTemperature(it.min) }
         val highs = days.map { roundTemperature(it.max) }
-        val low = minOf(FLOOR_MIN, lows.min())
-        val high = maxOf(CEILING_MAX, highs.max())
-        val span = (high - low).toFloat()
+        var low = lows.min().toFloat()
+        var high = highs.max().toFloat()
+        if (high - low < MIN_SPAN) {
+            val middle = (low + high) / 2f
+            low = middle - MIN_SPAN / 2f
+            high = middle + MIN_SPAN / 2f
+        }
+        val span = high - low
         return days.indices.map { i ->
             val width = maxOf(MIN_WIDTH, (highs[i] - lows[i]) / span)
             val start = ((lows[i] - low) / span).coerceAtMost(1f - width)
