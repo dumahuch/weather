@@ -227,7 +227,9 @@
     <string name="tile_pressure">Luftdruck</string>
     <string name="tile_clouds">Bewölkung</string>
     <string name="day_no_precip">Kein Niederschlag</string>
-    <string name="day_cloud_layers">Tief %1$d %%, mittel %2$d %%, hoch %3$d %%</string>
+    <string name="cloud_high">Hoch</string>
+    <string name="cloud_mid">Mittel</string>
+    <string name="cloud_low">Tief</string>
     <string name="day_note">Tageswerte aus den Stundenwerten, Vorhersage der Open-Meteo-Modelle.</string>
     <string name="trend_rising">Steigend</string>
     <string name="trend_steady">Stabil</string>

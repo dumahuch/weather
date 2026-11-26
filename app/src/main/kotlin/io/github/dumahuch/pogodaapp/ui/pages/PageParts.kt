@@ -55,8 +55,6 @@ import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
 import io.github.dumahuch.pogodaapp.ui.Manrope
-import io.github.dumahuch.pogodaapp.ui.components.LineIconView
-import io.github.dumahuch.pogodaapp.ui.components.LineIcons
 import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
 import io.github.dumahuch.pogodaapp.ui.components.glassCard
 import io.github.dumahuch.pogodaapp.ui.details.BigValue
@@ -445,7 +443,7 @@ internal fun WeekHeader(middle: String, right: String, extra: String?, rightWidt
 }
 
 /**
- * Плитка «Подробно» в общем виде: заголовок и стрелка ›, ниже содержимое (крупное значение, слово, символ страницы);
+ * Плитка «Подробно» в общем виде: заголовок, ниже содержимое (крупное значение, слово, символ страницы);
  * нажимается целиком и открывает страницу.
  */
 @Composable
@@ -455,13 +453,10 @@ internal fun PageTile(title: String, onOpen: () -> Unit, modifier: Modifier = Mo
         modifier
             .glassCard(RoundedCornerShape(22.dp), LocalGlass.current)
             .clickable(role = Role.Button, onClickLabel = title, onClick = onOpen)
-            .padding(start = 14.dp, top = 12.dp, end = 10.dp, bottom = 12.dp),
+            .padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = pogodaText(12.5f, 700, color = palette.ink2), modifier = Modifier.weight(1f), maxLines = 1)
-            LineIconView(LineIcons.ChevronRight, 16.dp, palette.ink2)
-        }
+        Text(title, style = pogodaText(12.5f, 700, color = palette.ink2), modifier = Modifier.fillMaxWidth(), maxLines = 1)
         content()
     }
 }

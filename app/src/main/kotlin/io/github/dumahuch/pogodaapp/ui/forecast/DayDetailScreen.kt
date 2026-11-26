@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +32,9 @@ import io.github.dumahuch.pogodaapp.ui.components.bottomContentPadding
 import io.github.dumahuch.pogodaapp.ui.home.HourlyFrame
 import io.github.dumahuch.pogodaapp.ui.home.HourlyStrip
 import io.github.dumahuch.pogodaapp.ui.home.SmallWeatherGlyph
+import io.github.dumahuch.pogodaapp.ui.components.LocalGlass
+import io.github.dumahuch.pogodaapp.ui.components.glassCard
+import io.github.dumahuch.pogodaapp.ui.home.HighLowRow
 import io.github.dumahuch.pogodaapp.ui.home.conditionName
 import io.github.dumahuch.pogodaapp.ui.pages.SourceNote
 import io.github.dumahuch.pogodaapp.ui.pogodaText
@@ -82,28 +87,28 @@ fun DayDetailScreen(
             modifier = Modifier.padding(start = 20.dp, top = 10.dp, end = 20.dp),
         )
 
-        Row(
-            Modifier.padding(start = 24.dp, top = 22.dp, end = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        // Шапка на подложке, как «По часам»: на небе без неё текст терялся (Дима 26.11.2026).
+        Column(
+            Modifier
+                .padding(start = 20.dp, top = 14.dp, end = 20.dp)
+                .fillMaxWidth()
+                .glassCard(RoundedCornerShape(24.dp), LocalGlass.current)
+                .padding(horizontal = 18.dp, vertical = 14.dp),
         ) {
-            SmallWeatherGlyph(day.condition, isDay = true, wet = isStormWet(day.precipitationMm), size = 64.dp)
-            Column {
-                Text(conditionName(day.condition), style = pogodaText(21f, 600, lineHeight = 1.2f))
-                Text(
-                    "${stringResource(R.string.temp_high)} ${temperatureText(day.max)} · " +
-                        "${stringResource(R.string.temp_low)} ${temperatureText(day.min)}",
-                    style = pogodaText(14f, 500, color = palette.ink2, lineHeight = 1.4f),
-                    modifier = Modifier.padding(top = 3.dp),
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                SmallWeatherGlyph(day.condition, isDay = true, wet = isStormWet(day.precipitationMm), size = 64.dp)
+                Column {
+                    Text(conditionName(day.condition), style = pogodaText(21f, 600, lineHeight = 1.2f))
+                    // Максимум и минимум как на «Главной»: стрелки с оттенком, без слов (решение Димы 26.11.2026).
+                    HighLowRow(day.max, day.min, Modifier.padding(top = 4.dp))
+                }
             }
+            Text(
+                dayPhrase(state.forecast, day),
+                style = pogodaText(15f, 500, lineHeight = 1.4f),
+                modifier = Modifier.padding(top = 12.dp),
+            )
         }
-
-        Text(
-            dayPhrase(state.forecast, day),
-            style = pogodaText(15f, 500, lineHeight = 1.4f),
-            modifier = Modifier.padding(start = 24.dp, top = 14.dp, end = 24.dp),
-        )
 
         Spacer(Modifier.height(18.dp))
         if (hours.isNotEmpty()) {

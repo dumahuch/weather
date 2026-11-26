@@ -172,13 +172,6 @@ object LineIcons {
         ),
     )
 
-    /** Стрелка вправо (Lucide chevron-right): плашка предупреждения открывает подробности. */
-    val ChevronRight = LineIcon(
-        listOf(
-            "m9 6 6 6-6 6",
-        ),
-    )
-
     /** Ветер (Lucide wind), значок из макета. */
     val Wind = LineIcon(
         listOf(
