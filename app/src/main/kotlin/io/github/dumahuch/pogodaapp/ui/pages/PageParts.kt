@@ -1,6 +1,7 @@
 package io.github.dumahuch.pogodaapp.ui.pages
 
 import androidx.compose.foundation.Canvas
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.setValue
@@ -209,13 +210,23 @@ internal fun HourLine(
         val style = label.copy(fontSize = 11.dp.toSp())
         val top = 22.dp.toPx()
         val bottom = size.height - (if (arrows != null) 52.dp else 24.dp).toPx()
-        fun x(fraction: Float) = 8.dp.toPx() + (size.width - 16.dp.toPx()) * fraction
+        // Справа поле под подписи сетки: линия графика до них не доходит и не идёт сквозь них (Дима 26.11).
+        val labels = grid.map { measurer.measure(it.second, style) }
+        val gutter = if (labels.isEmpty()) 0f else labels.maxOf { it.size.width } + 6.dp.toPx()
+        fun x(fraction: Float) = 8.dp.toPx() + (size.width - 16.dp.toPx() - gutter) * fraction
         fun xi(i: Int) = x(i / HOURS.toFloat())
         fun y(v: Double) = (bottom - (v - low) / (high - low) * (bottom - top)).toFloat()
-        grid.forEach { (v, text) ->
-            drawLine(palette.ink.copy(alpha = 0.12f), Offset(0f, y(v)), Offset(size.width, y(v)), 1.dp.toPx())
-            val layout = measurer.measure(text, style)
-            drawText(layout, topLeft = Offset(size.width - layout.size.width, y(v) - layout.size.height - 1.dp.toPx()))
+        grid.forEach { (v, _) -> drawLine(palette.ink.copy(alpha = 0.12f), Offset(0f, y(v)), Offset(size.width, y(v)), 1.dp.toPx()) }
+        // Подписи только тех линий, что стоят не теснее размера шрифта: у давления линии в 7 dp друг от друга, и подписи
+        // налезали одна на другую. Первой берётся верхняя, затем нижняя, потом остальные.
+        val ys = grid.map { y(it.first) }
+        val minGap = 11.dp.toPx()
+        val shown = mutableListOf<Int>()
+        val byY = grid.indices.sortedBy { ys[it] }
+        val priority = listOfNotNull(byY.firstOrNull(), byY.lastOrNull()) + byY.drop(1).dropLast(1)
+        priority.distinct().forEach { i -> if (shown.all { abs(ys[it] - ys[i]) >= minGap }) shown += i }
+        shown.forEach { i ->
+            drawText(labels[i], topLeft = Offset(size.width - labels[i].size.width, ys[i] - labels[i].size.height - 1.dp.toPx()))
         }
         val points = values.mapIndexedNotNull { i, v -> v?.let { Offset(xi(i), y(it)) to i } }
         fun path(list: List<Offset>) = Path().apply { list.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }

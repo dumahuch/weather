@@ -21,6 +21,13 @@ internal const val LEVEL_PILL_FILL = 0.32f
 internal const val LEVEL_PILL_LINE = 0.55f
 
 private val LevelPillShape = RoundedCornerShape(10.dp)
+private val LevelPillPaddingH = 9.dp
+
+/**
+ * Отступ слова от левого края плашки (поле и рамка). Подпись под плашкой (например, «в 18:00») сдвигается на столько же,
+ * чтобы начинаться под первой буквой слова, а не под рамкой (Дима 26.11).
+ */
+internal val LEVEL_PILL_TEXT_INSET = LevelPillPaddingH + 1.dp
 
 /**
  * Слово ступени (УФ, воздух, ветер, влажность) на плашке: цвет ступени в заливке и тонкой рамке, слово всегда цветом
@@ -38,7 +45,7 @@ internal fun LevelPill(text: String, tint: Color, modifier: Modifier = Modifier,
                 .clip(LevelPillShape)
                 .background(tint.copy(alpha = LEVEL_PILL_FILL), LevelPillShape)
                 .border(1.dp, tint.copy(alpha = LEVEL_PILL_LINE), LevelPillShape)
-                .padding(horizontal = 9.dp, vertical = 2.dp),
+                .padding(horizontal = LevelPillPaddingH, vertical = 2.dp),
         )
     }
 }
