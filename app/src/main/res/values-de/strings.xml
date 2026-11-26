@@ -312,6 +312,7 @@
     <string name="settings_pollen_kinds">Pollenarten für den Hinweis</string>
     <string name="settings_section_view">Darstellung</string>
     <string name="settings_section_about">Über die App</string>
+    <string name="about_version_title">Version</string>
     <string name="settings_about_summary">Datenquellen und Lizenzen</string>
     <string name="about_forecast_title">Vorhersage und Luftqualität</string>
     <string name="about_forecast_text">Open-Meteo.com, Lizenz CC BY 4.0. Luftqualität aus dem CAMS-Modell.</string>

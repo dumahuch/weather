@@ -1,6 +1,5 @@
 package io.github.dumahuch.pogodaapp.ui.home
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Column
@@ -176,7 +175,6 @@ internal fun ColumnScope.ContentMiddle(
         Modifier
             .fillMaxWidth()
             .then(pulled)
-            .animateContentSize(tween(GROW_MS))
             .onSizeChanged { layout.alerts = it.height },
     ) {
         if (alerts.isNotEmpty()) {

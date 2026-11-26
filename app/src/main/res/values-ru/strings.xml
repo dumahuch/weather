@@ -314,6 +314,7 @@
     <string name="settings_pollen_kinds">Виды пыльцы для уведомления</string>
     <string name="settings_section_view">Вид</string>
     <string name="settings_section_about">О приложении</string>
+    <string name="about_version_title">Версия</string>
     <string name="settings_about_summary">Источники данных и лицензии</string>
     <string name="about_forecast_title">Прогноз и воздух</string>
     <string name="about_forecast_text">Open-Meteo.com, лицензия CC BY 4.0. Воздух по модели CAMS.</string>

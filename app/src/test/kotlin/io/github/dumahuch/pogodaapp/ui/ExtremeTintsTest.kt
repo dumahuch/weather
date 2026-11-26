@@ -77,10 +77,10 @@ class ExtremeTintsTest {
                         // Основной цвет сам не читается: число остаётся основным, тема отвечает за подложку.
                         assertEquals(ink, text)
                     }
-                    if (ExtremeTints.contrastRatio(ink, sky) >= ExtremeTints.MIN_ARROW_CONTRAST) {
+                    if (ExtremeTints.contrastRatio(ink, sky) >= ExtremeTints.MIN_EXTREME_ARROW_CONTRAST) {
                         assertTrue(
                             "стрелка ${ExtremeTints.contrastRatio(arrow, sky)} (smoke $smoke, небо $step %, warm $warm)",
-                            ExtremeTints.contrastRatio(arrow, sky) >= ExtremeTints.MIN_ARROW_CONTRAST,
+                            ExtremeTints.contrastRatio(arrow, sky) >= ExtremeTints.MIN_EXTREME_ARROW_CONTRAST,
                         )
                     }
                 }
