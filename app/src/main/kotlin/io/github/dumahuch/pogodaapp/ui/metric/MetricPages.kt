@@ -257,7 +257,7 @@ private val ARROW_COLUMN = 40.dp
 // ---------------------------------------------------------------- осадки
 
 @Composable
-private fun kindName(kind: PrecipitationKind): String = stringResource(
+internal fun kindName(kind: PrecipitationKind): String = stringResource(
     when (kind) {
         PrecipitationKind.Generic -> R.string.kind_generic
         PrecipitationKind.Rain -> R.string.kind_rain

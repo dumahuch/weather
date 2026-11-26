@@ -78,8 +78,8 @@ internal sealed interface GlyphPart {
     }
 
     /** Снежинка-звёздочка: три отрезка через центр под 60°, концы круглые. */
-    data class Star(val x: Float, val y: Float, val r: Float) : GlyphPart {
-        val width get() = if (r > 2f) 1.35f else 1.1f
+    data class Star(val x: Float, val y: Float, val r: Float, val thin: Boolean = false) : GlyphPart {
+        val width get() = (if (r > 2f) 1.35f else 1.1f) * (if (thin) THIN_STAR else 1f)
         override val bottom get() = y + r + width / 2
     }
 
@@ -101,6 +101,9 @@ internal sealed interface GlyphPart {
         const val RAY_TO = 3.6f
         const val RAY_WIDTH = 1.45f
         const val DASH_WIDTH = 1.5f
+
+        /** Во сколько раз линии снежинок тоньше в значке 24 dp (решение Димы 26.11.2026: иначе сливаются). */
+        const val THIN_STAR = 0.6f
         const val WIND_WIDTH = 1.45f
         const val FOG_HEIGHT = 2.5f
     }
@@ -171,14 +174,29 @@ internal object GlyphScenes {
      * солнцем с лучами или месяцем (неба за значком нет), а туман это облако с двумя полосами (три полосы без облака в
      * списке похожи на значок меню). Ветра нет. [wet]: у грозы идут осадки ([isStormWet]).
      */
-    fun small(condition: Condition, isDay: Boolean, wet: Boolean): GlyphScene = when (condition) {
+    fun small(condition: Condition, isDay: Boolean, wet: Boolean, compact: Boolean = false): GlyphScene = when (condition) {
         Condition.Clear -> clear(isDay)
+        Condition.Snow -> if (compact) COMPACT_SNOW else of(HeroIcon.Snow)
         Condition.Fog -> GlyphScene(
             listOf(GlyphPart.Fog(listOf(Segment(5.5f, 17.6f, 16.5f, 17.6f), Segment(8.5f, 21f, 19.5f, 21f)))),
             wetCloud,
         )
         else -> of(heroIconFor(condition, isDay, windy = false, wet = wet) ?: HeroIcon.Clouds)
     }
+
+    /**
+     * Снег в значке около 24 dp (лента по часам, «Прогноз»): три снежинки разведены и с тонкой линией, большая ниже
+     * облака с зазором от его контура, мелкие крупнее, чем на большом значке (макет Димы 26.11.2026, вариант «В»).
+     * В крупном значке прежняя картинка.
+     */
+    private val COMPACT_SNOW = GlyphScene(
+        listOf(
+            GlyphPart.Star(11.4f, 19.5f, 3f, thin = true),
+            GlyphPart.Star(18.8f, 21.3f, 1.9f, thin = true),
+            GlyphPart.Star(5f, 21.3f, 1.9f, thin = true),
+        ),
+        wetCloud,
+    )
 
     /** Ясное небо для уведомления (на «Главной» солнце и луна нарисованы на небе): солнце с лучами или месяц по центру. */
     fun clear(isDay: Boolean): GlyphScene =
