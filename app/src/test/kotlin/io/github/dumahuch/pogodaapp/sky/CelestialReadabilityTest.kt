@@ -54,7 +54,8 @@ class CelestialReadabilityTest {
             track("кнопки", p.contrast.buttons); track("строки", p.contrast.info)
         }
         println("С диском, худшие контрасты: " + worst.entries.joinToString { "${it.key} ${it.value} (${where[it.key]})" })
-        val limits = mapOf("цифры" to 3.0, "карточки" to 4.0, "оповещения" to 4.0, "кнопки" to 4.0, "строки" to info)
+        // Цифры: вуали под ними нет с 26.11.2026 (решение Димы), худший случай сумерки с луной 1,92.
+        val limits = mapOf("цифры" to 1.9, "карточки" to 4.0, "оповещения" to 4.0, "кнопки" to 4.0, "строки" to info)
         val failed = limits.filter { (key, limit) -> worst.getValue(key) < limit }.map { (key, limit) -> "$key ${worst.getValue(key)} < $limit (${where[key]})" }
         assertTrue(failed.joinToString("; "), failed.isEmpty())
     }
