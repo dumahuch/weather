@@ -61,6 +61,9 @@ internal class HomeLayout {
     var row by mutableIntStateOf(-1)
     var more by mutableIntStateOf(-1)
 
+    /** Высота раскрытой части предупреждения (пиксели): входит в план, пока оно раскрыто. */
+    var open by mutableIntStateOf(0)
+
     /** Высота панели под лентой часов сейчас и после раскрытия (пиксели), см. [HourPanelReport]. */
     var panelNow by mutableIntStateOf(0)
     var panelTarget by mutableIntStateOf(0)
@@ -127,7 +130,14 @@ internal fun ColumnScope.ContentMiddle(
         )
     }
     val free = layout.free(with(density) { viewport.roundToPx() }, heroBase, edge)
-    val plan = free?.let { HeroFit.plan(it.toFloat(), alerts.size, rows, edge.toFloat(), digitsBase, maxScale) }
+    val expandedIndex = alerts.indexOfFirst { it.id == expandedAlert }
+    val open = if (expandedIndex >= 0) layout.open.toFloat() else 0f
+    val plan = free?.let {
+        HeroFit.plan(
+            it.toFloat(), alerts.size, rows, edge.toFloat(), digitsBase, maxScale,
+            open = open, all = alertsAll, expanded = expandedIndex,
+        )
+    }
 
     val regions = LocalScrimRegions.current
     DisposableEffect(layout) { onDispose { layout.forgetMiddle() } }
@@ -185,6 +195,7 @@ internal fun ColumnScope.ContentMiddle(
                 onCollapse = actions.onCollapseAlerts,
                 onRowHeight = { layout.row = it },
                 onMoreHeight = { layout.more = it },
+                onOpenHeight = { layout.open = it },
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
         }

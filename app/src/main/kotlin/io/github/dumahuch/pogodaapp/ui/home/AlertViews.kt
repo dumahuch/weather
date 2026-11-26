@@ -151,6 +151,7 @@ internal fun AlertCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onHeaderHeight: (Int) -> Unit = {},
+    onOpenHeight: (Int) -> Unit = {},
 ) {
     val palette = LocalPogodaPalette.current
     val glass = LocalGlass.current
@@ -190,8 +191,10 @@ internal fun AlertCard(
             }
         }
         if (expanded) {
+            // Высота раскрытой части замеряется целиком (с полями), ещё до конца анимации: по ней «Главная» сразу
+            // считает, насколько сжать верхний блок.
             Column(
-                Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 14.dp),
+                Modifier.onSizeChanged { onOpenHeight(it.height) }.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Box(Modifier.fillMaxWidth().height(1.dp).background(palette.ink.copy(alpha = DIVIDER_ALPHA)))
@@ -245,6 +248,7 @@ internal fun AlertsList(
     modifier: Modifier = Modifier,
     onRowHeight: (Int) -> Unit = {},
     onMoreHeight: (Int) -> Unit = {},
+    onOpenHeight: (Int) -> Unit = {},
 ) {
     val hidden = expandedId != null && alerts.indexOfFirst { it.id == expandedId } >= shown
     val everything = all || hidden
@@ -259,6 +263,7 @@ internal fun AlertsList(
                 zone = zone,
                 onClick = { onToggle(alert.id) },
                 onHeaderHeight = if (index == 0) onRowHeight else NoMeasure,
+                onOpenHeight = onOpenHeight,
             )
         }
         if (everything) {

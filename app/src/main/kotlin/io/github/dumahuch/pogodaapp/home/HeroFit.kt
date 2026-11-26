@@ -13,6 +13,10 @@ package io.github.dumahuch.pogodaapp.home
  * Все величины в пикселях. [free] это свободная высота при прежнем размере блока и без предупреждений, вместе с двумя
  * наименьшими промежутками [edge] сверху и снизу. Масштаб касается только строки цифр ([plan], `heroBase`): место
  * над цифрами фиксированное и не растёт.
+ *
+ * Раскрытое предупреждение и раскрытый целиком список (0.8.109) входят в план своей настоящей высотой ([plan], `open`,
+ * `all`, `expanded`; решение Димы 26.11): сначала блок сжимается до [MIN_SCALE], и только то, что не поместилось и
+ * после этого, уходит вниз под ленту, а страница прокручивается.
  */
 internal object HeroFit {
 
@@ -51,12 +55,23 @@ internal object HeroFit {
      * [heroBase] высота той части блока, которая растёт с масштабом (строка цифр при обычном размере), [maxScale]
      * наибольший масштаб (не больше [MAX_SCALE]: узкий экран и крупный шрифт ограничивают его по ширине).
      */
-    fun plan(free: Float, count: Int, rows: Rows, edge: Float, heroBase: Float, maxScale: Float = MAX_SCALE): Plan {
+    fun plan(
+        free: Float,
+        count: Int,
+        rows: Rows,
+        edge: Float,
+        heroBase: Float,
+        maxScale: Float = MAX_SCALE,
+        open: Float = 0f,
+        all: Boolean = false,
+        expanded: Int = -1,
+    ): Plan {
         val room = free - 2 * edge
         // Сколько блок может отдать, сжимаясь до MIN_SCALE: плашки помещаются, если хватает места вместе с этим запасом.
         val shrinkable = if (heroBase <= 0f) 0f else (1f - MIN_SCALE) * heroBase
+        // Сколько строк видно в свёрнутом списке, считается без раскрытия: иначе строки пропадали бы при нажатии.
         val (shown, more) = fit(count, rows, room + shrinkable)
-        val alerts = rows.height(shown, more)
+        val alerts = listHeight(count, shown, more, rows, all || expanded >= shown) + open.coerceAtLeast(0f)
         val spare = room - alerts
         // Рост, который блок взял бы без предупреждений; плашки его не отнимают, пока всё помещается.
         val wantedGrowth = (room * GROW_SHARE).coerceAtMost((maxScale.coerceAtMost(MAX_SCALE) - 1f) * heroBase).coerceAtLeast(0f)
@@ -73,6 +88,13 @@ internal object HeroFit {
         val scale = if (heroBase <= 0f) 1f else 1f + growth / heroBase
         return Plan(shown, more, scale, alerts, top)
     }
+
+    /**
+     * Высота списка: свёрнутого ([shown] строк и «Ещё N») или раскрытого целиком ([everything]: все строки и «Свернуть»,
+     * если строк больше, чем видно в свёрнутом). Так же решает [io.github.dumahuch.pogodaapp.ui.home.AlertsList].
+     */
+    private fun listHeight(count: Int, shown: Int, more: Boolean, rows: Rows, everything: Boolean): Float =
+        if (everything && count > 0) rows.height(count, more = count > shown) else rows.height(shown, more)
 
     /**
      * Не больше [MAX_SHOWN] предупреждений; если вместе со строкой «Ещё N» не влезают, меньше, но не меньше одного.
