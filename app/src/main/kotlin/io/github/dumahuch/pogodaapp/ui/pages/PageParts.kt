@@ -216,17 +216,18 @@ internal fun HourLine(
         fun x(fraction: Float) = 8.dp.toPx() + (size.width - 16.dp.toPx() - gutter) * fraction
         fun xi(i: Int) = x(i / HOURS.toFloat())
         fun y(v: Double) = (bottom - (v - low) / (high - low) * (bottom - top)).toFloat()
-        grid.forEach { (v, _) -> drawLine(palette.ink.copy(alpha = 0.12f), Offset(0f, y(v)), Offset(size.width, y(v)), 1.dp.toPx()) }
-        // Подписи только тех линий, что стоят не теснее размера шрифта: у давления линии в 7 dp друг от друга, и подписи
-        // налезали одна на другую. Первой берётся верхняя, затем нижняя, потом остальные.
+        // Правая ось: линии сетки кончаются у поля, подписи стоят в поле по центру своих линий. Подписываются только линии,
+        // между которыми хватает места на подпись с запасом: у давления линии в 11 dp друг от друга, и три подписи
+        // слипались в блок текста (Дима 26.11). Первой берётся верхняя, затем нижняя, потом остальные.
         val ys = grid.map { y(it.first) }
-        val minGap = 11.dp.toPx()
+        grid.forEachIndexed { i, _ -> drawLine(palette.ink.copy(alpha = 0.12f), Offset(0f, ys[i]), Offset(size.width - gutter, ys[i]), 1.dp.toPx()) }
+        val minGap = (labels.maxOfOrNull { it.size.height } ?: 0) + 4.dp.toPx()
         val shown = mutableListOf<Int>()
         val byY = grid.indices.sortedBy { ys[it] }
         val priority = listOfNotNull(byY.firstOrNull(), byY.lastOrNull()) + byY.drop(1).dropLast(1)
         priority.distinct().forEach { i -> if (shown.all { abs(ys[it] - ys[i]) >= minGap }) shown += i }
         shown.forEach { i ->
-            drawText(labels[i], topLeft = Offset(size.width - labels[i].size.width, ys[i] - labels[i].size.height - 1.dp.toPx()))
+            drawText(labels[i], topLeft = Offset(size.width - labels[i].size.width, ys[i] - labels[i].size.height / 2f))
         }
         val points = values.mapIndexedNotNull { i, v -> v?.let { Offset(xi(i), y(it)) to i } }
         fun path(list: List<Offset>) = Path().apply { list.forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) } }
@@ -443,11 +444,12 @@ internal fun SourceNote(text: String, modifier: Modifier = Modifier) {
 
 /** Шапка «7 дней»: подписи над своими столбцами (колонка дня 62 dp и зазоры 8 dp, как в строках [io.github.dumahuch.pogodaapp.ui.metric.DaysCard]). */
 @Composable
-internal fun WeekHeader(middle: String, right: String, extra: String?, rightWidth: Dp, extraWidth: Dp) {
+internal fun WeekHeader(middle: String, right: String, extra: String?, rightWidth: Dp, extraWidth: Dp, beforeRight: Dp? = null) {
     val style = pogodaText(11.5f, 600, color = LocalPogodaPalette.current.ink2)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Spacer(Modifier.width(62.dp))
         Text(middle, style = style, modifier = Modifier.weight(1f), maxLines = 1)
+        if (beforeRight != null) Spacer(Modifier.width(beforeRight))
         Text(right, style = style, modifier = Modifier.width(rightWidth), textAlign = TextAlign.End, maxLines = 1)
         if (extra != null) Text(extra, style = style, modifier = Modifier.width(extraWidth), textAlign = TextAlign.Center, maxLines = 1)
     }

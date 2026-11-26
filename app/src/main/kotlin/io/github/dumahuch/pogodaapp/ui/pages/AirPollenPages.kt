@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,20 +20,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.R
 import io.github.dumahuch.pogodaapp.forecast.AirDay
 import io.github.dumahuch.pogodaapp.forecast.Pollutant
 import io.github.dumahuch.pogodaapp.forecast.continuationCase
 import io.github.dumahuch.pogodaapp.ui.LocalPogodaPalette
-import io.github.dumahuch.pogodaapp.ui.components.LEVEL_PILL_TEXT_INSET
 import io.github.dumahuch.pogodaapp.ui.components.LevelPill
 import io.github.dumahuch.pogodaapp.ui.details.PollenDots
 import io.github.dumahuch.pogodaapp.ui.forecast.clockText
@@ -119,31 +115,25 @@ internal fun AirPage(ctx: PageState) {
                 onSelect = ctx.onSelect,
                 title = stringResource(R.string.pg_days_5),
                 legend = {
-                    WeekHeader(stringResource(R.string.pg_week_worst), stringResource(R.string.air_unit), null, WORST_COLUMN, 0.dp)
+                    WeekHeader(stringResource(R.string.pg_week_worst), stringResource(R.string.air_unit), null, WORST_COLUMN, 0.dp, beforeRight = TIME_COLUMN)
                 },
             ) { index ->
                 val hour = AirDay.worstHour(hours, dates[index], ctx.zone)
                 val worst = hour?.eaqi
-                // Плашка стоит на линии названия дня, время на линии даты, слева под первой буквой слова: колонка
-                // выровнена по левой с названием и датой (Дима 26.11: «блок смещён к верху, время по рамке»).
-                val dayLine = with(LocalDensity.current) { (DAY_NAME_SIZE * DAY_LINE_HEIGHT).sp.toDp() }
-                Column(Modifier.weight(1f)) {
-                    Box(Modifier.height(dayLine), contentAlignment = Alignment.CenterStart) {
-                        if (worst != null) {
-                            LevelPill(levels[AirLevel.of(worst).ordinal], airColor(worst), Modifier.wrapContentHeight(unbounded = true))
-                        } else {
-                            Text("–", style = pogodaText(14f, 700), maxLines = 1)
-                        }
-                    }
-                    hour?.let {
-                        Text(
-                            stringResource(R.string.metric_at, clockText(it.time, ctx.zone)),
-                            style = pogodaText(11f, 500, color = LocalPogodaPalette.current.ink2, lineHeight = DAY_LINE_HEIGHT, tabular = true),
-                            maxLines = 1,
-                            modifier = Modifier.padding(start = if (worst != null) LEVEL_PILL_TEXT_INSET else 0.dp),
-                        )
-                    }
+                // Одна строка, как слева: плашка, время худшего часа, число (Дима 26.11: время под плашкой и под числом
+                // выглядело неряшливо; таблица из колонок).
+                if (worst != null) {
+                    LevelPill(levels[AirLevel.of(worst).ordinal], airColor(worst), Modifier.weight(1f))
+                } else {
+                    Text("–", style = pogodaText(14f, 700), modifier = Modifier.weight(1f), maxLines = 1)
                 }
+                Text(
+                    hour?.let { clockText(it.time, ctx.zone) } ?: "",
+                    style = pogodaText(12.5f, 600, color = LocalPogodaPalette.current.ink2, tabular = true),
+                    modifier = Modifier.width(TIME_COLUMN),
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                )
                 Text(worst?.toString() ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(WORST_COLUMN), textAlign = TextAlign.End, maxLines = 1)
             }
         }
@@ -153,11 +143,10 @@ internal fun AirPage(ctx: PageState) {
 
 /** Наименьший верх шкалы штрихов EAQI: до «удовлетворительного» хороший воздух не выглядит плохим. */
 private const val AIR_SCALE = 40.0
-private val WORST_COLUMN = 48.dp
+private val WORST_COLUMN = 36.dp
 
-/** Размер и межстрочный множитель названия дня в строке списка (`DaysCard`): по ним выравнивается колонка справа. */
-private const val DAY_NAME_SIZE = 15f
-private const val DAY_LINE_HEIGHT = 1.15f
+/** Колонка времени худшего часа левее числа. */
+private val TIME_COLUMN = 44.dp
 
 /** Цвет доли нормы: до нормы зелёный, от нормы красный (черта нормы на полосе та же граница). */
 private fun shareColor(share: Double): Color = if (share < 1.0) AirColors[0] else AirColors[4]
