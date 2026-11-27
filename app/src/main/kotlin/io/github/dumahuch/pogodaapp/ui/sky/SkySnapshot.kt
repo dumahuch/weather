@@ -63,25 +63,21 @@ internal object SkySnapshotStorage {
     private const val WEBP_QUALITY = 80
 
     /**
-     * Палитра одной строкой: версия 2; восемнадцать цветов ARGB (16-ричные); тёмный текст; дымчатость.
-     * Версия 1 (шестнадцать цветов, без подложки под строками под температурой) читается как прежде.
+     * Палитра одной строкой: версия 3; шестнадцать цветов ARGB (16-ричные); тёмный текст; дымчатость. Снимки версий 1 и 2
+     * (с подложками) не читаются: до первого расчёта по небу палитра нейтральная, это доли секунды один раз после обновления.
      */
     fun encodePalette(palette: PogodaPalette): String {
         val colors = colorsOf(palette).joinToString(",") { Integer.toHexString(it.toArgb()) }
-        return "2;$colors;${palette.darkInk};${palette.smoke}"
+        return "3;$colors;${palette.darkInk};${palette.smoke}"
     }
 
     /** Обратное к [encodePalette]; любая неисправность даёт пусто. */
     fun decodePalette(text: String): PogodaPalette? {
         val parts = text.trim().split(';')
         if (parts.size != 4) return null
-        val expected = when (parts[0]) {
-            "1" -> COLOR_COUNT_V1
-            "2" -> COLOR_COUNT
-            else -> return null
-        }
+        if (parts[0] != "3") return null
         val colors = parts[1].split(',').map { Color(it.toLongOrNull(16)?.toInt() ?: return null) }
-        if (colors.size != expected) return null
+        if (colors.size != COLOR_COUNT) return null
         val dark = parts[2].toBooleanStrictOrNull() ?: return null
         val smoke = parts[3].toFloatOrNull() ?: return null
         return PogodaPalette(
@@ -102,21 +98,16 @@ internal object SkySnapshotStorage {
             accentSoft = colors[12],
             bar = colors[13],
             warning = colors[14],
-            scrim = colors[15],
-            // Старый снимок: подложки под строками нет, цвет неба под ними нейтральный (до первого настоящего расчёта).
-            infoScrim = colors.getOrNull(16) ?: Color.Transparent,
-            infoBackdrop = colors.getOrNull(17) ?: PogodaPalette.Neutral.infoBackdrop,
+            infoBackdrop = colors[15],
             darkInk = dark,
             smoke = smoke,
         )
     }
 
-    private const val COLOR_COUNT_V1 = 16
-    private const val COLOR_COUNT = 18
+    private const val COLOR_COUNT = 16
 
     private fun colorsOf(p: PogodaPalette) = listOf(
         p.ink, p.ink2, p.glass, p.glassLine, p.glassHighlight, p.buttonHighlight, p.shadow, p.sheen,
-        p.buttonBackground, p.buttonOn, p.button2, p.accent, p.accentSoft, p.bar, p.warning, p.scrim,
-        p.infoScrim, p.infoBackdrop,
+        p.buttonBackground, p.buttonOn, p.button2, p.accent, p.accentSoft, p.bar, p.warning, p.infoBackdrop,
     )
 }

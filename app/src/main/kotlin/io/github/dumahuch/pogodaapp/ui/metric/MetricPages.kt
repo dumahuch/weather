@@ -231,7 +231,8 @@ internal fun WindPage(ctx: PageContext) {
     val perDay = remember(forecast, ctx.dates) { ctx.dates.map { MetricDays.detailsOf(forecast.hourDetails, zone, it) } }
     DaysCard(
         ctx.dates, ctx.today, ctx.date, ctx.onSelect,
-        legend = { WeekHeader(stringResource(R.string.metric_strongest), "", "", DayValueWidth, ARROW_COLUMN) },
+        title = stringResource(R.string.pg_days_wind),
+        legend = {},
     ) { i ->
         val day = perDay[i]
         val high = day.mapNotNull { it.windKmh }.maxOrNull()?.roundToInt()

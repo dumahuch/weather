@@ -13,7 +13,7 @@ import kotlin.math.roundToInt
 class PaletteMixTest {
 
     private val neutral = PogodaPalette.Neutral
-    private val night = neutral.copy(ink = Color(244, 247, 251), darkInk = false, scrim = Color(10, 20, 40, 90))
+    private val night = neutral.copy(ink = Color(244, 247, 251), darkInk = false)
 
     @Test
     fun endsAreTheArguments() {
@@ -25,7 +25,6 @@ class PaletteMixTest {
     fun middleIsBetween() {
         val half = neutral.mixWith(night, 0.5f)
         assertTrue(half.ink.red > neutral.ink.red && half.ink.red < night.ink.red)
-        assertTrue(half.scrim.alpha > 0f && half.scrim.alpha < night.scrim.alpha)
     }
 
     @Test

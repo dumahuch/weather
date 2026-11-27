@@ -328,8 +328,9 @@ internal fun UvPage(ctx: PageState) {
             today = ctx.today,
             selected = ctx.date,
             onSelect = ctx.onSelect,
+            title = stringResource(R.string.pg_days_uv),
             legend = {
-                WeekHeader(stringResource(R.string.pg_week_peak), stringResource(R.string.pg_week_uv), stringResource(R.string.pg_week_protect), UV_COLUMN, PROTECT_COLUMN)
+                WeekHeader("", stringResource(R.string.pg_week_uv), stringResource(R.string.pg_week_protect), UV_COLUMN, PROTECT_COLUMN)
             },
         ) { index ->
             val peak = UvDay.peak(perDay[index])?.value?.roundToInt()

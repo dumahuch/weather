@@ -113,9 +113,10 @@ internal fun AirPage(ctx: PageState) {
                 today = ctx.today,
                 selected = date,
                 onSelect = ctx.onSelect,
-                title = stringResource(R.string.pg_days_5),
+                title = stringResource(R.string.pg_days_worst),
                 legend = {
-                    WeekHeader(stringResource(R.string.pg_week_worst), stringResource(R.string.air_unit), null, WORST_COLUMN, 0.dp, beforeRight = TIME_COLUMN)
+                    // «Худший час» это название блока, а не подпись столбца (Дима 26.11): над столбцами только единица числа.
+                    WeekHeader("", stringResource(R.string.air_unit), null, WORST_COLUMN, 0.dp, beforeRight = TIME_COLUMN)
                 },
             ) { index ->
                 val hour = AirDay.worstHour(hours, dates[index], ctx.zone)
@@ -136,6 +137,8 @@ internal fun AirPage(ctx: PageState) {
                 )
                 Text(worst?.toString() ?: "–", style = pogodaText(15f, 700, tabular = true), modifier = Modifier.width(WORST_COLUMN), textAlign = TextAlign.End, maxLines = 1)
             }
+            // Время часа берётся из модели: точность около двух часов (Дима 27.11), поэтому оговорка неяркой строкой под карточкой.
+            SourceNote(stringResource(R.string.pg_air_time_note))
         }
     }
     SourceNote(stringResource(R.string.pg_air_note))
