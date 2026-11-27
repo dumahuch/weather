@@ -457,7 +457,7 @@ private class RasterShadowNode(
         val marginPx = if (key.inset) 0 else ceil(key.layers.maxOf { layer -> layer.reach() } * key.density).toInt()
         pending = coroutineScope.launch {
             val bitmap = withContext(Dispatchers.Default) {
-                renderShadow(outline, key.layers, key.inset, key.density, width, height, marginPx)
+                renderShadow(outline, key.layers, key.inset, key.density, width, height, marginPx).toGpuBitmap()
             }
             image = bitmap.asImageBitmap()
             imageKey = key
@@ -523,6 +523,24 @@ private fun renderShadow(
         canvas.drawPath(inside, clear)
     }
     return bitmap
+}
+
+/**
+ * Тот же растр, но живущий в видеопамяти: программный растр кэш видеокарты выбрасывает при нехватке места и грузит заново
+ * на каждом кадре прокрутки (трасса 27.11.2026, «Солнце и Луна»: около 1,7 мс на кадр). Если телефон не умеет, остаётся
+ * прежний растр.
+ */
+private fun Bitmap.toGpuBitmap(): Bitmap {
+    val gpu = try {
+        copy(Bitmap.Config.HARDWARE, false)
+    } catch (e: IllegalArgumentException) {
+        null
+    } catch (e: IllegalStateException) {
+        null
+    }
+    if (gpu == null) return this
+    recycle()
+    return gpu
 }
 
 /** Контур, увеличенный на [by] со всех сторон (отрицательное число сжимает); углы растут вместе с ним. */
