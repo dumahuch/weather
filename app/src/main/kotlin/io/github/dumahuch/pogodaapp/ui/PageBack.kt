@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.roundToInt
 
 /**
  * Жест «назад» с предпросмотром (0.9). Пока палец ведёт от края, окно-страница ([Layer.depth] больше нуля) едет вправо, а
@@ -62,6 +63,9 @@ internal fun Modifier.pageBack(back: PageBack, active: Boolean): Modifier =
 
 /** Сдвиг колоды под страницей с учётом жеста «назад»: окно уехало на [back], колода приходит на место. */
 internal fun deckShiftWith(back: Float, shift: Float): Float = shift * (1f - deckArrival(back))
+
+/** Сдвиг колоды в пикселях при ширине [width]: целое число, потому что колода сдвигается раскладкой, а не слоем. */
+internal fun deckOffsetPx(back: Float, shift: Float, width: Int): Int = (deckShiftWith(back, shift) * width).roundToInt()
 
 /** Непрозрачность колоды с учётом жеста «назад» ([deckShiftWith]). */
 internal fun deckAlphaWith(back: Float, alpha: Float): Float = alpha + (1f - alpha) * deckArrival(back)
