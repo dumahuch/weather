@@ -55,10 +55,42 @@ data class WeatherAlert(
 /** Предупреждения для места: [area] название района DWD («Stadt Hannover»), если сервис его назвал. */
 data class AlertSet(val area: String?, val alerts: List<WeatherAlert>) {
 
-    /** Что показывать в момент [now]: без истёкших, сначала самые серьёзные, при равном уровне раньше начинающиеся. */
-    fun shownAt(now: Instant): List<WeatherAlert> = alerts
-        .filter { it.activeAt(now) }
+    /**
+     * Что показывать в момент [now]: без истёкших, склеенные (см. [merged]), сначала самые серьёзные, при равном уровне
+     * раньше начинающиеся.
+     */
+    fun shownAt(now: Instant): List<WeatherAlert> = merged(alerts.filter { it.activeAt(now) })
         .sortedWith(compareByDescending<WeatherAlert> { it.level.number }.thenBy { it.onset })
+
+    companion object {
+        /** Куски одного явления одного уровня, между которыми пауза не больше этой, считаются одним предупреждением. */
+        val MERGE_GAP: Duration = Duration.ofHours(1)
+
+        /**
+         * DWD режет долгое явление на куски («Заморозки до 12:00» и «Заморозки с 12:00»): для человека это одно
+         * предупреждение (Дима 27.11: «это глупо»). Куски одного вида и одного уровня, идущие подряд (пауза не больше
+         * [MERGE_GAP]) или наложенные, склеиваются в один: начало и текст у раннего, конец у позднего (неизвестный конец
+         * остаётся неизвестным). Разный уровень не склеивается: это новая информация.
+         */
+        fun merged(list: List<WeatherAlert>): List<WeatherAlert> {
+            val out = ArrayList<WeatherAlert>()
+            for ((_, group) in list.groupBy { it.kind to it.level }) {
+                var current: WeatherAlert? = null
+                for (next in group.sortedBy { it.onset }) {
+                    val c = current
+                    if (c != null && (c.expires == null || !next.onset.isAfter(c.expires.plus(MERGE_GAP)))) {
+                        val end = if (c.expires == null || next.expires == null) null else maxOf(c.expires, next.expires)
+                        current = c.copy(expires = end)
+                    } else {
+                        if (c != null) out.add(c)
+                        current = next
+                    }
+                }
+                current?.let(out::add)
+            }
+            return out
+        }
+    }
 }
 
 /**

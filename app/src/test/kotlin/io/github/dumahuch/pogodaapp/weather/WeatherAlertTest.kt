@@ -17,12 +17,13 @@ class WeatherAlertTest {
     private fun alert(
         id: String,
         level: AlertLevel = AlertLevel.Minor,
+        kind: AlertKind = AlertKind.Other,
         onset: String = "2026-10-28T10:00:00Z",
         expires: String? = "2026-10-28T18:00:00Z",
     ) = WeatherAlert(
         id = id,
         level = level,
-        kind = AlertKind.Other,
+        kind = kind,
         onset = Instant.parse(onset),
         expires = expires?.let(Instant::parse),
         issued = null,
@@ -76,7 +77,7 @@ class WeatherAlertTest {
             area = null,
             alerts = listOf(
                 alert("old", AlertLevel.Extreme, expires = "2026-10-28T11:00:00Z"),
-                alert("minor-late", AlertLevel.Minor, onset = "2026-10-28T15:00:00Z"),
+                alert("minor-late", AlertLevel.Minor, AlertKind.Wind, onset = "2026-10-28T15:00:00Z"),
                 alert("minor-early", AlertLevel.Minor, onset = "2026-10-28T09:00:00Z"),
                 alert("severe", AlertLevel.Severe),
                 alert("open", AlertLevel.Moderate, expires = null),
@@ -85,6 +86,33 @@ class WeatherAlertTest {
         assertEquals(listOf("severe", "open", "minor-early", "minor-late"), set.shownAt(now).map { it.id })
         assertFalse(alert("x", expires = "2026-10-28T11:20:00Z").activeAt(now))
         assertTrue(alert("x", expires = null).activeAt(now))
+    }
+
+    @Test
+    fun `consecutive pieces of one warning are shown as one`() {
+        // Два куска заморозков: до 12:30 и с 12:30 (Дима 27.11; «сейчас» 12:20, первый ещё идёт); конец у позднего, начало и номер у раннего.
+        val first = alert("a", onset = "2026-10-28T03:00:00Z", expires = "2026-10-28T11:30:00Z")
+        val second = alert("b", onset = "2026-10-28T11:30:00Z", expires = "2026-10-28T16:00:00Z")
+        val shown = AlertSet(null, listOf(second, first)).shownAt(now)
+        assertEquals(1, shown.size)
+        assertEquals("a", shown[0].id)
+        assertEquals(first.onset, shown[0].onset)
+        assertEquals(second.expires, shown[0].expires)
+        // Пауза до часа ещё склеивается, больше часа нет.
+        val near = alert("c", onset = "2026-10-28T12:30:00Z", expires = "2026-10-28T16:00:00Z")
+        assertEquals(1, AlertSet(null, listOf(first, near)).shownAt(now).size)
+        val far = alert("d", onset = "2026-10-28T12:31:00Z", expires = "2026-10-28T16:00:00Z")
+        assertEquals(2, AlertSet(null, listOf(first, far)).shownAt(now).size)
+    }
+
+    @Test
+    fun `different level or kind is not merged and an open end stays open`() {
+        val first = alert("a", onset = "2026-10-28T03:00:00Z", expires = "2026-10-28T11:30:00Z")
+        val higher = alert("b", AlertLevel.Moderate, onset = "2026-10-28T11:30:00Z")
+        val other = alert("c", kind = AlertKind.Wind, onset = "2026-10-28T11:30:00Z")
+        assertEquals(3, AlertSet(null, listOf(first, higher, other)).shownAt(now).size)
+        val open = alert("d", onset = "2026-10-28T11:30:00Z", expires = null)
+        assertEquals(null, AlertSet(null, listOf(first, open)).shownAt(now).single().expires)
     }
 
     @Test
