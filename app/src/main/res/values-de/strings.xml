@@ -661,7 +661,6 @@
     <string name="pg_uv_not_needed">Nicht nötig</string>
     <string name="pg_hours_short">%1$d Std.</string>
     <string name="pg_uv_below">Ganztags unter 3</string>
-    <string name="pg_week_peak">Maximum</string>
     <string name="pg_week_uv">UV</string>
     <string name="pg_week_protect">Schutz</string>
     <string name="pg_uv_note">UV-Index und seine fünf Stufen: WHO. Schutz wird ab Index 3 empfohlen. Vorhersage: Open-Meteo.</string>
@@ -671,9 +670,11 @@
     <string name="pg_legend_day_mean">Tagesmittel</string>
     <string name="pg_legend_who">WHO-Richtwert</string>
     <string name="pg_of_norm">%1$d %% des WHO-Richtwerts</string>
-    <string name="pg_days_5">5 Tage</string>
     <string name="pg_days_3">3 Tage</string>
-    <string name="pg_week_worst">Schlechteste Stunde</string>
+    <string name="pg_days_worst">Schlechteste Stunde in 5 Tagen</string>
+    <string name="pg_days_uv">UV-Spitze in 7 Tagen</string>
+    <string name="pg_days_wind">Stärkster Wind in 7 Tagen</string>
+    <string name="pg_air_time_note">Die Uhrzeit ist eine Prognose, Abweichung von etwa ±2 Stunden möglich.</string>
     <string name="pg_air_note">Index EAQI und seine Stufen: Europäische Umweltagentur (EEA). Richtwerte der Schadstoffe: WHO 2021, Tagesmittel, bei Ozon über 8 Stunden. Daten: Modell CAMS über Open-Meteo, nur Europa.</string>
     <string name="pg_pollen_none">Keine</string>
     <string name="pg_pollen_none_word">Kein Pollenflug</string>

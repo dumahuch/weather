@@ -667,7 +667,6 @@
     <string name="pg_uv_not_needed">Не нужна</string>
     <string name="pg_hours_short">%1$d ч</string>
     <string name="pg_uv_below">Весь день ниже 3</string>
-    <string name="pg_week_peak">Максимум</string>
     <string name="pg_week_uv">УФ</string>
     <string name="pg_week_protect">Защита</string>
     <string name="pg_uv_note">УФ-индекс и пять ступеней: ВОЗ. Защита рекомендуется с индекса 3. Прогноз: Open-Meteo.</string>
@@ -677,9 +676,11 @@
     <string name="pg_legend_day_mean">среднее за сутки</string>
     <string name="pg_legend_who">норма ВОЗ</string>
     <string name="pg_of_norm">%1$d %% нормы ВОЗ</string>
-    <string name="pg_days_5">5 дней</string>
     <string name="pg_days_3">3 дня</string>
-    <string name="pg_week_worst">Худший час</string>
+    <string name="pg_days_worst">Худший час за 5 дней</string>
+    <string name="pg_days_uv">Пик УФ за 7 дней</string>
+    <string name="pg_days_wind">Самый сильный ветер за 7 дней</string>
+    <string name="pg_air_time_note">Время прогнозное, возможна погрешность около ±2 часов.</string>
     <string name="pg_air_note">Индекс EAQI и его ступени: Европейское агентство по окружающей среде (EEA). Нормы веществ: рекомендации ВОЗ 2021, средние за сутки, у озона за 8 часов. Данные: модель CAMS через Open-Meteo, только Европа.</string>
     <string name="pg_pollen_none">Нет</string>
     <string name="pg_pollen_none_word">Пыльцы в воздухе нет</string>

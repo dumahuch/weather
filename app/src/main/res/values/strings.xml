@@ -672,7 +672,6 @@
     <string name="pg_uv_not_needed">Not needed</string>
     <string name="pg_hours_short">%1$d h</string>
     <string name="pg_uv_below">Below 3 all day</string>
-    <string name="pg_week_peak">Peak</string>
     <string name="pg_week_uv">UV</string>
     <string name="pg_week_protect">Protection</string>
     <string name="pg_uv_note">UV index and its five levels: WHO. Protection is advised from index 3. Forecast: Open-Meteo.</string>
@@ -682,9 +681,11 @@
     <string name="pg_legend_day_mean">daily mean</string>
     <string name="pg_legend_who">WHO guideline</string>
     <string name="pg_of_norm">%1$d %% of WHO guideline</string>
-    <string name="pg_days_5">5 days</string>
     <string name="pg_days_3">3 days</string>
-    <string name="pg_week_worst">Worst hour</string>
+    <string name="pg_days_worst">Worst hour over 5 days</string>
+    <string name="pg_days_uv">UV peak over 7 days</string>
+    <string name="pg_days_wind">Strongest wind over 7 days</string>
+    <string name="pg_air_time_note">The time is a forecast and may be off by about ±2 hours.</string>
     <string name="pg_air_note">EAQI index and its levels: European Environment Agency (EEA). Pollutant guidelines: WHO 2021, daily means, ozone over 8 hours. Data: CAMS model via Open-Meteo, Europe only.</string>
     <string name="pg_pollen_none">None</string>
     <string name="pg_pollen_none_word">No pollen in the air</string>

@@ -12,8 +12,6 @@ class SkySnapshotTest {
     private fun palette() = PogodaPalette.Neutral.copy(
         ink = Color(0xFFEEF3F9.toInt()),
         accent = Color(0xFFA9C5DD.toInt()),
-        scrim = Color(0x66102030),
-        infoScrim = Color(0x40102030),
         infoBackdrop = Color(0xFF2A3446.toInt()),
         darkInk = false,
         smoke = 0.75f,
@@ -29,23 +27,21 @@ class SkySnapshotTest {
         assertEquals(original.darkInk, restored?.darkInk)
         assertEquals(original.smoke, restored?.smoke)
         assertEquals(original.ink.toArgb(), restored?.ink?.toArgb())
-        assertEquals(original.scrim.toArgb(), restored?.scrim?.toArgb())
-        assertEquals(original.infoScrim.toArgb(), restored?.infoScrim?.toArgb())
         assertEquals(original.infoBackdrop.toArgb(), restored?.infoBackdrop?.toArgb())
     }
 
     @Test
-    fun oldSnapshotWithSixteenColorsStillLoads() {
-        // Снимок, записанный версиями до 0.5.3: шестнадцать цветов, подложки под строками нет.
-        val v2 = SkySnapshotStorage.encodePalette(palette()).split(';')
-        val sixteen = v2[1].split(',').take(16).joinToString(",")
-        val restored = SkySnapshotStorage.decodePalette("1;$sixteen;${v2[2]};${v2[3]}")
-        assertEquals(palette().ink.toArgb(), restored?.ink?.toArgb())
-        assertEquals(Color.Transparent, restored?.infoScrim)
-        assertEquals(PogodaPalette.Neutral.infoBackdrop, restored?.infoBackdrop)
-        // Версия 2 с шестнадцатью цветами и версия 1 с восемнадцатью записаны неверно.
-        assertNull(SkySnapshotStorage.decodePalette("2;$sixteen;${v2[2]};${v2[3]}"))
-        assertNull(SkySnapshotStorage.decodePalette("1;${v2[1]};${v2[2]};${v2[3]}"))
+    fun snapshotsOfOldVersionsAreIgnored() {
+        // Версии 1 и 2 (с подложками, шестнадцать и восемнадцать цветов) больше не читаются: палитра нейтральная до расчёта.
+        val v3 = SkySnapshotStorage.encodePalette(palette()).split(';')
+        val colors = v3[1].split(',')
+        val sixteen = v3[1]
+        val eighteen = (colors + listOf("0", "0")).joinToString(",")
+        assertNull(SkySnapshotStorage.decodePalette("1;$sixteen;${v3[2]};${v3[3]}"))
+        assertNull(SkySnapshotStorage.decodePalette("2;$eighteen;${v3[2]};${v3[3]}"))
+        // Версия 3 с неверным числом цветов записана неверно.
+        assertNull(SkySnapshotStorage.decodePalette("3;$eighteen;${v3[2]};${v3[3]}"))
+        assertNull(SkySnapshotStorage.decodePalette("3;${colors.drop(1).joinToString(",")};${v3[2]};${v3[3]}"))
     }
 
     @Test

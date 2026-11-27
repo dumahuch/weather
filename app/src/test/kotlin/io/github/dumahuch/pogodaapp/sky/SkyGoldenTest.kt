@@ -46,9 +46,8 @@ class SkyGoldenTest {
             for ((name, side) in listOf("D" to q.darkInk, "L" to q.lightInk)) {
                 val want = g.side(name)
                 val label = "${g.label} $name"
-                // Вуали под цифрами нет с 26.11.2026 (решение Димы): макет считал её, поэтому вуаль равна нулю, а контраст цифр и
-                // оценка с макетом не сверяются.
-                assertEquals("$label вуаль", 0.0, side.scrim, 0.0)
+                // Вуали под цифрами нет с 26.11.2026 (решение Димы): макет считал её, поэтому контраст цифр и оценка с макетом
+                // не сверяются.
                 assertEquals("$label стекло", want.getDouble("a"), side.glassOpacity, 1e-6)
                 assertEquals("$label кнопки", want.getDouble("aB"), side.buttonOpacity, 1e-6)
                 assertEquals("$label нужно карточкам", want.getDouble("aNc"), side.needCards, 1e-6)
@@ -69,7 +68,6 @@ class SkyGoldenTest {
                 assertEquals("$label карточки", want.getDouble("a"), p.glass.alpha, 1e-6)
                 assertEquals("$label панель", want.getDouble("aB"), p.buttonBackground.alpha, 1e-6)
                 assertEquals("$label оповещения", want.getDouble("aAl"), p.glassAlert.alpha, 1e-6)
-                assertEquals("$label вуаль", 0.0, p.scrim.alpha, 0.0)
                 assertEquals("$label контраст карточек", want.getDouble("ccCards"), p.contrast.cards, 1e-6)
                 assertEquals("$label контраст оповещений", want.getDouble("ccAlert"), p.contrast.alerts, 1e-6)
                 assertEquals("$label контраст кнопок", want.getDouble("ccBtn"), p.contrast.buttons, 1e-6)
