@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import io.github.dumahuch.pogodaapp.forecast.Metric
 import io.github.dumahuch.pogodaapp.home.HomeUiState
@@ -354,10 +355,16 @@ fun PogodaApp(
         Box(
             Modifier
                 .fillMaxSize()
+                // Сдвиг раскладкой, а не слоем: размытие стекла (Haze) запоминает положение карточек при раскладке, и
+                // сдвиг одним слоем после быстрого жеста «назад» оставлял зерно стекла сдвинутым («трещина», 27.11).
+                .layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints)
+                    layout(placeable.width, placeable.height) {
+                        placeable.place(deckOffsetPx(back.shift.value, underlay.shift.value, placeable.width), 0)
+                    }
+                }
                 .graphicsLayer {
-                    val gesture = back.shift.value
-                    alpha = deckAlphaWith(gesture, underlay.alpha.value)
-                    translationX = deckShiftWith(gesture, underlay.shift.value) * size.width
+                    alpha = deckAlphaWith(back.shift.value, underlay.alpha.value)
                     // Без отдельной картинки во весь экран, пока колода гаснет (см. [screenFade]).
                     compositingStrategy = CompositingStrategy.ModulateAlpha
                 }

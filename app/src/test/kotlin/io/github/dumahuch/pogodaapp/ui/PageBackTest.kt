@@ -34,4 +34,12 @@ class PageBackTest {
         assertEquals(0f, deckShiftWith(0.4f, -0.2f), 0f)
         assertEquals(1f, deckAlphaWith(0.4f, 0f), 0f)
     }
+
+    @Test
+    fun `сдвиг колоды в пикселях целый и ровно ноль на месте`() {
+        assertEquals(-288, deckOffsetPx(0f, -0.2f, 1440))
+        assertEquals(0, deckOffsetPx(1f, -0.2f, 1440))
+        assertEquals(0, deckOffsetPx(0.4f, -0.2f, 1440))
+        assertEquals(-144, deckOffsetPx(0.15f, -0.2f, 1440))
+    }
 }
