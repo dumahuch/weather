@@ -66,11 +66,11 @@ class JunitApkTest(unittest.TestCase):
         (tests / "AaaTest.kt").write_text("class AaaTest {\n" + "    @Test\n    fun t() {}\n" * methods + "}\n", encoding="utf-8")
         return directory
 
-    def results(self, directory: Path, tests: int, failures: int = 0) -> Path:
+    def results(self, directory: Path, tests: int, failures: int = 0, skipped: int = 0) -> Path:
         out = directory / "results"
         out.mkdir()
         (out / "TEST-a.xml").write_text(
-            f'<testsuite name="a" tests="{tests}" failures="{failures}" errors="0" skipped="0"></testsuite>', encoding="utf-8")
+            f'<testsuite name="a" tests="{tests}" failures="{failures}" errors="0" skipped="{skipped}"></testsuite>', encoding="utf-8")
         return out
 
     def test_junit_ok(self):
@@ -93,6 +93,20 @@ class JunitApkTest(unittest.TestCase):
             report = v.Report()
             v.check_junit(root, self.results(Path(tmp), 3, failures=1), report)
             self.assertEqual(report.count(v.FAIL), 1)
+
+    def test_junit_expected_skip_is_not_a_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(Path(tmp), 3)
+            report = v.Report()
+            v.check_junit(root, self.results(Path(tmp), 3, skipped=1), report, {"tests_skipped_expected": 1})
+            self.assertEqual(report.count(v.WARN), 0)
+
+    def test_junit_unexpected_skip_is_a_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(Path(tmp), 3)
+            report = v.Report()
+            v.check_junit(root, self.results(Path(tmp), 3, skipped=2), report, {"tests_skipped_expected": 1})
+            self.assertEqual(report.count(v.WARN), 1)
 
     def test_junit_skipped_without_directory(self):
         report = v.Report()

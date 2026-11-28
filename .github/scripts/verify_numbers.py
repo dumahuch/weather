@@ -471,7 +471,8 @@ def check_ci(root: Path, claims: dict, report: Report) -> None:
 
 # 9. Результаты тестов и APK ----------------------------------------------------------------------------------------
 
-def check_junit(root: Path, directory: Path | None, report: Report) -> None:
+def check_junit(root: Path, directory: Path | None, report: Report, claims: dict | None = None) -> None:
+    claims = claims or {}
     group = "9. Результаты тестов"
     if directory is None:
         report.add(group, "тесты приложения", "—", "не запускались", SKIP, "нужен --junit app/build/test-results")
@@ -486,10 +487,13 @@ def check_junit(root: Path, directory: Path | None, report: Report) -> None:
     declared = sum(len(re.findall(r"^\s*@Test\b", read(p), re.M)) for p in tests)
     report.add(group, "файлов отчёта", "> 0", len(files), OK if files else FAIL)
     report.add(group, "выполнено тестов не меньше объявленных @Test", f"≥ {declared}", totals["tests"],
-               OK if totals["tests"] >= declared else FAIL, "меньше: часть тестов не запущена")
+               OK if totals["tests"] >= declared else FAIL,
+               "" if totals["tests"] >= declared else "часть тестов не запущена")
     report.add(group, "упало / с ошибкой", "0 / 0", f"{totals['failures']} / {totals['errors']}",
                OK if not totals["failures"] and not totals["errors"] else FAIL)
-    report.add(group, "пропущено", 0, totals["skipped"], OK if not totals["skipped"] else WARN)
+    skipped_ok = claims.get("tests_skipped_expected", 0)
+    report.add(group, "пропущено", f"≤ {skipped_ok}", totals["skipped"], OK if totals["skipped"] <= skipped_ok else WARN,
+               "ожидается: живая проверка DWD идёт отдельным шагом" if skipped_ok else "")
 
 
 def check_apk(claims: dict, apk: Path | None, kind: str, report: Report) -> None:
@@ -521,7 +525,7 @@ def run(root: Path, claims_path: Path, junit: Path | None, apk: Path | None, kin
         for check in (check_build, check_manifest, check_dependencies, check_network, check_privacy,
                       check_translations, check_size, check_ci):
             check(root, claims, report)
-    check_junit(root, junit, report)
+    check_junit(root, junit, report, claims)
     check_apk(claims, apk, kind, report)
     return report
 
