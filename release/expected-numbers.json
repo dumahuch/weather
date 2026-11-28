@@ -128,6 +128,6 @@
   "runtime_hosts": [
     "sgx.geodatenzentrum.de"
   ],
-  "max_update_exception_russian": 15,
+  "max_update_exception_russian": 0,
   "tests_skipped_expected": 1
 }

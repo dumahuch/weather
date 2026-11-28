@@ -42,8 +42,8 @@ class SummaryNotifier(private val context: Context) {
 
     private fun settings() = AppSettings(PreferencesSettingsStorage(context))
 
-    /** Вызывается из фоновой задачи: шлёт сводку, если пора и за сегодня её ещё не было. */
-    suspend fun refresh() {
+    /** Вызывается из фоновой задачи: шлёт сводку, если пора и за сегодня её ещё не было. Прогноз общий на запуск ([JobForecast]). */
+    suspend fun refresh(forecastRequest: JobForecast = JobForecast(OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"))) {
         val settings = settings()
         val prefs = settings.notifications.value
         if (!prefs.summary) {
@@ -54,9 +54,8 @@ class SummaryNotifier(private val context: Context) {
         if (!SummaryNotice.isDue(device, prefs.summaryMinutes, settings.summarySentOn())) return
         val entry = cache.load() ?: return
         val now = Instant.now()
-        val client = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}")
         val forecast = try {
-            OpenMeteoParser.parse(client.fetchRaw(entry.place.latitude, entry.place.longitude))
+            OpenMeteoParser.parse(forecastRequest.raw(entry.place.latitude, entry.place.longitude))
         } catch (e: ForecastException) {
             savedForecast(entry.raw, entry.savedAt, now) ?: return
         }

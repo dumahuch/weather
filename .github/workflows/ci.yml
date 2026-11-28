@@ -48,11 +48,8 @@ jobs:
 
       # Сверка цифр по собранному: сколько тестов выполнено (не меньше объявленных, ни одного упавшего), какие
       # процессоры и какого размера APK. Исходники сверяет тест `RepositoryTest` в шаге «Тесты сценариев выпуска».
-      # Шаг стоит до «Живой проверки DWD»: та стирает отчёты тестов. Пока не было первого зелёного прогона, шаг не
-      # блокирует слияние (continue-on-error): убрать, когда в итоге запуска (Summary) всё зелёное, и внести
-      # размеры APK в release/expected-numbers.json.
+      # Шаг стоит до «Живой проверки DWD»: та стирает отчёты тестов. Блокирует слияние: на main зелёный с PR №197.
       - name: Сверка цифр (тесты и debug-APK)
-        continue-on-error: true
         run: |
           python3 .github/scripts/verify_numbers.py . --only-built \
             --junit app/build/test-results \
@@ -138,7 +135,6 @@ jobs:
             --allow-permission android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION
 
       - name: Сверка цифр (release-APK)
-        continue-on-error: true # как у шага для debug: до первого зелёного прогона не блокирует
         run: |
           python3 .github/scripts/verify_numbers.py . --only-built \
             --apk app/build/outputs/apk/release/app-release.apk --apk-kind release

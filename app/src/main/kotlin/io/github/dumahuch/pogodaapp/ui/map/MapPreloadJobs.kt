@@ -8,6 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.util.Log
 import io.github.dumahuch.pogodaapp.AppVersion
+import io.github.dumahuch.pogodaapp.JobIds
 import io.github.dumahuch.pogodaapp.map.MapPreload
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -26,8 +27,8 @@ import java.time.ZonedDateTime
  */
 object MapPreloadJobs {
     /** Задача, которая идёт сейчас, ставит следующую под другим номером: одинаковый номер остановил бы её саму. */
-    private const val ID_A = 7105
-    private const val ID_B = 7106
+    private val ID_A = JobIds.MAP_PRELOAD_A
+    private val ID_B = JobIds.MAP_PRELOAD_B
 
     /**
      * Ставит задачу на ближайшие [MapPreload.AT], если она ещё не стоит; повторный вызов ничего не дублирует. [runningId]

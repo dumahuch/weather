@@ -17,6 +17,7 @@ import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
 import io.github.dumahuch.pogodaapp.ui.home.conditionNameRes
 import io.github.dumahuch.pogodaapp.weather.Forecast
+import io.github.dumahuch.pogodaapp.notify.JobForecast
 import io.github.dumahuch.pogodaapp.weather.ForecastException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,16 +42,15 @@ class WidgetUpdater(private val context: Context) {
 
     fun hasWidgets(): Boolean = widgetIds().isNotEmpty()
 
-    /** Фоновая задача: свежий прогноз, если сохранённый устарел, и перерисовка всех виджетов. */
-    suspend fun refresh() {
+    /** Фоновая задача: свежий прогноз, если сохранённый устарел (запрос общий на запуск, [JobForecast]), и перерисовка всех виджетов. */
+    suspend fun refresh(forecastRequest: JobForecast = JobForecast(OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"))) {
         if (!hasWidgets()) return
         val entry = cache.load() ?: return
         // Без сети запрос падает, но виджет всё равно перерисовывается: по возрасту данных он сам перейдёт на часовой ряд
         // или на «Нет данных». Сбой при этом уходит дальше, в строку ошибки в настройках.
         try {
             if (Duration.between(entry.savedAt, Instant.now()) > FRESH) {
-                val client = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}")
-                val raw = client.fetchRaw(entry.place.latitude, entry.place.longitude)
+                val raw = forecastRequest.raw(entry.place.latitude, entry.place.longitude)
                 try {
                     OpenMeteoParser.parse(raw)
                     cache.save(ForecastCache.Entry(Instant.now(), entry.place, raw))

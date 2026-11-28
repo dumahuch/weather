@@ -78,10 +78,11 @@ class HomeViewModelAlertsTest {
     private lateinit var forecasts: Forecasts
     private lateinit var alerts: Alerts
     private lateinit var germany: Germany
+    private val dispatcher = UnconfinedTestDispatcher()
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
+        Dispatchers.setMain(dispatcher)
         locations = Locations(hannover)
         forecasts = Forecasts(resource("open-meteo/hannover.json"))
         alerts = Alerts(resource("brightsky/alerts-hannover.json"))
@@ -101,6 +102,7 @@ class HomeViewModelAlertsTest {
         clock = FixedClock(now),
         pollenRegions = germany,
         alerts = alerts,
+        worker = dispatcher,
     )
 
     private fun HomeViewModel.content(): HomeUiState.Content {
@@ -174,6 +176,7 @@ class HomeViewModelAlertsTest {
             cache = ForecastCache(File(folder.root, "cache.json")),
             clock = FixedClock(now),
             pollenRegions = germany,
+            worker = dispatcher,
         )
         model.onResumed(permissionGranted = true)
         assertNull(model.content().alerts)

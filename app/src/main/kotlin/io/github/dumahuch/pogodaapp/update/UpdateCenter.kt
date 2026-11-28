@@ -168,9 +168,9 @@ class UpdateCenter private constructor(private val context: Context) {
         val json = try {
             HttpJson.get(UpdateRelease.LATEST_URL, userAgent, source = "GitHub")
         } catch (e: ForecastException) {
-            throw UpdateException(e.message ?: "Нет связи с GitHub", e)
+            throw UpdateException(UpdateFailure.NoConnection, cause = e)
         }
-        val offer = UpdateRelease.parse(json) ?: throw UpdateException("Не удалось прочитать выпуск на GitHub")
+        val offer = UpdateRelease.parse(json) ?: throw UpdateException(UpdateFailure.ReleaseUnreadable)
         val now = Instant.now()
         store.offer = offer
         store.checkedAt = now
@@ -186,10 +186,36 @@ class UpdateCenter private constructor(private val context: Context) {
         return newer
     }
 
+    /** Текст ошибки для настроек на языке приложения; подробности остаются в журнале. */
+    private fun describe(e: Exception): String {
+        val reason = (e as? UpdateException)?.reason ?: return context.getString(R.string.update_error_unknown)
+        return when (reason) {
+            UpdateFailure.HttpStatus -> context.getString(R.string.update_error_http_status, e.code ?: 0)
+            else -> context.getString(reasonText(reason))
+        }
+    }
+
+    private fun reasonText(reason: UpdateFailure): Int = when (reason) {
+        UpdateFailure.NoConnection -> R.string.update_error_no_connection
+        UpdateFailure.ReleaseUnreadable -> R.string.update_error_release_unreadable
+        UpdateFailure.NotAnApp -> R.string.update_error_not_an_app
+        UpdateFailure.WrongPackage -> R.string.update_error_wrong_package
+        UpdateFailure.NotNewer -> R.string.update_error_not_newer
+        UpdateFailure.InstallNotStarted -> R.string.update_error_install_not_started
+        UpdateFailure.InsecureAddress -> R.string.update_error_insecure_address
+        UpdateFailure.InsecureRedirect -> R.string.update_error_insecure_redirect
+        UpdateFailure.HttpStatus -> R.string.update_error_unknown
+        UpdateFailure.SizeMismatch -> R.string.update_error_size_mismatch
+        UpdateFailure.TooSlow -> R.string.update_error_too_slow
+        UpdateFailure.TooBig -> R.string.update_error_too_big
+        UpdateFailure.Incomplete -> R.string.update_error_incomplete
+        UpdateFailure.ChecksumMismatch -> R.string.update_error_checksum
+    }
+
     private fun fail(e: Exception) {
         Log.w(TAG, "обновление", e)
         mutableState.update {
-            it.copy(status = UpdateStatus.Failed, error = e.message ?: e.javaClass.simpleName)
+            it.copy(status = UpdateStatus.Failed, error = describe(e))
         }
     }
 

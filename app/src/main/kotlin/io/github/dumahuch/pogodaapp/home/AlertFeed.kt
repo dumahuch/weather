@@ -8,6 +8,9 @@ import io.github.dumahuch.pogodaapp.location.distanceKm
 import io.github.dumahuch.pogodaapp.places.PlacesLogic
 import io.github.dumahuch.pogodaapp.weather.AlertSet
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Официальные предупреждения DWD для места на экране. Запрашиваются только для мест в Германии: границы Германии
@@ -18,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 internal class AlertFeed(
     private val source: AlertsSource?,
     private val germany: PollenRegionLocator?,
+    private val worker: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private class Entry(val point: GeoPoint, val set: AlertSet)
 
@@ -35,7 +39,7 @@ internal class AlertFeed(
         val alerts = source ?: return null
         val borders = germany ?: return null
         val inGermany = try {
-            borders.keyOf(point.latitude, point.longitude) != null
+            withContext(worker) { borders.keyOf(point.latitude, point.longitude) } != null
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -46,7 +50,8 @@ internal class AlertFeed(
             return null
         }
         val set = try {
-            AlertsParser.parse(alerts.fetchRaw(point.latitude, point.longitude))
+            val raw = alerts.fetchRaw(point.latitude, point.longitude)
+            withContext(worker) { AlertsParser.parse(raw) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -8,6 +8,9 @@ import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
 import android.util.Log
+import io.github.dumahuch.pogodaapp.AppVersion
+import io.github.dumahuch.pogodaapp.JobIds
+import io.github.dumahuch.pogodaapp.data.OpenMeteoClient
 import io.github.dumahuch.pogodaapp.settings.AppSettings
 import io.github.dumahuch.pogodaapp.settings.NotificationPrefs
 import io.github.dumahuch.pogodaapp.settings.PreferencesSettingsStorage
@@ -28,12 +31,10 @@ import java.time.ZonedDateTime
  * полчаса, только при сети; Android сам сдвигает запуск ради батареи, ночью реже. Задача переживает перезагрузку телефона.
  */
 object WeatherJobs {
-    private const val PERIODIC_ID = 7101
-    private const val NOW_ID = 7102
-
-    /** Две пары номеров вечерней сводки: задача, которая сейчас идёт, ставит следующую под другим номером (одинаковый номер остановил бы её саму). */
-    private const val SUMMARY_A = 7103
-    private const val SUMMARY_B = 7104
+    private val PERIODIC_ID = JobIds.WEATHER_PERIODIC
+    private val NOW_ID = JobIds.WEATHER_NOW
+    private val SUMMARY_A = JobIds.SUMMARY_A
+    private val SUMMARY_B = JobIds.SUMMARY_B
     private val PERIOD: Duration = Duration.ofMinutes(30)
     private val FLEX: Duration = Duration.ofMinutes(10)
 
@@ -106,16 +107,18 @@ class WeatherJobService : JobService() {
     override fun onStartJob(params: JobParameters): Boolean {
         scope.launch {
             try {
+                // Один запрос прогноза на весь запуск: виджет, уведомление и сводка берут общий ответ.
+                val forecast = JobForecast(OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(applicationContext).name}"))
                 // Без разрешения на уведомления обновляются только виджет и снимок неба: остальное показать некому.
                 val allowed = WeatherJobs.notificationsAllowed(applicationContext)
-                guarded("виджет не обновлён") { WidgetUpdater(applicationContext).refresh() }
-                if (allowed) guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh() }
+                guarded("виджет не обновлён") { WidgetUpdater(applicationContext).refresh(forecast) }
+                if (allowed) guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh(forecast) }
                 guarded("снимок неба не записан") { SkyBackgroundSnapshot(applicationContext).refresh() }
                 if (allowed) {
                     guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
                     guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
                     guarded("пыльца не проверена") { PollenNotifier(applicationContext).refresh() }
-                    guarded("вечерняя сводка не отправлена") { SummaryNotifier(applicationContext).refresh() }
+                    guarded("вечерняя сводка не отправлена") { SummaryNotifier(applicationContext).refresh(forecast) }
                 }
                 guarded("вечерняя сводка не поставлена") { WeatherJobs.syncSummary(applicationContext, params.jobId) }
             } finally {

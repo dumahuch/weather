@@ -27,7 +27,7 @@ internal object HttpJson {
         val (status, body) = fetch(url, userAgent, source, "application/json", MAX_BODY_BYTES)
         val text = String(body, Charsets.UTF_8)
         if (status !in 200..299) {
-            throw ForecastException("$source ответил кодом $status: ${reasonOf(text)}")
+            throw ForecastException("$source answered with code $status: ${reasonOf(text)}")
         }
         return text
     }
@@ -47,7 +47,7 @@ internal object HttpJson {
     ): ByteArray {
         val (status, body) = fetch(url, userAgent, source, accept, maxBytes)
         val ok = status in 200..299 || (allowClientErrors && status in 400..499)
-        if (!ok) throw ForecastException("$source ответил кодом $status")
+        if (!ok) throw ForecastException("$source answered with code $status")
         return body
     }
 
@@ -55,7 +55,7 @@ internal object HttpJson {
         val address = URI(url)
         // Только https. Исключение одно: адрес самого устройства (127.0.0.1), на нём в тестах работает пробный сервер.
         if (address.scheme != "https" && !(address.scheme == "http" && address.host == LOOPBACK)) {
-            throw ForecastException("$source: адрес без защищённого соединения отклонён")
+            throw ForecastException("$source: address without a secure connection rejected")
         }
         val deadline = System.nanoTime() + TOTAL_TIMEOUT_MS * NANOS_PER_MILLI
         val connection = address.toURL().openConnection() as HttpURLConnection
@@ -66,11 +66,11 @@ internal object HttpJson {
             connection.setRequestProperty("User-Agent", userAgent)
             val status = connection.responseCode
             val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-            if (connection.contentLengthLong > maxBytes) throw ForecastException("$source: ответ слишком большой")
+            if (connection.contentLengthLong > maxBytes) throw ForecastException("$source: response too large")
             val body = stream?.use { readBounded(it, maxBytes, deadline) } ?: ByteArray(0)
             return status to body
         } catch (e: IOException) {
-            throw ForecastException("Нет связи с $source: ${e.message}", e)
+            throw ForecastException("No connection to $source: ${e.message}", e)
         } finally {
             connection.disconnect()
         }
@@ -84,10 +84,10 @@ internal object HttpJson {
         val out = ByteArrayOutputStream()
         val chunk = ByteArray(CHUNK_BYTES)
         while (true) {
-            if (System.nanoTime() - deadlineNanos > 0) throw ForecastException("Ответ идёт слишком долго")
+            if (System.nanoTime() - deadlineNanos > 0) throw ForecastException("Response is taking too long")
             val count = stream.read(chunk)
             if (count < 0) return out.toByteArray()
-            if (out.size() + count > maxBytes) throw ForecastException("Ответ слишком большой")
+            if (out.size() + count > maxBytes) throw ForecastException("Response too large")
             out.write(chunk, 0, count)
         }
     }

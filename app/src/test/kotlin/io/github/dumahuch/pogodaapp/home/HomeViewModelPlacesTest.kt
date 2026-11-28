@@ -139,7 +139,7 @@ class HomeViewModelPlacesTest {
         regions: PollenRegionLocator? = null,
         geocoding: GeocodingSource? = null,
     ) = HomeViewModel(
-        locations, namer, source, cache, TestClock(now), null, pollen, regions, storage, caches, geocoding, { "de" },
+        locations, namer, source, cache, TestClock(now), null, pollen, regions, storage, caches, geocoding, { "de" }, worker = dispatcher,
     )
 
     private fun suggestion(name: String, point: GeoPoint) =

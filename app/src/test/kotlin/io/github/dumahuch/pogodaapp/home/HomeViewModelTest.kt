@@ -146,12 +146,12 @@ class HomeViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = HomeViewModel(locations, namer, source, cache, clock)
+    private fun viewModel() = HomeViewModel(locations, namer, source, cache, clock, worker = dispatcher)
 
-    private fun viewModel(air: AirQualitySource) = HomeViewModel(locations, namer, source, cache, clock, air)
+    private fun viewModel(air: AirQualitySource) = HomeViewModel(locations, namer, source, cache, clock, air, worker = dispatcher)
 
     private fun viewModel(pollen: PollenSource, regions: PollenRegionLocator) =
-        HomeViewModel(locations, namer, source, cache, clock, null, pollen, regions)
+        HomeViewModel(locations, namer, source, cache, clock, null, pollen, regions, worker = dispatcher)
 
     /** Файл DWD с одним районом Рейн-Майн (92): у всех видов на сегодня одна и та же [level], выпуск 28 октября. */
     private fun pollenJson(level: String): String {
