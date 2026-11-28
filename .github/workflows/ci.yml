@@ -46,6 +46,18 @@ jobs:
           set -o pipefail
           ./gradlew --console=plain --stacktrace lintDebug testDebugUnitTest assembleDebug 2>&1 | tee build-debug.log
 
+      # Сверка цифр по собранному: сколько тестов выполнено (не меньше объявленных, ни одного упавшего), какие
+      # процессоры и какого размера APK. Исходники сверяет тест `RepositoryTest` в шаге «Тесты сценариев выпуска».
+      # Шаг стоит до «Живой проверки DWD»: та стирает отчёты тестов. Пока не было первого зелёного прогона, шаг не
+      # блокирует слияние (continue-on-error): убрать, когда в итоге запуска (Summary) всё зелёное, и внести
+      # размеры APK в release/expected-numbers.json.
+      - name: Сверка цифр (тесты и debug-APK)
+        continue-on-error: true
+        run: |
+          python3 .github/scripts/verify_numbers.py . --only-built \
+            --junit app/build/test-results \
+            --apk app/build/outputs/apk/debug/app-debug.apk --apk-kind debug
+
       # Настоящие файлы DWD (ICON-D2: температура, ветер, облака) через наш разбор. Шаг не блокирует слияние:
       # если DWD недоступен, он краснеет, остальная проверка идёт дальше. Строки «LIVE …» в журнале это замеры.
       - name: Живая проверка файлов DWD
@@ -124,6 +136,12 @@ jobs:
             --allow-permission android.permission.RECEIVE_BOOT_COMPLETED \
             --allow-permission android.permission.REQUEST_INSTALL_PACKAGES \
             --allow-permission android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION
+
+      - name: Сверка цифр (release-APK)
+        continue-on-error: true # как у шага для debug: до первого зелёного прогона не блокирует
+        run: |
+          python3 .github/scripts/verify_numbers.py . --only-built \
+            --apk app/build/outputs/apk/release/app-release.apk --apk-kind release
 
       - name: Причина падения
         if: failure()

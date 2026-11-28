@@ -1,0 +1,126 @@
+{
+  "_about": "Что заявлено о проекте (права, адреса, библиотеки, пределы). Сверяется с кодом сценарием .github/scripts/verify_numbers.py. Расхождение останавливает проверку: поправить здесь осознанно, в том же шаге, вместе с claude/topics/security.md. Менять только по решению Димы.",
+  "sdk": {
+    "minSdk": 36,
+    "targetSdk": 36,
+    "compileSdk": 37,
+    "applicationId": "io.github.dumahuch.pogodaapp",
+    "locales": [
+      "en",
+      "ru",
+      "de"
+    ],
+    "abis": [
+      "arm64-v8a",
+      "x86_64"
+    ]
+  },
+  "permissions": [
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.INTERNET",
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.RECEIVE_BOOT_COMPLETED",
+    "android.permission.REQUEST_INSTALL_PACKAGES",
+    "android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION"
+  ],
+  "exported_components": [
+    "MainActivity",
+    "widget.WidgetConfigActivity"
+  ],
+  "app_libraries": [
+    "androidx.activity:activity-compose",
+    "androidx.compose.foundation:foundation",
+    "androidx.compose.material3:material3",
+    "androidx.compose.ui:ui",
+    "androidx.compose:compose-bom",
+    "androidx.lifecycle:lifecycle-runtime-compose",
+    "androidx.lifecycle:lifecycle-viewmodel-compose",
+    "dev.chrisbanes.haze:haze",
+    "dev.chrisbanes.haze:haze-blur",
+    "org.apache.commons:commons-compress",
+    "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+    "org.maplibre.gl:android-sdk"
+  ],
+  "test_libraries": [
+    "junit:junit",
+    "org.jetbrains.kotlinx:kotlinx-coroutines-test",
+    "org.json:json"
+  ],
+  "licenses": {
+    "androidx.activity:activity-compose": "Apache-2.0",
+    "androidx.compose.foundation:foundation": "Apache-2.0",
+    "androidx.compose.material3:material3": "Apache-2.0",
+    "androidx.compose.ui:ui": "Apache-2.0",
+    "androidx.compose:compose-bom": "Apache-2.0",
+    "androidx.lifecycle:lifecycle-runtime-compose": "Apache-2.0",
+    "androidx.lifecycle:lifecycle-viewmodel-compose": "Apache-2.0",
+    "dev.chrisbanes.haze:haze": "Apache-2.0",
+    "dev.chrisbanes.haze:haze-blur": "Apache-2.0",
+    "org.apache.commons:commons-compress": "Apache-2.0",
+    "org.jetbrains.kotlinx:kotlinx-coroutines-android": "Apache-2.0",
+    "org.maplibre.gl:android-sdk": "BSD-2-Clause"
+  },
+  "hosts": [
+    "air-quality-api.open-meteo.com",
+    "api.brightsky.dev",
+    "api.github.com",
+    "api.open-meteo.com",
+    "basemap.de",
+    "geocoding-api.open-meteo.com",
+    "github.com",
+    "maps.dwd.de",
+    "opendata.dwd.de"
+  ],
+  "limits": {
+    "http_max_body_bytes": 4194304,
+    "http_total_timeout_ms": 30000,
+    "http_connect_timeout_ms": 10000,
+    "http_read_timeout_ms": 15000,
+    "json_max_depth": 32,
+    "bzip2_max_unpacked_bytes": 8388608,
+    "bzip2_timeout_nanos": 20000000000,
+    "grib2_max_points": 4000000,
+    "png_max_side": 2048,
+    "update_max_apk_bytes": 209715200,
+    "update_min_apk_bytes": 1048576,
+    "update_total_timeout_ms": 600000
+  },
+  "coordinate_decimals": 3,
+  "readability_digits": 1.9,
+  "max_hardcoded_russian_strings": 6,
+  "tests_min": 1008,
+  "snapshot": {
+    "date": "2026-11-27",
+    "main_files": 222,
+    "main_lines": 35089,
+    "test_files": 118,
+    "test_lines": 13383,
+    "test_methods": 1008
+  },
+  "apk": {
+    "debug": {
+      "abis": [
+        "arm64-v8a",
+        "x86_64"
+      ],
+      "size_mb": null
+    },
+    "release": {
+      "abis": [
+        "arm64-v8a"
+      ],
+      "size_mb": null
+    }
+  },
+  "link_hosts": [
+    "creativecommons.org",
+    "www.bkg.bund.de",
+    "www.dwd.de"
+  ],
+  "runtime_hosts": [
+    "sgx.geodatenzentrum.de"
+  ],
+  "max_update_exception_russian": 15
+}
