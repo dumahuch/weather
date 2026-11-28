@@ -142,10 +142,12 @@ fun MapScreen(place: Place?, skyDarkInk: Boolean, wifiOnly: Boolean, modifier: M
                     onLayer = model::selectLayer,
                 )
             }
+            val status = mapStatus(state, baseFailed)
             TimePanel(
                 state = state,
                 zone = zone,
-                status = statusText(state, baseFailed),
+                status = statusText(status, state),
+                onRetry = if (status?.retryable == true) model::retry else null,
                 onDay = model::selectDay,
                 onPlay = model::togglePlay,
                 onTime = model::scrubTo,
@@ -167,25 +169,15 @@ private fun LightBarIcons(restoreDark: Boolean) {
 }
 
 @Composable
-private fun statusText(state: MapUiState, baseFailed: Boolean): String? {
-    if (state.layer == MapLayer.Temperature || state.layer == MapLayer.Wind) {
-        return when {
-            baseFailed -> stringResource(R.string.map_base_failed)
-            state.field == FrameStatus.Failed -> stringResource(R.string.map_no_connection)
-            state.field == FrameStatus.Missing -> stringResource(R.string.map_no_data)
-            state.framesDone < state.framesTotal -> stringResource(R.string.map_loading_frames, state.framesDone, state.framesTotal)
-            else -> null
-        }
-    }
-    val clouds = if (state.layer == MapLayer.CloudsAndRain) state.clouds else FrameStatus.Ready
-    return when {
-        baseFailed -> stringResource(R.string.map_base_failed)
-        state.rain == FrameStatus.Failed || clouds == FrameStatus.Failed -> stringResource(R.string.map_no_connection)
-        state.rain == FrameStatus.Missing && clouds != FrameStatus.Ready -> stringResource(R.string.map_no_data)
-        clouds == FrameStatus.Missing -> stringResource(R.string.map_no_clouds)
-        state.framesDone < state.framesTotal -> stringResource(R.string.map_loading_frames, state.framesDone, state.framesTotal)
-        else -> null
-    }
+private fun statusText(status: MapStatus?, state: MapUiState): String? = when (status) {
+    null -> null
+    MapStatus.BaseFailed -> stringResource(R.string.map_base_failed)
+    MapStatus.NoConnection -> stringResource(R.string.map_no_connection)
+    MapStatus.RadarFailed -> stringResource(R.string.map_radar_failed)
+    MapStatus.CloudsFailed -> stringResource(R.string.map_clouds_failed)
+    MapStatus.NoData -> stringResource(R.string.map_no_data)
+    MapStatus.NoClouds -> stringResource(R.string.map_no_clouds)
+    MapStatus.Loading -> stringResource(R.string.map_loading_frames, state.framesDone, state.framesTotal)
 }
 
 /** Плашка с названием слоя, слева сверху. */
@@ -364,6 +356,7 @@ private fun TimePanel(
     state: MapUiState,
     zone: ZoneId,
     status: String?,
+    onRetry: (() -> Unit)?,
     onDay: (MapDay) -> Unit,
     onPlay: () -> Unit,
     onTime: (Instant) -> Unit,
@@ -390,7 +383,11 @@ private fun TimePanel(
             }
         }
         if (status != null) {
-            Text(status, style = pogodaText(11f, 500, color = palette.ink2), modifier = Modifier.padding(top = 2.dp))
+            Text(
+                status,
+                style = pogodaText(11f, 500, color = palette.ink2),
+                modifier = Modifier.padding(top = 2.dp).then(if (onRetry != null) Modifier.clickable(onClick = onRetry) else Modifier),
+            )
         }
         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for ((day, label) in listOf(

@@ -314,6 +314,9 @@ class MapViewModel(
         else -> null
     }
 
+    /** Касание строки «не ответил»: тот же кадр запрашивается заново (неудачи в запас не кладутся). */
+    fun retry() = show()
+
     private fun show(settleMs: Long = 0) {
         showJob?.cancel()
         showJob = viewModelScope.launch {

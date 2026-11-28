@@ -42,6 +42,12 @@ class SummaryNoticeTest {
     )
 
     @Test
+    fun `окно задачи не короче минимального периода задач Android`() {
+        // Задача с крайним сроком и условием сети с окном короче 15 минут: сначала предупреждение системы, затем отказ в постановке.
+        assertTrue(SummaryNotice.JOB_WINDOW >= java.time.Duration.ofMinutes(15))
+    }
+
+    @Test
     fun sameTemperatureIsSaid() {
         val outlook = SummaryNotice.outlook(forecast(10.0, 10.4, hours(Condition.Cloudy)), now)!!
         assertEquals(Versus.Same, outlook.versus)

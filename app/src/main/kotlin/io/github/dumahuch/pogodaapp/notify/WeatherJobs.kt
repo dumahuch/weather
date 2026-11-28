@@ -109,18 +109,21 @@ class WeatherJobService : JobService() {
             try {
                 // Один запрос прогноза на весь запуск: виджет, уведомление и сводка берут общий ответ.
                 val forecast = JobForecast(OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(applicationContext).name}"))
+                val run = Run()
                 // Без разрешения на уведомления обновляются только виджет и снимок неба: остальное показать некому.
                 val allowed = WeatherJobs.notificationsAllowed(applicationContext)
-                guarded("виджет не обновлён") { WidgetUpdater(applicationContext).refresh(forecast) }
-                if (allowed) guarded("уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh(forecast) }
-                guarded("снимок неба не записан") { SkyBackgroundSnapshot(applicationContext).refresh() }
+                guarded(run, "виджет не обновлён") { WidgetUpdater(applicationContext).refresh(forecast) }
+                if (allowed) guarded(run, "уведомление о погоде не обновлено") { WeatherNotifier(applicationContext).refresh(forecast) }
+                guarded(run, "снимок неба не записан") { SkyBackgroundSnapshot(applicationContext).refresh() }
                 if (allowed) {
-                    guarded("предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
-                    guarded("«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
-                    guarded("пыльца не проверена") { PollenNotifier(applicationContext).refresh() }
-                    guarded("вечерняя сводка не отправлена") { SummaryNotifier(applicationContext).refresh(forecast) }
+                    guarded(run, "предупреждения не обновлены") { AlertNotifier(applicationContext).refresh() }
+                    guarded(run, "«скоро дождь» не проверено") { RainNotifier(applicationContext).refresh() }
+                    guarded(run, "пыльца не проверена") { PollenNotifier(applicationContext).refresh() }
+                    guarded(run, "вечерняя сводка не отправлена") { SummaryNotifier(applicationContext).refresh(forecast) }
                 }
-                guarded("вечерняя сводка не поставлена") { WeatherJobs.syncSummary(applicationContext, params.jobId) }
+                guarded(run, "вечерняя сводка не поставлена") { WeatherJobs.syncSummary(applicationContext, params.jobId) }
+                // Все шаги прошли без сбоев: прежняя строка ошибки в настройках устарела (раньше её стирало только уведомление о погоде).
+                if (run.clean) AppSettings(PreferencesSettingsStorage(applicationContext)).setNoticeError(null)
             } finally {
                 jobFinished(params, false)
             }
@@ -128,18 +131,26 @@ class WeatherJobService : JobService() {
         return true
     }
 
+    /** Ход одного запуска: все ли шаги дошли до конца без сбоев (сетевых тоже: шаг не сделан, ошибку прошлого запуска стирать рано). */
+    private class Run {
+        var clean = true
+    }
+
     /**
-     * Сбой в фоне не должен ронять приложение: уведомление останется прежним до следующего запуска, текст ошибки виден в
-     * настройках.
+     * Сбой в фоне не должен ронять приложение: уведомление останется прежним до следующего запуска. Сбой сети в настройках
+     * не показывается ([NoticeFailure.isNetwork], причина только в журнале); остальные ошибки пишутся в строку настроек.
      */
-    private suspend fun guarded(what: String, block: suspend () -> Unit) {
+    private suspend fun guarded(run: Run, what: String, block: suspend () -> Unit) {
         try {
             block()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            run.clean = false
             Log.w(TAG, what, e)
-            AppSettings(PreferencesSettingsStorage(applicationContext)).setNoticeError(NoticeFailure.describe(e))
+            if (!NoticeFailure.isNetwork(e)) {
+                AppSettings(PreferencesSettingsStorage(applicationContext)).setNoticeError(NoticeFailure.describe(e))
+            }
         }
     }
 

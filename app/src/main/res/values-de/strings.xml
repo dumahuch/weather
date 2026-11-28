@@ -421,7 +421,9 @@
     <string name="map_legend_unit_temperature">°C</string>
     <string name="map_legend_unit_wind">km/h</string>
     <string name="map_time_scale">Zeitleiste</string>
-    <string name="map_no_connection">Keine Verbindung zum DWD</string>
+    <string name="map_no_connection">Keine Verbindung zum DWD. Tippe zum Wiederholen</string>
+    <string name="map_radar_failed">Der Radar antwortet nicht. Tippe zum Wiederholen</string>
+    <string name="map_clouds_failed">Die Wolkendaten antworten nicht. Tippe zum Wiederholen</string>
     <string name="map_no_data">Keine Daten für diese Zeit</string>
     <string name="map_no_clouds">Keine Wolkendaten für diese Zeit</string>
     <string name="map_loading_frames">Bilder geladen: %1$d von %2$d</string>

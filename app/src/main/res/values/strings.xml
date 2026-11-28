@@ -430,7 +430,9 @@
     <string name="map_legend_unit_temperature">°C</string>
     <string name="map_legend_unit_wind">km/h</string>
     <string name="map_time_scale">Time scale</string>
-    <string name="map_no_connection">No connection to DWD</string>
+    <string name="map_no_connection">No connection to DWD. Tap to retry</string>
+    <string name="map_radar_failed">Radar did not respond. Tap to retry</string>
+    <string name="map_clouds_failed">Cloud data did not respond. Tap to retry</string>
     <string name="map_no_data">No data for this time</string>
     <string name="map_no_clouds">No cloud data for this time</string>
     <string name="map_loading_frames">Loading frames: %1$d of %2$d</string>
