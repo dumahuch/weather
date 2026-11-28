@@ -190,7 +190,7 @@ class UpdateCenter private constructor(private val context: Context) {
     private fun describe(e: Exception): String {
         val reason = (e as? UpdateException)?.reason ?: return context.getString(R.string.update_error_unknown)
         return when (reason) {
-            UpdateFailure.HttpStatus -> context.getString(R.string.update_error_http_status, (e as UpdateException).code ?: 0)
+            UpdateFailure.HttpStatus -> context.getString(R.string.update_error_http_status, e.code ?: 0)
             else -> context.getString(reasonText(reason))
         }
     }
