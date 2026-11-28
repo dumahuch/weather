@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import io.github.dumahuch.pogodaapp.home.GLYPH_LIFT
 import io.github.dumahuch.pogodaapp.home.HeroIcon
 import io.github.dumahuch.pogodaapp.home.HeroWidth
+import io.github.dumahuch.pogodaapp.home.MINUS
 import io.github.dumahuch.pogodaapp.home.glyphCloudBottom
 import io.github.dumahuch.pogodaapp.settings.WeatherIconStyle
 import io.github.dumahuch.pogodaapp.ui.HeroLetterSpacing
@@ -81,13 +82,17 @@ fun HeroBlock(
     scale: Float = 1f,
 ) {
     val numberSize = digitsSize * scale
+    // Минус рисуется отдельно и меньше цифр (решение Димы 28.11.2026), см. [HeroWidth.MINUS_SCALE].
+    val hasMinus = digits.startsWith(MINUS)
+    val body = if (hasMinus) digits.substring(MINUS.length) else digits
+    val minusSize = numberSize * HeroWidth.MINUS_SCALE
     val degreeSize = numberSize * HeroWidth.DEGREE_SCALE
     // Значок растёт вместе с цифрами (step-44, вариант D): 72 dp при цифрах 124 sp и масштабе 1, 94 dp при 1,3.
     val glyphSize = HeroWidth.glyphDp(digitsSize, scale).dp
     Layout(
         content = {
             Text(
-                text = digits,
+                text = body,
                 style = pogodaText(
                     size = numberSize,
                     weight = DIGITS_WEIGHT,
@@ -99,6 +104,21 @@ fun HeroBlock(
                 softWrap = false,
                 modifier = Modifier.semantics { contentDescription = description },
             )
+            if (hasMinus) {
+                Text(
+                    text = MINUS,
+                    style = pogodaText(
+                        size = minusSize,
+                        weight = DIGITS_WEIGHT,
+                        lineHeight = 0.9f,
+                        letterSpacing = HeroLetterSpacing,
+                        tabular = true,
+                    ),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.clearAndSetSemantics { },
+                )
+            }
             Text(
                 text = "°",
                 style = pogodaText(size = degreeSize, weight = DIGITS_WEIGHT, lineHeight = 0.9f),
@@ -113,9 +133,13 @@ fun HeroBlock(
         modifier = modifier.fillMaxWidth(),
     ) { measurables, constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val digitsPlaceable = measurables[0].measure(loose)
-        val degreePlaceable = measurables[1].measure(loose)
-        val glyphPlaceable = measurables.getOrNull(2)?.measure(loose)
+        val bodyPlaceable = measurables[0].measure(loose)
+        val minusPlaceable = if (hasMinus) measurables[1].measure(loose) else null
+        val degreeIndex = if (hasMinus) 2 else 1
+        val degreePlaceable = measurables[degreeIndex].measure(loose)
+        val glyphPlaceable = measurables.getOrNull(degreeIndex + 1)?.measure(loose)
+        val minusWidth = minusPlaceable?.width ?: 0
+        val numberWidth = minusWidth + bodyPlaceable.width
 
         val width = constraints.maxWidth
         val gap = (degreeSize * HeroWidth.DEGREE_GAP_EM).sp.roundToPx()
@@ -124,13 +148,13 @@ fun HeroBlock(
         val pull = (numberSize * HeroWidth.DEGREE_PULL_EM).sp.roundToPx()
         val degreeSide = degreePlaceable.width - pull
         val centering = HeroWidth.centeringSide(degreeSide.toFloat(), (glyphPlaceable?.width ?: 0).toFloat()).roundToInt()
-        val digitsX = ((width - (digitsPlaceable.width + gap + centering)) / 2).coerceAtLeast(0)
-        val sideX = digitsX + digitsPlaceable.width + gap
+        val digitsX = ((width - (numberWidth + gap + centering)) / 2).coerceAtLeast(0)
+        val sideX = digitsX + numberWidth + gap
         val lineTop = TOP_GAP_DP.dp.roundToPx()
 
         // Положение цифр считается от базовой линии, как в макете (строка высотой 0,9 em), а не от верха надписи:
         // так результат не зависит от того, как Compose распределяет межстрочный интервал.
-        val digitsBaseline = digitsPlaceable.baselineOrDefault()
+        val digitsBaseline = bodyPlaceable.baselineOrDefault()
         val degreeBaseline = degreePlaceable.baselineOrDefault()
         val digitsBaselineWanted = (numberSize * BASELINE_EM).sp.toPx()
         val digitsY = lineTop + (digitsBaselineWanted - digitsBaseline).roundToInt()
@@ -145,7 +169,13 @@ fun HeroBlock(
 
         val height = lineTop + (MAX_DIGITS_SP * scale * LINE_HEIGHT_EM).sp.roundToPx()
         layout(width, height) {
-            digitsPlaceable.placeRelative(digitsX, digitsY)
+            if (minusPlaceable != null) {
+                // Базовая линия минуса выше базовой линии цифр, чтобы середина знака осталась на середине цифр.
+                val lift = (numberSize * HeroWidth.MINUS_LIFT_EM).sp.toPx().roundToInt()
+                val minusY = digitsY + (digitsBaseline - minusPlaceable.baselineOrDefault()) - lift
+                minusPlaceable.placeRelative(digitsX, minusY)
+            }
+            bodyPlaceable.placeRelative(digitsX + minusWidth, digitsY)
             degreePlaceable.placeRelative(sideX - pull, degreeY)
             glyphPlaceable?.placeRelative(sideX, glyphY)
         }

@@ -41,8 +41,16 @@ class HeroWidthTest {
     fun widthOfDigitsFollowsTheMeasuredAdvances() {
         // Две цифры по 0,62 минус два межбуквенных интервала по 0,035.
         assertEquals(1.17, HeroWidth.digitsEm("12"), 1e-9)
-        // Минус 0,54 и две цифры.
-        assertEquals(0.54 + 2 * 0.62 - 3 * 0.035, HeroWidth.digitsEm("−12"), 1e-9)
+        // Минус уменьшен до 0,62 размера: его ширина 0,54 и интервал 0,035 тоже умножаются на 0,62; две цифры как обычно.
+        assertEquals(0.62 * (0.54 - 0.035) + 2 * (0.62 - 0.035), HeroWidth.digitsEm("−12"), 1e-6)
+    }
+
+    @Test
+    fun theMinusStaysOnTheMiddleOfTheDigits() {
+        // Середина минуса у Manrope 0,36 em его размера; после уменьшения базовая линия поднята так, что середина цифр та же.
+        val lift = HeroWidth.MINUS_LIFT_EM.toDouble()
+        val minusMiddle = lift + 0.36 * HeroWidth.MINUS_SCALE
+        assertEquals(0.36, minusMiddle, 1e-6)
     }
 
     @Test

@@ -9,7 +9,19 @@ package io.github.dumahuch.pogodaapp.home
 internal object HeroWidth {
 
     private const val DIGIT_EM = 0.62
-    private const val MINUS_EM = 0.54
+    private const val MINUS_ADVANCE_EM = 0.54
+
+    /**
+     * Размер знака минуса в долях размера цифр (решение Димы 28.11.2026, вариант B макета): минус Manrope шириной 0,42 em
+     * выглядел планкой, равной цифре. Знак рисуется отдельно и стоит на середине цифр по высоте ([minusLift]).
+     */
+    const val MINUS_SCALE = 0.62f
+
+    /** Середина цифр Manrope по высоте над базовой линией, em (цифры 0,72, середина минуса 0,36). */
+    private const val DIGIT_MID_EM = 0.36f
+
+    /** На сколько поднять базовую линию уменьшенного минуса, в долях размера цифр, чтобы его середина осталась на середине цифр. */
+    const val MINUS_LIFT_EM = DIGIT_MID_EM * (1f - MINUS_SCALE)
     private const val LETTER_SPACING_EM = -0.035
 
     /** Размер градуса в долях размера цифр (step-42: меньше прежних 0,44, просьба Димы 07.11.2026). */
@@ -56,9 +68,9 @@ internal object HeroWidth {
     /** Запас до края экрана с каждой стороны. */
     private const val SIDE_MARGIN_DP = 8f
 
-    /** Ширина цифр в em: «−12» это три знака. */
+    /** Ширина цифр в em размера цифр: «−12» это три знака, минус уменьшен до [MINUS_SCALE] (межбуквенный интервал тоже). */
     fun digitsEm(digits: String): Double =
-        digits.sumOf { if (it == '−') MINUS_EM else DIGIT_EM } + LETTER_SPACING_EM * digits.length
+        digits.sumOf { if (it == '−') MINUS_SCALE * (MINUS_ADVANCE_EM + LETTER_SPACING_EM) else DIGIT_EM + LETTER_SPACING_EM }
 
     /**
      * Наибольший масштаб блока, при котором он помещается в [widthDp] (с запасом по краям). Значок считается всегда,
