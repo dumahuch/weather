@@ -21,7 +21,7 @@ internal object ApkDownload {
 
     fun download(offer: ReleaseOffer, target: File, userAgent: String, onProgress: (Int) -> Unit) {
         val address = URI(offer.apkUrl)
-        if (address.scheme != "https") throw UpdateException("Адрес обновления без защищённого соединения")
+        if (address.scheme != "https") throw UpdateException(UpdateFailure.InsecureAddress)
         val deadline = System.nanoTime() + TOTAL_TIMEOUT_MS * NANOS_PER_MILLI
         val connection = address.toURL().openConnection() as HttpURLConnection
         try {
@@ -32,10 +32,10 @@ internal object ApkDownload {
             connection.setRequestProperty("User-Agent", userAgent)
             val status = connection.responseCode
             // GitHub отдаёт файл после перенаправления на свой сервер файлов: и там только https.
-            if (connection.url.protocol != "https") throw UpdateException("Обновление перенаправлено без защищённого соединения")
-            if (status !in 200..299) throw UpdateException("GitHub ответил кодом $status")
+            if (connection.url.protocol != "https") throw UpdateException(UpdateFailure.InsecureRedirect)
+            if (status !in 200..299) throw UpdateException(UpdateFailure.HttpStatus, code = status)
             val length = connection.contentLengthLong
-            if (length >= 0 && length != offer.size) throw UpdateException("Размер файла не совпадает с выпуском")
+            if (length >= 0 && length != offer.size) throw UpdateException(UpdateFailure.SizeMismatch)
             target.parentFile?.mkdirs()
             try {
                 connection.inputStream.use { input ->
@@ -46,7 +46,7 @@ internal object ApkDownload {
                 throw e
             }
         } catch (e: IOException) {
-            throw UpdateException("Нет связи с GitHub: ${e.message}", e)
+            throw UpdateException(UpdateFailure.NoConnection, cause = e)
         } finally {
             connection.disconnect()
         }
@@ -62,11 +62,11 @@ internal object ApkDownload {
         var total = 0L
         var percent = -1
         while (true) {
-            if (System.nanoTime() - deadlineNanos > 0) throw UpdateException("Скачивание идёт слишком долго")
+            if (System.nanoTime() - deadlineNanos > 0) throw UpdateException(UpdateFailure.TooSlow)
             val count = input.read(chunk)
             if (count < 0) break
             total += count
-            if (total > offer.size) throw UpdateException("Файл больше, чем в выпуске")
+            if (total > offer.size) throw UpdateException(UpdateFailure.TooBig)
             digest.update(chunk, 0, count)
             output.write(chunk, 0, count)
             val now = (total * 100 / offer.size).toInt()
@@ -75,8 +75,8 @@ internal object ApkDownload {
                 onProgress(now)
             }
         }
-        if (total != offer.size) throw UpdateException("Файл скачался не целиком")
+        if (total != offer.size) throw UpdateException(UpdateFailure.Incomplete)
         val hex = digest.digest().joinToString("") { "%02x".format(it) }
-        if (hex != offer.sha256) throw UpdateException("Контрольная сумма файла не совпадает с выпуском")
+        if (hex != offer.sha256) throw UpdateException(UpdateFailure.ChecksumMismatch)
     }
 }

@@ -24,11 +24,11 @@ import java.time.format.DateTimeParseException
 object OpenMeteoParser {
 
     fun parse(json: String): Forecast {
-        if (JsonGuard.tooDeep(json)) throw ForecastException("Ответ Open-Meteo устроен слишком сложно")
+        if (JsonGuard.tooDeep(json)) throw ForecastException("Open-Meteo response is too deeply nested")
         try {
             val root = JSONObject(json)
             if (root.optBoolean("error", false)) {
-                throw ForecastException("Open-Meteo: ${root.optString("reason", "ошибка без пояснения")}")
+                throw ForecastException("Open-Meteo: ${root.optString("reason", "error without explanation")}")
             }
             val zone = ZoneId.of(root.getString("timezone"))
             return Forecast(
@@ -40,9 +40,9 @@ object OpenMeteoParser {
                 hourDetails = parseHourDetails(root.getJSONObject("hourly")),
             )
         } catch (e: JSONException) {
-            throw ForecastException("Ответ Open-Meteo не разобран: ${e.message}", e)
+            throw ForecastException("Open-Meteo response not parsed: ${e.message}", e)
         } catch (e: DateTimeException) {
-            throw ForecastException("Неизвестный часовой пояс в ответе: ${e.message}", e)
+            throw ForecastException("Unknown time zone in the response: ${e.message}", e)
         }
     }
 
@@ -116,9 +116,9 @@ object OpenMeteoParser {
         val cloudCover = hourly.optJSONArray("cloud_cover")
         val probability = hourly.optJSONArray("precipitation_probability")
         val count = times.length()
-        if (count < 2) throw ForecastException("В ответе слишком мало часов: $count")
+        if (count < 2) throw ForecastException("Too few hours in the response: $count")
         if (listOf(temperatures, codes, isDay, precipitation).any { it.length() < count }) {
-            throw ForecastException("Массивы почасовых данных разной длины")
+            throw ForecastException("Hourly arrays differ in length")
         }
         return (0 until count - 1).map { i ->
             HourPoint(

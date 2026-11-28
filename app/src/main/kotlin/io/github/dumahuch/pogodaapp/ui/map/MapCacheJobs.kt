@@ -6,6 +6,7 @@ import android.app.job.JobScheduler
 import android.app.job.JobService
 import android.content.ComponentName
 import android.content.Context
+import io.github.dumahuch.pogodaapp.JobIds
 import io.github.dumahuch.pogodaapp.map.FrameDiskCache
 import java.io.File
 import java.time.Duration
@@ -24,7 +25,7 @@ fun mapModelRoot(context: Context): File = File(context.cacheDir, "map-model")
  * время не запускал приложение, кадры прошлых суток всё равно стираются при следующем запуске.
  */
 object MapCacheJobs {
-    private const val CLEANUP_ID = 7103
+    private const val CLEANUP_ID = JobIds.MAP_CLEANUP
     private val LATE: Duration = Duration.ofMinutes(15)
 
     fun scheduleCleanup(context: Context) {

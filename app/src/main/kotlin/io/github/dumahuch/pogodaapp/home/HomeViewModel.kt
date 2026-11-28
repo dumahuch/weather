@@ -32,10 +32,13 @@ import io.github.dumahuch.pogodaapp.weather.ForecastException
 import io.github.dumahuch.pogodaapp.weather.Place
 import io.github.dumahuch.pogodaapp.weather.PollenForecast
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -43,6 +46,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -88,6 +92,8 @@ class HomeViewModel(
     geocoding: GeocodingSource? = null,
     language: () -> String = { "en" },
     alerts: AlertsSource? = null,
+    /** Где читаются файлы и разбирается JSON: главный поток для этого не годится (в тестах подставляется тестовый). */
+    private val worker: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -140,7 +146,7 @@ class HomeViewModel(
 
     private var pollenOutcome: PollenOutcome? = null
 
-    private val alertFeed = AlertFeed(alerts, pollenRegions)
+    private val alertFeed = AlertFeed(alerts, pollenRegions, worker)
 
     /** Вызывается при каждом открытии экрана. Обновляет, если данные не свежие или были ошибки. */
     fun onResumed(permissionGranted: Boolean) {
@@ -341,8 +347,7 @@ class HomeViewModel(
     /** [persist] false у просмотра: ни сохранённой копии прогноза, ни чтения её, место ещё не закреплено. */
     private suspend fun loadPinned(place: PinnedPlace, persist: Boolean) = coroutineScope {
         val store = if (persist) pinnedCaches?.cacheFor(place.id) else null
-        val cached = store?.load()
-        val cachedForecast = cached?.let { parseOrNull(it.raw) }
+        val (cached, cachedForecast) = withContext(worker) { loadStored(store) }
         if (mutableState.value !is HomeUiState.Content) {
             mutableState.value = if (cached != null && cachedForecast != null) {
                 content(cached.place, cachedForecast, cached.savedAt, offline = false)
@@ -352,7 +357,7 @@ class HomeViewModel(
         }
         val fetched = try {
             val raw = source.fetchRaw(place.latitude, place.longitude)
-            raw to OpenMeteoParser.parse(raw)
+            raw to withContext(worker) { OpenMeteoParser.parse(raw) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -372,8 +377,7 @@ class HomeViewModel(
     }
 
     private suspend fun loadCurrent() = coroutineScope {
-        val cached = cache.load()
-        val cachedForecast = cached?.let { parseOrNull(it.raw) }
+        val (cached, cachedForecast) = withContext(worker) { loadStored(cache) }
         if (mutableState.value !is HomeUiState.Content) {
             mutableState.value = if (cached != null && cachedForecast != null) {
                 content(cached.place, cachedForecast, cached.savedAt, offline = false)
@@ -411,7 +415,7 @@ class HomeViewModel(
 
         val fetched = try {
             val raw = source.fetchRaw(point.latitude, point.longitude)
-            raw to OpenMeteoParser.parse(raw)
+            raw to withContext(worker) { OpenMeteoParser.parse(raw) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -482,7 +486,7 @@ class HomeViewModel(
         String.format(Locale.ROOT, "%.2f, %.2f", point.latitude, point.longitude)
 
     /** Добавляет название, только если на экране всё ещё этот прогноз для этого места и названия у него нет. */
-    private fun applyName(place: Place, name: String) {
+    private suspend fun applyName(place: Place, name: String) {
         val shown = snapshot ?: return
         val same = shown.place.latitude == place.latitude && shown.place.longitude == place.longitude
         if (!same || shown.place.name != null) return
@@ -490,10 +494,17 @@ class HomeViewModel(
     }
 
     /** [store] куда сохранять копию прогноза; null, если сохранять некуда (закреплённые места в тестах без папки). */
-    private fun publish(place: Place, forecast: Forecast, raw: String, savedAt: Instant, store: ForecastCache?) {
+    private suspend fun publish(place: Place, forecast: Forecast, raw: String, savedAt: Instant, store: ForecastCache?) {
         snapshot = Snapshot(place, forecast, raw, savedAt)
-        store?.save(ForecastCache.Entry(savedAt, place, raw))
         mutableState.value = content(place, forecast, savedAt, offline = false)
+        // Запись на диск уже после показа и вне главного потока; отмена загрузки её не обрывает, чтобы файл не остался половинным.
+        if (store != null) withContext(NonCancellable + worker) { store.save(ForecastCache.Entry(savedAt, place, raw)) }
+    }
+
+    /** Сохранённый прогноз и его разбор; вызывается вне главного потока. */
+    private fun loadStored(store: ForecastCache?): Pair<ForecastCache.Entry?, Forecast?> {
+        val entry = store?.load()
+        return entry to entry?.let { parseOrNull(it.raw) }
     }
 
     private fun showStaleOrNoData(cached: ForecastCache.Entry?, cachedForecast: Forecast?) {
@@ -509,7 +520,8 @@ class HomeViewModel(
         val source = air ?: return
         viewModelScope.launch {
             val quality: AirQuality? = try {
-                AirQualityParser.parse(source.fetchRaw(point.latitude, point.longitude), clock.instant())
+                val raw = source.fetchRaw(point.latitude, point.longitude)
+                withContext(worker) { AirQualityParser.parse(raw, clock.instant()) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -535,7 +547,7 @@ class HomeViewModel(
         if (pollenFor(Place(point.latitude, point.longitude, null)) != null) return
         viewModelScope.launch {
             val key: Int? = try {
-                locator.keyOf(point.latitude, point.longitude)
+                withContext(worker) { locator.keyOf(point.latitude, point.longitude) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -548,7 +560,8 @@ class HomeViewModel(
             }
             val now = clock.instant()
             val forecast: PollenForecast? = try {
-                PollenParser.parse(source.fetchRaw(), key, now.atZone(PollenZone).toLocalDate())
+                val raw = source.fetchRaw()
+                withContext(worker) { PollenParser.parse(raw, key, now.atZone(PollenZone).toLocalDate()) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

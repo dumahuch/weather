@@ -44,17 +44,19 @@ class WeatherNotifier(private val context: Context) {
     private val manager = context.getSystemService(NotificationManager::class.java)
     private val cache = ForecastCache(File(context.filesDir, ForecastCache.CURRENT_PLACE_FILE))
 
-    /** Фоновое обновление: свежий прогноз для запомненного места. Без места или при ошибке уведомление остаётся прежним. */
-    suspend fun refresh() {
+    /**
+     * Фоновое обновление: свежий прогноз для запомненного места (один запрос на запуск задачи, см. [JobForecast]). Без места
+     * или при ошибке уведомление остаётся прежним.
+     */
+    suspend fun refresh(forecastRequest: JobForecast = JobForecast(OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}"))) {
         val prefs = settings().notifications.value
         if (!prefs.wanted) {
             cancel()
             return
         }
         val entry = cache.load() ?: return
-        val client = OpenMeteoClient(userAgent = "PogodaApp/${AppVersion.read(context).name}")
         val forecast = try {
-            OpenMeteoParser.parse(client.fetchRaw(entry.place.latitude, entry.place.longitude))
+            OpenMeteoParser.parse(forecastRequest.raw(entry.place.latitude, entry.place.longitude))
         } catch (e: ForecastException) {
             // Нет сети: показываем сохранённый прогноз, пересчитанный на нынешний час, а не вчерашние градусы.
             postStored(entry)

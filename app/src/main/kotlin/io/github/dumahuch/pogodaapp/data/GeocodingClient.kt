@@ -48,11 +48,11 @@ object GeocodingParser {
      * Записи без названия или с неверными координатами пропускаются. Неразборчивый ответ даёт [ForecastException].
      */
     fun parse(raw: String): List<PlaceSuggestion> {
-        if (JsonGuard.tooDeep(raw)) throw ForecastException("Ответ поиска устроен слишком сложно")
+        if (JsonGuard.tooDeep(raw)) throw ForecastException("Search response is too deeply nested")
         val root = try {
             JSONObject(raw)
         } catch (e: JSONException) {
-            throw ForecastException("Ответ поиска не разобран: ${e.message}", e)
+            throw ForecastException("Search response not parsed: ${e.message}", e)
         }
         val results = root.optJSONArray("results") ?: return emptyList()
         val list = ArrayList<PlaceSuggestion>(results.length())

@@ -32,9 +32,9 @@ class UpdateInstaller(private val context: Context) {
     fun install(apk: File, installedCode: Long) {
         val manager = context.packageManager
         val archive = manager.getPackageArchiveInfo(apk.path, PackageManager.PackageInfoFlags.of(0))
-            ?: throw UpdateException("Скачанный файл не приложение")
-        if (archive.packageName != context.packageName) throw UpdateException("В файле другое приложение")
-        if (archive.longVersionCode <= installedCode) throw UpdateException("В файле не новее установленной версии")
+            ?: throw UpdateException(UpdateFailure.NotAnApp)
+        if (archive.packageName != context.packageName) throw UpdateException(UpdateFailure.WrongPackage)
+        if (archive.longVersionCode <= installedCode) throw UpdateException(UpdateFailure.NotNewer)
         val installer = manager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
@@ -53,7 +53,7 @@ class UpdateInstaller(private val context: Context) {
             }
         } catch (e: Exception) {
             installer.abandonSession(id)
-            throw if (e is UpdateException) e else UpdateException("Установка не началась: ${e.message}", e)
+            throw if (e is UpdateException) e else UpdateException(UpdateFailure.InstallNotStarted, cause = e)
         }
     }
 

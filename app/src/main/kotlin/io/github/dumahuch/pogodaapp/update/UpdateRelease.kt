@@ -7,8 +7,15 @@ import org.json.JSONObject
 /** Выпуск на GitHub, который можно поставить: номер версии, адрес APK, его SHA-256 (как его считает GitHub) и размер. */
 data class ReleaseOffer(val version: String, val apkUrl: String, val sha256: String, val size: Long)
 
-/** Ошибка проверки, скачивания или установки обновления: текст для строки в настройках. */
-class UpdateException(message: String, cause: Throwable? = null) : Exception(message, cause)
+/** Почему обновление не удалось. Человеку текст по причине даёт `UpdateCenter` из строк ресурсов (en/de/ru), в коде русских слов нет. */
+enum class UpdateFailure {
+    NoConnection, ReleaseUnreadable, NotAnApp, WrongPackage, NotNewer, InstallNotStarted, InsecureAddress, InsecureRedirect,
+    HttpStatus, SizeMismatch, TooSlow, TooBig, Incomplete, ChecksumMismatch,
+}
+
+/** Ошибка проверки, скачивания или установки обновления: [reason] (и [code] ответа сервера, если он есть); сообщение для журнала. */
+class UpdateException(val reason: UpdateFailure, val code: Int? = null, cause: Throwable? = null) :
+    Exception(if (code == null) reason.name else "${reason.name} $code", cause)
 
 /**
  * Последний выпуск PogodaApp на GitHub (0.8.69). Берётся только выпуск, а не черновик или предварительный, и только файл
