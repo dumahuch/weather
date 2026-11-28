@@ -25,7 +25,7 @@ fun mapModelRoot(context: Context): File = File(context.cacheDir, "map-model")
  * время не запускал приложение, кадры прошлых суток всё равно стираются при следующем запуске.
  */
 object MapCacheJobs {
-    private const val CLEANUP_ID = JobIds.MAP_CLEANUP
+    private val CLEANUP_ID = JobIds.MAP_CLEANUP
     private val LATE: Duration = Duration.ofMinutes(15)
 
     fun scheduleCleanup(context: Context) {

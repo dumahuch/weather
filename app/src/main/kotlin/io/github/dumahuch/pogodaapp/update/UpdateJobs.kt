@@ -19,7 +19,7 @@ import java.time.Duration
 
 /** Проверка обновления раз в сутки при любой сети (один короткий запрос к GitHub), пока включён выключатель. */
 object UpdateJobs {
-    private const val ID = JobIds.UPDATE_CHECK
+    private val ID = JobIds.UPDATE_CHECK
     private val PERIOD: Duration = Duration.ofHours(24)
     private val FLEX: Duration = Duration.ofHours(6)
 

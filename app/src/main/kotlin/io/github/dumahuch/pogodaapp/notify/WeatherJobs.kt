@@ -31,10 +31,10 @@ import java.time.ZonedDateTime
  * полчаса, только при сети; Android сам сдвигает запуск ради батареи, ночью реже. Задача переживает перезагрузку телефона.
  */
 object WeatherJobs {
-    private const val PERIODIC_ID = JobIds.WEATHER_PERIODIC
-    private const val NOW_ID = JobIds.WEATHER_NOW
-    private const val SUMMARY_A = JobIds.SUMMARY_A
-    private const val SUMMARY_B = JobIds.SUMMARY_B
+    private val PERIODIC_ID = JobIds.WEATHER_PERIODIC
+    private val NOW_ID = JobIds.WEATHER_NOW
+    private val SUMMARY_A = JobIds.SUMMARY_A
+    private val SUMMARY_B = JobIds.SUMMARY_B
     private val PERIOD: Duration = Duration.ofMinutes(30)
     private val FLEX: Duration = Duration.ofMinutes(10)
 

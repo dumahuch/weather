@@ -27,8 +27,8 @@ import java.time.ZonedDateTime
  */
 object MapPreloadJobs {
     /** Задача, которая идёт сейчас, ставит следующую под другим номером: одинаковый номер остановил бы её саму. */
-    private const val ID_A = JobIds.MAP_PRELOAD_A
-    private const val ID_B = JobIds.MAP_PRELOAD_B
+    private val ID_A = JobIds.MAP_PRELOAD_A
+    private val ID_B = JobIds.MAP_PRELOAD_B
 
     /**
      * Ставит задачу на ближайшие [MapPreload.AT], если она ещё не стоит; повторный вызов ничего не дублирует. [runningId]

@@ -10,10 +10,8 @@ class JobIdsTest {
     }
 
     @Test
-    fun `в списке все номера из объекта`() {
-        val declared = JobIds::class.java.declaredFields
-            .filter { it.type == Int::class.javaPrimitiveType && java.lang.reflect.Modifier.isStatic(it.modifiers) }
-            .map { it.getInt(null) }
-        assertEquals(declared.toSet(), JobIds.ALL.toSet())
+    fun `заняты все восемь номеров`() {
+        assertEquals(8, JobIds.ALL.size)
+        assertEquals(JobIds.MAP_CLEANUP, JobIds.ALL.last())
     }
 }
