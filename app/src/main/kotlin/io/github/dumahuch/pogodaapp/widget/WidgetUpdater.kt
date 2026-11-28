@@ -47,7 +47,7 @@ class WidgetUpdater(private val context: Context) {
         if (!hasWidgets()) return
         val entry = cache.load() ?: return
         // Без сети запрос падает, но виджет всё равно перерисовывается: по возрасту данных он сам перейдёт на часовой ряд
-        // или на «Нет данных». Сбой при этом уходит дальше, в строку ошибки в настройках.
+        // или на «Нет данных». Сбой уходит дальше, в фоновую задачу: сбой сети там только в журнале, прочее в строке ошибки настроек.
         try {
             if (Duration.between(entry.savedAt, Instant.now()) > FRESH) {
                 val raw = forecastRequest.raw(entry.place.latitude, entry.place.longitude)
